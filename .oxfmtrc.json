@@ -1,0 +1,9 @@
+{
+    "useTabs": false,
+    "singleQuote": false,
+    "tabWidth": 4,
+    "semi": false,
+    "printWidth": 100,
+    "svelte": true,
+    "ignorePatterns": ["src/lib/paraglide/**"]
+}
