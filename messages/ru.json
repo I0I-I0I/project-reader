@@ -1,4 +1,9 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"hello_world": "Hello, {name} from ru!"
+	"library": "БИБЛИОТЕКА",
+	"root": "КОРЕНЬ",
+	"new_folder": "НОВАЯ ПАПКА",
+	"import_book": "ИМПОРТИРОВАТЬ КНИГУ",
+	"test": "ТЕСТ",
+	"book_title": "6. ГРОКАЕМ АЛГОРИТМЫ"
 }
