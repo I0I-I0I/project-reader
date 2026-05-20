@@ -20,6 +20,6 @@
    - **Rule**: Avoid generic colors or browser defaults. Use curated, vibrant color palettes, HSL variables, sleek dark modes, glassmorphism, dynamic transitions, and modern typography (Google Fonts like Outfit, Inter, Playfair Display).
    - Do NOT use Tailwind CSS unless the user explicitly requests it.
 
-3. **Styling & Design System**: **Vanilla CSS / Custom Styles**
+4. **Styling & Design System**: **Vanilla CSS / Custom Styles**
    - **Rule**: Avoid generic colors or browser defaults. Use curated, vibrant color palettes, HSL variables, sleek dark modes, glassmorphism, dynamic transitions, and modern typography (Google Fonts like Outfit, Inter, Playfair Display).
    - Do NOT use Tailwind CSS unless the user explicitly requests it.
