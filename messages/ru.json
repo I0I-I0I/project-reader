@@ -5,5 +5,14 @@
 	"new_folder": "НОВАЯ ПАПКА",
 	"import_book": "ИМПОРТИРОВАТЬ КНИГУ",
 	"test": "ТЕСТ",
-	"book_title": "6. ГРОКАЕМ АЛГОРИТМЫ"
+	"book_title": "6. ГРОКАЕМ АЛГОРИТМЫ",
+	"theme": "ТЕМА",
+	"system": "СИСТЕМА",
+	"dark": "ТЕМНАЯ",
+	"light": "СВЕТЛАЯ",
+	"breadcrumb": "НАВИГАЦИОННАЯ ЦЕПОЧКА",
+	"action_controls": "УПРАВЛЕНИЕ",
+	"language_switcher": "ВЫБОР ЯЗЫКА",
+	"select_theme": "ВЫБРАТЬ ТЕМУ",
+	"file_format": "ФОРМАТ ФАЙЛА"
 }

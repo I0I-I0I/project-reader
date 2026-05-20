@@ -1,4 +1,6 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
+
 	interface Props {
 		breadcrumbs: string[];
 	}
@@ -6,7 +8,7 @@
 	let { breadcrumbs }: Props = $props();
 </script>
 
-<nav aria-label="Breadcrumb" class="breadcrumbs-nav">
+<nav aria-label={m.breadcrumb()} class="breadcrumbs-nav">
 	<ol class="breadcrumbs-list">
 		{#each breadcrumbs as breadcrumb, idx (breadcrumb + '_' + idx)}
 			<li class="breadcrumb-item">
@@ -48,7 +50,7 @@
 	}
 
 	.separator {
-		color: #1a1a1a;
+		color: var(--text-color);
 		font-size: var(--font-size);
 		font-weight: bold;
 		user-select: none;
@@ -59,7 +61,7 @@
 		font-weight: normal;
 		text-transform: uppercase;
 		margin: 0;
-		color: #1a1a1a;
+		color: var(--text-color);
 		letter-spacing: 1px;
 	}
 

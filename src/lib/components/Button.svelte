@@ -35,7 +35,7 @@
 		text-transform: uppercase;
 		cursor: pointer;
 		padding: 0;
-		color: #1a1a1a;
+		color: var(--text-color);
 		position: relative;
 	}
 
@@ -44,8 +44,8 @@
 		bottom: calc(100% + 10px);
 		left: 50%;
 		transform: translateX(-50%) translateY(4px);
-		background-color: #1a1a1a;
-		color: #f5f0e1;
+		background-color: var(--tooltip-bg);
+		color: var(--tooltip-text);
 		padding: 6px 12px;
 		font-size: 11px;
 		font-weight: bold;
@@ -70,7 +70,7 @@
 		transform: translateX(-50%);
 		border-width: 5px;
 		border-style: solid;
-		border-color: #1a1a1a transparent transparent transparent;
+		border-color: var(--tooltip-bg) transparent transparent transparent;
 	}
 
 	.action-btn:hover .tooltip,

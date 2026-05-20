@@ -5,5 +5,14 @@
 	"new_folder": "NEW FOLDER",
 	"import_book": "IMPORT BOOK",
 	"test": "TEST",
-	"book_title": "6. GROKKING ALGORITHMS"
+	"book_title": "6. GROKKING ALGORITHMS",
+	"theme": "THEME",
+	"system": "SYSTEM",
+	"dark": "DARK",
+	"light": "LIGHT",
+	"breadcrumb": "BREADCRUMB",
+	"action_controls": "ACTION CONTROLS",
+	"language_switcher": "LANGUAGE SWITCHER",
+	"select_theme": "SELECT THEME",
+	"file_format": "FILE FORMAT"
 }

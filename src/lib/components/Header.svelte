@@ -2,6 +2,7 @@
 	import NewFolderIcon from '$lib/components/icons/NewFolderIcon.svelte';
 	import ImportBookIcon from '$lib/components/icons/ImportBookIcon.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 	import type { Pathname } from '$app/types';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -14,7 +15,7 @@
 		<h1 class="title" data-text={m.library()}>{m.library()}</h1>
 	</div>
 	<div class="actions-wrapper">
-		<nav class="action-nav">
+		<nav class="action-nav" aria-label={m.action_controls()}>
 			<div class="header-btn-wrapper">
 				<Button Icon={NewFolderIcon} aria-label={m.new_folder()} on_hover={m.new_folder()} />
 			</div>
@@ -23,7 +24,9 @@
 			</div>
 		</nav>
 
-		<nav class="lang-switcher" aria-label="Language switcher">
+		<ThemeSwitcher />
+
+		<nav class="lang-switcher" aria-label={m.language_switcher()}>
 			{#each locales as locale (locale)}
 				<a
 					data-sveltekit-reload
@@ -44,7 +47,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
-		border-bottom: 3px solid #1a1a1a;
+		border-bottom: 3px solid var(--border-color);
 		padding-bottom: 24px;
 		margin-bottom: 40px;
 		gap: 20px;
@@ -62,7 +65,7 @@
 		letter-spacing: -2px;
 		position: relative;
 		display: inline-block;
-		color: #1a1a1a;
+		color: var(--text-color);
 		line-height: 1;
 	}
 
@@ -79,32 +82,32 @@
 	}
 
 	.header-btn-wrapper :global(.action-btn) {
-		background: white;
-		border: 2px solid #1a1a1a;
+		background: var(--button-bg);
+		border: 2px solid var(--border-color);
 		padding: 8px 16px;
-		box-shadow: 2px 2px 0 #1a1a1a;
+		box-shadow: 2px 2px 0 var(--shadow-color);
 		transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	.header-btn-wrapper :global(.action-btn:hover) {
 		transform: translate(-2px, -2px);
-		box-shadow: 4px 4px 0 #1a1a1a;
-		background: #faf8f5;
+		box-shadow: 4px 4px 0 var(--shadow-color);
+		background: var(--button-hover-bg);
 	}
 
 	.header-btn-wrapper :global(.action-btn:active) {
 		transform: translate(2px, 2px);
-		box-shadow: 0px 0px 0 #1a1a1a;
+		box-shadow: 0px 0px 0 var(--shadow-color);
 	}
 
 	.lang-switcher {
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		border: 2px solid #1a1a1a;
-		background: white;
+		border: 2px solid var(--border-color);
+		background: var(--button-bg);
 		padding: 4px;
-		box-shadow: 2px 2px 0 #1a1a1a;
+		box-shadow: 2px 2px 0 var(--shadow-color);
 		font-family: inherit;
 		font-size: 12px;
 		font-weight: bold;
@@ -113,18 +116,18 @@
 
 	.lang-link {
 		text-decoration: none;
-		color: #1a1a1a;
+		color: var(--text-color);
 		padding: 6px 12px;
 		transition: all 0.15s ease;
 	}
 
 	.lang-link:hover {
-		background: rgba(0, 0, 0, 0.05);
+		background: var(--link-hover-bg);
 	}
 
 	.lang-link.active {
-		background: #1a1a1a;
-		color: #f5f0e1;
+		background: var(--text-color);
+		color: var(--bg-color);
 	}
 
 	@media (max-width: 768px) {

@@ -12,8 +12,8 @@
 	<Breadcrumbs breadcrumbs={[m.library(), m.test()]} />
 
 	<main class="grid">
-		<Card title={m.test()} card_type="folder" Icon={FolderIcon} />
-		<Card title={m.book_title()} card_type="book" extension="pdf" Icon={BookIcon} />
+		<Card title={m.test()} kind="folder" Icon={FolderIcon} />
+		<Card title={m.book_title()} kind="book" extension="pdf" Icon={BookIcon} />
 	</main>
 </div>
 
