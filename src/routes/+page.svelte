@@ -3,14 +3,36 @@
     import Header from "$lib/components/Header.svelte"
     import Breadcrumbs from "$lib/components/Breadcrumbs.svelte"
     import BookImporter from "$lib/components/BookImporter.svelte"
+    import BookIcon from "$lib/components/icons/BookIcon.svelte"
+
+    import { viewerStore, type Book } from "$lib/viewerStore.svelte"
+    import { onMount } from "svelte"
+    import Card from "$lib/components/Card.svelte"
+
+    let books = $state<Book[]>([])
+
+    onMount(() => {
+        const book = viewerStore.getBooks()
+        if (book) {
+            books = book
+        }
+    })
 </script>
 
 <div class="container">
     <Header />
-    <Breadcrumbs breadcrumbs={[m.library(), m.test()]} />
+    {#if books.length !== 0}
+        <Breadcrumbs breadcrumbs={[m.library(), m.test()]} />
+    {/if}
 
     <main class="grid">
-        <BookImporter />
+        {#if books.length !== 0}
+            {#each books as book}
+                <Card {book} kind="book" extension="pdf" Icon={BookIcon} />
+            {/each}
+        {:else}
+            <BookImporter />
+        {/if}
     </main>
 </div>
 

@@ -10,20 +10,21 @@
 
     let { onimport }: Props = $props()
 
-    let files = $state<FileList | null>(null)
-
-    $effect(() => {
-        if (files && files.length > 0) {
-            const file = files[0]
+    function handleFileChange(event: Event) {
+        const target = event.target as HTMLInputElement
+        const fileList = target.files
+        if (fileList && fileList.length > 0) {
+            const file = fileList[0]
             const name = file.name
             const url = URL.createObjectURL(file)
-            viewerStore.setBook({ url, name })
+            viewerStore.setCurrentBook({ url, name })
+            viewerStore.addBook({ url, name })
             if (onimport) {
                 onimport({ url, name })
             }
             goto("/viewer")
         }
-    })
+    }
 </script>
 
 <div class="reader-card">
@@ -36,7 +37,12 @@
             <p>{m.upload_p_text()}</p>
             <label class="btn upload-btn">
                 {m.choose_pdf()}
-                <input type="file" accept=".pdf" bind:files style="display: none;" />
+                <input
+                    type="file"
+                    accept=".pdf"
+                    onchange={handleFileChange}
+                    style="display: none;"
+                />
             </label>
         </div>
     </div>

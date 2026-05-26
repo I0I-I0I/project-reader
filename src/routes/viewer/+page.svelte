@@ -7,20 +7,19 @@
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { goto } from "$app/navigation"
 
-    // Subcomponents
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
 
     onMount(() => {
-        if (!viewerStore.book) {
+        if (!viewerStore.getCurrentBook()) {
             goto("/")
         }
     })
 
-    const url = $derived(viewerStore.book?.url ?? "")
-    const name = $derived(viewerStore.book?.name ?? "")
+    const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
+    const name = $derived(viewerStore.getCurrentBook()?.name ?? "")
 
     let pdf = $state.raw<PDFDocument | null>(null)
     let isLoaded = $state(false)
@@ -187,10 +186,7 @@
     })
 
     function handleClose() {
-        if (viewerStore.book) {
-            URL.revokeObjectURL(viewerStore.book.url)
-        }
-        viewerStore.setBook(null)
+        viewerStore.setCurrentBook(null)
         goto("/")
     }
 </script>

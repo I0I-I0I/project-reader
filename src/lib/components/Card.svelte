@@ -2,18 +2,25 @@
     import type { Component } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
+    import { goto } from "$app/navigation"
+    import { viewerStore, type Book } from "$lib/viewerStore.svelte"
 
     interface Props extends HTMLButtonAttributes {
-        title: string
+        book: Book
         kind: "folder" | "book"
         extension?: "pdf" | "epub"
         Icon?: Component
     }
 
-    let { title, Icon, kind, extension, ...props }: Props = $props()
+    let { book, Icon, kind, extension, ...props }: Props = $props()
+
+    const onClick = () => {
+        viewerStore.setCurrentBook(book)
+        goto("/viewer")
+    }
 </script>
 
-<button class="card" {...props}>
+<button class="card" onclick={onClick} {...props}>
     {#if kind === "book" && extension}
         <div class="badge" aria-label="{m.file_format()}: {extension}">
             {extension}
@@ -26,7 +33,7 @@
         </div>
     {/if}
 
-    <p class="card-title">{title}</p>
+    <p class="card-title">{book.name}</p>
 </button>
 
 <style>
