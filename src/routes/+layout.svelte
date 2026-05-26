@@ -71,4 +71,10 @@
         padding: 40px;
         min-height: 100dvh;
     }
+
+    @media (max-width: 768px) {
+        .app {
+            padding: 20px 16px;
+        }
+    }
 </style>

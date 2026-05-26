@@ -36,11 +36,16 @@
 </script>
 
 <div class="viewer-footer">
-    <Button onclick={prevValidPage} disabled={currentPage <= 1 || isPageLoading}>
-        {m.prev_page()}
+    <Button
+        onclick={prevValidPage}
+        disabled={currentPage <= 1 || isPageLoading}
+        aria-label={m.prev_page()}
+    >
+        <span class="btn-text">{m.prev_page()}</span>
+        <span class="btn-arrow">←</span>
     </Button>
     <div class="pagination-indicator">
-        {m.page()}
+        <span class="page-label">{m.page()}</span>
         <input
             type="number"
             value={currentPage}
@@ -52,8 +57,13 @@
         />
         {m.of_pages({ total: totalPages })}
     </div>
-    <Button onclick={nextValidPage} disabled={currentPage >= totalPages || isPageLoading}>
-        {m.next_page()}
+    <Button
+        onclick={nextValidPage}
+        disabled={currentPage >= totalPages || isPageLoading}
+        aria-label={m.next_page()}
+    >
+        <span class="btn-text">{m.next_page()}</span>
+        <span class="btn-arrow">→</span>
     </Button>
 </div>
 
@@ -132,5 +142,53 @@
     .page-input:disabled {
         background: var(--page-input-disabled-bg);
         cursor: not-allowed;
+    }
+
+    .btn-arrow {
+        display: none;
+    }
+
+    @media (max-width: 600px) {
+        .viewer-footer {
+            padding: 8px 12px;
+            border-top-width: 2px;
+        }
+
+        .viewer-footer :global(.action-btn) {
+            min-width: 40px !important;
+            width: 40px;
+            height: 40px;
+            padding: 0 !important;
+            box-shadow: 2px 2px 0 var(--shadow-color);
+        }
+
+        .btn-text {
+            display: none;
+        }
+
+        .btn-arrow {
+            display: inline-block;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .pagination-indicator {
+            font-size: 12px;
+            gap: 4px;
+        }
+
+        .page-input {
+            width: 44px;
+            height: 28px;
+            font-size: 12px;
+            border-width: 1.5px;
+            box-shadow: 1.5px 1.5px 0 var(--shadow-color);
+        }
+    }
+
+    @media (max-width: 400px) {
+        .page-label {
+            display: none;
+        }
     }
 </style>

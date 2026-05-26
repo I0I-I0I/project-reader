@@ -235,4 +235,51 @@
     .card-importer {
         background-color: rgb(0 0 0 / 0);
     }
+
+    @media (max-width: 600px) {
+        .card {
+            padding: 12px;
+        }
+
+        .card-icon {
+            margin-bottom: 10px;
+        }
+
+        .card-icon :global(svg) {
+            width: 36px;
+            height: 36px;
+        }
+
+        .card-title {
+            font-size: 11px;
+            max-width: 100%;
+        }
+
+        .upload-zone {
+            padding: 24px 16px;
+        }
+
+        .dashed-border {
+            padding: 24px 12px;
+            gap: 12px;
+        }
+
+        .dashed-border h3 {
+            font-size: 18px;
+        }
+
+        .dashed-border p {
+            font-size: 12px;
+        }
+
+        .upload-icon-wrapper {
+            padding: 12px;
+            margin-bottom: 4px;
+        }
+
+        .upload-icon-wrapper :global(svg) {
+            width: 36px;
+            height: 36px;
+        }
+    }
 </style>

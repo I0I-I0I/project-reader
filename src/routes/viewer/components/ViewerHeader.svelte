@@ -33,7 +33,8 @@
     </div>
     <div class="header-actions">
         <Button onclick={onClose} aria-label={m.close_document()}>
-            {m.close()} ×
+            <span class="close-text">{m.close()} ×</span>
+            <span class="close-icon">×</span>
         </Button>
     </div>
 </div>
@@ -126,5 +127,57 @@
         transform: translate(1px, 1px);
         box-shadow: 1px 1px 0 var(--shadow-color);
         background: var(--viewer-accent-active);
+    }
+
+    .close-icon {
+        display: none;
+    }
+
+    @media (max-width: 600px) {
+        .viewer-header {
+            padding: 8px 12px;
+            border-bottom-width: 2px;
+        }
+
+        .burger-btn {
+            width: 32px;
+            height: 32px;
+            margin-right: 4px;
+        }
+
+        .file-name {
+            font-size: 12px;
+        }
+
+        .file-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+        }
+
+        .close-text {
+            display: none;
+        }
+
+        .close-icon {
+            display: inline-block;
+            font-size: 16px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .header-actions :global(.action-btn) {
+            min-width: unset;
+            padding: 4px 8px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .file-badge {
+            display: none;
+        }
     }
 </style>

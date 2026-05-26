@@ -208,4 +208,14 @@
         background: var(--text-color);
         color: var(--bg-color);
     }
+
+    @media (max-width: 480px) {
+        .current-label {
+            display: none;
+        }
+
+        .switcher-trigger {
+            padding: 6px 8px;
+        }
+    }
 </style>

@@ -106,4 +106,31 @@
         z-index: 10;
         text-transform: uppercase;
     }
+
+    @media (max-width: 600px) {
+        .card {
+            padding: 12px;
+        }
+
+        .card-icon {
+            margin-bottom: 10px;
+        }
+
+        .card-icon :global(svg) {
+            width: 36px;
+            height: 36px;
+        }
+
+        .card-title {
+            font-size: 11px;
+            max-width: 100%;
+        }
+
+        .badge {
+            top: 8px;
+            right: 8px;
+            font-size: 9px;
+            padding: 2px 6px;
+        }
+    }
 </style>

@@ -204,6 +204,12 @@
                         </div>
                     {:else}
                         {#if isOutlineOpen}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="sidebar-backdrop"
+                                onclick={() => (isOutlineOpen = false)}
+                            ></div>
                             <OutlineSidebar
                                 {isOutlineLoading}
                                 {outlineList}
@@ -319,5 +325,31 @@
         align-items: center;
         justify-content: center;
         height: 100%;
+    }
+
+    .sidebar-backdrop {
+        display: none;
+    }
+
+    @media (max-width: 800px) {
+        .sidebar-backdrop {
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px);
+            z-index: 4;
+            cursor: pointer;
+            animation: fade-in 0.2s ease-out;
+        }
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
     }
 </style>

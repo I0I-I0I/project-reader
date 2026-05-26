@@ -230,12 +230,12 @@
         .outline-sidebar {
             position: absolute;
             left: 0;
-            top: 59px;
+            top: 0;
             bottom: 0;
             box-shadow: 5px 0 15px var(--shadow-color);
             border-right: 3px solid var(--border-color);
-            max-width: 80%;
-            height: calc(100% - 59px);
+            max-width: 85%;
+            height: 100%;
         }
     }
 </style>

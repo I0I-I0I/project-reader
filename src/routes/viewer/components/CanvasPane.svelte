@@ -68,4 +68,20 @@
         box-shadow: 4px 4px 0 var(--shadow-color);
         display: block;
     }
+
+    @media (max-width: 600px) {
+        .canvas-pane {
+            padding: 6px;
+        }
+
+        .canvas-frame {
+            padding: 6px;
+            border-width: 1.5px;
+        }
+
+        .pdf-image {
+            border-width: 1.5px;
+            box-shadow: 2px 2px 0 var(--shadow-color);
+        }
+    }
 </style>
