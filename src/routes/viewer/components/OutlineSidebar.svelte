@@ -10,36 +10,36 @@
         currentPage = $bindable(),
         activeHeadings,
         onCloseOutline,
+        onMouseLeave,
     } = $props<{
         isOutlineLoading: boolean
         outlineList: FlatHeading[] | null
         currentPage: number
         activeHeadings: Set<FlatHeading>
         onCloseOutline: () => void
+        onMouseLeave?: (e: MouseEvent) => void
     }>()
 
     function slideAndFly(node: HTMLElement, { duration = 150 }) {
-        const isMobile = typeof window !== "undefined" && window.innerWidth <= 800
         return {
             duration,
             css: (t: number) => {
                 const eased = cubicOut(t)
-                if (isMobile) {
-                    return `
-                        transform: translateX(${(eased - 1) * 100}%);
-                    `
-                } else {
-                    return `
-                        transform: translateX(${(eased - 1) * 100}%);
-                        margin-left: ${(eased - 1) * 280}px;
-                    `
-                }
+                return `
+                    transform: translateX(${(eased - 1) * 100}%);
+                `
             },
         }
     }
 </script>
 
-<div class="outline-sidebar" transition:slideAndFly={{ duration: 150 }}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+    class="outline-sidebar"
+    transition:slideAndFly={{ duration: 150 }}
+    onmouseleave={onMouseLeave}
+    onclick={(e) => e.stopPropagation()}
+>
     <div class="sidebar-header">
         <h3>{m.outline()}</h3>
         <button class="close-sidebar-btn" onclick={onCloseOutline} aria-label={m.close()}>
@@ -83,16 +83,19 @@
 
 <style>
     .outline-sidebar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
         width: 280px;
-        min-width: 280px;
         background: var(--sidebar-content-bg);
         border-right: 3px solid var(--border-color);
-        height: 100%;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        z-index: 5;
+        z-index: 10;
         box-sizing: border-box;
+        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.1);
     }
 
     .sidebar-header {
@@ -228,14 +231,7 @@
 
     @media (max-width: 800px) {
         .outline-sidebar {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            box-shadow: 5px 0 15px var(--shadow-color);
-            border-right: 3px solid var(--border-color);
             max-width: 85%;
-            height: 100%;
         }
     }
 </style>

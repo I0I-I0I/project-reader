@@ -29,7 +29,6 @@
     .canvas-pane {
         display: flex;
         flex-direction: column;
-        padding: 20px;
         height: 100%;
         box-sizing: border-box;
         overflow: hidden;
@@ -39,7 +38,6 @@
 
     .canvas-frame {
         flex: 1;
-        border: 2px solid var(--border-color);
         background: var(--canvas-frame-bg);
         background-image: radial-gradient(var(--border-color) 1px, transparent 0);
         background-size: 24px 24px;
