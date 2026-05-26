@@ -30,6 +30,7 @@
             {#each books as book}
                 <Card {book} kind="book" extension="pdf" Icon={BookIcon} />
             {/each}
+            <BookImporter variant="card" />
         {:else}
             <BookImporter />
         {/if}

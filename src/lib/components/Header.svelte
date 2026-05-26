@@ -23,13 +23,6 @@
                     on_hover={m.new_folder()}
                 />
             </div>
-            <div class="header-btn-wrapper">
-                <Button
-                    Icon={ImportBookIcon}
-                    aria-label={m.import_book()}
-                    on_hover={m.import_book()}
-                />
-            </div>
         </nav>
 
         <ThemeSwitcher />

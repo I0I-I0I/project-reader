@@ -6,9 +6,12 @@
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
+        variant?: "full" | "card"
     }
 
-    let { onimport }: Props = $props()
+    let { onimport, variant = "full" }: Props = $props()
+
+    let fileInput = $state<HTMLInputElement | null>(null)
 
     function handleFileChange(event: Event) {
         const target = event.target as HTMLInputElement
@@ -27,26 +30,42 @@
     }
 </script>
 
-<div class="reader-card">
-    <div class="upload-zone">
-        <div class="dashed-border">
-            <div class="upload-icon-wrapper" aria-hidden="true">
-                <PlusIcon width="48" height="48" />
+{#if variant === "card"}
+    <button type="button" class="card card-importer" onclick={() => fileInput?.click()}>
+        <div class="card-icon" aria-hidden="true">
+            <PlusIcon />
+        </div>
+        <p class="card-title">{m.import_pdf()}</p>
+    </button>
+    <input
+        bind:this={fileInput}
+        type="file"
+        accept=".pdf"
+        onchange={handleFileChange}
+        style="display: none;"
+    />
+{:else}
+    <div class="reader-card">
+        <div class="upload-zone">
+            <div class="dashed-border">
+                <div class="upload-icon-wrapper" aria-hidden="true">
+                    <PlusIcon width="48" height="48" />
+                </div>
+                <h3>{m.import_pdf()}</h3>
+                <p>{m.upload_p_text()}</p>
+                <label class="btn upload-btn">
+                    {m.choose_pdf()}
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        onchange={handleFileChange}
+                        style="display: none;"
+                    />
+                </label>
             </div>
-            <h3>{m.import_pdf()}</h3>
-            <p>{m.upload_p_text()}</p>
-            <label class="btn upload-btn">
-                {m.choose_pdf()}
-                <input
-                    type="file"
-                    accept=".pdf"
-                    onchange={handleFileChange}
-                    style="display: none;"
-                />
-            </label>
         </div>
     </div>
-</div>
+{/if}
 
 <style>
     .reader-card {
@@ -154,5 +173,66 @@
     .upload-btn:hover {
         background: var(--badge-bg);
         opacity: 0.9;
+    }
+
+    /* Card variant styles */
+    .card {
+        background: var(--card-bg);
+        aspect-ratio: 1/1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+        border: 2px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        font-family: inherit;
+        text-align: center;
+        color: inherit;
+        user-select: none;
+        box-sizing: border-box;
+    }
+
+    .card:hover {
+        transform: translate(-4px, -4px);
+        box-shadow: 8px 8px 0 var(--shadow-color);
+        background-color: var(--card-hover-bg);
+    }
+
+    .card:active {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+
+    .card-icon {
+        margin-bottom: 20px;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-icon :global(svg) {
+        width: 48px;
+        height: 48px;
+        stroke-width: 2;
+    }
+
+    .card-title {
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin: 0;
+        text-align: center;
+        max-width: 180px;
+        word-wrap: break-word;
+        color: var(--text-color);
+    }
+
+    .card-importer {
+        background-color: rgb(0 0 0 / 0);
     }
 </style>
