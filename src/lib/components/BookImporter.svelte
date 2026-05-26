@@ -2,7 +2,6 @@
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/viewerStore.svelte"
-    import { goto } from "$app/navigation"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -12,26 +11,68 @@
     let { onimport, variant = "full" }: Props = $props()
 
     let fileInput = $state<HTMLInputElement | null>(null)
+    let dragCount = $state(0)
+    let isDragging = $derived(dragCount > 0)
+
+    function processFiles(files: FileList | File[]) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                continue
+            }
+            const name = file.name
+            const url = URL.createObjectURL(file)
+            viewerStore.addBook({ url, name })
+            if (onimport) {
+                onimport({ url, name })
+            }
+        }
+    }
 
     function handleFileChange(event: Event) {
         const target = event.target as HTMLInputElement
         const fileList = target.files
         if (fileList && fileList.length > 0) {
-            const file = fileList[0]
-            const name = file.name
-            const url = URL.createObjectURL(file)
-            viewerStore.setCurrentBook({ url, name })
-            viewerStore.addBook({ url, name })
-            if (onimport) {
-                onimport({ url, name })
-            }
-            goto("/viewer")
+            processFiles(fileList)
+        }
+    }
+
+    function handleDragEnter(event: DragEvent) {
+        event.preventDefault()
+        dragCount++
+    }
+
+    function handleDragLeave(event: DragEvent) {
+        event.preventDefault()
+        dragCount = Math.max(0, dragCount - 1)
+    }
+
+    function handleDragOver(event: DragEvent) {
+        event.preventDefault()
+    }
+
+    function handleDrop(event: DragEvent) {
+        event.preventDefault()
+        dragCount = 0
+
+        const files = event.dataTransfer?.files
+        if (files && files.length > 0) {
+            processFiles(files)
         }
     }
 </script>
 
 {#if variant === "card"}
-    <button type="button" class="card card-importer" onclick={() => fileInput?.click()}>
+    <button
+        type="button"
+        class="card card-importer"
+        class:drag-active={isDragging}
+        onclick={() => fileInput?.click()}
+        ondragenter={handleDragEnter}
+        ondragleave={handleDragLeave}
+        ondragover={handleDragOver}
+        ondrop={handleDrop}
+    >
         <div class="card-icon" aria-hidden="true">
             <PlusIcon />
         </div>
@@ -41,11 +82,21 @@
         bind:this={fileInput}
         type="file"
         accept=".pdf"
+        multiple
         onchange={handleFileChange}
         style="display: none;"
     />
 {:else}
-    <div class="reader-card">
+    <div
+        class="reader-card"
+        class:drag-active={isDragging}
+        role="region"
+        aria-label="PDF drop zone"
+        ondragenter={handleDragEnter}
+        ondragleave={handleDragLeave}
+        ondragover={handleDragOver}
+        ondrop={handleDrop}
+    >
         <div class="upload-zone">
             <div class="dashed-border">
                 <div class="upload-icon-wrapper" aria-hidden="true">
@@ -58,6 +109,7 @@
                     <input
                         type="file"
                         accept=".pdf"
+                        multiple
                         onchange={handleFileChange}
                         style="display: none;"
                     />
@@ -281,5 +333,49 @@
             width: 36px;
             height: 36px;
         }
+    }
+
+    /* Drag and drop active states */
+    .card.drag-active {
+        background-color: var(--card-hover-bg);
+        border-color: var(--badge-bg);
+        transform: translate(-6px, -6px);
+        box-shadow: 8px 8px 0 var(--shadow-color);
+    }
+
+    .reader-card.drag-active {
+        border-color: var(--badge-bg);
+        background-color: var(--card-hover-bg);
+        transform: translate(-4px, -4px);
+        box-shadow: 12px 12px 0 var(--shadow-color);
+    }
+
+    .reader-card.drag-active .dashed-border {
+        border-color: var(--badge-bg);
+        background: rgba(255, 77, 77, 0.04);
+    }
+
+    :global(html.dark) .reader-card.drag-active .dashed-border {
+        background: rgba(184, 82, 68, 0.04);
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-8px);
+        }
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
+    .reader-card.drag-active .upload-icon-wrapper,
+    .card.drag-active .card-icon {
+        animation: float 1.2s ease-in-out infinite;
+        border-color: var(--badge-bg);
+        background: var(--badge-bg);
+        color: var(--badge-text);
     }
 </style>

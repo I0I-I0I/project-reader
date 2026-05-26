@@ -5,18 +5,10 @@
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
 
-    import { viewerStore, type Book } from "$lib/viewerStore.svelte"
-    import { onMount } from "svelte"
+    import { viewerStore } from "$lib/viewerStore.svelte"
     import Card from "$lib/components/Card.svelte"
 
-    let books = $state<Book[]>([])
-
-    onMount(() => {
-        const book = viewerStore.getBooks()
-        if (book) {
-            books = book
-        }
-    })
+    const books = $derived(viewerStore.getBooks())
 </script>
 
 <div class="container">

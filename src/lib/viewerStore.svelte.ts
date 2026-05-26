@@ -23,7 +23,7 @@ class ViewerStore {
     }
 
     addBook(newBook: Book) {
-        if (this.books.includes(newBook)) {
+        if (this.books.some((b) => b.url === newBook.url)) {
             return
         }
         this.books = [...this.books, newBook]
@@ -38,6 +38,9 @@ class ViewerStore {
             }
         }
         this.books = this.books.filter((b) => b.url !== book.url)
+        if (this.book && this.book.url === book.url) {
+            this.setCurrentBook(null)
+        }
     }
 
     getBooks(): Book[] {

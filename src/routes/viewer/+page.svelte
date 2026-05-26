@@ -83,6 +83,8 @@
                     console.error("Failed to load PDF:", err)
                     if (!canceled) {
                         isLoaded = false
+                        viewerStore.setCurrentBook(null)
+                        goto("/")
                     }
                 }
             }
