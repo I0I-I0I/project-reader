@@ -64,7 +64,9 @@
 
         {#if previewDataUrl}
             <div class="card-preview" aria-hidden="true">
-                <img src={previewDataUrl} alt="Cover preview" />
+                <div class="pdf-image-wrapper">
+                    <img src={previewDataUrl} alt="Cover preview" />
+                </div>
             </div>
         {:else if Icon}
             <div class="card-icon" aria-hidden="true">
@@ -150,12 +152,23 @@
         height: 120px;
     }
 
+    .pdf-image-wrapper {
+        max-width: 100%;
+        max-height: 100%;
+        display: inline-flex;
+        border: 1px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+
     .card-preview img {
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;
-        border: 1px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        display: block;
+    }
+
+    :global(html.dark) .card-preview img {
+        filter: invert(1) hue-rotate(180deg);
     }
 
     .card-title {

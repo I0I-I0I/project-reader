@@ -7,6 +7,7 @@
     import SinglePageIcon from "$lib/components/icons/SinglePageIcon.svelte"
     import SplitPagesIcon from "$lib/components/icons/SplitPagesIcon.svelte"
     import ScrollPagesIcon from "$lib/components/icons/ScrollPagesIcon.svelte"
+    import ThemeSwitcher from "$lib/components/ThemeSwitcher.svelte"
 
     let {
         name,
@@ -157,6 +158,8 @@
                 </ul>
             {/if}
         </div>
+
+        <ThemeSwitcher />
 
         <div class="zoom-controls">
             <Button onclick={downScale} aria-label={m.zoom_out()}>

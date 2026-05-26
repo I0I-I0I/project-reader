@@ -20,6 +20,30 @@
         onMouseLeave?: (e: MouseEvent) => void
     }>()
 
+    let contentRef: HTMLElement | undefined = $state()
+    let hasScrolledInitially = false
+
+    $effect(() => {
+        if (
+            !isOutlineLoading &&
+            outlineList &&
+            outlineList.length > 0 &&
+            contentRef &&
+            !hasScrolledInitially
+        ) {
+            // Use requestAnimationFrame to ensure the list is fully rendered and classes applied
+            requestAnimationFrame(() => {
+                if (!contentRef) return
+                const activeElements = contentRef.querySelectorAll(".outline-item.active")
+                if (activeElements.length > 0) {
+                    // Scroll to the deepest active heading (last one in the matched set)
+                    activeElements[activeElements.length - 1].scrollIntoView({ block: "center" })
+                }
+                hasScrolledInitially = true
+            })
+        }
+    })
+
     function slideAndFly(node: HTMLElement, { duration = 150 }) {
         return {
             duration,
@@ -46,7 +70,7 @@
             ×
         </button>
     </div>
-    <div class="sidebar-content">
+    <div class="sidebar-content" bind:this={contentRef}>
         {#if isOutlineLoading}
             <div class="outline-loader">
                 <Spinner variant="dots" size="sm" label="" />

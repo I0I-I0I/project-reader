@@ -57,13 +57,14 @@
 <div class="scroll-page" bind:this={element} data-page={pageNumber}>
     <div class="page-container">
         {#if imageUrl}
-            <img
-                src={imageUrl}
-                alt={m.page_render_alt({ page: pageNumber })}
-                class="pdf-image"
-                onload={handleImageLoad}
-                style={containerStyle}
-            />
+            <div class="pdf-image-wrapper" style={containerStyle}>
+                <img
+                    src={imageUrl}
+                    alt={m.page_render_alt({ page: pageNumber })}
+                    class="pdf-image"
+                    onload={handleImageLoad}
+                />
+            </div>
         {:else if cachedHeight && cachedWidth}
             <div class="placeholder" style={containerStyle}>
                 {#if isLoading}
@@ -95,12 +96,21 @@
         max-width: 100%;
     }
 
-    .pdf-image {
+    .pdf-image-wrapper {
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
-        display: block;
+        display: inline-flex;
         max-width: 100%;
-        height: auto;
+    }
+
+    .pdf-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    :global(html.dark) .pdf-image {
+        filter: invert(1) hue-rotate(180deg);
     }
 
     .placeholder {
@@ -133,7 +143,7 @@
             padding: 16px;
         }
 
-        .pdf-image,
+        .pdf-image-wrapper,
         .placeholder {
             border-width: 1.5px;
             box-shadow: 4px 4px 0 var(--shadow-color);

@@ -292,11 +292,13 @@
                                 <Spinner variant="dots" size="lg" label={m.rendering_page()} />
                             </div>
                         {:else if currentPageImage}
-                            <img
-                                src={currentPageImage}
-                                alt={m.page_render_alt({ page: currentPage })}
-                                class="pdf-image"
-                            />
+                            <div class="pdf-image-wrapper">
+                                <img
+                                    src={currentPageImage}
+                                    alt={m.page_render_alt({ page: currentPage })}
+                                    class="pdf-image"
+                                />
+                            </div>
                         {/if}
                     </div>
                 </div>
@@ -512,12 +514,21 @@
         z-index: 10;
     }
 
+    .pdf-image-wrapper {
+        border: 2px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        display: inline-flex;
+        max-width: 100%;
+    }
+
     .pdf-image {
         max-width: 100%;
         height: auto;
-        border: 2px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
         display: block;
+    }
+
+    :global(html.dark) .pdf-image {
+        filter: invert(1) hue-rotate(180deg);
     }
 
     /* Footer / Pagination */

@@ -13,6 +13,6 @@
     stroke-linejoin="round"
     {...props}
 >
-    <rect x="6" y="2" width="12" height="10" rx="1" ry="1" />
-    <rect x="6" y="14" width="12" height="10" rx="1" ry="1" />
+    <rect x="6" y="3" width="12" height="8" rx="1.5" ry="1.5" />
+    <rect x="6" y="13" width="12" height="8" rx="1.5" ry="1.5" />
 </svg>

@@ -66,7 +66,10 @@ export default class PDFDocument implements DocumentInterface {
                     this.defaultHeight = viewport.height
                     firstPage.cleanup()
                 } catch (pageErr) {
-                    console.warn("[PDFDocument] Failed to retrieve default page dimensions:", pageErr)
+                    console.warn(
+                        "[PDFDocument] Failed to retrieve default page dimensions:",
+                        pageErr,
+                    )
                 }
             }
 

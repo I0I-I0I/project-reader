@@ -19,17 +19,21 @@
             </div>
         {:else if currentPageImage}
             <div class="pages-container" class:split-mode={layoutMode === "split"}>
-                <img
-                    src={currentPageImage}
-                    alt={m.page_render_alt({ page: currentPage })}
-                    class="pdf-image"
-                />
-                {#if layoutMode === "split" && currentPageImage2}
+                <div class="pdf-image-wrapper">
                     <img
-                        src={currentPageImage2}
-                        alt={m.page_render_alt({ page: currentPage + 1 })}
+                        src={currentPageImage}
+                        alt={m.page_render_alt({ page: currentPage })}
                         class="pdf-image"
                     />
+                </div>
+                {#if layoutMode === "split" && currentPageImage2}
+                    <div class="pdf-image-wrapper">
+                        <img
+                            src={currentPageImage2}
+                            alt={m.page_render_alt({ page: currentPage + 1 })}
+                            class="pdf-image"
+                        />
+                    </div>
                 {/if}
             </div>
         {/if}
@@ -84,14 +88,23 @@
         z-index: 10;
     }
 
-    .pdf-image {
+    .pdf-image-wrapper {
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
-        display: block;
+        display: inline-flex;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: top center;
         max-width: 100%;
+    }
+
+    .pdf-image {
+        display: block;
+        max-width: 100%;
         height: auto;
+    }
+
+    :global(html.dark) .pdf-image {
+        filter: invert(1) hue-rotate(180deg);
     }
 
     @media (max-width: 1024px) {
@@ -111,7 +124,7 @@
             border-width: 1.5px;
         }
 
-        .pdf-image {
+        .pdf-image-wrapper {
             border-width: 1.5px;
             box-shadow: 2px 2px 0 var(--shadow-color);
         }

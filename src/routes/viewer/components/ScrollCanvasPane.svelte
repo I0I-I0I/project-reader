@@ -17,7 +17,7 @@
 
     let container = $state<HTMLElement | null>(null)
     let isAutoScrolling = false
-    let lastObservedPage = currentPage
+    let lastObservedPage = -1
 
     const PRELOAD_COUNT = 4
 
@@ -86,7 +86,6 @@
 
                 if (!isVisible) {
                     isAutoScrolling = true
-                    lastObservedPage = targetPage
                     targetElement.scrollIntoView({ behavior: "auto", block: "start" })
 
                     // Reset auto-scrolling flag after animation/jump
@@ -94,6 +93,8 @@
                         isAutoScrolling = false
                     }, 100)
                 }
+
+                lastObservedPage = targetPage
             }
         })
     })
