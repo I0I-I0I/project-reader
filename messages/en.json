@@ -29,5 +29,7 @@
     "page": "PAGE",
     "of_pages": "OF {total}",
     "outline": "OUTLINE",
-    "no_outline": "No outline available"
+    "no_outline": "No outline available",
+    "zoom_in": "ZOOM IN",
+    "zoom_out": "ZOOM OUT"
 }

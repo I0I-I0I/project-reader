@@ -25,7 +25,7 @@
                 try {
                     await doc.load()
                     const page = await doc.getPage(1)
-                    const imageUrl = await doc.getImage(page)
+                    const imageUrl = await doc.getCanvasPage(page)
                     if (!isCancelled) {
                         previewDataUrl = imageUrl
                     }

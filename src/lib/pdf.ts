@@ -28,7 +28,7 @@ interface DocumentInterface {
     getTitle(): Promise<string | null>
     getPageNumber(): Promise<number>
     getPage(pageNumber: number): Promise<Page>
-    getImage(page: Page): Promise<string>
+    getCanvasPage(page: Page, scale?: number): Promise<string>
     close(): Promise<void>
 }
 
@@ -159,14 +159,13 @@ export default class PDFDocument implements DocumentInterface {
         return resolvedHeadings
     }
 
-    async getImage(page: Page): Promise<string> {
+    async getCanvasPage(page: Page, scale: number = 1.5): Promise<string> {
         if (!this.pdfDoc) {
             throw new Error("PDF document has not been loaded")
         }
 
         try {
             const pdfPage = await this.pdfDoc.getPage(page.pageNumber)
-            const scale = 1.5
             const viewport = pdfPage.getViewport({ scale })
 
             const canvas = document.createElement("canvas")

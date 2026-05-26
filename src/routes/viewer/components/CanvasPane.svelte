@@ -41,13 +41,15 @@
         flex: 1;
         border: 2px solid var(--border-color);
         background: var(--canvas-frame-bg);
+        background-image: radial-gradient(var(--border-color) 1px, transparent 0);
+        background-size: 24px 24px;
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
         overflow: auto;
         display: flex;
         justify-content: center;
         align-items: flex-start;
         position: relative;
-        padding: 16px;
+        padding: 40px;
     }
 
     .pane-loader {
@@ -57,16 +59,16 @@
         position: absolute;
         inset: 0;
         background: var(--pane-loader-bg);
-        backdrop-filter: blur(1px);
+        backdrop-filter: blur(2px);
         z-index: 10;
     }
 
     .pdf-image {
-        max-width: 100%;
-        height: auto;
-        border: 2px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
+        border: 3px solid var(--border-color);
+        box-shadow: 12px 12px 0 var(--shadow-color);
         display: block;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: top center;
     }
 
     @media (max-width: 600px) {

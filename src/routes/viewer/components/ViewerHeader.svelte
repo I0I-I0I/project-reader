@@ -2,18 +2,30 @@
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/Button.svelte"
     import MenuIcon from "$lib/components/icons/MenuIcon.svelte"
+    import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
+    import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
 
     let {
         name,
         isLoaded,
         isOutlineOpen = $bindable(),
         onClose,
+        scale = $bindable(1.5),
     } = $props<{
         name: string
         isLoaded: boolean
         isOutlineOpen?: boolean
+        scale?: number
         onClose: () => void
     }>()
+
+    function upScale() {
+        scale = Math.min(scale + 0.25, 3)
+    }
+
+    function downScale() {
+        scale = Math.max(scale - 0.25, 0.5)
+    }
 </script>
 
 <div class="viewer-header">
@@ -32,6 +44,12 @@
         <span class="file-name" title={name}>{name || "document.pdf"}</span>
     </div>
     <div class="header-actions">
+        <Button onclick={downScale} aria-label={m.zoom_out()}>
+            <MinusIcon />
+        </Button>
+        <Button onclick={upScale} aria-label={m.zoom_in()}>
+            <PlusIcon />
+        </Button>
         <Button onclick={onClose} aria-label={m.close_document()}>
             <span class="close-text">{m.close()} ×</span>
             <span class="close-icon">×</span>
@@ -45,47 +63,66 @@
         justify-content: space-between;
         align-items: center;
         background: var(--viewer-header-bg);
+        background-image: repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(0, 0, 0, 0.03) 10px,
+            rgba(0, 0, 0, 0.03) 20px
+        );
         border-bottom: 3px solid var(--border-color);
-        padding: 12px 20px;
+        padding: 16px 24px;
         color: var(--doc-text-color);
+        position: relative;
     }
 
     .doc-info {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
         min-width: 0;
     }
 
     .file-badge {
         background: var(--doc-file-badge-bg);
         color: var(--doc-file-badge-text);
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 900;
-        padding: 3px 8px;
+        padding: 4px 10px;
         border-radius: 2px;
-        letter-spacing: 0.5px;
-        border: 1.5px solid var(--border-color);
+        letter-spacing: 1px;
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
     .file-name {
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 900;
         color: var(--doc-text-color);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
     }
 
     .header-actions :global(.action-btn) {
         background: var(--button-bg);
-        font-size: 11px;
-        padding: 4px 10px;
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        font-size: 12px;
+        font-weight: 800;
+        padding: 8px 14px;
+        border: 2.5px solid var(--border-color);
+        box-shadow: 3px 3px 0 var(--shadow-color);
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         color: var(--text-color);
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .header-actions :global(.action-btn:hover) {

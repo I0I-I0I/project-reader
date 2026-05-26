@@ -73,16 +73,24 @@
         justify-content: space-between;
         align-items: center;
         background: var(--viewer-footer-bg);
+        background-image: repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            rgba(0, 0, 0, 0.03) 10px,
+            rgba(0, 0, 0, 0.03) 20px
+        );
         border-top: 3px solid var(--border-color);
-        padding: 14px 20px;
+        padding: 18px 24px;
     }
 
     .viewer-footer :global(.action-btn) {
         background: var(--button-bg);
-        min-width: 120px;
-        border: 2px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        padding: 8px 16px;
+        min-width: 140px;
+        border: 2.5px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        padding: 10px 20px;
+        font-weight: 800;
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
@@ -92,47 +100,48 @@
     }
 
     .viewer-footer :global(.action-btn:hover:not(:disabled)) {
-        transform: translate(-1px, -1px);
-        box-shadow: 4px 4px 0 var(--shadow-color);
+        transform: translate(-2px, -2px);
+        box-shadow: 6px 6px 0 var(--shadow-color);
         background: var(--button-hover-bg, #faf8f5);
     }
 
     .viewer-footer :global(.action-btn:active:not(:disabled)) {
         transform: translate(2px, 2px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
     .viewer-footer :global(.action-btn:disabled) {
         opacity: 0.5;
         cursor: not-allowed;
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        transform: translate(1px, 1px);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        transform: translate(2px, 2px);
     }
 
     .pagination-indicator {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
         font-weight: 900;
-        font-size: 14px;
+        font-size: 15px;
         color: var(--badge-text, #ffffff);
-        text-shadow: 1.5px 1.5px 0 var(--pagination-text-shadow);
+        text-shadow: 2px 2px 0 var(--pagination-text-shadow);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
 
     .page-input {
-        width: 55px;
-        height: 32px;
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        width: 65px;
+        height: 38px;
+        border: 2.5px solid var(--border-color);
+        box-shadow: 3px 3px 0 var(--shadow-color);
         text-align: center;
         font-family: inherit;
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 900;
         background: var(--button-bg);
         color: var(--text-color);
         outline: none;
+        transition: all 0.1s ease;
     }
 
     .page-input:focus {

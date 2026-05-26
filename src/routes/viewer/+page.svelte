@@ -27,6 +27,7 @@
     let currentPage = $state(1)
     let currentPageImage = $state<string | null>(null)
     let isPageLoading = $state(false)
+    let scale = $state(1.5)
 
     let totalPages = $state(0)
 
@@ -101,6 +102,7 @@
         const currentPdf = pdf
         const loaded = isLoaded
         const pageNo = currentPage
+        const currentScale = scale
 
         if (!currentPdf || !loaded) {
             untrack(() => {
@@ -114,11 +116,11 @@
         untrack(() => {
             isPageLoading = true
 
-            const renderPage = async (pNo: number) => {
+            const renderPage = async (pNo: number, s: number) => {
                 try {
                     const page = await currentPdf.getPage(pNo)
 
-                    const img = await currentPdf.getImage(page)
+                    const img = await currentPdf.getCanvasPage(page, s)
 
                     if (!canceled) {
                         untrack(() => {
@@ -136,7 +138,7 @@
                 }
             }
 
-            renderPage(pageNo)
+            renderPage(pageNo, currentScale)
         })
 
         return () => {
@@ -197,7 +199,13 @@
     <div class="fullscreen-viewer">
         <div class="reader-card">
             <div class="viewer-layout">
-                <ViewerHeader {name} {isLoaded} bind:isOutlineOpen onClose={handleClose} />
+                <ViewerHeader
+                    {name}
+                    {isLoaded}
+                    bind:isOutlineOpen
+                    bind:scale
+                    onClose={handleClose}
+                />
 
                 <div class="viewer-body">
                     {#if !isLoaded}
