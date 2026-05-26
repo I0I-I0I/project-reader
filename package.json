@@ -13,6 +13,9 @@
         "lint": "oxfmt --check . && oxlint .",
         "format": "oxfmt --write ."
     },
+    "dependencies": {
+        "pdfjs-dist": "^4.10.38"
+    },
     "devDependencies": {
         "@inlang/paraglide-js": "^2.15.2",
         "@sveltejs/adapter-auto": "^7.0.1",

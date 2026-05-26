@@ -14,5 +14,19 @@
     "action_controls": "ACTION CONTROLS",
     "language_switcher": "LANGUAGE SWITCHER",
     "select_theme": "SELECT THEME",
-    "file_format": "FILE FORMAT"
+    "file_format": "FILE FORMAT",
+    "import_pdf": "IMPORT PDF DOCUMENT",
+    "upload_p_text": "Select a local PDF document to load and extract its content in real-time.",
+    "choose_pdf": "CHOOSE PDF FILE",
+    "close": "CLOSE",
+    "close_document": "Close document",
+    "loading_doc": "LOADING DOCUMENT...",
+    "rendering_page": "RENDERING PAGE...",
+    "page_render_alt": "Visual render of page {page}",
+    "prev_page": "◀ PREV PAGE",
+    "next_page": "NEXT PAGE ▶",
+    "page": "PAGE",
+    "of_pages": "OF {total}",
+    "outline": "OUTLINE",
+    "no_outline": "No outline available"
 }

@@ -8,7 +8,7 @@
     let isOpen = $state(false)
     let dropdownEl = $state<HTMLElement | null>(null)
 
-    const themes = [
+    const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
         { value: "dark", label: () => m.dark(), Icon: MoonIcon },
         { value: "system", label: () => m.system(), Icon: SystemIcon },
@@ -89,7 +89,7 @@
                 }
             }}
         >
-            {#each themes as { value, label, Icon } (value)}
+            {#each THEMES as { value, label, Icon } (value)}
                 <li>
                     <button
                         class="dropdown-item"
