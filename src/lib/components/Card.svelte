@@ -6,6 +6,7 @@
     import { viewerStore, type Book } from "$lib/viewerStore.svelte"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import PDFDocument from "$lib/pdf"
+    import { resolve } from "$app/paths"
 
     interface Props extends HTMLButtonAttributes {
         book: Book
@@ -44,7 +45,7 @@
 
     const onClick = () => {
         viewerStore.setCurrentBook(book)
-        goto("/viewer")
+        goto(resolve("/viewer"))
     }
 
     const onRemove = (e: MouseEvent) => {

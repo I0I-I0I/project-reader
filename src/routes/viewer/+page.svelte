@@ -10,11 +10,13 @@
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
+    import ScrollCanvasPane from "./components/ScrollCanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
+    import { resolve } from "$app/paths"
 
     onMount(() => {
         if (!viewerStore.getCurrentBook()) {
-            goto("/")
+            goto(resolve("/"))
         }
     })
 
@@ -26,8 +28,10 @@
 
     let currentPage = $state(1)
     let currentPageImage = $state<string | null>(null)
+    let currentPageImage2 = $state<string | null>(null)
     let isPageLoading = $state(false)
     let scale = $state(1.5)
+    let layoutMode = $state<"single" | "split" | "scroll">("single")
 
     let totalPages = $state(0)
 
@@ -88,7 +92,7 @@
                     if (!canceled) {
                         isLoaded = false
                         viewerStore.setCurrentBook(null)
-                        goto("/")
+                        goto(resolve("/"))
                     }
                 }
             }
@@ -106,10 +110,12 @@
         const loaded = isLoaded
         const pageNo = currentPage
         const currentScale = scale
+        const mode = layoutMode
 
-        if (!currentPdf || !loaded) {
+        if (!currentPdf || !loaded || mode === "scroll") {
             untrack(() => {
                 currentPageImage = null
+                currentPageImage2 = null
             })
             return
         }
@@ -119,20 +125,26 @@
         untrack(() => {
             isPageLoading = true
 
-            const renderPage = async (pNo: number, s: number) => {
+            const renderPages = async () => {
                 try {
-                    const page = await currentPdf.getPage(pNo)
+                    const page1 = await currentPdf.getPage(pageNo)
+                    const img1 = await currentPdf.getCanvasPage(page1, currentScale)
 
-                    const img = await currentPdf.getCanvasPage(page, s)
+                    let img2: string | null = null
+                    if (mode === "split" && pageNo + 1 <= totalPages) {
+                        const page2 = await currentPdf.getPage(pageNo + 1)
+                        img2 = await currentPdf.getCanvasPage(page2, currentScale)
+                    }
 
                     if (!canceled) {
                         untrack(() => {
-                            currentPageImage = img
+                            currentPageImage = img1
+                            currentPageImage2 = img2
                             isPageLoading = false
                         })
                     }
                 } catch (err) {
-                    console.error("Failed to render page:", err)
+                    console.error("Failed to render page(s):", err)
                     if (!canceled) {
                         untrack(() => {
                             isPageLoading = false
@@ -141,7 +153,7 @@
                 }
             }
 
-            renderPage(pageNo, currentScale)
+            renderPages()
         })
 
         return () => {
@@ -194,18 +206,28 @@
 
     function handleClose() {
         viewerStore.setCurrentBook(null)
-        goto("/")
+        goto(resolve("/"))
     }
 
     function nextPage() {
-        if (currentPage < totalPages && !isPageLoading) {
-            currentPage += 1
+        if (!isPageLoading) {
+            const step = layoutMode === "split" ? 2 : 1
+            if (currentPage + step <= totalPages) {
+                currentPage += step
+            } else if (currentPage < totalPages) {
+                currentPage += 1
+            }
         }
     }
 
     function prevPage() {
-        if (currentPage > 1 && !isPageLoading) {
-            currentPage -= 1
+        if (!isPageLoading) {
+            const step = layoutMode === "split" ? 2 : 1
+            if (currentPage - step >= 1) {
+                currentPage -= step
+            } else if (currentPage > 1) {
+                currentPage = 1
+            }
         }
     }
 
@@ -232,6 +254,7 @@
                         {isLoaded}
                         bind:isOutlineOpen
                         bind:scale
+                        bind:layoutMode
                         onClose={handleClose}
                     />
                 {/if}
@@ -285,7 +308,17 @@
                             ></div>
                         {/if}
 
-                        <CanvasPane {isPageLoading} {currentPageImage} {currentPage} />
+                        {#if layoutMode === "scroll"}
+                            <ScrollCanvasPane {pdf} {scale} {totalPages} bind:currentPage />
+                        {:else}
+                            <CanvasPane
+                                {isPageLoading}
+                                {currentPageImage}
+                                {currentPageImage2}
+                                {currentPage}
+                                {layoutMode}
+                            />
+                        {/if}
 
                         {#if isLoaded}
                             <button

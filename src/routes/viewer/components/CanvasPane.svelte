@@ -2,10 +2,12 @@
     import * as m from "$lib/paraglide/messages"
     import Spinner from "$lib/components/Spinner.svelte"
 
-    let { isPageLoading, currentPageImage, currentPage } = $props<{
+    let { isPageLoading, currentPageImage, currentPageImage2, currentPage, layoutMode } = $props<{
         isPageLoading: boolean
         currentPageImage: string | null
+        currentPageImage2?: string | null
         currentPage: number
+        layoutMode?: "single" | "split"
     }>()
 </script>
 
@@ -16,11 +18,20 @@
                 <Spinner variant="dots" size="lg" label={m.rendering_page()} />
             </div>
         {:else if currentPageImage}
-            <img
-                src={currentPageImage}
-                alt={m.page_render_alt({ page: currentPage })}
-                class="pdf-image"
-            />
+            <div class="pages-container" class:split-mode={layoutMode === "split"}>
+                <img
+                    src={currentPageImage}
+                    alt={m.page_render_alt({ page: currentPage })}
+                    class="pdf-image"
+                />
+                {#if layoutMode === "split" && currentPageImage2}
+                    <img
+                        src={currentPageImage2}
+                        alt={m.page_render_alt({ page: currentPage + 1 })}
+                        class="pdf-image"
+                    />
+                {/if}
+            </div>
         {/if}
     </div>
 </div>
@@ -50,6 +61,18 @@
         padding: 40px;
     }
 
+    .pages-container {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+        justify-content: center;
+        max-width: 100%;
+    }
+
+    .pages-container.split-mode {
+        gap: 32px;
+    }
+
     .pane-loader {
         display: flex;
         align-items: center;
@@ -67,6 +90,15 @@
         display: block;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: top center;
+        max-width: 100%;
+        height: auto;
+    }
+
+    @media (max-width: 1024px) {
+        .pages-container.split-mode {
+            flex-direction: column;
+            align-items: center;
+        }
     }
 
     @media (max-width: 600px) {
@@ -75,13 +107,17 @@
         }
 
         .canvas-frame {
-            padding: 6px;
+            padding: 16px;
             border-width: 1.5px;
         }
 
         .pdf-image {
             border-width: 1.5px;
             box-shadow: 2px 2px 0 var(--shadow-color);
+        }
+
+        .pages-container {
+            gap: 16px;
         }
     }
 </style>

@@ -41,6 +41,8 @@ export default class PDFDocument implements DocumentInterface {
     private title: string | null = null
     private author: string | null = null
     private pageCount = 0
+    public defaultWidth: number | null = null
+    public defaultHeight: number | null = null
 
     constructor(public url: string) {}
 
@@ -55,6 +57,18 @@ export default class PDFDocument implements DocumentInterface {
             const loadingTask = pdfjs.getDocument({ data: arrayBuffer })
             this.pdfDoc = await loadingTask.promise
             this.pageCount = this.pdfDoc.numPages
+
+            if (this.pageCount > 0) {
+                try {
+                    const firstPage = await this.pdfDoc.getPage(1)
+                    const viewport = firstPage.getViewport({ scale: 1 })
+                    this.defaultWidth = viewport.width
+                    this.defaultHeight = viewport.height
+                    firstPage.cleanup()
+                } catch (pageErr) {
+                    console.warn("[PDFDocument] Failed to retrieve default page dimensions:", pageErr)
+                }
+            }
 
             try {
                 const metadata = await this.pdfDoc.getMetadata()

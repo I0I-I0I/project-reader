@@ -31,5 +31,9 @@
     "outline": "OUTLINE",
     "no_outline": "No outline available",
     "zoom_in": "ZOOM IN",
-    "zoom_out": "ZOOM OUT"
+    "zoom_out": "ZOOM OUT",
+    "layout": "LAYOUT",
+    "single_page": "SINGLE PAGE",
+    "split_pages": "TWO PAGES",
+    "scroll_pages": "SCROLL PAGES"
 }
