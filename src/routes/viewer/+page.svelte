@@ -23,17 +23,139 @@
     setContext(KEYMAP_CONTEXT_KEY, viewerNode)
     const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
 
+    function getScrollContainer() {
+        if (settingsStore.layout === "scroll") {
+            return document.querySelector(".scroll-canvas-pane")
+        } else {
+            return document.querySelector(".canvas-frame")
+        }
+    }
+
     onMount(() => {
-        const unregisterRefresh = viewerNode.register({
-            keys: "r",
-            description: "Refresh Dashboard Metrics",
-            action: () => console.log("Refreshing dashboard data..."),
-        })
+        const unregisterAll = viewerNode.registerAll([
+            {
+                keys: "j",
+                description: "Scroll down",
+                action: () => {
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: 150, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "k",
+                description: "Scroll up",
+                action: () => {
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: -150, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "d",
+                description: "Scroll page down",
+                action: () => {
+                    const currentHeight = window.innerHeight
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: currentHeight / 2, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "u",
+                description: "Scroll page up",
+                action: () => {
+                    const currentHeight = window.innerHeight
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: currentHeight / -2, behavior: "smooth" })
+                },
+            },
+            {
+                keys: " ",
+                description: "Next page",
+                action: () => {
+                    nextPage()
+                },
+            },
+            {
+                keys: "shift+ ",
+                description: "Previous page",
+                action: () => {
+                    prevPage()
+                },
+            },
+            {
+                keys: "shift+o",
+                description: "Toggle outline",
+                action: () => {
+                    isOutlineOpen = !isOutlineOpen
+                },
+            },
+            {
+                keys: "shift+s",
+                description: "Toggle settings",
+                action: () => {
+                    isSettingsOpen = !isSettingsOpen
+                },
+            },
+            {
+                keys: "q",
+                description: "Close viewer",
+                action: () => {
+                    goto(resolve("/"))
+                },
+            },
+            {
+                keys: "shift+m",
+                description: "Hide toolbars",
+                action: () => {
+                    isToolbarsVisible = !isToolbarsVisible
+                },
+            },
+            {
+                keys: "shift+l",
+                description: "Toggle layouts",
+                action: () => {
+                    settingsStore.layout_next()
+                },
+            },
+            {
+                keys: "-",
+                description: "Zoom out",
+                action: () => {
+                    settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5)
+                },
+            },
+            {
+                keys: "shift++",
+                description: "Zoom in",
+                action: () => {
+                    settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3)
+                },
+            },
+            {
+                keys: "=",
+                description: "Zoom to fit",
+                action: () => {
+                    settingsStore.scale = 1
+                },
+            },
+            {
+                keys: "g",
+                description: "Goto page",
+                action: () => {
+                    const cPage = prompt("Enter page number:")
+                    if (cPage) {
+                        const page = parseInt(cPage, 10)
+                        if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                            currentPage = page
+                        }
+                    }
+                },
+            },
+        ])
 
         setActiveNode(viewerNode)
 
         return () => {
-            unregisterRefresh()
+            unregisterAll()
             setActiveNode(parentNode) // Fallback to parent node on unmount
         }
     })

@@ -64,6 +64,13 @@ class SettingsStore {
         }
     }
 
+    layout_next() {
+        const layouts: Settings["layout"][] = ["single", "split", "scroll"]
+        const index = layouts.indexOf(this.layout)
+        this.layout = layouts[(index + 1) % layouts.length]
+        return this.layout
+    }
+
     get layout(): Settings["layout"] {
         return this.settings.layout
     }

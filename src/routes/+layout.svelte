@@ -34,11 +34,39 @@
     onMount(() => {
         const unregisterAll = rootNode.registerAll([
             {
-                keys: "ctrl+o",
+                keys: "t",
                 action: () => {
-                    console.log("Open")
+                    themeState.next()
                 },
-                description: "Open a PDF book",
+                description: "Change theme",
+            },
+            {
+                keys: "j",
+                action: () => {
+                    window.scrollBy({ top: 150, behavior: "smooth" })
+                },
+                description: "Scroll down",
+            },
+            {
+                keys: "k",
+                action: () => {
+                    window.scrollBy({ top: -150, behavior: "smooth" })
+                },
+                description: "Scroll up",
+            },
+            {
+                keys: "d",
+                action: () => {
+                    window.scrollBy({ top: 500, behavior: "smooth" })
+                },
+                description: "Scroll down",
+            },
+            {
+                keys: "u",
+                action: () => {
+                    window.scrollBy({ top: -500, behavior: "smooth" })
+                },
+                description: "Scroll up",
             },
         ])
         return () => {

@@ -3,6 +3,8 @@
     import Spinner from "$lib/components/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
+    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
+    import { getContext, onMount, setContext, untrack } from "svelte"
 
     let {
         isOutlineLoading,
@@ -19,6 +21,171 @@
         onCloseOutline: () => void
         onMouseLeave?: (e: MouseEvent) => void
     }>()
+
+    const parentNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
+    const outlineNode = new KeymapNode(parentNode)
+    setContext(KEYMAP_CONTEXT_KEY, outlineNode)
+    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
+
+    let searchQuery = $state("")
+    let selectedIndex = $state(-1)
+    let searchInputRef = $state<HTMLInputElement | undefined>()
+
+    let filteredOutlineList = $derived(
+        outlineList
+            ? outlineList.filter((h: FlatHeading) =>
+                  h.title.toLowerCase().includes(searchQuery.toLowerCase())
+              )
+            : []
+    )
+
+    function selectHeading(heading: FlatHeading) {
+        if (heading.pageNumber !== undefined) {
+            currentPage = heading.pageNumber
+            if (window.innerWidth <= 480) {
+                onCloseOutline()
+            }
+        }
+    }
+
+    function navigateSelection(direction: "next" | "prev") {
+        if (filteredOutlineList.length === 0) return
+        if (direction === "next") {
+            selectedIndex = (selectedIndex + 1) % filteredOutlineList.length
+        } else {
+            selectedIndex = (selectedIndex - 1 + filteredOutlineList.length) % filteredOutlineList.length
+        }
+    }
+
+    function handleSearchKeydown(event: KeyboardEvent) {
+        if (event.key === "Enter") {
+            event.preventDefault()
+            const heading = filteredOutlineList[selectedIndex]
+            if (heading) {
+                selectHeading(heading)
+                onCloseOutline()
+            }
+        } else if (event.ctrlKey && event.key === "n") {
+            event.preventDefault()
+            navigateSelection("next")
+        } else if (event.ctrlKey && event.key === "p") {
+            event.preventDefault()
+            navigateSelection("prev")
+        } else if (event.key === "Escape") {
+            event.preventDefault()
+            searchInputRef?.blur()
+        }
+    }
+
+    function scrollSelectedIntoView() {
+        requestAnimationFrame(() => {
+            if (!contentRef) return
+            const selectedEl = contentRef.querySelector(".outline-item.selected")
+            if (selectedEl) {
+                selectedEl.scrollIntoView({ block: "nearest" })
+            }
+        })
+    }
+
+    let lastQuery = ""
+
+    // Unified effect to set/reset selectedIndex based on active heading and search query
+    $effect(() => {
+        if (isOutlineLoading || !filteredOutlineList || filteredOutlineList.length === 0) return
+
+        const currentQuery = searchQuery
+        untrack(() => {
+            if (selectedIndex === -1) {
+                // Initial mount or reset: Find active heading
+                const index = filteredOutlineList.findIndex((h: FlatHeading) => activeHeadings.has(h))
+                selectedIndex = index !== -1 ? index : 0
+                lastQuery = currentQuery
+            } else if (currentQuery !== lastQuery) {
+                // Search query changed
+                lastQuery = currentQuery
+                if (currentQuery !== "") {
+                    // Select first matching search result
+                    selectedIndex = 0
+                } else {
+                    // Search cleared: reset to active heading
+                    const index = filteredOutlineList.findIndex((h: FlatHeading) => activeHeadings.has(h))
+                    selectedIndex = index !== -1 ? index : 0
+                }
+            }
+        })
+    })
+
+    // Auto-scroll selected element into view
+    $effect(() => {
+        const _ = selectedIndex
+        const __ = filteredOutlineList.length
+        untrack(() => {
+            scrollSelectedIntoView()
+        })
+    })
+
+    onMount(() => {
+        setActiveNode(outlineNode)
+        const unregisterAll = outlineNode.registerAll([
+            {
+                keys: "j",
+                description: "Next heading",
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("next")
+                },
+            },
+            {
+                keys: "k",
+                description: "Previous heading",
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("prev")
+                },
+            },
+            {
+                keys: "ctrl+n",
+                description: "Next heading",
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("next")
+                },
+            },
+            {
+                keys: "ctrl+p",
+                description: "Previous heading",
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("prev")
+                },
+            },
+            {
+                keys: "enter",
+                description: "Select heading",
+                action: (event) => {
+                    event.preventDefault()
+                    const heading = filteredOutlineList[selectedIndex]
+                    if (heading) {
+                        selectHeading(heading)
+                        onCloseOutline()
+                    }
+                },
+            },
+            {
+                keys: "/",
+                description: "Search headings",
+                action: (event) => {
+                    event.preventDefault()
+                    searchInputRef?.focus()
+                    searchInputRef?.select()
+                },
+            },
+        ])
+        return () => {
+            setActiveNode(parentNode)
+            unregisterAll()
+        }
+    })
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
@@ -56,6 +223,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
     class="outline-sidebar"
     transition:slideAndFly={{ duration: 150 }}
@@ -68,6 +236,32 @@
             ×
         </button>
     </div>
+
+    {#if outlineList && outlineList.length > 0}
+        <div class="sidebar-search">
+            <input
+                bind:this={searchInputRef}
+                type="text"
+                bind:value={searchQuery}
+                placeholder="Search headings... (/)"
+                class="search-input"
+                onkeydown={handleSearchKeydown}
+            />
+            {#if searchQuery}
+                <button
+                    class="clear-search-btn"
+                    onclick={() => {
+                        searchQuery = ""
+                        searchInputRef?.focus()
+                    }}
+                    aria-label="Clear search"
+                >
+                    ×
+                </button>
+            {/if}
+        </div>
+    {/if}
+
     <div class="sidebar-content" bind:this={contentRef}>
         {#if isOutlineLoading}
             <div class="outline-loader">
@@ -77,19 +271,20 @@
             <div class="no-outline">
                 {m.no_outline()}
             </div>
+        {:else if filteredOutlineList.length === 0}
+            <div class="no-outline">
+                No matching headings found
+            </div>
         {:else}
             <nav class="outline-nav">
-                {#each outlineList as heading}
+                {#each filteredOutlineList as heading, index}
                     <button
                         class="outline-item depth-{heading.depth}"
                         class:active={activeHeadings.has(heading)}
+                        class:selected={index === selectedIndex}
                         onclick={() => {
-                            if (heading.pageNumber !== undefined) {
-                                currentPage = heading.pageNumber
-                                if (window.innerWidth <= 480) {
-                                    onCloseOutline()
-                                }
-                            }
+                            selectHeading(heading)
+                            selectedIndex = index
                         }}
                         disabled={heading.pageNumber === undefined}
                         style="--depth: {heading.depth}"
@@ -253,6 +448,71 @@
         border-radius: 2px;
         flex-shrink: 0;
         border: 1px solid var(--border-color);
+    }
+
+    .sidebar-search {
+        position: relative;
+        padding: 10px 16px;
+        background: var(--sidebar-header-bg);
+        border-bottom: 3px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 6px 32px 6px 12px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--button-bg);
+        color: var(--text-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        outline: none;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-sizing: border-box;
+    }
+
+    .search-input:focus {
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        border-color: var(--border-color);
+    }
+
+    .clear-search-btn {
+        position: absolute;
+        right: 22px;
+        background: none;
+        border: none;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        color: var(--text-color);
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+        transition: opacity 0.1s ease;
+    }
+
+    .clear-search-btn:hover {
+        opacity: 1;
+    }
+
+    .outline-item.selected:not(:disabled) {
+        background: var(--outline-hover-bg);
+        box-shadow: inset 4px 0 0 var(--border-color);
+        font-weight: 800;
+    }
+
+    .outline-item.active.selected:not(:disabled) {
+        background: var(--outline-active-bg);
+        box-shadow: inset 4px 0 0 var(--border-color);
+        font-weight: 900;
     }
 
     @media (max-width: 480px) {

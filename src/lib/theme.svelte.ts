@@ -26,6 +26,12 @@ class ThemeState {
         }
     }
 
+    next() {
+        const nextTheme =
+            this.current === "light" ? "dark" : this.current === "dark" ? "system" : "light"
+        this.set(nextTheme)
+    }
+
     updateDOM() {
         if (!browser) return
         const isDark =
