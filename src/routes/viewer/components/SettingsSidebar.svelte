@@ -57,9 +57,7 @@
 >
     <div class="sidebar-header">
         <h3>{m.settings()}</h3>
-        <button class="close-sidebar-btn" onclick={onClose} aria-label={m.close()}>
-            ×
-        </button>
+        <button class="close-sidebar-btn" onclick={onClose} aria-label={m.close()}> × </button>
     </div>
 
     <div class="sidebar-content">

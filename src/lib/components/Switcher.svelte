@@ -1,28 +1,31 @@
 <script lang="ts">
-    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
-    import { resolve } from "$app/paths"
-    import { page } from "$app/state"
-    import type { Pathname } from "$app/types"
-    import * as m from "$lib/paraglide/messages"
-    import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
+    import type { Snippet } from "svelte"
+
+    interface Props {
+        trigger: Snippet
+        children: Snippet<[{ close: () => void }]>
+        label?: string
+        align?: "left" | "right"
+    }
+
+    let { trigger, children, label, align = "right" }: Props = $props()
 
     let isOpen = $state(false)
-    let dropdownEl = $state<HTMLElement | null>(null)
-
-    const LANGUAGE_NAMES: Record<string, string> = {
-        en: "English",
-        ru: "Русский",
-    }
+    let containerEl = $state<HTMLElement | null>(null)
 
     function toggleDropdown() {
         isOpen = !isOpen
+    }
+
+    function close() {
+        isOpen = false
     }
 
     $effect(() => {
         if (!isOpen) return
 
         function handleClickOutside(event: MouseEvent) {
-            if (dropdownEl && !dropdownEl.contains(event.target as Node)) {
+            if (containerEl && !containerEl.contains(event.target as Node)) {
                 isOpen = false
             }
         }
@@ -34,7 +37,7 @@
     })
 </script>
 
-<div class="lang-switcher-wrapper" bind:this={dropdownEl}>
+<div class="switcher-wrapper" bind:this={containerEl}>
     <button
         class="switcher-trigger"
         onclick={toggleDropdown}
@@ -44,12 +47,10 @@
             }
         }}
         aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        aria-label={m.language_switcher()}
+        aria-haspopup="true"
+        aria-label={label}
     >
-        <GlobeIcon class="lang-icon" />
-        <span class="current-label">{LANGUAGE_NAMES[getLocale()] || getLocale().toUpperCase()}</span
-        >
+        {@render trigger()}
         <svg
             class="chevron"
             class:open={isOpen}
@@ -69,37 +70,22 @@
     {#if isOpen}
         <ul
             class="switcher-dropdown"
-            role="listbox"
+            class:align-left={align === "left"}
+            class:align-right={align === "right"}
             onkeydown={(e) => {
                 if (e.key === "Escape") {
                     isOpen = false
-                    dropdownEl?.querySelector("button")?.focus()
+                    containerEl?.querySelector("button")?.focus()
                 }
             }}
         >
-            {#each locales as locale (locale)}
-                <li>
-                    <a
-                        data-sveltekit-reload
-                        href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}
-                        class="dropdown-item"
-                        class:active={getLocale() === locale}
-                        role="option"
-                        aria-selected={getLocale() === locale}
-                        onclick={() => {
-                            isOpen = false
-                        }}
-                    >
-                        <span>{LANGUAGE_NAMES[locale] || locale.toUpperCase()}</span>
-                    </a>
-                </li>
-            {/each}
+            {@render children({ close })}
         </ul>
     {/if}
 </div>
 
 <style>
-    .lang-switcher-wrapper {
+    .switcher-wrapper {
         position: relative;
         display: inline-block;
         font-family: inherit;
@@ -133,10 +119,6 @@
         box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
-    .current-label {
-        letter-spacing: 0.5px;
-    }
-
     .chevron {
         transition: transform 0.2s ease;
     }
@@ -145,16 +127,9 @@
         transform: rotate(180deg);
     }
 
-    :global(.lang-icon) {
-        width: 16px;
-        height: 16px;
-        stroke-width: 2.5;
-    }
-
     .switcher-dropdown {
         position: absolute;
         top: calc(100% + 8px);
-        right: 0;
         z-index: 1000;
         list-style: none;
         margin: 0;
@@ -168,7 +143,19 @@
         gap: 2px;
     }
 
-    .dropdown-item {
+    .align-right {
+        right: 0;
+    }
+
+    .align-left {
+        left: 0;
+    }
+
+    :global(.switcher-dropdown li) {
+        display: block;
+    }
+
+    :global(.dropdown-item) {
         width: 100%;
         display: flex;
         align-items: center;
@@ -187,17 +174,17 @@
         transition: all 0.1s ease;
     }
 
-    .dropdown-item:hover {
+    :global(.dropdown-item:hover) {
         background: var(--dropdown-hover-bg);
     }
 
-    .dropdown-item.active {
+    :global(.dropdown-item.active) {
         background: var(--text-color);
         color: var(--bg-color);
     }
 
     @media (max-width: 480px) {
-        .current-label {
+        :global(.switcher-trigger .current-label) {
             display: none;
         }
 

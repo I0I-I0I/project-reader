@@ -14,12 +14,7 @@
     import ScrollCanvasPane from "./components/ScrollCanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
-
-    onMount(() => {
-        if (!viewerStore.getCurrentBook()) {
-            goto(resolve("/"))
-        }
-    })
+    import { settingsStore } from "$lib/settingsStore.svelte"
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
     const name = $derived(viewerStore.getCurrentBook()?.name ?? "")
@@ -31,13 +26,36 @@
     let currentPageImage = $state<string | null>(null)
     let currentPageImage2 = $state<string | null>(null)
     let isPageLoading = $state(false)
-    let scale = $state(1.5)
-    let layoutMode = $state<"single" | "split" | "scroll">("single")
 
     let totalPages = $state(0)
 
     let isOutlineOpen = $state(false)
     let isSettingsOpen = $state(false)
+
+    function restoreBookPosition() {
+        const book = viewerStore.getCurrentBook()
+        currentPage = book?.pageNumber || 1
+    }
+
+    onMount(() => {
+        if (!viewerStore.getCurrentBook()) {
+            goto(resolve("/"))
+            return
+        }
+        restoreBookPosition()
+    })
+
+    $effect(() => {
+        if (isLoaded) {
+            let cPage = currentPage
+            untrack(() => {
+                const book = viewerStore.getCurrentBook()
+                if (book) {
+                    viewerStore.updateBook({ ...book, pageNumber: cPage })
+                }
+            })
+        }
+    })
 
     $effect(() => {
         if (isOutlineOpen) {
@@ -94,7 +112,7 @@
         untrack(() => {
             isLoaded = false
             pdf = null
-            currentPage = 1
+            currentPage = viewerStore.getCurrentBook()?.pageNumber || 1
 
             const loadPdf = async (pdfUrl: string) => {
                 try {
@@ -128,8 +146,8 @@
         const currentPdf = pdf
         const loaded = isLoaded
         const pageNo = currentPage
-        const currentScale = scale
-        const mode = layoutMode
+        const currentScale = settingsStore.scale
+        const mode = settingsStore.layout
 
         if (!currentPdf || !loaded || mode === "scroll") {
             untrack(() => {
@@ -230,7 +248,7 @@
 
     function nextPage() {
         if (!isPageLoading) {
-            const step = layoutMode === "split" ? 2 : 1
+            const step = settingsStore.layout === "split" ? 2 : 1
             if (currentPage + step <= totalPages) {
                 currentPage += step
             } else if (currentPage < totalPages) {
@@ -241,7 +259,7 @@
 
     function prevPage() {
         if (!isPageLoading) {
-            const step = layoutMode === "split" ? 2 : 1
+            const step = settingsStore.layout === "split" ? 2 : 1
             if (currentPage - step >= 1) {
                 currentPage -= step
             } else if (currentPage > 1) {
@@ -273,8 +291,6 @@
                         {isLoaded}
                         bind:isOutlineOpen
                         bind:isSettingsOpen
-                        bind:scale
-                        bind:layoutMode
                         onClose={handleClose}
                     />
                 {/if}
@@ -327,8 +343,8 @@
                                 }}
                             ></div>
                             <SettingsSidebar
-                                bind:scale
-                                bind:layoutMode
+                                bind:scale={settingsStore.scale}
+                                bind:layoutMode={settingsStore.layout}
                                 onClose={() => (isSettingsOpen = false)}
                             />
                         {/if}
@@ -345,15 +361,20 @@
                             ></div>
                         {/if}
 
-                        {#if layoutMode === "scroll"}
-                            <ScrollCanvasPane {pdf} {scale} {totalPages} bind:currentPage />
+                        {#if settingsStore.layout === "scroll"}
+                            <ScrollCanvasPane
+                                {pdf}
+                                scale={settingsStore.scale}
+                                {totalPages}
+                                bind:currentPage
+                            />
                         {:else}
                             <CanvasPane
                                 {isPageLoading}
                                 {currentPageImage}
                                 {currentPageImage2}
                                 {currentPage}
-                                {layoutMode}
+                                layoutMode={settingsStore.layout === "split" ? "split" : "single"}
                             />
                         {/if}
 
@@ -396,7 +417,13 @@
                 </div>
 
                 {#if isLoaded && isToolbarsVisible}
-                    <ViewerFooter bind:currentPage {totalPages} {isPageLoading} />
+                    <ViewerFooter
+                        bind:currentPage
+                        {totalPages}
+                        {isPageLoading}
+                        {nextPage}
+                        {prevPage}
+                    />
                 {/if}
             </div>
         </div>

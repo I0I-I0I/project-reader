@@ -3,6 +3,9 @@ import { browser } from "$app/environment"
 export interface Book {
     url: string
     name: string
+    updatedAt: number
+    pageNumber: number
+    pdfDest?: string
 }
 
 class ViewerStore {
@@ -45,6 +48,16 @@ class ViewerStore {
 
     getBooks(): Book[] {
         return this.books
+    }
+
+    updateBook(book: Book) {
+        const index = this.books.findIndex((b) => b.url === book.url)
+        if (index >= 0) {
+            this.books[index] = book
+        }
+        if (this.book && this.book.url === book.url) {
+            this.setCurrentBook(book)
+        }
     }
 
     setCurrentBook(newBook: Book | null) {

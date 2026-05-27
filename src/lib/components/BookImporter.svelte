@@ -22,7 +22,7 @@
             }
             const name = file.name
             const url = URL.createObjectURL(file)
-            viewerStore.addBook({ url, name })
+            viewerStore.addBook({ url, name, updatedAt: Date.now(), pageNumber: 1 })
             if (onimport) {
                 onimport({ url, name })
             }

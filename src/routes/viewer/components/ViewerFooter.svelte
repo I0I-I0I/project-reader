@@ -6,23 +6,15 @@
         currentPage = $bindable(),
         totalPages,
         isPageLoading,
+        nextPage,
+        prevPage,
     } = $props<{
         currentPage: number
         totalPages: number
         isPageLoading: boolean
+        nextPage: () => void
+        prevPage: () => void
     }>()
-
-    function nextValidPage() {
-        if (currentPage < totalPages) {
-            currentPage += 1
-        }
-    }
-
-    function prevValidPage() {
-        if (currentPage > 1) {
-            currentPage -= 1
-        }
-    }
 
     function handlePageInput(event: Event) {
         const input = event.target as HTMLInputElement
@@ -37,7 +29,7 @@
 
 <div class="viewer-footer">
     <Button
-        onclick={prevValidPage}
+        onclick={prevPage}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
     >
@@ -58,7 +50,7 @@
         {m.of_pages({ total: totalPages })}
     </div>
     <Button
-        onclick={nextValidPage}
+        onclick={nextPage}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
     >

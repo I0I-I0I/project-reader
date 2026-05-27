@@ -156,8 +156,6 @@
         max-width: 100%;
         max-height: 100%;
         display: inline-flex;
-        border: 1px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
     .card-preview img {

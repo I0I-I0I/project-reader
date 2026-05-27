@@ -1,9 +1,36 @@
 <script lang="ts">
     import NewFolderIcon from "$lib/components/icons/NewFolderIcon.svelte"
     import Button from "$lib/components/Button.svelte"
-    import ThemeSwitcher from "$lib/components/ThemeSwitcher.svelte"
-    import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte"
+    import Switcher from "$lib/components/Switcher.svelte"
+    import SunIcon from "$lib/components/icons/SunIcon.svelte"
+    import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
+    import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
+    import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
+    import { themeState, type Theme } from "$lib/theme.svelte"
+    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { resolve } from "$app/paths"
+    import { page } from "$app/state"
+    import type { Pathname } from "$app/types"
     import * as m from "$lib/paraglide/messages"
+
+    const THEMES = [
+        { value: "light", label: () => m.light(), Icon: SunIcon },
+        { value: "dark", label: () => m.dark(), Icon: MoonIcon },
+        { value: "system", label: () => m.system(), Icon: SystemIcon },
+    ] as const
+
+    const LANGUAGE_NAMES: Record<string, string> = {
+        en: "English",
+        ru: "Русский",
+    }
+
+    function selectTheme(theme: Theme) {
+        themeState.set(theme)
+    }
+
+    const currentThemeInfo = $derived(
+        THEMES.find((t) => t.value === themeState.current) || THEMES[2],
+    )
 </script>
 
 <header>
@@ -22,8 +49,57 @@
         </div>
 
         <div class="header-btn-wrapper">
-            <ThemeSwitcher />
-            <LanguageSwitcher />
+            <Switcher label={m.select_theme()}>
+                {#snippet trigger()}
+                    <currentThemeInfo.Icon class="switcher-icon" />
+                    <span class="current-label">{currentThemeInfo.label()}</span>
+                {/snippet}
+                {#snippet children({ close })}
+                    {#each THEMES as { value, label, Icon } (value)}
+                        <li>
+                            <button
+                                class="dropdown-item"
+                                class:active={themeState.current === value}
+                                onclick={() => {
+                                    selectTheme(value)
+                                    close()
+                                }}
+                                aria-current={themeState.current === value ? "true" : undefined}
+                            >
+                                <Icon class="switcher-icon-small" />
+                                <span>{label()}</span>
+                            </button>
+                        </li>
+                    {/each}
+                {/snippet}
+            </Switcher>
+
+            <Switcher label={m.language_switcher()}>
+                {#snippet trigger()}
+                    <GlobeIcon class="switcher-icon" />
+                    <span class="current-label"
+                        >{LANGUAGE_NAMES[getLocale()] || getLocale().toUpperCase()}</span
+                    >
+                {/snippet}
+                {#snippet children({ close })}
+                    {#each locales as locale (locale)}
+                        <li>
+                            <a
+                                data-sveltekit-reload
+                                href={resolve(
+                                    localizeHref(page.url.pathname, { locale }) as Pathname,
+                                )}
+                                class="dropdown-item"
+                                class:active={getLocale() === locale}
+                                aria-current={getLocale() === locale ? "true" : undefined}
+                                onclick={close}
+                            >
+                                <span>{LANGUAGE_NAMES[locale] || locale.toUpperCase()}</span>
+                            </a>
+                        </li>
+                    {/each}
+                {/snippet}
+            </Switcher>
         </div>
     </div>
 </header>
@@ -67,6 +143,12 @@
         gap: 16px;
     }
 
+    .header-btn-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
     .header-btn-wrapper :global(.action-btn) {
         background: var(--button-bg);
         border: 2px solid var(--border-color);
@@ -84,6 +166,22 @@
     .header-btn-wrapper :global(.action-btn:active) {
         transform: translate(2px, 2px);
         box-shadow: 0px 0px 0 var(--shadow-color);
+    }
+
+    :global(.switcher-icon) {
+        width: 16px;
+        height: 16px;
+        stroke-width: 2.5;
+    }
+
+    :global(.switcher-icon-small) {
+        width: 14px;
+        height: 14px;
+        stroke-width: 2.5;
+    }
+
+    .current-label {
+        letter-spacing: 0.5px;
     }
 
     @media (max-width: 768px) {
