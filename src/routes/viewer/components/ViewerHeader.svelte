@@ -2,58 +2,21 @@
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/Button.svelte"
     import MenuIcon from "$lib/components/icons/MenuIcon.svelte"
-    import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
-    import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
-    import SinglePageIcon from "$lib/components/icons/SinglePageIcon.svelte"
-    import SplitPagesIcon from "$lib/components/icons/SplitPagesIcon.svelte"
-    import ScrollPagesIcon from "$lib/components/icons/ScrollPagesIcon.svelte"
-    import ThemeSwitcher from "$lib/components/ThemeSwitcher.svelte"
+    import SettingsIcon from "$lib/components/icons/SettingsIcon.svelte"
 
     let {
         name,
         isLoaded,
         isOutlineOpen = $bindable(),
+        isSettingsOpen = $bindable(),
         onClose,
-        scale = $bindable(1.5),
-        layoutMode = $bindable("single"),
     } = $props<{
         name: string
         isLoaded: boolean
         isOutlineOpen?: boolean
-        scale?: number
-        layoutMode?: "single" | "split" | "scroll"
+        isSettingsOpen?: boolean
         onClose: () => void
     }>()
-
-    let isLayoutDropdownOpen = $state(false)
-    let dropdownEl = $state<HTMLElement | null>(null)
-
-    function upScale() {
-        scale = Math.min(scale + 0.25, 3)
-    }
-
-    function downScale() {
-        scale = Math.max(scale - 0.25, 0.5)
-    }
-
-    function toggleLayoutDropdown() {
-        isLayoutDropdownOpen = !isLayoutDropdownOpen
-    }
-
-    $effect(() => {
-        if (!isLayoutDropdownOpen) return
-
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownEl && !dropdownEl.contains(event.target as Node)) {
-                isLayoutDropdownOpen = false
-            }
-        }
-
-        document.addEventListener("click", handleClickOutside)
-        return () => {
-            document.removeEventListener("click", handleClickOutside)
-        }
-    })
 </script>
 
 <div class="viewer-header">
@@ -72,103 +35,16 @@
         <span class="file-name" title={name}>{name || "document.pdf"}</span>
     </div>
     <div class="header-actions">
-        <div class="layout-switcher" bind:this={dropdownEl}>
+        {#if isLoaded}
             <button
-                class="layout-btn"
-                onclick={toggleLayoutDropdown}
-                aria-expanded={isLayoutDropdownOpen}
-                aria-haspopup="listbox"
-                aria-label={m.layout()}
+                class="burger-btn settings-btn"
+                onclick={() => (isSettingsOpen = !isSettingsOpen)}
+                aria-label={m.settings()}
+                class:open={isSettingsOpen}
             >
-                <div class="layout-btn-content">
-                    {#if layoutMode === "single"}
-                        <SinglePageIcon />
-                    {:else if layoutMode === "split"}
-                        <SplitPagesIcon />
-                    {:else}
-                        <ScrollPagesIcon />
-                    {/if}
-                    <span class="layout-label">
-                        {#if layoutMode === "single"}
-                            {m.single_page()}
-                        {:else if layoutMode === "split"}
-                            {m.split_pages()}
-                        {:else}
-                            {m.scroll_pages()}
-                        {/if}
-                    </span>
-                </div>
-                <svg
-                    class="chevron"
-                    class:open={isLayoutDropdownOpen}
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    <path d="m6 9 6 6 6-6" />
-                </svg>
+                <SettingsIcon />
             </button>
-
-            {#if isLayoutDropdownOpen}
-                <ul class="layout-dropdown" role="listbox">
-                    <li>
-                        <button
-                            class="dropdown-item"
-                            class:active={layoutMode === "single"}
-                            onclick={() => {
-                                layoutMode = "single"
-                                isLayoutDropdownOpen = false
-                            }}
-                        >
-                            <SinglePageIcon />
-                            {m.single_page()}
-                        </button>
-                    </li>
-                    <li>
-                        <button
-                            class="dropdown-item"
-                            class:active={layoutMode === "split"}
-                            onclick={() => {
-                                layoutMode = "split"
-                                isLayoutDropdownOpen = false
-                            }}
-                        >
-                            <SplitPagesIcon />
-                            {m.split_pages()}
-                        </button>
-                    </li>
-                    <li>
-                        <button
-                            class="dropdown-item"
-                            class:active={layoutMode === "scroll"}
-                            onclick={() => {
-                                layoutMode = "scroll"
-                                isLayoutDropdownOpen = false
-                            }}
-                        >
-                            <ScrollPagesIcon />
-                            {m.scroll_pages()}
-                        </button>
-                    </li>
-                </ul>
-            {/if}
-        </div>
-
-        <ThemeSwitcher />
-
-        <div class="zoom-controls">
-            <Button onclick={downScale} aria-label={m.zoom_out()}>
-                <MinusIcon />
-            </Button>
-            <Button onclick={upScale} aria-label={m.zoom_in()}>
-                <PlusIcon />
-            </Button>
-        </div>
+        {/if}
 
         <Button onclick={onClose} aria-label={m.close_document()}>
             <span class="close-text">{m.close()} ×</span>
@@ -391,18 +267,14 @@
         background: var(--viewer-accent-active);
     }
 
-    .close-icon {
-        display: none;
+    .settings-btn {
+        display: inline-flex;
+        margin-right: 0;
+        margin-left: 4px;
     }
 
-    @media (max-width: 768px) {
-        .layout-label {
-            display: none;
-        }
-
-        .layout-btn {
-            padding: 8px;
-        }
+    .close-icon {
+        display: none;
     }
 
     @media (max-width: 600px) {
@@ -415,6 +287,11 @@
             width: 32px;
             height: 32px;
             margin-right: 4px;
+        }
+
+        .settings-btn {
+            margin-right: 0;
+            margin-left: 4px;
         }
 
         .file-name {

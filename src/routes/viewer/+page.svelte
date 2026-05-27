@@ -9,6 +9,7 @@
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
+    import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ScrollCanvasPane from "./components/ScrollCanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
@@ -36,6 +37,24 @@
     let totalPages = $state(0)
 
     let isOutlineOpen = $state(false)
+    let isSettingsOpen = $state(false)
+
+    $effect(() => {
+        if (isOutlineOpen) {
+            untrack(() => {
+                isSettingsOpen = false
+            })
+        }
+    })
+
+    $effect(() => {
+        if (isSettingsOpen) {
+            untrack(() => {
+                isOutlineOpen = false
+            })
+        }
+    })
+
     let outlineList = $state<FlatHeading[] | null>(null)
     let isOutlineLoading = $state(false)
 
@@ -253,6 +272,7 @@
                         {name}
                         {isLoaded}
                         bind:isOutlineOpen
+                        bind:isSettingsOpen
                         bind:scale
                         bind:layoutMode
                         onClose={handleClose}
@@ -293,6 +313,23 @@
                                         isHoverTriggered = false
                                     }
                                 }}
+                            />
+                        {/if}
+
+                        {#if isSettingsOpen}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="sidebar-backdrop"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    isSettingsOpen = false
+                                }}
+                            ></div>
+                            <SettingsSidebar
+                                bind:scale
+                                bind:layoutMode
+                                onClose={() => (isSettingsOpen = false)}
                             />
                         {/if}
 
@@ -468,7 +505,7 @@
         inset: 0;
         background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(2px);
-        z-index: 4;
+        z-index: 150;
         cursor: pointer;
         animation: fade-in 0.2s ease-out;
     }

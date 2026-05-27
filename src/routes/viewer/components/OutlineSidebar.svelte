@@ -88,6 +88,9 @@
                         onclick={() => {
                             if (heading.pageNumber !== undefined) {
                                 currentPage = heading.pageNumber
+                                if (window.innerWidth <= 480) {
+                                    onCloseOutline()
+                                }
                             }
                         }}
                         disabled={heading.pageNumber === undefined}
@@ -117,7 +120,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        z-index: 10;
+        z-index: 200;
         box-sizing: border-box;
         box-shadow: 10px 0 0 rgba(0, 0, 0, 0.1);
     }
@@ -138,6 +141,7 @@
         font-weight: 900;
         color: var(--doc-text-color);
         letter-spacing: 0.5px;
+        text-transform: uppercase;
     }
 
     .close-sidebar-btn {
@@ -253,9 +257,10 @@
         border: 1px solid var(--border-color);
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 480px) {
         .outline-sidebar {
-            max-width: 85%;
+            width: 100%;
+            border-right: none;
         }
     }
 </style>
