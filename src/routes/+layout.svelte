@@ -1,10 +1,20 @@
 <script lang="ts">
     import favicon from "$lib/assets/favicon.svg"
     import { themeState } from "$lib/theme.svelte"
-    import { onMount } from "svelte"
+    import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
+    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
 
     let { children } = $props()
+
+    const rootNode = new KeymapNode(null)
+    setContext(KEYMAP_CONTEXT_KEY, rootNode)
+
+    let currentActiveNode = $state<KeymapNode | null>(null)
+
+    setContext("set_active_keymap_node", (node: KeymapNode | null) => {
+        currentActiveNode = node
+    })
 
     $effect(() => {
         themeState.updateDOM()
@@ -12,6 +22,28 @@
 
     onMount(() => {
         viewerStore.initBooks()
+
+        const handleKeydown = (event: KeyboardEvent) => {
+            const activeNode = currentActiveNode || rootNode
+            activeNode.handleKeydown(event)
+        }
+        window.addEventListener("keydown", handleKeydown)
+        return () => window.removeEventListener("keydown", handleKeydown)
+    })
+
+    onMount(() => {
+        const unregisterAll = rootNode.registerAll([
+            {
+                keys: "ctrl+o",
+                action: () => {
+                    console.log("Open")
+                },
+                description: "Open a PDF book",
+            },
+        ])
+        return () => {
+            unregisterAll()
+        }
     })
 </script>
 

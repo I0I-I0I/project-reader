@@ -3,7 +3,7 @@
     import type { FlatHeading } from "$lib/pdf"
     import Spinner from "$lib/components/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { untrack, onMount, onDestroy } from "svelte"
+    import { untrack, onMount, onDestroy, getContext, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { goto } from "$app/navigation"
 
@@ -16,6 +16,27 @@
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
     import { cubicInOut } from "svelte/easing"
+    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
+
+    const parentNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
+    const viewerNode = new KeymapNode(parentNode)
+    setContext(KEYMAP_CONTEXT_KEY, viewerNode)
+    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
+
+    onMount(() => {
+        const unregisterRefresh = viewerNode.register({
+            keys: "r",
+            description: "Refresh Dashboard Metrics",
+            action: () => console.log("Refreshing dashboard data..."),
+        })
+
+        setActiveNode(viewerNode)
+
+        return () => {
+            unregisterRefresh()
+            setActiveNode(parentNode) // Fallback to parent node on unmount
+        }
+    })
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
     const name = $derived(viewerStore.getCurrentBook()?.name ?? "")
