@@ -31,12 +31,10 @@
             contentRef &&
             !hasScrolledInitially
         ) {
-            // Use requestAnimationFrame to ensure the list is fully rendered and classes applied
             requestAnimationFrame(() => {
                 if (!contentRef) return
                 const activeElements = contentRef.querySelectorAll(".outline-item.active")
                 if (activeElements.length > 0) {
-                    // Scroll to the deepest active heading (last one in the matched set)
                     activeElements[activeElements.length - 1].scrollIntoView({ block: "center" })
                 }
                 hasScrolledInitially = true

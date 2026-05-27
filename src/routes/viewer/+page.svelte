@@ -15,6 +15,7 @@
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import { cubicInOut } from "svelte/easing"
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
     const name = $derived(viewerStore.getCurrentBook()?.name ?? "")
@@ -38,11 +39,20 @@
     }
 
     onMount(() => {
-        if (!viewerStore.getCurrentBook()) {
+        if (viewerStore.isInitialized && !viewerStore.getCurrentBook()) {
             goto(resolve("/"))
             return
         }
         restoreBookPosition()
+    })
+
+    $effect(() => {
+        if (viewerStore.isInitialized) {
+            const currentBook = viewerStore.getCurrentBook()
+            if (!currentBook || currentBook.isLocked) {
+                goto(resolve("/"))
+            }
+        }
     })
 
     $effect(() => {
@@ -279,6 +289,68 @@
             nextPage()
         }
     }
+
+    function slideHeader(node: HTMLElement, { duration = 250 }) {
+        const style = getComputedStyle(node)
+        const opacity = +style.opacity
+        const height = parseFloat(style.height)
+        const padding_top = parseFloat(style.paddingTop)
+        const padding_bottom = parseFloat(style.paddingBottom)
+        const margin_top = parseFloat(style.marginTop)
+        const margin_bottom = parseFloat(style.marginBottom)
+        const border_top_width = parseFloat(style.borderTopWidth)
+        const border_bottom_width = parseFloat(style.borderBottomWidth)
+
+        return {
+            duration,
+            easing: cubicInOut,
+            css: (t: number) => {
+                return `
+                    overflow: hidden;
+                    opacity: ${t * opacity};
+                    height: ${t * height}px;
+                    padding-top: ${t * padding_top}px;
+                    padding-bottom: ${t * padding_bottom}px;
+                    margin-top: ${t * margin_top}px;
+                    margin-bottom: ${t * margin_bottom}px;
+                    border-top-width: ${t * border_top_width}px;
+                    border-bottom-width: ${t * border_bottom_width}px;
+                    transform: translateY(${(t - 1) * 100}%);
+                `
+            },
+        }
+    }
+
+    function slideFooter(node: HTMLElement, { duration = 250 }) {
+        const style = getComputedStyle(node)
+        const opacity = +style.opacity
+        const height = parseFloat(style.height)
+        const padding_top = parseFloat(style.paddingTop)
+        const padding_bottom = parseFloat(style.paddingBottom)
+        const margin_top = parseFloat(style.marginTop)
+        const margin_bottom = parseFloat(style.marginBottom)
+        const border_top_width = parseFloat(style.borderTopWidth)
+        const border_bottom_width = parseFloat(style.borderBottomWidth)
+
+        return {
+            duration,
+            easing: cubicInOut,
+            css: (t: number) => {
+                return `
+                    overflow: hidden;
+                    opacity: ${t * opacity};
+                    height: ${t * height}px;
+                    padding-top: ${t * padding_top}px;
+                    padding-bottom: ${t * padding_bottom}px;
+                    margin-top: ${t * margin_top}px;
+                    margin-bottom: ${t * margin_bottom}px;
+                    border-top-width: ${t * border_top_width}px;
+                    border-bottom-width: ${t * border_bottom_width}px;
+                    transform: translateY(${(1 - t) * 100}%);
+                `
+            },
+        }
+    }
 </script>
 
 {#if url}
@@ -286,13 +358,15 @@
         <div class="reader-card">
             <div class="viewer-layout">
                 {#if isToolbarsVisible}
-                    <ViewerHeader
-                        {name}
-                        {isLoaded}
-                        bind:isOutlineOpen
-                        bind:isSettingsOpen
-                        onClose={handleClose}
-                    />
+                    <div transition:slideHeader={{ duration: 250 }}>
+                        <ViewerHeader
+                            {name}
+                            {isLoaded}
+                            bind:isOutlineOpen
+                            bind:isSettingsOpen
+                            onClose={handleClose}
+                        />
+                    </div>
                 {/if}
 
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -417,13 +491,15 @@
                 </div>
 
                 {#if isLoaded && isToolbarsVisible}
-                    <ViewerFooter
-                        bind:currentPage
-                        {totalPages}
-                        {isPageLoading}
-                        {nextPage}
-                        {prevPage}
-                    />
+                    <div transition:slideFooter={{ duration: 250 }}>
+                        <ViewerFooter
+                            bind:currentPage
+                            {totalPages}
+                            {isPageLoading}
+                            {nextPage}
+                            {prevPage}
+                        />
+                    </div>
                 {/if}
             </div>
         </div>

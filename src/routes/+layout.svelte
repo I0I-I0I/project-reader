@@ -1,11 +1,17 @@
 <script lang="ts">
     import favicon from "$lib/assets/favicon.svg"
     import { themeState } from "$lib/theme.svelte"
+    import { onMount } from "svelte"
+    import { viewerStore } from "$lib/viewerStore.svelte"
 
     let { children } = $props()
 
     $effect(() => {
         themeState.updateDOM()
+    })
+
+    onMount(() => {
+        viewerStore.initBooks()
     })
 </script>
 

@@ -30,7 +30,6 @@
     })
 
     $effect(() => {
-        // Re-load if scale changes or we enter viewport
         const currentScale = scale
         if (shouldLoad && (!imageUrl || loadedScale !== currentScale) && !isLoading && pdf) {
             isLoading = true

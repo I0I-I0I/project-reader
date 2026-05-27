@@ -37,11 +37,7 @@ class SettingsStore {
             if (["single", "split", "scroll"].includes(parsed.layout)) {
                 sanitized.layout = parsed.layout
             }
-            if (
-                typeof parsed.scale === "number" &&
-                parsed.scale >= 0.5 &&
-                parsed.scale <= 3
-            ) {
+            if (typeof parsed.scale === "number" && parsed.scale >= 0.5 && parsed.scale <= 3) {
                 sanitized.scale = parsed.scale
             }
             if (["light", "dark", "system"].includes(parsed.theme)) {

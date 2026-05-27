@@ -2,6 +2,7 @@
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/viewerStore.svelte"
+    import { saveBookFile } from "$lib/db"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -14,17 +15,30 @@
     let dragCount = $state(0)
     let isDragging = $derived(dragCount > 0)
 
-    function processFiles(files: FileList | File[]) {
+    async function processFiles(files: FileList | File[]) {
         for (let i = 0; i < files.length; i++) {
             const file = files[i]
             if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
                 continue
             }
             const name = file.name
-            const url = URL.createObjectURL(file)
-            viewerStore.addBook({ url, name, updatedAt: Date.now(), pageNumber: 1 })
-            if (onimport) {
-                onimport({ url, name })
+            const id = `book_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+            try {
+                await saveBookFile(id, file)
+                const url = URL.createObjectURL(file)
+                viewerStore.addBook({
+                    id,
+                    url,
+                    name,
+                    updatedAt: Date.now(),
+                    pageNumber: 1,
+                    isLocked: false,
+                })
+                if (onimport) {
+                    onimport({ url, name })
+                }
+            } catch (err) {
+                console.error("Failed to process file:", err)
             }
         }
     }
@@ -34,6 +48,52 @@
         const fileList = target.files
         if (fileList && fileList.length > 0) {
             processFiles(fileList)
+        }
+    }
+
+    async function handleImportClick(event: MouseEvent) {
+        event.preventDefault()
+        if (typeof window.showOpenFilePicker === "function") {
+            try {
+                const handles = await window.showOpenFilePicker({
+                    types: [
+                        {
+                            description: "PDF Ebooks",
+                            accept: { "application/pdf": [".pdf"] },
+                        },
+                    ],
+                    multiple: true,
+                })
+
+                for (const handle of handles) {
+                    const id = `book_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+                    try {
+                        await saveBookFile(id, handle)
+                        const file = await handle.getFile()
+                        const url = URL.createObjectURL(file)
+                        viewerStore.addBook({
+                            id,
+                            url,
+                            name: handle.name,
+                            updatedAt: Date.now(),
+                            pageNumber: 1,
+                            isLocked: false,
+                        })
+                        if (onimport) {
+                            onimport({ url, name: handle.name })
+                        }
+                    } catch (err) {
+                        console.error("Failed to import book via handle:", err)
+                    }
+                }
+            } catch (err: any) {
+                if (err.name !== "AbortError") {
+                    console.error("showOpenFilePicker failed, falling back to standard input", err)
+                    fileInput?.click()
+                }
+            }
+        } else {
+            fileInput?.click()
         }
     }
 
@@ -67,7 +127,7 @@
         type="button"
         class="card card-importer"
         class:drag-active={isDragging}
-        onclick={() => fileInput?.click()}
+        onclick={handleImportClick}
         ondragenter={handleDragEnter}
         ondragleave={handleDragLeave}
         ondragover={handleDragOver}
@@ -78,14 +138,6 @@
         </div>
         <p class="card-title">{m.import_pdf()}</p>
     </button>
-    <input
-        bind:this={fileInput}
-        type="file"
-        accept=".pdf"
-        multiple
-        onchange={handleFileChange}
-        style="display: none;"
-    />
 {:else}
     <div
         class="reader-card"
@@ -104,20 +156,22 @@
                 </div>
                 <h3>{m.import_pdf()}</h3>
                 <p>{m.upload_p_text()}</p>
-                <label class="btn upload-btn">
+                <button type="button" class="btn upload-btn" onclick={handleImportClick}>
                     {m.choose_pdf()}
-                    <input
-                        type="file"
-                        accept=".pdf"
-                        multiple
-                        onchange={handleFileChange}
-                        style="display: none;"
-                    />
-                </label>
+                </button>
             </div>
         </div>
     </div>
 {/if}
+
+<input
+    bind:this={fileInput}
+    type="file"
+    accept=".pdf"
+    multiple
+    onchange={handleFileChange}
+    style="display: none;"
+/>
 
 <style>
     .reader-card {

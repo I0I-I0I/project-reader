@@ -56,7 +56,6 @@
             pages?.forEach((page) => observer.observe(page))
         }
 
-        // We need to wait for the each block to render
         const timeout = setTimeout(observePages, 100)
 
         return () => {
@@ -65,7 +64,6 @@
         }
     })
 
-    // Programmatic scroll when currentPage changes externally
     $effect(() => {
         const targetPage = currentPage
 
@@ -79,7 +77,6 @@
                 const containerRect = container.getBoundingClientRect()
                 const elementRect = targetElement.getBoundingClientRect()
 
-                // If the element is significantly out of view or not centered, scroll to it
                 const isVisible =
                     elementRect.top >= containerRect.top - 100 &&
                     elementRect.bottom <= containerRect.bottom + 100
@@ -88,7 +85,6 @@
                     isAutoScrolling = true
                     targetElement.scrollIntoView({ behavior: "auto", block: "start" })
 
-                    // Reset auto-scrolling flag after animation/jump
                     setTimeout(() => {
                         isAutoScrolling = false
                     }, 100)

@@ -19,7 +19,7 @@
 
     <main class="grid">
         {#if books.length !== 0}
-            {#each books as book}
+            {#each books as book (book.id)}
                 <Card {book} kind="book" extension="pdf" Icon={BookIcon} />
             {/each}
             <BookImporter variant="card" />

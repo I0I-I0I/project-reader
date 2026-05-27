@@ -1,23 +1,48 @@
 import { browser } from "$app/environment"
+import {
+    getBookFile,
+    deleteBookFile,
+    verifyPermission,
+    saveBookPreview,
+    getBookPreview,
+    deleteBookPreview,
+} from "$lib/db"
 
 export interface Book {
+    id: string
     url: string
     name: string
     updatedAt: number
     pageNumber: number
     pdfDest?: string
+    isLocked?: boolean
+    previewDataUrl?: string
+}
+
+function cleanBookForLocalStorage(book: Book): Book {
+    const { previewDataUrl, ...rest } = book
+    return rest
+}
+
+function cleanBooksForLocalStorage(books: Book[]): Book[] {
+    return books.map(cleanBookForLocalStorage)
 }
 
 class ViewerStore {
     private book = $state<Book | null>(null)
     private books = $state<Book[]>([])
+    private initialized = $state(false)
 
     constructor() {
         if (browser) {
             const savedBook = localStorage.getItem("book")
             if (savedBook) {
                 try {
-                    this.book = JSON.parse(savedBook)
+                    const parsed = JSON.parse(savedBook) as Book
+                    if (parsed && parsed.url && parsed.url.startsWith("blob:")) {
+                        parsed.url = ""
+                    }
+                    this.book = parsed
                 } catch (e) {
                     console.error("Failed to parse book from localStorage", e)
                 }
@@ -25,23 +50,122 @@ class ViewerStore {
         }
     }
 
+    get isInitialized() {
+        return this.initialized
+    }
+
+    async initBooks() {
+        if (!browser) return
+
+        try {
+            const savedBooks = localStorage.getItem("books")
+            if (savedBooks) {
+                try {
+                    this.books = JSON.parse(savedBooks)
+                    for (const book of this.books) {
+                        if (book.url && book.url.startsWith("blob:")) {
+                            book.url = ""
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to parse books from localStorage", e)
+                }
+            }
+
+            const updatedBooks = [...this.books]
+            for (const book of updatedBooks) {
+                try {
+                    const cachedPreview = await getBookPreview(book.id)
+                    if (cachedPreview) {
+                        book.previewDataUrl = cachedPreview
+                    }
+
+                    const fileOrHandle = await getBookFile(book.id)
+                    if (fileOrHandle) {
+                        if (fileOrHandle instanceof File) {
+                            if (book.url && book.url.startsWith("blob:")) {
+                                URL.revokeObjectURL(book.url)
+                            }
+                            book.url = URL.createObjectURL(fileOrHandle)
+                            book.isLocked = false
+                        } else {
+                            const status = await fileOrHandle.queryPermission({ mode: "read" })
+                            if (status === "granted") {
+                                const file = await fileOrHandle.getFile()
+                                if (book.url && book.url.startsWith("blob:")) {
+                                    URL.revokeObjectURL(book.url)
+                                }
+                                book.url = URL.createObjectURL(file)
+                                book.isLocked = false
+                            } else {
+                                book.url = ""
+                                book.isLocked = true
+                            }
+                        }
+                    } else {
+                        book.url = ""
+                        book.isLocked = true
+                    }
+                } catch (err) {
+                    console.error(`Failed to restore book ${book.name}:`, err)
+                    book.url = ""
+                    book.isLocked = true
+                }
+            }
+            this.books = updatedBooks
+
+            if (this.book) {
+                const matchingBook = this.books.find((b) => b.id === this.book?.id)
+                if (matchingBook) {
+                    this.book = {
+                        ...this.book,
+                        url: matchingBook.url,
+                        isLocked: matchingBook.isLocked,
+                        previewDataUrl: matchingBook.previewDataUrl,
+                    }
+                }
+            }
+        } finally {
+            this.initialized = true
+        }
+    }
+
     addBook(newBook: Book) {
-        if (this.books.some((b) => b.url === newBook.url)) {
+        if (this.books.some((b) => b.id === newBook.id)) {
             return
         }
         this.books = [...this.books, newBook]
+        if (browser) {
+            localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
+        }
     }
 
-    removeBook(book: Book) {
-        if (browser && book.url.startsWith("blob:")) {
+    async removeBook(book: Book) {
+        if (browser && book.url && book.url.startsWith("blob:")) {
             try {
                 URL.revokeObjectURL(book.url)
             } catch (e) {
                 console.error("Failed to revoke object URL", e)
             }
         }
-        this.books = this.books.filter((b) => b.url !== book.url)
-        if (this.book && this.book.url === book.url) {
+        this.books = this.books.filter((b) => b.id !== book.id)
+        if (browser) {
+            localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
+        }
+
+        try {
+            await deleteBookFile(book.id)
+        } catch (e) {
+            console.error(`Failed to delete book ${book.name} from IndexedDB:`, e)
+        }
+
+        try {
+            await deleteBookPreview(book.id)
+        } catch (e) {
+            console.error(`Failed to delete book preview ${book.name} from IndexedDB:`, e)
+        }
+
+        if (this.book && this.book.id === book.id) {
             this.setCurrentBook(null)
         }
     }
@@ -51,13 +175,62 @@ class ViewerStore {
     }
 
     updateBook(book: Book) {
-        const index = this.books.findIndex((b) => b.url === book.url)
+        const index = this.books.findIndex((b) => b.id === book.id)
         if (index >= 0) {
-            this.books[index] = book
+            const existingPreview = this.books[index].previewDataUrl
+            const updatedBook = {
+                ...book,
+                previewDataUrl:
+                    book.previewDataUrl !== undefined ? book.previewDataUrl : existingPreview,
+            }
+            this.books[index] = updatedBook
+
+            if (browser) {
+                localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
+            }
+
+            if (book.previewDataUrl) {
+                saveBookPreview(book.id, book.previewDataUrl).catch((err) => {
+                    console.error("Failed to save book preview to IndexedDB", err)
+                })
+            }
         }
-        if (this.book && this.book.url === book.url) {
-            this.setCurrentBook(book)
+        if (this.book && this.book.id === book.id) {
+            this.setCurrentBook(this.books[index])
         }
+    }
+
+    async restoreBookAccess(book: Book): Promise<string> {
+        const fileOrHandle = await getBookFile(book.id)
+        if (!fileOrHandle) {
+            throw new Error("Book file not found in database")
+        }
+
+        let file: File
+        if (fileOrHandle instanceof File) {
+            file = fileOrHandle
+        } else {
+            const allowed = await verifyPermission(fileOrHandle)
+            if (!allowed) {
+                throw new Error("Permission to read local file was denied")
+            }
+            file = await fileOrHandle.getFile()
+        }
+
+        if (book.url && book.url.startsWith("blob:")) {
+            try {
+                URL.revokeObjectURL(book.url)
+            } catch (e) {
+                console.error("Failed to revoke old object URL", e)
+            }
+        }
+
+        const freshUrl = URL.createObjectURL(file)
+
+        const updatedBook = { ...book, url: freshUrl, isLocked: false }
+        this.updateBook(updatedBook)
+
+        return freshUrl
     }
 
     setCurrentBook(newBook: Book | null) {
@@ -65,7 +238,7 @@ class ViewerStore {
 
         if (browser) {
             if (newBook !== null) {
-                localStorage.setItem("book", JSON.stringify(newBook))
+                localStorage.setItem("book", JSON.stringify(cleanBookForLocalStorage(newBook)))
             } else {
                 localStorage.removeItem("book")
             }

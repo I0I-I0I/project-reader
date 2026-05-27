@@ -16,10 +16,10 @@
     }
 
     let { book, Icon, kind, extension, ...props }: Props = $props()
-    let previewDataUrl = $state<string | null>(null)
+    let isRestoring = $state(false)
 
     $effect(() => {
-        if (kind === "book" && extension === "pdf" && book.url) {
+        if (kind === "book" && extension === "pdf" && book.url && !book.previewDataUrl) {
             let isCancelled = false
             const loadPreview = async () => {
                 const doc = new PDFDocument(book.url)
@@ -28,7 +28,7 @@
                     const page = await doc.getPage(1)
                     const imageUrl = await doc.getCanvasPage(page)
                     if (!isCancelled) {
-                        previewDataUrl = imageUrl
+                        viewerStore.updateBook({ ...book, previewDataUrl: imageUrl })
                     }
                 } catch (err) {
                     console.error("[Card] Failed to load PDF preview:", err)
@@ -43,9 +43,22 @@
         }
     })
 
-    const onClick = () => {
-        viewerStore.setCurrentBook(book)
-        goto(resolve("/viewer"))
+    const onClick = async () => {
+        if (isRestoring) return
+        try {
+            let activeBook = book
+            if (book.isLocked) {
+                isRestoring = true
+                const freshUrl = await viewerStore.restoreBookAccess(book)
+                activeBook = { ...book, url: freshUrl, isLocked: false }
+            }
+            viewerStore.setCurrentBook(activeBook)
+            goto(resolve("/viewer"))
+        } catch (err) {
+            console.error("[Card] Failed to restore book access:", err)
+        } finally {
+            isRestoring = false
+        }
     }
 
     const onRemove = (e: MouseEvent) => {
@@ -55,17 +68,23 @@
 </script>
 
 <div class="card">
-    <button type="button" class="card-main-button" onclick={onClick} {...props}>
+    <button
+        type="button"
+        class="card-main-button"
+        onclick={onClick}
+        disabled={isRestoring}
+        {...props}
+    >
         {#if kind === "book" && extension}
             <div class="badge" aria-label="{m.file_format()}: {extension}">
                 {extension}
             </div>
         {/if}
 
-        {#if previewDataUrl}
+        {#if book.previewDataUrl}
             <div class="card-preview" aria-hidden="true">
                 <div class="pdf-image-wrapper">
-                    <img src={previewDataUrl} alt="Cover preview" />
+                    <img src={book.previewDataUrl} alt="Cover preview" />
                 </div>
             </div>
         {:else if Icon}
@@ -75,6 +94,24 @@
         {/if}
 
         <p class="card-title">{book.name}</p>
+
+        {#if book.isLocked}
+            <div class="lock-overlay" aria-hidden="true">
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lock-icon"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span class="lock-text">RESTORE ACCESS</span>
+            </div>
+        {/if}
     </button>
 
     {#if kind === "book"}
@@ -279,6 +316,73 @@
             width: 14px;
             height: 14px;
             stroke-width: 2.5;
+        }
+    }
+
+    .lock-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(3px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #ffffff;
+        font-weight: 800;
+        z-index: 10;
+        opacity: 0.9;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card:hover .lock-overlay {
+        background: rgba(0, 0, 0, 0.7);
+        opacity: 1;
+        backdrop-filter: blur(5px);
+    }
+
+    .lock-icon {
+        width: 28px;
+        height: 28px;
+        stroke: #ffde4d;
+        filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card:hover .lock-overlay .lock-icon {
+        transform: scale(1.15) rotate(-5deg);
+    }
+
+    .lock-text {
+        text-transform: uppercase;
+        font-size: 10px;
+        background: #1a1a1a;
+        color: #ffde4d;
+        border: 2px solid var(--border-color);
+        padding: 4px 8px;
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        letter-spacing: 0.5px;
+        font-weight: 900;
+        transition: all 0.1s ease;
+    }
+
+    .card:hover .lock-text {
+        background: var(--viewer-accent, #00cec9);
+        color: var(--text-color, #1a1a1a);
+    }
+
+    @media (max-width: 600px) {
+        .lock-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .lock-text {
+            font-size: 8px;
+            padding: 2px 4px;
+            border-width: 1.5px;
+            box-shadow: 1px 1px 0 var(--shadow-color);
         }
     }
 </style>
