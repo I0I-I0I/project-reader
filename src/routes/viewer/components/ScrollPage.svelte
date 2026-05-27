@@ -3,78 +3,86 @@
     import { Page } from "$lib/pdf"
     import Spinner from "$lib/components/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
+    import { onDestroy, untrack } from "svelte"
 
-    let { pdf, pageNumber, scale, shouldLoad } = $props<{
+    let { pdf, pageNumber, scale, offsetY, width, height } = $props<{
         pdf: PDFDocument
         pageNumber: number
         scale: number
-        shouldLoad: boolean
+        offsetY: number
+        width: number
+        height: number
     }>()
 
-    let element = $state<HTMLElement | null>(null)
     let imageUrl = $state<string | null>(null)
     let isLoading = $state(false)
     let loadedScale = $state<number | null>(null)
 
-    let cachedHeight = $state<number | null>(null)
-    let cachedWidth = $state<number | null>(null)
-
-    const containerStyle = $derived.by(() => {
-        if (cachedWidth && cachedHeight) {
-            return `width: ${cachedWidth}px; aspect-ratio: ${cachedWidth} / ${cachedHeight}; height: auto;`
-        }
-        if (pdf.defaultWidth && pdf.defaultHeight) {
-            return `width: ${pdf.defaultWidth * scale}px; aspect-ratio: ${pdf.defaultWidth} / ${pdf.defaultHeight}; height: auto;`
-        }
-        return ""
-    })
+    const containerStyle = $derived(`width: ${width}px; height: ${height}px;`)
 
     $effect(() => {
         const currentScale = scale
-        if (shouldLoad && (!imageUrl || loadedScale !== currentScale) && !isLoading && pdf) {
-            isLoading = true
-            pdf.getCanvasPage(new Page(pageNumber), currentScale)
-                .then((url: string) => {
-                    imageUrl = url
-                    loadedScale = currentScale
-                    isLoading = false
-                })
-                .catch((err: unknown) => {
-                    console.error(`[ScrollPage] Failed to load page ${pageNumber}`, err)
-                    isLoading = false
-                })
-        }
+        const currentPdf = pdf
+
+        return untrack(() => {
+            if (currentPdf && (!imageUrl || loadedScale !== currentScale) && !isLoading) {
+                const controller = new AbortController()
+
+                // Debounce rendering to avoid thrashing during fast scrolls
+                const timeout = setTimeout(() => {
+                    isLoading = true
+                    currentPdf
+                        .getCanvasPage(new Page(pageNumber), currentScale, controller.signal)
+                        .then((url: string) => {
+                            if (controller.signal.aborted) {
+                                URL.revokeObjectURL(url)
+                                return
+                            }
+                            if (imageUrl && imageUrl.startsWith("blob:")) {
+                                URL.revokeObjectURL(imageUrl)
+                            }
+                            imageUrl = url
+                            loadedScale = currentScale
+                            isLoading = false
+                        })
+                        .catch((err: any) => {
+                            if (err.meessage?.startsWith("Rendering cancelled")) {
+                                console.error(`[ScrollPage] Failed to load page ${pageNumber}`, err)
+                            }
+                            isLoading = false
+                        })
+                }, 50)
+
+                return () => {
+                    clearTimeout(timeout)
+                    controller.abort()
+                }
+            }
+        })
     })
 
-    function handleImageLoad(event: Event) {
-        const img = event.target as HTMLImageElement
-        cachedHeight = img.naturalHeight
-        cachedWidth = img.naturalWidth
-    }
+    onDestroy(() => {
+        if (imageUrl && imageUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(imageUrl)
+        }
+    })
 </script>
 
-<div class="scroll-page" bind:this={element} data-page={pageNumber}>
-    <div class="page-container">
+<div class="scroll-page" style="top: {offsetY}px;" data-page={pageNumber}>
+    <div class="page-container" style={containerStyle}>
         {#if imageUrl}
             <div class="pdf-image-wrapper" style={containerStyle}>
                 <img
                     src={imageUrl}
                     alt={m.page_render_alt({ page: pageNumber })}
                     class="pdf-image"
-                    onload={handleImageLoad}
                 />
             </div>
-        {:else if cachedHeight && cachedWidth}
-            <div class="placeholder" style={containerStyle}>
-                {#if isLoading}
-                    <div class="loader-overlay">
-                        <Spinner variant="dots" size="sm" label="" />
-                    </div>
-                {/if}
-            </div>
         {:else}
-            <div class="placeholder initial-loading" style={containerStyle}>
-                <Spinner variant="dots" size="md" label="" />
+            <div class="placeholder" style={containerStyle}>
+                <div class="loader-overlay">
+                    <Spinner variant="dots" size="sm" label="" />
+                </div>
             </div>
         {/if}
     </div>
@@ -82,11 +90,13 @@
 
 <style>
     .scroll-page {
+        position: absolute;
+        left: 0;
+        right: 0;
         display: flex;
         justify-content: center;
         align-items: flex-start;
         padding: 40px;
-        width: 100%;
         box-sizing: border-box;
     }
 
@@ -122,12 +132,6 @@
         position: relative;
     }
 
-    .initial-loading {
-        width: 600px;
-        height: 800px;
-        max-width: 100%;
-    }
-
     .loader-overlay {
         position: absolute;
         inset: 0;
@@ -146,10 +150,6 @@
         .placeholder {
             border-width: 1.5px;
             box-shadow: 4px 4px 0 var(--shadow-color);
-        }
-
-        .initial-loading {
-            height: 400px;
         }
     }
 </style>

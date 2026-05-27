@@ -28,7 +28,8 @@ interface DocumentInterface {
     getTitle(): Promise<string | null>
     getPageNumber(): Promise<number>
     getPage(pageNumber: number): Promise<Page>
-    getCanvasPage(page: Page, scale?: number): Promise<string>
+    getCanvasPage(page: Page, scale?: number, signal?: AbortSignal): Promise<string>
+    getAllPageDimensions(): Promise<{ width: number; height: number }[]>
     close(): Promise<void>
 }
 
@@ -104,6 +105,49 @@ export default class PDFDocument implements DocumentInterface {
         return new Page(pageNumber)
     }
 
+    async getAllPageDimensions(): Promise<{ width: number; height: number }[]> {
+        if (!this.pdfDoc) {
+            throw new Error("PDF document has not been loaded")
+        }
+
+        const dimensions: { width: number; height: number }[] = []
+
+        const batchSize = 10
+        for (let i = 1; i <= this.pageCount; i += batchSize) {
+            const end = Math.min(i + batchSize - 1, this.pageCount)
+            const batchPromises = []
+            for (let j = i; j <= end; j++) {
+                batchPromises.push(this.pdfDoc.getPage(j))
+            }
+
+            const pages = await Promise.all(
+                batchPromises.map((p) =>
+                    p.catch((err) => {
+                        console.warn(
+                            "[PDFDocument] Individual page fetch failed during dimension pass:",
+                            err,
+                        )
+                        return null
+                    }),
+                ),
+            )
+            for (const page of pages) {
+                if (page) {
+                    const viewport = page.getViewport({ scale: 1 })
+                    dimensions.push({ width: viewport.width, height: viewport.height })
+                    page.cleanup()
+                } else {
+                    dimensions.push({
+                        width: this.defaultWidth || 612,
+                        height: this.defaultHeight || 792,
+                    })
+                }
+            }
+        }
+
+        return dimensions
+    }
+
     private parseOutline(items: PDFJsOutlineItem[], depth: number = 0): FlatHeading[] {
         let headingsList: FlatHeading[] = []
 
@@ -176,13 +220,16 @@ export default class PDFDocument implements DocumentInterface {
         return resolvedHeadings
     }
 
-    async getCanvasPage(page: Page, scale: number = 1.5): Promise<string> {
+    async getCanvasPage(page: Page, scale: number = 1.5, signal?: AbortSignal): Promise<string> {
         if (!this.pdfDoc) {
             throw new Error("PDF document has not been loaded")
         }
 
+        let pdfPage: pdfjs.PDFPageProxy | null = null
         try {
-            const pdfPage = await this.pdfDoc.getPage(page.pageNumber)
+            pdfPage = await this.pdfDoc.getPage(page.pageNumber)
+            if (signal?.aborted) throw new Error("Rendering cancelled")
+
             const viewport = pdfPage.getViewport({ scale })
 
             const canvas = document.createElement("canvas")
@@ -199,13 +246,38 @@ export default class PDFDocument implements DocumentInterface {
                 viewport: viewport,
             }
 
-            await pdfPage.render(renderContext).promise
-            const dataUrl = canvas.toDataURL("image/png")
+            const renderTask = pdfPage.render(renderContext)
+
+            const onAbort = () => {
+                renderTask.cancel()
+            }
+            signal?.addEventListener("abort", onAbort)
+
+            try {
+                await renderTask.promise
+            } finally {
+                signal?.removeEventListener("abort", onAbort)
+            }
+
+            if (signal?.aborted) throw new Error("Rendering cancelled")
+
+            const blob = await new Promise<Blob | null>((resolve) =>
+                canvas.toBlob(resolve, "image/png"),
+            )
+            if (!blob) throw new Error("Failed to create blob from canvas")
 
             pdfPage.cleanup()
 
-            return dataUrl
+            return URL.createObjectURL(blob)
         } catch (err: any) {
+            if (pdfPage) pdfPage.cleanup()
+            if (
+                err.name === "RenderingCancelledException" ||
+                err.message === "Rendering cancelled" ||
+                signal?.aborted
+            ) {
+                throw err
+            }
             console.error(`[PDFDocument] Failed to render page ${page.pageNumber}:`, err)
             throw new Error(`Failed to render page visual: ${err.message || err}`)
         }

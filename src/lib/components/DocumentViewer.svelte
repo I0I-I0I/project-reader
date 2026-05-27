@@ -96,31 +96,43 @@
 
         if (!currentPdf || !loaded) {
             untrack(() => {
+                if (currentPageImage && currentPageImage.startsWith("blob:")) {
+                    URL.revokeObjectURL(currentPageImage)
+                }
                 currentPageImage = null
             })
             return
         }
 
-        let canceled = false
+        const controller = new AbortController()
 
         untrack(() => {
             isPageLoading = true
 
             const renderPage = async (pNo: number) => {
+                let img: string | null = null
                 try {
                     const page = await currentPdf.getPage(pNo)
 
-                    const img = await currentPdf.getCanvasPage(page)
+                    img = await currentPdf.getCanvasPage(page, 1.5, controller.signal)
 
-                    if (!canceled) {
+                    if (!controller.signal.aborted) {
                         untrack(() => {
+                            if (currentPageImage && currentPageImage.startsWith("blob:")) {
+                                URL.revokeObjectURL(currentPageImage)
+                            }
                             currentPageImage = img
                             isPageLoading = false
                         })
+                    } else {
+                        if (img && img.startsWith("blob:")) URL.revokeObjectURL(img)
                     }
-                } catch (err) {
-                    console.error("Failed to render page:", err)
-                    if (!canceled) {
+                } catch (err: any) {
+                    if (img && img.startsWith("blob:")) URL.revokeObjectURL(img)
+                    if (err.message?.startsWith("Rendering cancelled")) {
+                        console.error("Failed to render page:", err)
+                    }
+                    if (!controller.signal.aborted) {
                         untrack(() => {
                             isPageLoading = false
                         })
@@ -132,7 +144,14 @@
         })
 
         return () => {
-            canceled = true
+            controller.abort()
+        }
+    })
+
+    import { onDestroy } from "svelte"
+    onDestroy(() => {
+        if (currentPageImage && currentPageImage.startsWith("blob:")) {
+            URL.revokeObjectURL(currentPageImage)
         }
     })
 

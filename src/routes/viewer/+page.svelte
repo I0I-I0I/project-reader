@@ -3,7 +3,7 @@
     import type { FlatHeading } from "$lib/pdf"
     import Spinner from "$lib/components/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { untrack, onMount } from "svelte"
+    import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { goto } from "$app/navigation"
 
@@ -161,38 +161,62 @@
 
         if (!currentPdf || !loaded || mode === "scroll") {
             untrack(() => {
+                if (currentPageImage && currentPageImage.startsWith("blob:")) {
+                    URL.revokeObjectURL(currentPageImage)
+                }
+                if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
+                    URL.revokeObjectURL(currentPageImage2)
+                }
                 currentPageImage = null
                 currentPageImage2 = null
             })
             return
         }
 
-        let canceled = false
+        const controller = new AbortController()
 
         untrack(() => {
             isPageLoading = true
 
             const renderPages = async () => {
+                let img1: string | null = null
+                let img2: string | null = null
                 try {
                     const page1 = await currentPdf.getPage(pageNo)
-                    const img1 = await currentPdf.getCanvasPage(page1, currentScale)
+                    img1 = await currentPdf.getCanvasPage(page1, currentScale, controller.signal)
 
-                    let img2: string | null = null
                     if (mode === "split" && pageNo + 1 <= totalPages) {
                         const page2 = await currentPdf.getPage(pageNo + 1)
-                        img2 = await currentPdf.getCanvasPage(page2, currentScale)
+                        img2 = await currentPdf.getCanvasPage(
+                            page2,
+                            currentScale,
+                            controller.signal,
+                        )
                     }
 
-                    if (!canceled) {
+                    if (!controller.signal.aborted) {
                         untrack(() => {
+                            if (currentPageImage && currentPageImage.startsWith("blob:")) {
+                                URL.revokeObjectURL(currentPageImage)
+                            }
+                            if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
+                                URL.revokeObjectURL(currentPageImage2)
+                            }
                             currentPageImage = img1
                             currentPageImage2 = img2
                             isPageLoading = false
                         })
+                    } else {
+                        if (img1 && img1.startsWith("blob:")) URL.revokeObjectURL(img1)
+                        if (img2 && img2.startsWith("blob:")) URL.revokeObjectURL(img2)
                     }
-                } catch (err) {
-                    console.error("Failed to render page(s):", err)
-                    if (!canceled) {
+                } catch (err: any) {
+                    if (img1 && img1.startsWith("blob:")) URL.revokeObjectURL(img1)
+                    if (img2 && img2.startsWith("blob:")) URL.revokeObjectURL(img2)
+                    if (err.message?.startsWith("Rendering cancelled")) {
+                        console.error("Failed to render page(s):", err)
+                    }
+                    if (!controller.signal.aborted) {
                         untrack(() => {
                             isPageLoading = false
                         })
@@ -204,7 +228,16 @@
         })
 
         return () => {
-            canceled = true
+            controller.abort()
+        }
+    })
+
+    onDestroy(() => {
+        if (currentPageImage && currentPageImage.startsWith("blob:")) {
+            URL.revokeObjectURL(currentPageImage)
+        }
+        if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
+            URL.revokeObjectURL(currentPageImage2)
         }
     })
 

@@ -20,7 +20,7 @@ export interface Book {
 }
 
 function cleanBookForLocalStorage(book: Book): Book {
-    const { previewDataUrl, ...rest } = book
+    const { previewDataUrl: _, ...rest } = book
     return rest
 }
 
@@ -47,6 +47,14 @@ class ViewerStore {
                     console.error("Failed to parse book from localStorage", e)
                 }
             }
+
+            const flush = () => this.persistToLocalStorage(true)
+            window.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "hidden") {
+                    flush()
+                }
+            })
+            window.addEventListener("beforeunload", flush)
         }
     }
 
@@ -130,14 +138,38 @@ class ViewerStore {
         }
     }
 
+    private saveTimeout: ReturnType<typeof setTimeout> | null = null
+
+    private persistToLocalStorage(immediate = false) {
+        if (!browser) return
+
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout)
+            this.saveTimeout = null
+        }
+
+        const save = () => {
+            localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
+            if (this.book) {
+                localStorage.setItem("book", JSON.stringify(cleanBookForLocalStorage(this.book)))
+            } else {
+                localStorage.removeItem("book")
+            }
+        }
+
+        if (immediate) {
+            save()
+        } else {
+            this.saveTimeout = setTimeout(save, 500)
+        }
+    }
+
     addBook(newBook: Book) {
         if (this.books.some((b) => b.id === newBook.id)) {
             return
         }
         this.books = [...this.books, newBook]
-        if (browser) {
-            localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
-        }
+        this.persistToLocalStorage(true)
     }
 
     async removeBook(book: Book) {
@@ -149,9 +181,6 @@ class ViewerStore {
             }
         }
         this.books = this.books.filter((b) => b.id !== book.id)
-        if (browser) {
-            localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
-        }
 
         try {
             await deleteBookFile(book.id)
@@ -166,8 +195,9 @@ class ViewerStore {
         }
 
         if (this.book && this.book.id === book.id) {
-            this.setCurrentBook(null)
+            this.book = null
         }
+        this.persistToLocalStorage(true)
     }
 
     getBooks(): Book[] {
@@ -185,10 +215,6 @@ class ViewerStore {
             }
             this.books[index] = updatedBook
 
-            if (browser) {
-                localStorage.setItem("books", JSON.stringify(cleanBooksForLocalStorage(this.books)))
-            }
-
             if (book.previewDataUrl) {
                 saveBookPreview(book.id, book.previewDataUrl).catch((err) => {
                     console.error("Failed to save book preview to IndexedDB", err)
@@ -196,7 +222,10 @@ class ViewerStore {
             }
         }
         if (this.book && this.book.id === book.id) {
-            this.setCurrentBook(this.books[index])
+            this.book = this.books[index]
+            this.persistToLocalStorage(false)
+        } else {
+            this.persistToLocalStorage(true)
         }
     }
 
@@ -235,14 +264,7 @@ class ViewerStore {
 
     setCurrentBook(newBook: Book | null) {
         this.book = newBook
-
-        if (browser) {
-            if (newBook !== null) {
-                localStorage.setItem("book", JSON.stringify(cleanBookForLocalStorage(newBook)))
-            } else {
-                localStorage.removeItem("book")
-            }
-        }
+        this.persistToLocalStorage(true)
     }
 
     getCurrentBook(): Book | null {

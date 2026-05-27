@@ -1,7 +1,7 @@
 <script lang="ts">
     import type PDFDocument from "$lib/pdf"
     import ScrollPage from "./ScrollPage.svelte"
-    import { onMount, untrack } from "svelte"
+    import { untrack } from "svelte"
 
     let {
         pdf,
@@ -19,93 +19,164 @@
     let isAutoScrolling = false
     let lastObservedPage = -1
 
-    const PRELOAD_COUNT = 4
+    // Virtualization state
+    let pageDimensions = $state<{ width: number; height: number }[]>([])
+    let scrollTop = $state(0)
+    let containerHeight = $state(0)
 
-    onMount(() => {
-        if (!container) return
+    const PAGE_GAP = 80 // Matching .scroll-page padding (40px top + 40px bottom)
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (isAutoScrolling) return
-
-                let mostVisiblePage = currentPage
-                let maxRatio = 0
-
-                for (const entry of entries) {
-                    if (entry.intersectionRatio > maxRatio) {
-                        maxRatio = entry.intersectionRatio
-                        const pageNum = parseInt(entry.target.getAttribute("data-page") || "1")
-                        mostVisiblePage = pageNum
-                    }
+    $effect(() => {
+        if (pdf) {
+            let active = true
+            const loadDimensions = async () => {
+                const dims = await pdf.getAllPageDimensions()
+                if (active) {
+                    pageDimensions = dims
                 }
-
-                if (maxRatio > 0.15 && mostVisiblePage !== currentPage) {
-                    lastObservedPage = mostVisiblePage
-                    currentPage = mostVisiblePage
-                }
-            },
-            {
-                root: container,
-                rootMargin: "-25% 0px -25% 0px",
-                threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0],
-            },
-        )
-
-        const observePages = () => {
-            const pages = container?.querySelectorAll(".scroll-page")
-            pages?.forEach((page) => observer.observe(page))
-        }
-
-        const timeout = setTimeout(observePages, 100)
-
-        return () => {
-            clearTimeout(timeout)
-            observer.disconnect()
+            }
+            loadDimensions()
+            return () => {
+                active = false
+                pageDimensions = []
+            }
+        } else {
+            pageDimensions = []
         }
     })
 
+    const pageOffsets = $derived.by(() => {
+        if (pageDimensions.length === 0) return []
+        const offsets: number[] = []
+        let currentOffset = 0
+        for (const dim of pageDimensions) {
+            offsets.push(currentOffset)
+            currentOffset += dim.height * scale + PAGE_GAP
+        }
+        return offsets
+    })
+
+    const totalHeight = $derived(
+        pageOffsets.length > 0
+            ? pageOffsets[pageOffsets.length - 1] +
+                  pageDimensions[pageDimensions.length - 1].height * scale +
+                  PAGE_GAP
+            : 0,
+    )
+
+    function handleScroll(e: Event) {
+        if (pageOffsets.length === 0) return
+
+        const target = e.target as HTMLElement
+        scrollTop = target.scrollTop
+        containerHeight = target.clientHeight
+
+        if (isAutoScrolling) return
+
+        // Find current page based on scroll position (middle of viewport)
+        const viewportMiddle = scrollTop + containerHeight / 2
+
+        let foundPage = 1
+        for (let i = 0; i < pageOffsets.length; i++) {
+            const top = pageOffsets[i]
+            const height = pageDimensions[i].height * scale + PAGE_GAP
+            if (viewportMiddle >= top && viewportMiddle < top + height) {
+                foundPage = i + 1
+                break
+            }
+        }
+
+        if (foundPage !== currentPage) {
+            lastObservedPage = foundPage
+            currentPage = foundPage
+        }
+    }
+
+    const visibleRange = $derived.by(() => {
+        if (pageOffsets.length === 0 || containerHeight === 0) return []
+
+        const viewportTop = scrollTop
+        const viewportBottom = scrollTop + containerHeight
+
+        const buffer = containerHeight // 1 viewport buffer
+        const renderTop = viewportTop - buffer
+        const renderBottom = viewportBottom + buffer
+
+        let startIdx = 0
+        let endIdx = pageDimensions.length - 1
+
+        for (let i = 0; i < pageOffsets.length; i++) {
+            const bottom = pageOffsets[i] + pageDimensions[i].height * scale + PAGE_GAP
+            if (bottom > renderTop) {
+                startIdx = i
+                break
+            }
+        }
+
+        for (let i = startIdx; i < pageOffsets.length; i++) {
+            const top = pageOffsets[i]
+            if (top > renderBottom) {
+                endIdx = i - 1
+                break
+            }
+        }
+
+        const range: number[] = []
+        for (let i = Math.max(0, startIdx); i <= Math.min(pageDimensions.length - 1, endIdx); i++) {
+            range.push(i)
+        }
+        return range
+    })
+
+    let lastScale = $state(-1)
     $effect(() => {
         const targetPage = currentPage
+        const currentScale = scale
+        const offsets = pageOffsets
 
         untrack(() => {
-            if (!container || isAutoScrolling || targetPage === lastObservedPage) return
-
-            const targetElement = container.querySelector(
-                `.scroll-page[data-page="${targetPage}"]`,
-            ) as HTMLElement
-            if (targetElement) {
-                const containerRect = container.getBoundingClientRect()
-                const elementRect = targetElement.getBoundingClientRect()
-
-                const isVisible =
-                    elementRect.top >= containerRect.top - 100 &&
-                    elementRect.bottom <= containerRect.bottom + 100
-
-                if (!isVisible) {
-                    isAutoScrolling = true
-                    targetElement.scrollIntoView({ behavior: "auto", block: "start" })
-
-                    setTimeout(() => {
-                        isAutoScrolling = false
-                    }, 100)
-                }
-
-                lastObservedPage = targetPage
+            if (lastScale === -1) {
+                lastScale = currentScale
             }
+            const scaleChanged = currentScale !== lastScale
+            if (!container || isAutoScrolling || offsets.length === 0) return
+            if (targetPage === lastObservedPage && !scaleChanged) return
+
+            const targetOffset = offsets[targetPage - 1]
+
+            isAutoScrolling = true
+            container.scrollTo({ top: targetOffset, behavior: "auto" })
+            lastObservedPage = targetPage
+            lastScale = currentScale
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    isAutoScrolling = false
+                })
+            })
         })
     })
 </script>
 
-<div class="scroll-canvas-pane" bind:this={container}>
-    {#if pdf}
-        {#each Array(totalPages) as _, i (i)}
-            <ScrollPage
-                {pdf}
-                pageNumber={i + 1}
-                {scale}
-                shouldLoad={Math.abs(currentPage - (i + 1)) <= PRELOAD_COUNT}
-            />
-        {/each}
+<div
+    class="scroll-canvas-pane"
+    bind:this={container}
+    bind:clientHeight={containerHeight}
+    onscroll={handleScroll}
+>
+    {#if pdf && pageOffsets.length > 0}
+        <div class="virtual-container" style="height: {totalHeight}px;">
+            {#each visibleRange as i (i)}
+                <ScrollPage
+                    {pdf}
+                    pageNumber={i + 1}
+                    {scale}
+                    offsetY={pageOffsets[i]}
+                    width={pageDimensions[i].width * scale}
+                    height={pageDimensions[i].height * scale}
+                />
+            {/each}
+        </div>
     {/if}
 </div>
 
@@ -117,12 +188,14 @@
         background: var(--canvas-frame-bg);
         background-image: radial-gradient(var(--border-color) 1px, transparent 0);
         background-size: 24px 24px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         position: relative;
         height: 100%;
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .virtual-container {
+        position: relative;
+        width: 100%;
     }
 
     /* Custom scrollbar */
