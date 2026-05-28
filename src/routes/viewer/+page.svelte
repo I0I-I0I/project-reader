@@ -35,7 +35,15 @@
         const unregisterAll = viewerNode.registerAll([
             {
                 keys: "j",
-                description: "Scroll down",
+                description: m.keymap_scroll_down(),
+                action: () => {
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: 150, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "arrowdown",
+                description: m.keymap_scroll_down(),
                 action: () => {
                     const pane = getScrollContainer()
                     if (pane) pane.scrollBy({ top: 150, behavior: "smooth" })
@@ -43,7 +51,15 @@
             },
             {
                 keys: "k",
-                description: "Scroll up",
+                description: m.keymap_scroll_up(),
+                action: () => {
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: -150, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "arrowup",
+                description: m.keymap_scroll_up(),
                 action: () => {
                     const pane = getScrollContainer()
                     if (pane) pane.scrollBy({ top: -150, behavior: "smooth" })
@@ -51,7 +67,16 @@
             },
             {
                 keys: "d",
-                description: "Scroll page down",
+                description: m.keymap_scroll_page_down(),
+                action: () => {
+                    const currentHeight = window.innerHeight
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: currentHeight / 2, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "pagedown",
+                description: m.keymap_scroll_page_down(),
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
@@ -60,7 +85,7 @@
             },
             {
                 keys: "u",
-                description: "Scroll page up",
+                description: m.keymap_scroll_page_up(),
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
@@ -68,78 +93,101 @@
                 },
             },
             {
-                keys: " ",
-                description: "Next page",
+                keys: "pageup",
+                description: m.keymap_scroll_page_up(),
+                action: () => {
+                    const currentHeight = window.innerHeight
+                    const pane = getScrollContainer()
+                    if (pane) pane.scrollBy({ top: currentHeight / -2, behavior: "smooth" })
+                },
+            },
+            {
+                keys: "space",
+                description: m.keymap_next_page(),
                 action: () => {
                     nextPage()
                 },
             },
             {
-                keys: "shift+ ",
-                description: "Previous page",
+                keys: "arrowright",
+                description: m.keymap_next_page(),
+                action: () => {
+                    nextPage()
+                },
+            },
+            {
+                keys: "shift+space",
+                description: m.keymap_prev_page(),
+                action: () => {
+                    prevPage()
+                },
+            },
+            {
+                keys: "arrowleft",
+                description: m.keymap_prev_page(),
                 action: () => {
                     prevPage()
                 },
             },
             {
                 keys: "shift+o",
-                description: "Toggle outline",
+                description: m.keymap_toggle_outline(),
                 action: () => {
                     isOutlineOpen = !isOutlineOpen
                 },
             },
             {
                 keys: "shift+s",
-                description: "Toggle settings",
+                description: m.keymap_toggle_settings(),
                 action: () => {
                     isSettingsOpen = !isSettingsOpen
                 },
             },
             {
                 keys: "q",
-                description: "Close viewer",
+                description: m.keymap_close_viewer(),
                 action: () => {
                     goto(resolve("/"))
                 },
             },
             {
                 keys: "shift+m",
-                description: "Hide toolbars",
+                description: m.keymap_hide_toolbars(),
                 action: () => {
                     isToolbarsVisible = !isToolbarsVisible
                 },
             },
             {
                 keys: "shift+l",
-                description: "Toggle layouts",
+                description: m.keymap_toggle_layouts(),
                 action: () => {
                     settingsStore.layout_next()
                 },
             },
             {
                 keys: "-",
-                description: "Zoom out",
+                description: m.keymap_zoom_out(),
                 action: () => {
                     settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5)
                 },
             },
             {
                 keys: "shift++",
-                description: "Zoom in",
+                description: m.keymap_zoom_in(),
                 action: () => {
                     settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3)
                 },
             },
             {
                 keys: "=",
-                description: "Zoom to fit",
+                description: m.keymap_zoom_to_fit(),
                 action: () => {
                     settingsStore.scale = 1
                 },
             },
             {
                 keys: "g",
-                description: "Goto page",
+                description: m.keymap_goto_page(),
                 action: () => {
                     const cPage = prompt("Enter page number:")
                     if (cPage) {

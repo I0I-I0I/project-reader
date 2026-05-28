@@ -41,8 +41,38 @@ export class KeymapNode {
         return null
     }
 
+    getAllKeymaps(): ShortcutAction[] {
+        const keymapsMap = new Map<string, ShortcutAction>()
+        this.collectKeymaps(keymapsMap)
+        return Array.from(keymapsMap.values())
+    }
+
+    private collectKeymaps(keymapsMap: Map<string, ShortcutAction>) {
+        for (const [key, shortcut] of this.bindings.entries()) {
+            if (!keymapsMap.has(key)) {
+                keymapsMap.set(key, shortcut)
+            }
+        }
+        if (this.parent) {
+            this.parent.collectKeymaps(keymapsMap)
+        }
+    }
+
     public normalizeKeyString(keys: string): string {
-        return keys.toLowerCase().split("+").sort().join("+")
+        const lowerKeys = keys.toLowerCase()
+        let parts: string[]
+        if (lowerKeys === "+") {
+            parts = ["+"]
+        } else if (lowerKeys.endsWith("++")) {
+            const base = lowerKeys.slice(0, -2)
+            parts = [...base.split("+"), "+"]
+        } else {
+            parts = lowerKeys.split("+")
+        }
+        return parts
+            .map((k) => (k === " " || k === "spacebar" ? "space" : k))
+            .sort()
+            .join("+")
     }
 
     public getEventString(event: KeyboardEvent): string {
@@ -51,7 +81,9 @@ export class KeymapNode {
         if (event.metaKey) parts.push("meta")
         if (event.altKey) parts.push("alt")
         if (event.shiftKey) parts.push("shift")
-        parts.push(event.key.toLowerCase())
+        const key =
+            event.key === " " || event.key === "Spacebar" ? "space" : event.key.toLowerCase()
+        parts.push(key)
         return parts.sort().join("+")
     }
 
@@ -66,7 +98,15 @@ export class KeymapNode {
         }
 
         const pressedString = this.getEventString(event)
-        const match = this.findAction(pressedString)
+        let match = this.findAction(pressedString)
+
+        // Fallback for keys like "?" that may have shift modifier depending on layout
+        if (!match) {
+            const keyLower = event.key.toLowerCase()
+            if (keyLower !== pressedString) {
+                match = this.findAction(keyLower)
+            }
+        }
 
         if (match) {
             if (match.preventDefault !== false) event.preventDefault()

@@ -34,9 +34,9 @@
     let filteredOutlineList = $derived(
         outlineList
             ? outlineList.filter((h: FlatHeading) =>
-                  h.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  h.title.toLowerCase().includes(searchQuery.toLowerCase()),
               )
-            : []
+            : [],
     )
 
     function selectHeading(heading: FlatHeading) {
@@ -53,7 +53,8 @@
         if (direction === "next") {
             selectedIndex = (selectedIndex + 1) % filteredOutlineList.length
         } else {
-            selectedIndex = (selectedIndex - 1 + filteredOutlineList.length) % filteredOutlineList.length
+            selectedIndex =
+                (selectedIndex - 1 + filteredOutlineList.length) % filteredOutlineList.length
         }
     }
 
@@ -97,7 +98,9 @@
         untrack(() => {
             if (selectedIndex === -1) {
                 // Initial mount or reset: Find active heading
-                const index = filteredOutlineList.findIndex((h: FlatHeading) => activeHeadings.has(h))
+                const index = filteredOutlineList.findIndex((h: FlatHeading) =>
+                    activeHeadings.has(h),
+                )
                 selectedIndex = index !== -1 ? index : 0
                 lastQuery = currentQuery
             } else if (currentQuery !== lastQuery) {
@@ -108,7 +111,9 @@
                     selectedIndex = 0
                 } else {
                     // Search cleared: reset to active heading
-                    const index = filteredOutlineList.findIndex((h: FlatHeading) => activeHeadings.has(h))
+                    const index = filteredOutlineList.findIndex((h: FlatHeading) =>
+                        activeHeadings.has(h),
+                    )
                     selectedIndex = index !== -1 ? index : 0
                 }
             }
@@ -129,7 +134,15 @@
         const unregisterAll = outlineNode.registerAll([
             {
                 keys: "j",
-                description: "Next heading",
+                description: m.keymap_next_heading(),
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("next")
+                },
+            },
+            {
+                keys: "arrowdown",
+                description: m.keymap_next_heading(),
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -137,7 +150,15 @@
             },
             {
                 keys: "k",
-                description: "Previous heading",
+                description: m.keymap_prev_heading(),
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("prev")
+                },
+            },
+            {
+                keys: "arrowup",
+                description: m.keymap_prev_heading(),
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -145,7 +166,7 @@
             },
             {
                 keys: "ctrl+n",
-                description: "Next heading",
+                description: m.keymap_next_heading(),
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -153,7 +174,7 @@
             },
             {
                 keys: "ctrl+p",
-                description: "Previous heading",
+                description: m.keymap_prev_heading(),
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -161,7 +182,7 @@
             },
             {
                 keys: "enter",
-                description: "Select heading",
+                description: m.keymap_select_heading(),
                 action: (event) => {
                     event.preventDefault()
                     const heading = filteredOutlineList[selectedIndex]
@@ -173,7 +194,7 @@
             },
             {
                 keys: "/",
-                description: "Search headings",
+                description: m.keymap_search_headings(),
                 action: (event) => {
                     event.preventDefault()
                     searchInputRef?.focus()
@@ -272,9 +293,7 @@
                 {m.no_outline()}
             </div>
         {:else if filteredOutlineList.length === 0}
-            <div class="no-outline">
-                No matching headings found
-            </div>
+            <div class="no-outline">No matching headings found</div>
         {:else}
             <nav class="outline-nav">
                 {#each filteredOutlineList as heading, index}

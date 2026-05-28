@@ -4,6 +4,8 @@
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
+    import * as m from "$lib/paraglide/messages"
+    import KeymapHelpModal from "$lib/components/KeymapHelpModal.svelte"
 
     let { children } = $props()
 
@@ -11,10 +13,13 @@
     setContext(KEYMAP_CONTEXT_KEY, rootNode)
 
     let currentActiveNode = $state<KeymapNode | null>(null)
+    let isHelpOpen = $state(false)
 
     setContext("set_active_keymap_node", (node: KeymapNode | null) => {
         currentActiveNode = node
     })
+
+    setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
 
     $effect(() => {
         themeState.updateDOM()
@@ -38,35 +43,70 @@
                 action: () => {
                     themeState.next()
                 },
-                description: "Change theme",
+                description: m.keymap_change_theme(),
             },
             {
                 keys: "j",
                 action: () => {
                     window.scrollBy({ top: 150, behavior: "smooth" })
                 },
-                description: "Scroll down",
+                description: m.keymap_scroll_down(),
+            },
+            {
+                keys: "arrowdown",
+                action: () => {
+                    window.scrollBy({ top: 150, behavior: "smooth" })
+                },
+                description: m.keymap_scroll_down(),
             },
             {
                 keys: "k",
                 action: () => {
                     window.scrollBy({ top: -150, behavior: "smooth" })
                 },
-                description: "Scroll up",
+                description: m.keymap_scroll_up(),
+            },
+            {
+                keys: "arrowup",
+                action: () => {
+                    window.scrollBy({ top: -150, behavior: "smooth" })
+                },
+                description: m.keymap_scroll_up(),
             },
             {
                 keys: "d",
                 action: () => {
                     window.scrollBy({ top: 500, behavior: "smooth" })
                 },
-                description: "Scroll down",
+                description: m.keymap_scroll_down(),
+            },
+            {
+                keys: "pagedown",
+                action: () => {
+                    window.scrollBy({ top: 500, behavior: "smooth" })
+                },
+                description: m.keymap_scroll_down(),
             },
             {
                 keys: "u",
                 action: () => {
                     window.scrollBy({ top: -500, behavior: "smooth" })
                 },
-                description: "Scroll up",
+                description: m.keymap_scroll_up(),
+            },
+            {
+                keys: "pageup",
+                action: () => {
+                    window.scrollBy({ top: -500, behavior: "smooth" })
+                },
+                description: m.keymap_scroll_up(),
+            },
+            {
+                keys: "?",
+                action: () => {
+                    isHelpOpen = !isHelpOpen
+                },
+                description: m.keymap_toggle_help(),
             },
         ])
         return () => {
@@ -81,6 +121,9 @@
 
 <div class="app">
     {@render children()}
+    {#if isHelpOpen}
+        <KeymapHelpModal onClose={() => (isHelpOpen = false)} />
+    {/if}
 </div>
 
 <style>
