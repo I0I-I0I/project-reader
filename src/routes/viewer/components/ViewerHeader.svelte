@@ -108,110 +108,6 @@
         gap: 12px;
     }
 
-    .zoom-controls {
-        display: flex;
-        gap: 8px;
-    }
-
-    .layout-switcher {
-        position: relative;
-    }
-
-    .layout-btn {
-        background: var(--button-bg);
-        font-size: 12px;
-        font-weight: 800;
-        padding: 8px 14px;
-        border: 2.5px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        color: var(--text-color);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        text-transform: uppercase;
-    }
-
-    .layout-btn-content {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .layout-btn-content :global(svg) {
-        width: 18px;
-        height: 18px;
-        flex-shrink: 0;
-    }
-
-    .layout-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
-    }
-
-    .layout-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-    }
-
-    .chevron {
-        transition: transform 0.2s ease;
-    }
-
-    .chevron.open {
-        transform: rotate(180deg);
-    }
-
-    .layout-dropdown {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        z-index: 1000;
-        list-style: none;
-        margin: 0;
-        padding: 4px;
-        border: 2px solid var(--border-color);
-        background: var(--card-bg, #ffffff);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        min-width: 160px;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .dropdown-item {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        background: none;
-        border: none;
-        color: var(--text-color);
-        padding: 10px 14px;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        text-align: left;
-        cursor: pointer;
-        transition: all 0.1s ease;
-        gap: 10px;
-    }
-
-    .dropdown-item :global(svg) {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
-    }
-
-    .dropdown-item:hover {
-        background: var(--viewer-accent);
-    }
-
-    .dropdown-item.active {
-        background: var(--viewer-accent-active);
-    }
-
     .header-actions :global(.action-btn) {
         background: var(--button-bg);
         font-size: 12px;
@@ -321,11 +217,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .layout-btn {
-            height: 32px;
-            padding: 4px 8px;
         }
     }
 

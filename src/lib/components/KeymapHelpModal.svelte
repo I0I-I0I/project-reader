@@ -207,6 +207,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="keymap-title"
+    tabindex="-1"
 >
     <div class="modal-card" transition:scale={{ duration: 150, start: 0.95 }}>
         <div class="modal-header">

@@ -68,6 +68,7 @@
     </button>
 
     {#if isOpen}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <ul
             class="switcher-dropdown"
             class:align-left={align === "left"}
