@@ -1,7 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Header from "$lib/components/Header.svelte"
-    import Breadcrumbs from "$lib/components/Breadcrumbs.svelte"
+    import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
 

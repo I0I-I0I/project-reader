@@ -1,11 +1,11 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Spinner from "$lib/components/Spinner.svelte"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
     import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
     import { getContext, onMount, setContext, untrack } from "svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte";
+    import { settingsStore } from "$lib/settingsStore.svelte"
 
     let {
         isOutlineLoading,

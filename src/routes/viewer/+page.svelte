@@ -1,7 +1,7 @@
 <script lang="ts">
     import PDFDocument from "$lib/pdf"
     import type { FlatHeading } from "$lib/pdf"
-    import Spinner from "$lib/components/Spinner.svelte"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy, getContext, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"

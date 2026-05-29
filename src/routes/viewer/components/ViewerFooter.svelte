@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Button from "$lib/components/Button.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
 
     let {
         currentPage = $bindable(),

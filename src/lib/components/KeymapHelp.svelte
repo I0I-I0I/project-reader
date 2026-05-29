@@ -1,9 +1,9 @@
 <script lang="ts">
     import { getContext, onMount } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
-    import { fade, scale } from "svelte/transition"
     import { KeymapNode } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
+    import Modal from "./ui/Modal.svelte"
 
     interface Props {
         onClose: () => void
@@ -19,12 +19,10 @@
     let searchQuery = $state("")
     let searchInputRef = $state<HTMLInputElement | null>(null)
 
-    // Gather keymaps active before the modal opens (statically during component init)
     const keymaps = (() => {
         if (!activeNodeBeforeOpen) return []
         const allBindings = activeNodeBeforeOpen.getAllKeymaps()
 
-        // Format for display and remove duplicates or empty descriptions
         const seen = new Set<string>()
         return allBindings
             .filter((b) => {
@@ -66,14 +64,6 @@
     }
 
     onMount(() => {
-        // Capture the previously focused element to restore it on unmount
-        const previouslyFocused = document.activeElement as HTMLElement | null
-
-        // Focus close button inside the modal for screen readers and keyboard users
-        const closeBtn = document.querySelector(".close-btn") as HTMLElement | null
-        closeBtn?.focus()
-
-        // Create help keymap node to capture close and move shortcuts while modal is open
         helpNode = new KeymapNode(activeNodeBeforeOpen)
 
         const unregisterAll = helpNode.registerAll([
@@ -207,18 +197,9 @@
             if (activeNodeBeforeOpen) {
                 setActiveNode(activeNodeBeforeOpen)
             }
-            // Restore original focus
-            previouslyFocused?.focus()
         }
     })
 
-    function handleBackdropClick(event: MouseEvent) {
-        if (event.target === event.currentTarget) {
-            onClose()
-        }
-    }
-
-    // Helper to format keys beautifully
     function formatKeys(keyStr: string): string[] {
         if (keyStr === "+") return ["+"]
         if (keyStr.endsWith("++")) {
@@ -229,28 +210,8 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-    class="backdrop"
-    transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
-    onclick={handleBackdropClick}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="keymap-title"
-    tabindex="-1"
->
-    <div
-        class="modal-card"
-        transition:scale={{ duration: settingsStore.animations ? 150 : 0, start: 0.95 }}
-    >
-        <div class="modal-header">
-            <h2 id="keymap-title" class="modal-title">
-                {m.keymap_modal_title()}
-            </h2>
-            <button class="close-btn" onclick={onClose} aria-label={m.close()}> &times; </button>
-        </div>
-
+<Modal {onClose} title={m.keymap_modal_title()} closeLabel={m.close()}>
+    {#snippet children()}
         {#if keymaps.length > 0}
             <div class="modal-search">
                 <input
@@ -300,84 +261,14 @@
                 </div>
             {/if}
         </div>
+    {/snippet}
 
-        <div class="modal-footer">
-            <span class="footer-hint">{m.keymap_modal_close_hint()}</span>
-        </div>
-    </div>
-</div>
+    {#snippet footer()}
+        <span class="footer-hint">{m.keymap_modal_close_hint()}</span>
+    {/snippet}
+</Modal>
 
 <style>
-    .backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        padding: 20px;
-        box-sizing: border-box;
-    }
-
-    .modal-card {
-        background: var(--card-bg);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        width: 100%;
-        max-width: 580px;
-        max-height: 80vh;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border-radius: 4px;
-        font-family: inherit;
-        animation: card-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 24px;
-        border-bottom: 2px solid var(--border-color);
-        background: var(--bg-color);
-    }
-
-    .modal-title {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        text-transform: uppercase;
-        color: var(--text-color);
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: 1.75rem;
-        font-weight: bold;
-        color: var(--text-color);
-        cursor: pointer;
-        padding: 0 4px;
-        line-height: 1;
-        transition: transform 0.1s ease;
-    }
-
-    .close-btn:hover {
-        transform: scale(1.15);
-    }
-
-    .close-btn:active {
-        transform: scale(0.95);
-    }
-
     .modal-content {
         padding: 24px;
         overflow-y: auto;
@@ -388,12 +279,6 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 16px;
-    }
-
-    @media (min-width: 480px) {
-        .shortcuts-grid {
-            grid-template-columns: 1fr;
-        }
     }
 
     .shortcut-row {
@@ -438,13 +323,6 @@
         color: var(--text-color);
         text-align: right;
         font-weight: 500;
-    }
-
-    .modal-footer {
-        padding: 12px 24px;
-        border-top: 2px solid var(--border-color);
-        background: var(--bg-color);
-        text-align: center;
     }
 
     .footer-hint {

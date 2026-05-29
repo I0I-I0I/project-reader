@@ -1,7 +1,7 @@
 <script lang="ts">
     import NewFolderIcon from "$lib/components/icons/NewFolderIcon.svelte"
-    import Button from "$lib/components/Button.svelte"
-    import Switcher from "$lib/components/Switcher.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
+    import Switcher from "$lib/components/ui/Switcher.svelte"
     import SunIcon from "$lib/components/icons/SunIcon.svelte"
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"

@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Button from "$lib/components/Button.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
     import SinglePageIcon from "$lib/components/icons/SinglePageIcon.svelte"

@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Spinner from "$lib/components/Spinner.svelte"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
 
     let { isPageLoading, currentPageImage, currentPageImage2, currentPage, layoutMode } = $props<{
         isPageLoading: boolean

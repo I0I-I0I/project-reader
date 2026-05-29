@@ -5,7 +5,7 @@
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
-    import KeymapHelpModal from "$lib/components/KeymapHelpModal.svelte"
+    import KeymapHelp from "$lib/components/KeymapHelp.svelte"
 
     let { children } = $props()
 
@@ -153,7 +153,7 @@
 <div class="app">
     {@render children()}
     {#if isHelpOpen}
-        <KeymapHelpModal onClose={() => (isHelpOpen = false)} />
+        <KeymapHelp onClose={() => (isHelpOpen = false)} />
     {/if}
 </div>
 

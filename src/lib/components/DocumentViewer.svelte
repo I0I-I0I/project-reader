@@ -1,10 +1,10 @@
 <script lang="ts">
     import PDFDocument from "$lib/pdf"
     import type { FlatHeading } from "$lib/pdf"
-    import Spinner from "./Spinner.svelte"
+    import Spinner from "./ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { untrack } from "svelte"
-    import Button from "$lib/components/Button.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
     import MenuIcon from "./icons/MenuIcon.svelte"
 
     interface Props {

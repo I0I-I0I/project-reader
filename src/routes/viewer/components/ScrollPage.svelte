@@ -1,7 +1,7 @@
 <script lang="ts">
     import type PDFDocument from "$lib/pdf"
     import { Page } from "$lib/pdf"
-    import Spinner from "$lib/components/Spinner.svelte"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { onDestroy, untrack } from "svelte"
 
