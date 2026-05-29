@@ -145,10 +145,15 @@
         ondragover={handleDragOver}
         ondrop={handleDrop}
     >
-        <div class="card-icon" aria-hidden="true">
-            <PlusIcon />
+        <div class="card-cover-container">
+            <div class="card-icon" aria-hidden="true">
+                <PlusIcon />
+            </div>
         </div>
-        <p class="card-title">{m.import_pdf()}</p>
+        <div class="card-metadata">
+            <p class="card-title">{m.import_pdf()}</p>
+            <p class="card-author">&nbsp;</p>
+        </div>
     </button>
 {:else}
     <div
@@ -296,22 +301,21 @@
     /* Card variant styles */
     .card {
         background: var(--card-bg);
-        aspect-ratio: 1/1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         font-family: inherit;
-        text-align: center;
+        text-align: left;
         color: inherit;
         user-select: none;
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
     }
 
     .card:hover {
@@ -325,12 +329,26 @@
         box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
-    .card-icon {
-        margin-bottom: 20px;
-        color: var(--text-color);
+    .card-cover-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 2/3;
+        background: var(--bg-color);
+        border-bottom: 2px solid var(--border-color);
+        overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-sizing: border-box;
+    }
+
+    .card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: var(--text-color);
     }
 
     .card-icon :global(svg) {
@@ -339,15 +357,47 @@
         stroke-width: 2;
     }
 
+    .card-metadata {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        box-sizing: border-box;
+        text-align: left;
+    }
+
     .card-title {
-        font-size: 14px;
-        font-weight: bold;
+        font-size: 13px;
+        font-weight: 800;
         text-transform: uppercase;
         margin: 0;
-        text-align: center;
-        max-width: 180px;
+        text-align: left;
+        width: 100%;
         word-wrap: break-word;
         color: var(--text-color);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.3;
+    }
+
+    .card-author {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        word-wrap: break-word;
+        color: var(--text-color);
+        opacity: 0.7;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.2;
     }
 
     .card-importer {
@@ -355,22 +405,22 @@
     }
 
     @media (max-width: 600px) {
-        .card {
-            padding: 12px;
+        .card-metadata {
+            padding: 8px;
+            gap: 2px;
         }
 
-        .card-icon {
-            margin-bottom: 10px;
+        .card-title {
+            font-size: 11px;
+        }
+
+        .card-author {
+            font-size: 9.5px;
         }
 
         .card-icon :global(svg) {
             width: 36px;
             height: 36px;
-        }
-
-        .card-title {
-            font-size: 11px;
-            max-width: 100%;
         }
 
         .upload-zone {

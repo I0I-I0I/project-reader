@@ -18,17 +18,41 @@
     let { book, Icon, kind, extension, ...props }: Props = $props()
     let isRestoring = $state(false)
 
+    let progressPercent = $derived.by(() => {
+        if (kind === "book" && book.totalPages && book.totalPages > 0) {
+            const page = book.pageNumber || 1
+            const total = book.totalPages
+            return Math.min(100, Math.max(0, Math.round((page / total) * 100)))
+        }
+        return 0
+    })
+
     $effect(() => {
-        if (kind === "book" && extension === "pdf" && book.url && !book.previewDataUrl) {
+        if (
+            kind === "book" &&
+            extension === "pdf" &&
+            book.url &&
+            (!book.previewDataUrl || !book.totalPages || book.author === undefined)
+        ) {
             let isCancelled = false
             const loadPreview = async () => {
                 const doc = new PDFDocument(book.url)
                 try {
                     await doc.load()
-                    const page = await doc.getPage(1)
-                    const imageUrl = await doc.getCanvasPage(page)
+                    const totalPages = await doc.getPageNumber()
+                    const author = await doc.getAuthor()
+                    let imageUrl = book.previewDataUrl
+                    if (!book.previewDataUrl) {
+                        const page = await doc.getPage(1)
+                        imageUrl = await doc.getCanvasPage(page)
+                    }
                     if (!isCancelled) {
-                        viewerStore.updateBook({ ...book, previewDataUrl: imageUrl })
+                        viewerStore.updateBook({
+                            ...book,
+                            previewDataUrl: imageUrl,
+                            totalPages,
+                            author,
+                        })
                     }
                 } catch (err) {
                     console.error("[Card] Failed to load PDF preview:", err)
@@ -75,25 +99,47 @@
         disabled={isRestoring}
         {...props}
     >
-        {#if kind === "book" && extension}
-            <div class="badge" aria-label="{m.file_format()}: {extension}">
-                {extension}
-            </div>
-        {/if}
-
-        {#if book.previewDataUrl}
-            <div class="card-preview" aria-hidden="true">
-                <div class="pdf-image-wrapper">
-                    <img src={book.previewDataUrl} alt="Cover preview" />
+        <div class="card-cover-container">
+            {#if kind === "book" && extension}
+                <div class="badge" aria-label="{m.file_format()}: {extension}">
+                    {extension}
                 </div>
-            </div>
-        {:else if Icon}
-            <div class="card-icon" aria-hidden="true">
-                <Icon />
-            </div>
-        {/if}
+            {/if}
 
-        <p class="card-title">{book.name}</p>
+            {#if book.previewDataUrl}
+                <div class="card-preview" aria-hidden="true">
+                    <div class="pdf-image-wrapper">
+                        <img src={book.previewDataUrl} alt="Cover preview" />
+                    </div>
+                </div>
+            {:else if Icon}
+                <div class="card-icon" aria-hidden="true">
+                    <Icon />
+                </div>
+            {/if}
+
+            {#if kind === "book" && book.totalPages && book.totalPages > 0}
+                <div class="progress-container">
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: {progressPercent}%"></div>
+                    </div>
+                    <span class="progress-text">{progressPercent}%</span>
+                </div>
+            {/if}
+        </div>
+
+        <div class="card-metadata">
+            <p class="card-title">{book.name}</p>
+            {#if kind === "book"}
+                <p class="card-author">
+                    {#if book.author}
+                        {book.author}
+                    {:else}
+                        {m.unknown_author()}
+                    {/if}
+                </p>
+            {/if}
+        </div>
 
         {#if book.isLocked}
             <div class="lock-overlay" aria-hidden="true">
@@ -129,13 +175,13 @@
 <style>
     .card {
         background: var(--card-bg);
-        aspect-ratio: 1/1;
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
         display: flex;
+        flex-direction: column;
     }
 
     .card:hover {
@@ -156,22 +202,36 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
         cursor: pointer;
         font-family: inherit;
-        text-align: center;
+        text-align: left;
         color: inherit;
         box-sizing: border-box;
     }
 
-    .card-icon {
-        margin-bottom: 20px;
-        color: var(--text-color);
+    .card-cover-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 2/3;
+        background: var(--bg-color);
+        border-bottom: 2px solid var(--border-color);
+        overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-sizing: border-box;
+    }
+
+    .card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: var(--text-color);
     }
 
     .card-icon :global(svg) {
@@ -181,24 +241,25 @@
     }
 
     .card-preview {
-        margin-bottom: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        height: 120px;
+        height: 100%;
     }
 
     .pdf-image-wrapper {
-        max-width: 100%;
-        max-height: 100%;
-        display: inline-flex;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .card-preview img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
         display: block;
     }
 
@@ -206,15 +267,47 @@
         filter: invert(1) hue-rotate(180deg);
     }
 
+    .card-metadata {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        box-sizing: border-box;
+        text-align: left;
+    }
+
     .card-title {
-        font-size: 14px;
-        font-weight: bold;
+        font-size: 13px;
+        font-weight: 800;
         text-transform: uppercase;
         margin: 0;
-        text-align: center;
-        max-width: 180px;
+        text-align: left;
+        width: 100%;
         word-wrap: break-word;
         color: var(--text-color);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.3;
+    }
+
+    .card-author {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        word-wrap: break-word;
+        color: var(--text-color);
+        opacity: 0.7;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.2;
     }
 
     .badge {
@@ -272,53 +365,6 @@
         box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
-    @media (max-width: 600px) {
-        .card-main-button {
-            padding: 12px;
-        }
-
-        .card-icon {
-            margin-bottom: 10px;
-        }
-
-        .card-icon :global(svg) {
-            width: 36px;
-            height: 36px;
-        }
-
-        .card-preview {
-            margin-bottom: 10px;
-            height: 80px;
-        }
-
-        .card-title {
-            font-size: 11px;
-            max-width: 100%;
-        }
-
-        .badge {
-            top: 8px;
-            right: 8px;
-            font-size: 9px;
-            padding: 2px 6px;
-        }
-
-        .remove-btn {
-            opacity: 1;
-            pointer-events: auto;
-            top: 8px;
-            left: 8px;
-            padding: 4px;
-            border-width: 1.5px;
-        }
-
-        .remove-btn :global(svg) {
-            width: 14px;
-            height: 14px;
-            stroke-width: 2.5;
-        }
-    }
-
     .lock-overlay {
         position: absolute;
         inset: 0;
@@ -372,7 +418,87 @@
         color: var(--text-color, #1a1a1a);
     }
 
+    .progress-container {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 28px;
+        background: var(--card-bg);
+        border-top: 2px solid var(--border-color);
+        box-sizing: border-box;
+        overflow: hidden;
+        z-index: 5;
+    }
+
+    .progress-bar-track {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        background: transparent;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: var(--badge-bg);
+        transition: width 0.3s ease-in-out;
+        border-right: 2px solid var(--border-color);
+    }
+
+    .progress-text {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: var(--text-color);
+        pointer-events: none;
+    }
+
     @media (max-width: 600px) {
+        .card-metadata {
+            padding: 8px;
+            gap: 2px;
+        }
+
+        .card-title {
+            font-size: 11px;
+        }
+
+        .card-author {
+            font-size: 9.5px;
+        }
+
+        .card-icon :global(svg) {
+            width: 36px;
+            height: 36px;
+        }
+
+        .badge {
+            top: 8px;
+            right: 8px;
+            font-size: 9px;
+            padding: 2px 6px;
+        }
+
+        .remove-btn {
+            opacity: 1;
+            pointer-events: auto;
+            top: 8px;
+            left: 8px;
+            padding: 4px;
+            border-width: 1.5px;
+        }
+
+        .remove-btn :global(svg) {
+            width: 14px;
+            height: 14px;
+            stroke-width: 2.5;
+        }
+
         .lock-icon {
             width: 20px;
             height: 20px;
@@ -383,6 +509,14 @@
             padding: 2px 4px;
             border-width: 1.5px;
             box-shadow: 1px 1px 0 var(--shadow-color);
+        }
+
+        .progress-container {
+            height: 22px;
+        }
+
+        .progress-text {
+            font-size: 10.5px;
         }
     }
 </style>

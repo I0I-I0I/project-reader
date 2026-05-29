@@ -19,6 +19,8 @@ export interface Book {
     pdfDest?: string
     isLocked?: boolean
     previewDataUrl?: string
+    totalPages?: number
+    author?: string | null
 }
 
 function cleanBookForLocalStorage(book: Book): Book {

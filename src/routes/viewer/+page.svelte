@@ -329,8 +329,17 @@
 
                     if (!canceled) {
                         pdf = doc
-                        totalPages = await doc.getPageNumber()
+                        const pagesCount = await doc.getPageNumber()
+                        totalPages = pagesCount
                         isLoaded = true
+
+                        const currentBook = viewerStore.getCurrentBook()
+                        if (currentBook && currentBook.totalPages !== pagesCount) {
+                            viewerStore.updateBook({
+                                ...currentBook,
+                                totalPages: pagesCount,
+                            })
+                        }
                     }
                 } catch (err) {
                     console.error("Failed to load PDF:", err)

@@ -93,5 +93,6 @@
     "no_matching_headings": "No matching headings found",
     "scale_subtitle": "Scale: {scale}%",
     "set_scale_150_subtitle": "Set scale to 150%",
-    "keymap_import_book": "Import book"
+    "keymap_import_book": "Import book",
+    "unknown_author": "Unknown Author"
 }
