@@ -7,8 +7,6 @@
 
     import { viewerStore } from "$lib/viewerStore.svelte"
     import Card from "$lib/components/Card.svelte"
-    import { KEYMAP_CONTEXT_KEY, type KeymapNode } from "$lib/keymaps"
-    import { onMount, getContext } from "svelte"
 
     const books = $derived(viewerStore.getBooks())
 </script>

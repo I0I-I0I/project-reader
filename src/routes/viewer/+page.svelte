@@ -204,7 +204,7 @@
 
         return () => {
             unregisterAll()
-            setActiveNode(parentNode) // Fallback to parent node on unmount
+            setActiveNode(parentNode)
         }
     })
 

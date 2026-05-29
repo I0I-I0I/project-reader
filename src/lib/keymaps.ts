@@ -2,7 +2,6 @@ export type ShortcutAction = {
     keys: string
     action: (event: KeyboardEvent) => void
     description: string
-    preventDefault?: boolean
 }
 
 export class KeymapNode {
@@ -109,7 +108,6 @@ export class KeymapNode {
         }
 
         if (match) {
-            if (match.preventDefault !== false) event.preventDefault()
             match.action(event)
         }
     }
