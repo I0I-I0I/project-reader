@@ -95,7 +95,6 @@
         --font-size: 16px;
     }
 
-    /* Animation Duration Variables */
     .spinner-element {
         --speed-slow: 1.5s;
         --speed-normal: 0.8s;

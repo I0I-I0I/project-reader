@@ -9,34 +9,30 @@
     import SunIcon from "$lib/components/icons/SunIcon.svelte"
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
-    import { themeState } from "$lib/theme.svelte"
+    import PlayIcon from "$lib/components/icons/PlayIcon.svelte"
+    import PauseIcon from "$lib/components/icons/PauseIcon.svelte"
+    import { settingsStore, type Theme } from "$lib/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
 
-    let {
-        scale = $bindable(1.5),
-        layoutMode = $bindable("single"),
-        onClose,
-    } = $props<{
-        scale: number
-        layoutMode: "single" | "split" | "scroll"
+    let { onClose } = $props<{
         onClose: () => void
     }>()
 
     function upScale() {
-        scale = Math.min(scale + 0.25, 3)
+        settingsStore.scale = Math.min(settingsStore.scale + 0.25, 3)
     }
 
     function downScale() {
-        scale = Math.max(scale - 0.25, 0.5)
+        settingsStore.scale = Math.max(settingsStore.scale - 0.25, 0.5)
     }
 
-    const THEMES = [
+    const THEMES: { value: Theme; label: () => string; Icon: typeof SunIcon }[] = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
         { value: "dark", label: () => m.dark(), Icon: MoonIcon },
         { value: "system", label: () => m.system(), Icon: SystemIcon },
     ] as const
 
-    function slideFromRight(node: HTMLElement, { duration = 150 }) {
+    function slideFromRight(_: HTMLElement, { duration = 150 }) {
         return {
             duration,
             css: (t: number) => {
@@ -53,7 +49,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     class="settings-sidebar"
-    transition:slideFromRight={{ duration: 150 }}
+    transition:slideFromRight={{ duration: settingsStore.animations ? 150 : 0 }}
     onclick={(e) => e.stopPropagation()}
 >
     <div class="sidebar-header">
@@ -67,24 +63,24 @@
             <div class="layout-options">
                 <button
                     class="option-btn"
-                    class:active={layoutMode === "single"}
-                    onclick={() => (layoutMode = "single")}
+                    class:active={settingsStore.layout === "single"}
+                    onclick={() => (settingsStore.layout = "single")}
                 >
                     <SinglePageIcon />
                     <span>{m.single_page()}</span>
                 </button>
                 <button
                     class="option-btn"
-                    class:active={layoutMode === "split"}
-                    onclick={() => (layoutMode = "split")}
+                    class:active={settingsStore.layout === "split"}
+                    onclick={() => (settingsStore.layout = "split")}
                 >
                     <SplitPagesIcon />
                     <span>{m.split_pages()}</span>
                 </button>
                 <button
                     class="option-btn"
-                    class:active={layoutMode === "scroll"}
-                    onclick={() => (layoutMode = "scroll")}
+                    class:active={settingsStore.layout === "scroll"}
+                    onclick={() => (settingsStore.layout = "scroll")}
                 >
                     <ScrollPagesIcon />
                     <span>{m.scroll_pages()}</span>
@@ -98,7 +94,7 @@
                 <Button onclick={downScale} aria-label={m.zoom_out()} class="zoom-btn">
                     <MinusIcon />
                 </Button>
-                <span class="scale-display">{Math.round(scale * 100)}%</span>
+                <span class="scale-display">{Math.round(settingsStore.scale * 100)}%</span>
                 <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
                     <PlusIcon />
                 </Button>
@@ -111,13 +107,35 @@
                 {#each THEMES as { value, label, Icon }}
                     <button
                         class="option-btn"
-                        class:active={themeState.current === value}
-                        onclick={() => themeState.set(value)}
+                        class:active={settingsStore.theme === value}
+                        onclick={() => (settingsStore.theme = value)}
                     >
                         <Icon class="theme-icon" />
                         <span>{label()}</span>
                     </button>
                 {/each}
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h4 class="section-title">{m.animations()}</h4>
+            <div class="animation-options">
+                <button
+                    class="option-btn"
+                    class:active={settingsStore.animations}
+                    onclick={() => (settingsStore.animations = true)}
+                >
+                    <PlayIcon />
+                    <span>{m.animations_enabled()}</span>
+                </button>
+                <button
+                    class="option-btn"
+                    class:active={!settingsStore.animations}
+                    onclick={() => (settingsStore.animations = false)}
+                >
+                    <PauseIcon />
+                    <span>{m.animations_disabled()}</span>
+                </button>
             </div>
         </section>
     </div>
@@ -214,7 +232,8 @@
     }
 
     .layout-options,
-    .theme-options {
+    .theme-options,
+    .animation-options {
         display: flex;
         flex-direction: column;
         gap: 8px;

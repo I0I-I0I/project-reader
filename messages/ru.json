@@ -10,6 +10,9 @@
     "system": "СИСТЕМА",
     "dark": "ТЕМНАЯ",
     "light": "СВЕТЛАЯ",
+    "animations": "АНИМАЦИЯ",
+    "animations_enabled": "ВКЛЮЧЕНА",
+    "animations_disabled": "ВЫКЛЮЧЕНА",
     "breadcrumb": "НАВИГАЦИОННАЯ ЦЕПОЧКА",
     "action_controls": "УПРАВЛЕНИЕ",
     "language_switcher": "ВЫБОР ЯЗЫКА",
@@ -63,5 +66,6 @@
     "keymap_close_help": "Закрыть окно помощи",
     "keymap_toggle_help": "Показать горячие клавиши",
     "keymap_no_shortcuts": "Активные горячие клавиши не найдены.",
-    "keymap_no_matching_shortcuts": "Не найдено подходящих горячих клавиш"
+    "keymap_no_matching_shortcuts": "Не найдено подходящих горячих клавиш",
+    "keymap_toggle_animations": "Переключить анимацию"
 }

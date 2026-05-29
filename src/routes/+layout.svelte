@@ -1,6 +1,6 @@
 <script lang="ts">
     import favicon from "$lib/assets/favicon.svg"
-    import { themeState } from "$lib/theme.svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
@@ -22,7 +22,7 @@
     setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
 
     $effect(() => {
-        themeState.updateDOM()
+        settingsStore.updateDOM()
     })
 
     onMount(() => {
@@ -39,65 +39,96 @@
     onMount(() => {
         const unregisterAll = rootNode.registerAll([
             {
-                keys: "t",
+                keys: "shift+t",
                 action: () => {
-                    themeState.next()
+                    settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
                 },
                 description: m.keymap_change_theme(),
             },
             {
+                keys: "shift+a",
+                action: () => {
+                    settingsStore.animations = !settingsStore.animations
+                },
+                description: m.keymap_toggle_animations(),
+            },
+            {
                 keys: "j",
                 action: () => {
-                    window.scrollBy({ top: 150, behavior: "smooth" })
+                    window.scrollBy({
+                        top: 150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_down(),
             },
             {
                 keys: "arrowdown",
                 action: () => {
-                    window.scrollBy({ top: 150, behavior: "smooth" })
+                    window.scrollBy({
+                        top: 150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_down(),
             },
             {
                 keys: "k",
                 action: () => {
-                    window.scrollBy({ top: -150, behavior: "smooth" })
+                    window.scrollBy({
+                        top: -150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_up(),
             },
             {
                 keys: "arrowup",
                 action: () => {
-                    window.scrollBy({ top: -150, behavior: "smooth" })
+                    window.scrollBy({
+                        top: -150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_up(),
             },
             {
                 keys: "d",
                 action: () => {
-                    window.scrollBy({ top: 500, behavior: "smooth" })
+                    window.scrollBy({
+                        top: 500,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_down(),
             },
             {
                 keys: "pagedown",
                 action: () => {
-                    window.scrollBy({ top: 500, behavior: "smooth" })
+                    window.scrollBy({
+                        top: 500,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_down(),
             },
             {
                 keys: "u",
                 action: () => {
-                    window.scrollBy({ top: -500, behavior: "smooth" })
+                    window.scrollBy({
+                        top: -500,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_up(),
             },
             {
                 keys: "pageup",
                 action: () => {
-                    window.scrollBy({ top: -500, behavior: "smooth" })
+                    window.scrollBy({
+                        top: -500,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
                 description: m.keymap_scroll_up(),
             },

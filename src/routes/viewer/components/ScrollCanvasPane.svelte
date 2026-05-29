@@ -1,12 +1,12 @@
 <script lang="ts">
     import type PDFDocument from "$lib/pdf"
+    import { settingsStore } from "$lib/settingsStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
 
     let {
         pdf,
         scale,
-        totalPages,
         currentPage = $bindable(),
     } = $props<{
         pdf: PDFDocument | null
@@ -145,7 +145,10 @@
             const targetOffset = offsets[targetPage - 1]
 
             isAutoScrolling = true
-            container.scrollTo({ top: targetOffset, behavior: "auto" })
+            container.scrollTo({
+                top: targetOffset,
+                behavior: settingsStore.animations ? "smooth" : "auto",
+            })
             lastObservedPage = targetPage
             lastScale = currentScale
 

@@ -6,8 +6,8 @@
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
-    import { themeState, type Theme } from "$lib/theme.svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { settingsStore, type Theme } from "$lib/settingsStore.svelte"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
     import type { Pathname } from "$app/types"
@@ -25,11 +25,11 @@
     }
 
     function selectTheme(theme: Theme) {
-        themeState.set(theme)
+        settingsStore.theme = theme
     }
 
     const currentThemeInfo = $derived(
-        THEMES.find((t) => t.value === themeState.current) || THEMES[2],
+        THEMES.find((t) => t.value === settingsStore.theme) || THEMES[2],
     )
 </script>
 
@@ -59,12 +59,12 @@
                         <li>
                             <button
                                 class="dropdown-item"
-                                class:active={themeState.current === value}
+                                class:active={settingsStore.theme === value}
                                 onclick={() => {
                                     selectTheme(value)
                                     close()
                                 }}
-                                aria-current={themeState.current === value ? "true" : undefined}
+                                aria-current={settingsStore.theme === value ? "true" : undefined}
                             >
                                 <Icon class="switcher-icon-small" />
                                 <span>{label()}</span>

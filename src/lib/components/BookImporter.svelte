@@ -13,6 +13,7 @@
 
     let { onimport, variant = "full" }: Props = $props()
 
+    const activeNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
     let isDragging = $derived(dragCount > 0)
@@ -53,8 +54,8 @@
         }
     }
 
-    async function handleImportClick(event: MouseEvent) {
-        event?.preventDefault()
+    async function handleImportClick(event?: MouseEvent) {
+        if (event) event.stopPropagation()
         if (typeof window.showOpenFilePicker === "function") {
             try {
                 const handles = await window.showOpenFilePicker({
@@ -124,7 +125,6 @@
     }
 
     onMount(() => {
-        const activeNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
         if (activeNode) {
             return activeNode.register({
                 keys: "shift+i",

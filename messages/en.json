@@ -10,6 +10,9 @@
     "system": "SYSTEM",
     "dark": "DARK",
     "light": "LIGHT",
+    "animations": "ANIMATIONS",
+    "animations_enabled": "ENABLED",
+    "animations_disabled": "DISABLED",
     "breadcrumb": "BREADCRUMB",
     "action_controls": "ACTION CONTROLS",
     "language_switcher": "LANGUAGE SWITCHER",
@@ -63,5 +66,6 @@
     "keymap_close_help": "Close help window",
     "keymap_toggle_help": "Toggle keyboard shortcuts help",
     "keymap_no_shortcuts": "No active shortcuts found.",
-    "keymap_no_matching_shortcuts": "No matching shortcuts found"
+    "keymap_no_matching_shortcuts": "No matching shortcuts found",
+    "keymap_toggle_animations": "Toggle animations"
 }

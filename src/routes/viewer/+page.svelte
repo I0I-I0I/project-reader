@@ -38,7 +38,11 @@
                 description: m.keymap_scroll_down(),
                 action: () => {
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: 150, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: 150,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -46,7 +50,11 @@
                 description: m.keymap_scroll_down(),
                 action: () => {
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: 150, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: 150,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -54,7 +62,11 @@
                 description: m.keymap_scroll_up(),
                 action: () => {
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: -150, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: -150,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -62,7 +74,11 @@
                 description: m.keymap_scroll_up(),
                 action: () => {
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: -150, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: -150,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -71,7 +87,11 @@
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: currentHeight / 2, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: currentHeight / 2,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -80,7 +100,11 @@
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: currentHeight / 2, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: currentHeight / 2,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -89,7 +113,11 @@
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: currentHeight / -2, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: currentHeight / -2,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -98,7 +126,11 @@
                 action: () => {
                     const currentHeight = window.innerHeight
                     const pane = getScrollContainer()
-                    if (pane) pane.scrollBy({ top: currentHeight / -2, behavior: "smooth" })
+                    if (pane)
+                        pane.scrollBy({
+                            top: currentHeight / -2,
+                            behavior: settingsStore.animations ? "smooth" : "auto",
+                        })
                 },
             },
             {
@@ -182,7 +214,7 @@
                 keys: "=",
                 description: m.keymap_zoom_to_fit(),
                 action: () => {
-                    settingsStore.scale = 1
+                    settingsStore.scale = 1.5
                 },
             },
             {
@@ -582,7 +614,7 @@
         <div class="reader-card">
             <div class="viewer-layout">
                 {#if isToolbarsVisible}
-                    <div transition:slideHeader={{ duration: 250 }}>
+                    <div transition:slideHeader={{ duration: settingsStore.animations ? 250 : 0 }}>
                         <ViewerHeader
                             {name}
                             {isLoaded}
@@ -640,11 +672,7 @@
                                     isSettingsOpen = false
                                 }}
                             ></div>
-                            <SettingsSidebar
-                                bind:scale={settingsStore.scale}
-                                bind:layoutMode={settingsStore.layout}
-                                onClose={() => (isSettingsOpen = false)}
-                            />
+                            <SettingsSidebar onClose={() => (isSettingsOpen = false)} />
                         {/if}
 
                         {#if !isToolbarsVisible && !isOutlineOpen}
@@ -715,7 +743,7 @@
                 </div>
 
                 {#if isLoaded && isToolbarsVisible}
-                    <div transition:slideFooter={{ duration: 250 }}>
+                    <div transition:slideFooter={{ duration: settingsStore.animations ? 250 : 0 }}>
                         <ViewerFooter
                             bind:currentPage
                             {totalPages}

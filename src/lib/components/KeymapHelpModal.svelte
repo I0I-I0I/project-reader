@@ -1,5 +1,6 @@
 <script lang="ts">
     import { getContext, onMount } from "svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
     import { fade, scale } from "svelte/transition"
     import { KeymapNode } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
@@ -51,10 +52,16 @@
             searchInputRef?.blur()
         } else if (event.key === "ArrowDown" || (event.ctrlKey && event.key === "n")) {
             event.preventDefault()
-            contentElement?.scrollBy({ top: 80, behavior: "smooth" })
+            contentElement?.scrollBy({
+                top: 80,
+                behavior: settingsStore.animations ? "smooth" : "auto",
+            })
         } else if (event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")) {
             event.preventDefault()
-            contentElement?.scrollBy({ top: -80, behavior: "smooth" })
+            contentElement?.scrollBy({
+                top: -80,
+                behavior: settingsStore.animations ? "smooth" : "auto",
+            })
         }
     }
 
@@ -108,7 +115,10 @@
                 description: m.keymap_scroll_down(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: 80, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: 80,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -116,7 +126,10 @@
                 description: m.keymap_scroll_up(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: -80, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: -80,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -124,7 +137,10 @@
                 description: m.keymap_scroll_down(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: 80, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: 80,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -132,7 +148,10 @@
                 description: m.keymap_scroll_up(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: -80, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: -80,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -140,7 +159,10 @@
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: 200, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: 200,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -148,7 +170,10 @@
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: 200, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: 200,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -156,7 +181,10 @@
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: -200, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: -200,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
             {
@@ -164,7 +192,10 @@
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {
                     e.preventDefault()
-                    contentElement?.scrollBy({ top: -200, behavior: "smooth" })
+                    contentElement?.scrollBy({
+                        top: -200,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
                 },
             },
         ])
@@ -202,14 +233,17 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     class="backdrop"
-    transition:fade={{ duration: 150 }}
+    transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
     onclick={handleBackdropClick}
     role="dialog"
     aria-modal="true"
     aria-labelledby="keymap-title"
     tabindex="-1"
 >
-    <div class="modal-card" transition:scale={{ duration: 150, start: 0.95 }}>
+    <div
+        class="modal-card"
+        transition:scale={{ duration: settingsStore.animations ? 150 : 0, start: 0.95 }}
+    >
         <div class="modal-header">
             <h2 id="keymap-title" class="modal-title">
                 {m.keymap_modal_title()}

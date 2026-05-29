@@ -5,6 +5,7 @@
     import { cubicOut } from "svelte/easing"
     import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
     import { getContext, onMount, setContext, untrack } from "svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte";
 
     let {
         isOutlineLoading,
@@ -247,7 +248,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
     class="outline-sidebar"
-    transition:slideAndFly={{ duration: 150 }}
+    transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
     onmouseleave={onMouseLeave}
     onclick={(e) => e.stopPropagation()}
 >
