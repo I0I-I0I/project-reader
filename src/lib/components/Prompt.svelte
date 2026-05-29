@@ -2,9 +2,12 @@
     import { onMount, getContext, untrack } from "svelte"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
+    import { fade, fly } from "svelte/transition"
+    import { flip } from "svelte/animate"
     import Fuse from "fuse.js"
     import Float from "./ui/Float.svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useKeymap } from "$lib/keymaps"
     import SearchIcon from "./icons/SearchIcon.svelte"
@@ -35,6 +38,7 @@
 
     let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
+    let innerHeight = $state<number | undefined>(undefined)
 
     $effect(() => {
         const query = value
@@ -286,97 +290,118 @@
     })
 </script>
 
-<Float {onClose}>
-    <div class="prompt-container">
-        <div class="input-wrapper">
-            <SearchIcon class="search-icon" />
-            <input
-                class="prompt-input"
-                type="text"
-                bind:value
-                placeholder={m.prompt_placeholder()}
-                aria-label={m.prompt_search_aria()}
-            />
-            <button class="close-btn" onclick={onClose} aria-label={m.prompt_close_aria()}>✕</button
-            >
-        </div>
+<Float {onClose} align="top">
+    <div
+        class="prompt-container"
+        class:enable-animations={settingsStore.animations}
+        style="height: {innerHeight ? `${innerHeight}px` : 'auto'}"
+    >
+        <div bind:clientHeight={innerHeight}>
+            <div class="input-wrapper" class:searching={value !== ""}>
+                <SearchIcon class="search-icon {value ? 'active-search' : ''}" />
+                <input
+                    class="prompt-input"
+                    type="text"
+                    bind:value
+                    placeholder={m.prompt_placeholder()}
+                    aria-label={m.prompt_search_aria()}
+                />
+                <button class="close-btn" onclick={onClose} aria-label={m.prompt_close_aria()}
+                    >✕</button
+                >
+            </div>
 
-        <div class="results-list" bind:this={resultsContainerRef}>
-            {#if searchResults.length > 0}
-                {#each searchResults as { item, matches }, i (item.id)}
-                    <button
-                        class="result-item"
-                        class:selected={selectedIndex === i}
-                        onclick={item.action}
-                        onmouseenter={() => (selectedIndex = i)}
-                    >
-                        <div class="icon-container">
-                            {#if item.category === "books"}
-                                <BookItemIcon class="item-icon book" />
-                            {:else if item.category === "commands"}
-                                <CommandIcon class="item-icon command" />
-                            {:else if item.category === "settings"}
-                                <SettingsItemIcon class="item-icon settings" />
-                            {:else}
-                                <NavigationIcon class="item-icon navigation" />
-                            {/if}
-                        </div>
-                        <div class="meta-container">
-                            <div class="item-title">
-                                {@html getHighlightedText(item.title, matches, "title")}
-                                {#if item.englishTitle && item.englishTitle !== item.title}
-                                    <span class="english-title-hint">
-                                        ({@html getHighlightedText(
-                                            item.englishTitle,
-                                            matches,
-                                            "englishTitle",
-                                        )})
-                                    </span>
+            <div class="results-list" bind:this={resultsContainerRef}>
+                {#if searchResults.length > 0}
+                    {#each searchResults as { item, matches }, i (item.id)}
+                        <button
+                            class="result-item"
+                            class:selected={selectedIndex === i}
+                            onclick={item.action}
+                            onmouseenter={() => (selectedIndex = i)}
+                            in:fly={{ y: 6, duration: settingsStore.animations ? 120 : 0 }}
+                            out:fade={{ duration: settingsStore.animations ? 80 : 0 }}
+                            animate:flip={{ duration: settingsStore.animations ? 200 : 0 }}
+                        >
+                            <div class="icon-container">
+                                {#if item.category === "books"}
+                                    <BookItemIcon class="item-icon book" />
+                                {:else if item.category === "commands"}
+                                    <CommandIcon class="item-icon command" />
+                                {:else if item.category === "settings"}
+                                    <SettingsItemIcon class="item-icon settings" />
+                                {:else}
+                                    <NavigationIcon class="item-icon navigation" />
                                 {/if}
                             </div>
-                            {#if item.subtitle}
-                                <div class="item-subtitle">
-                                    {@html getHighlightedText(item.subtitle, matches, "subtitle")}
+                            <div class="meta-container">
+                                <div class="item-title">
+                                    {@html getHighlightedText(item.title, matches, "title")}
+                                    {#if item.englishTitle && item.englishTitle !== item.title}
+                                        <span class="english-title-hint">
+                                            ({@html getHighlightedText(
+                                                item.englishTitle,
+                                                matches,
+                                                "englishTitle",
+                                            )})
+                                        </span>
+                                    {/if}
                                 </div>
-                            {/if}
-                        </div>
-                        <div class="action-container">
-                            <span class="category-badge {item.category}">{item.category}</span>
-                            {#if item.keys}
-                                <div class="shortcut-keys">
-                                    {#each item.keys.split("+") as key}
-                                        <kbd>{key.trim()}</kbd>
-                                    {/each}
-                                </div>
-                            {/if}
-                        </div>
-                    </button>
-                {/each}
-            {:else}
-                <div class="empty-state">
-                    <SearchNoResultsIcon />
-                    <p>{m.prompt_no_results({ value })}</p>
-                </div>
-            {/if}
-        </div>
-
-        <div class="footer">
-            <div class="suggestion-info">
-                {#if value === ""}
-                    <span>{m.prompt_suggestions()}</span>
+                                {#if item.subtitle}
+                                    <div class="item-subtitle">
+                                        {@html getHighlightedText(
+                                            item.subtitle,
+                                            matches,
+                                            "subtitle",
+                                        )}
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="action-container">
+                                <span class="category-badge {item.category}">{item.category}</span>
+                                {#if item.keys}
+                                    <div class="shortcut-keys">
+                                        {#each item.keys.split("+") as key}
+                                            <kbd>{key.trim()}</kbd>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            </div>
+                        </button>
+                    {/each}
                 {:else}
-                    <span>{m.prompt_found_results({ count: searchResults.length })}</span>
+                    <div
+                        class="empty-state"
+                        transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
+                    >
+                        <SearchNoResultsIcon />
+                        <p>{m.prompt_no_results({ value })}</p>
+                    </div>
                 {/if}
             </div>
-            <div class="shortcuts-help">
-                <div class="shortcut-help-item">
-                    <kbd>↑↓</kbd> <span>{m.prompt_help_navigate()}</span>
+
+            <div class="footer">
+                <div class="suggestion-info">
+                    {#if value === ""}
+                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}
+                            >{m.prompt_suggestions()}</span
+                        >
+                    {:else}
+                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}
+                            >{m.prompt_found_results({ count: searchResults.length })}</span
+                        >
+                    {/if}
                 </div>
-                <div class="shortcut-help-item">
-                    <kbd>↵</kbd> <span>{m.prompt_help_select()}</span>
-                </div>
-                <div class="shortcut-help-item">
-                    <kbd>esc</kbd> <span>{m.prompt_help_close()}</span>
+                <div class="shortcuts-help">
+                    <div class="shortcut-help-item">
+                        <kbd>↑↓</kbd> <span>{m.prompt_help_navigate()}</span>
+                    </div>
+                    <div class="shortcut-help-item">
+                        <kbd>↵</kbd> <span>{m.prompt_help_select()}</span>
+                    </div>
+                    <div class="shortcut-help-item">
+                        <kbd>esc</kbd> <span>{m.prompt_help_close()}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -389,6 +414,11 @@
         flex-direction: column;
         width: 100%;
         background: var(--card-bg);
+        overflow: hidden;
+    }
+
+    .prompt-container.enable-animations {
+        transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .input-wrapper {
@@ -400,6 +430,50 @@
         background: var(--card-bg);
     }
 
+    .input-wrapper::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: transparent;
+        z-index: 10;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition:
+            transform 0.2s ease,
+            background-color 0.2s ease;
+    }
+
+    .input-wrapper.searching::after {
+        transform: scaleX(1);
+        background: #0984e3;
+    }
+
+    :global(html.dark) .input-wrapper.searching::after {
+        background: #74b9ff;
+    }
+
+    .prompt-container.enable-animations .input-wrapper::after {
+        background: linear-gradient(90deg, #0984e3, #00b894, #e84393, #0984e3);
+        background-size: 300% 100%;
+        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .prompt-container.enable-animations .input-wrapper.searching::after {
+        animation: search-glow-slide 2.5s linear infinite;
+    }
+
+    @keyframes search-glow-slide {
+        0% {
+            background-position: 0% 50%;
+        }
+        100% {
+            background-position: 300% 50%;
+        }
+    }
+
     :global(.search-icon) {
         width: 20px;
         height: 20px;
@@ -407,6 +481,26 @@
         opacity: 0.6;
         margin-right: 12px;
         flex-shrink: 0;
+    }
+
+    :global(.search-icon.active-search) {
+        color: #0984e3;
+        opacity: 1;
+    }
+
+    :global(html.dark) :global(.search-icon.active-search) {
+        color: #74b9ff;
+    }
+
+    .prompt-container.enable-animations :global(.search-icon) {
+        transition:
+            transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+            color 0.2s ease,
+            opacity 0.2s ease;
+    }
+
+    .prompt-container.enable-animations :global(.search-icon.active-search) {
+        transform: scale(1.15) rotate(8deg);
     }
 
     .prompt-input {
@@ -434,11 +528,20 @@
         cursor: pointer;
         padding: 4px;
         margin-left: 8px;
-        transition: opacity 0.15s ease;
     }
 
     .close-btn:hover {
         opacity: 0.9;
+    }
+
+    .prompt-container.enable-animations .close-btn {
+        transition:
+            opacity 0.15s ease,
+            transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .prompt-container.enable-animations .close-btn:hover {
+        transform: rotate(90deg) scale(1.15);
     }
 
     .results-list {
@@ -477,7 +580,6 @@
         cursor: pointer;
         font-family: inherit;
         color: var(--text-color);
-        transition: all 0.1s ease;
         gap: 12px;
     }
 
@@ -487,6 +589,20 @@
         border-color: var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         transform: translate(-1px, -1px);
+    }
+
+    .prompt-container.enable-animations .result-item {
+        transition:
+            background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+            border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+            box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+            transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .prompt-container.enable-animations .result-item:hover,
+    .prompt-container.enable-animations .result-item.selected {
+        transform: translate(-2px, -2px);
+        box-shadow: 3px 3px 0 var(--shadow-color);
     }
 
     .icon-container {

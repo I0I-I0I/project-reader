@@ -6,9 +6,10 @@
     interface Props {
         onClose: () => void
         children: Snippet
+        align?: "center" | "top"
     }
 
-    const { onClose, children }: Props = $props()
+    const { onClose, children, align = "center" }: Props = $props()
 
     function handleBackdropClick(event: MouseEvent) {
         if (event.target === event.currentTarget) {
@@ -25,6 +26,7 @@
 
 <div
     class="backdrop"
+    class:align-top={align === "top"}
     transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
     onclick={handleBackdropClick}
     onkeydown={handleKeyDown}
@@ -59,6 +61,11 @@
         box-sizing: border-box;
     }
 
+    .backdrop.align-top {
+        align-items: flex-start;
+        padding-top: 120px;
+    }
+
     .float-card {
         background: var(--card-bg);
         border: 3px solid var(--border-color);
@@ -72,5 +79,16 @@
         border-radius: 4px;
         font-family: inherit;
         animation: card-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes card-appear {
+        from {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
     }
 </style>
