@@ -3,14 +3,11 @@
     import { settingsStore } from "$lib/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
-    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
+    import { useKeymap, type KeymapNode } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
 
     let { children } = $props()
-
-    const rootNode = new KeymapNode(null)
-    setContext(KEYMAP_CONTEXT_KEY, rootNode)
 
     let currentActiveNode = $state<KeymapNode | null>(null)
     let isHelpOpen = $state(false)
@@ -18,6 +15,110 @@
     setContext("set_active_keymap_node", (node: KeymapNode | null) => {
         currentActiveNode = node
     })
+
+    const rootNode = useKeymap([
+        {
+            keys: "shift+t",
+            action: () => {
+                settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
+            },
+            description: m.keymap_change_theme(),
+        },
+        {
+            keys: "shift+a",
+            action: () => {
+                settingsStore.animations = !settingsStore.animations
+            },
+            description: m.keymap_toggle_animations(),
+        },
+        {
+            keys: "j",
+            action: () => {
+                window.scrollBy({
+                    top: 150,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_down(),
+        },
+        {
+            keys: "arrowdown",
+            action: () => {
+                window.scrollBy({
+                    top: 150,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_down(),
+        },
+        {
+            keys: "k",
+            action: () => {
+                window.scrollBy({
+                    top: -150,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_up(),
+        },
+        {
+            keys: "arrowup",
+            action: () => {
+                window.scrollBy({
+                    top: -150,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_up(),
+        },
+        {
+            keys: "d",
+            action: () => {
+                window.scrollBy({
+                    top: 500,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_down(),
+        },
+        {
+            keys: "pagedown",
+            action: () => {
+                window.scrollBy({
+                    top: 500,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_down(),
+        },
+        {
+            keys: "u",
+            action: () => {
+                window.scrollBy({
+                    top: -500,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_up(),
+        },
+        {
+            keys: "pageup",
+            action: () => {
+                window.scrollBy({
+                    top: -500,
+                    behavior: settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+            description: m.keymap_scroll_up(),
+        },
+        {
+            keys: "?",
+            action: () => {
+                isHelpOpen = !isHelpOpen
+            },
+            description: m.keymap_toggle_help(),
+        },
+    ])
 
     setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
 
@@ -34,115 +135,6 @@
         }
         window.addEventListener("keydown", handleKeydown)
         return () => window.removeEventListener("keydown", handleKeydown)
-    })
-
-    onMount(() => {
-        const unregisterAll = rootNode.registerAll([
-            {
-                keys: "shift+t",
-                action: () => {
-                    settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
-                },
-                description: m.keymap_change_theme(),
-            },
-            {
-                keys: "shift+a",
-                action: () => {
-                    settingsStore.animations = !settingsStore.animations
-                },
-                description: m.keymap_toggle_animations(),
-            },
-            {
-                keys: "j",
-                action: () => {
-                    window.scrollBy({
-                        top: 150,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_down(),
-            },
-            {
-                keys: "arrowdown",
-                action: () => {
-                    window.scrollBy({
-                        top: 150,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_down(),
-            },
-            {
-                keys: "k",
-                action: () => {
-                    window.scrollBy({
-                        top: -150,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_up(),
-            },
-            {
-                keys: "arrowup",
-                action: () => {
-                    window.scrollBy({
-                        top: -150,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_up(),
-            },
-            {
-                keys: "d",
-                action: () => {
-                    window.scrollBy({
-                        top: 500,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_down(),
-            },
-            {
-                keys: "pagedown",
-                action: () => {
-                    window.scrollBy({
-                        top: 500,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_down(),
-            },
-            {
-                keys: "u",
-                action: () => {
-                    window.scrollBy({
-                        top: -500,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_up(),
-            },
-            {
-                keys: "pageup",
-                action: () => {
-                    window.scrollBy({
-                        top: -500,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-                description: m.keymap_scroll_up(),
-            },
-            {
-                keys: "?",
-                action: () => {
-                    isHelpOpen = !isHelpOpen
-                },
-                description: m.keymap_toggle_help(),
-            },
-        ])
-        return () => {
-            unregisterAll()
-        }
     })
 </script>
 

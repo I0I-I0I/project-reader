@@ -3,8 +3,8 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
-    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
-    import { getContext, onMount, setContext, untrack } from "svelte"
+    import { useKeymap } from "$lib/keymaps"
+    import { untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
 
     let {
@@ -23,10 +23,6 @@
         onMouseLeave?: (e: MouseEvent) => void
     }>()
 
-    const parentNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
-    const outlineNode = new KeymapNode(parentNode)
-    setContext(KEYMAP_CONTEXT_KEY, outlineNode)
-    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
 
     let searchQuery = $state("")
     let selectedIndex = $state(-1)
@@ -130,9 +126,7 @@
         })
     })
 
-    onMount(() => {
-        setActiveNode(outlineNode)
-        const unregisterAll = outlineNode.registerAll([
+    useKeymap([
             {
                 keys: "j",
                 description: m.keymap_next_heading(),
@@ -202,12 +196,7 @@
                     searchInputRef?.select()
                 },
             },
-        ])
-        return () => {
-            setActiveNode(parentNode)
-            unregisterAll()
-        }
-    })
+    ])
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false

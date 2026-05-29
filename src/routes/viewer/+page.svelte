@@ -16,12 +16,7 @@
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
     import { cubicInOut } from "svelte/easing"
-    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
-
-    const parentNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
-    const viewerNode = new KeymapNode(parentNode)
-    setContext(KEYMAP_CONTEXT_KEY, viewerNode)
-    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
+    import { useKeymap } from "$lib/keymaps"
 
     function getScrollContainer() {
         if (settingsStore.layout === "scroll") {
@@ -31,8 +26,7 @@
         }
     }
 
-    onMount(() => {
-        const unregisterAll = viewerNode.registerAll([
+    useKeymap([
             {
                 keys: "j",
                 description: m.keymap_scroll_down(),
@@ -230,15 +224,7 @@
                     }
                 },
             },
-        ])
-
-        setActiveNode(viewerNode)
-
-        return () => {
-            unregisterAll()
-            setActiveNode(parentNode)
-        }
-    })
+    ])
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
     const name = $derived(viewerStore.getCurrentBook()?.name ?? "")

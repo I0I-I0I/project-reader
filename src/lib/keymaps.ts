@@ -1,3 +1,5 @@
+import { getContext, setContext, onMount } from "svelte"
+
 export type ShortcutAction = {
     keys: string
     action: (event: KeyboardEvent) => void
@@ -99,7 +101,6 @@ export class KeymapNode {
         const pressedString = this.getEventString(event)
         let match = this.findAction(pressedString)
 
-        // Fallback for keys like "?" that may have shift modifier depending on layout
         if (!match) {
             const keyLower = event.key.toLowerCase()
             if (keyLower !== pressedString) {
@@ -114,3 +115,27 @@ export class KeymapNode {
 }
 
 export const KEYMAP_CONTEXT_KEY = Symbol("keymap-context")
+
+export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNode | null) {
+    const parentNode =
+        overrideParent !== undefined ? overrideParent : getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
+    const node = new KeymapNode(parentNode)
+    setContext(KEYMAP_CONTEXT_KEY, node)
+
+    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
+
+    onMount(() => {
+        if (setActiveNode) {
+            setActiveNode(node)
+        }
+        const unregisterAll = node.registerAll(shortcuts)
+        return () => {
+            unregisterAll()
+            if (setActiveNode) {
+                setActiveNode(parentNode)
+            }
+        }
+    })
+
+    return node
+}

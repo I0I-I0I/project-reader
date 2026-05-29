@@ -3,8 +3,7 @@
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { saveBookFile } from "$lib/db"
-    import { getContext, onMount } from "svelte"
-    import { KEYMAP_CONTEXT_KEY, KeymapNode } from "$lib/keymaps"
+    import { useKeymap } from "$lib/keymaps"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -13,7 +12,6 @@
 
     let { onimport, variant = "full" }: Props = $props()
 
-    const activeNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
     let isDragging = $derived(dragCount > 0)
@@ -123,19 +121,16 @@
             processFiles(files)
         }
     }
-
-    onMount(() => {
-        if (activeNode) {
-            return activeNode.register({
-                keys: "shift+i",
-                action: (e) => {
-                    e.preventDefault()
-                    handleImportClick(null as any)
-                },
-                description: "Import book",
-            })
-        }
-    })
+    useKeymap([
+        {
+            keys: "shift+i",
+            action: (e) => {
+                e.preventDefault()
+                handleImportClick(null as any)
+            },
+            description: "Import book",
+        },
+    ])
 </script>
 
 {#if variant === "card"}

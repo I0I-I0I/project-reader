@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { getContext, onMount } from "svelte"
+    import { getContext } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
-    import { KeymapNode } from "$lib/keymaps"
+    import { useKeymap, type KeymapNode } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
 
@@ -10,11 +10,10 @@
     }
 
     let { onClose }: Props = $props()
-    const getActiveNode = getContext<() => KeymapNode>("get_active_keymap_node")
-    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
 
+    const getActiveNode = getContext<() => KeymapNode>("get_active_keymap_node")
     const activeNodeBeforeOpen = getActiveNode()
-    let helpNode = $state<KeymapNode | null>(null)
+
     let contentElement = $state<HTMLElement | null>(null)
     let searchQuery = $state("")
     let searchInputRef = $state<HTMLInputElement | null>(null)
@@ -63,10 +62,8 @@
         }
     }
 
-    onMount(() => {
-        helpNode = new KeymapNode(activeNodeBeforeOpen)
-
-        const unregisterAll = helpNode.registerAll([
+    useKeymap(
+        [
             {
                 keys: "q",
                 description: m.keymap_close_help(),
@@ -188,17 +185,9 @@
                     })
                 },
             },
-        ])
-
-        setActiveNode(helpNode)
-
-        return () => {
-            unregisterAll()
-            if (activeNodeBeforeOpen) {
-                setActiveNode(activeNodeBeforeOpen)
-            }
-        }
-    })
+        ],
+        activeNodeBeforeOpen,
+    )
 
     function formatKeys(keyStr: string): string[] {
         if (keyStr === "+") return ["+"]
