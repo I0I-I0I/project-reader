@@ -4,6 +4,9 @@ export type ShortcutAction = {
     keys: string
     action: (event: KeyboardEvent) => void
     description: string
+    allowInInputs?: boolean
+    category?: "commands" | "settings" | "navigation"
+    subtitle?: () => string
 }
 
 export class KeymapNode {
@@ -59,6 +62,15 @@ export class KeymapNode {
         }
     }
 
+    public isAncestorOf(other: KeymapNode | null): boolean {
+        let current = other
+        while (current) {
+            if (current === this) return true
+            current = current.parent
+        }
+        return false
+    }
+
     public normalizeKeyString(keys: string): string {
         const lowerKeys = keys.toLowerCase()
         let parts: string[]
@@ -89,15 +101,6 @@ export class KeymapNode {
     }
 
     public handleKeydown(event: KeyboardEvent) {
-        const target = event.target as HTMLElement
-        if (
-            target.tagName === "INPUT" ||
-            target.tagName === "TEXTAREA" ||
-            target.isContentEditable
-        ) {
-            return
-        }
-
         const pressedString = this.getEventString(event)
         let match = this.findAction(pressedString)
 
@@ -109,6 +112,16 @@ export class KeymapNode {
         }
 
         if (match) {
+            const target = event.target as HTMLElement
+            const isInput =
+                target.tagName === "INPUT" ||
+                target.tagName === "TEXTAREA" ||
+                target.isContentEditable
+
+            if (isInput && !match.allowInInputs) {
+                return
+            }
+
             match.action(event)
         }
     }
@@ -123,16 +136,33 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
     setContext(KEYMAP_CONTEXT_KEY, node)
 
     const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
+    const getActiveNode = getContext<(() => KeymapNode | null) | undefined>(
+        "get_active_keymap_node",
+    )
 
     onMount(() => {
         if (setActiveNode) {
-            setActiveNode(node)
+            if (getActiveNode) {
+                const currentActive = getActiveNode()
+                if (!currentActive || !node.isAncestorOf(currentActive)) {
+                    setActiveNode(node)
+                }
+            } else {
+                setActiveNode(node)
+            }
         }
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
             unregisterAll()
             if (setActiveNode) {
-                setActiveNode(parentNode)
+                if (getActiveNode) {
+                    const currentActive = getActiveNode()
+                    if (currentActive === node) {
+                        setActiveNode(parentNode)
+                    }
+                } else {
+                    setActiveNode(parentNode)
+                }
             }
         }
     })

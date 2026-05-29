@@ -8,6 +8,8 @@ import {
     deleteBookPreview,
 } from "$lib/db"
 
+import type { FlatHeading } from "$lib/pdf"
+
 export interface Book {
     id: string
     url: string
@@ -32,6 +34,9 @@ class ViewerStore {
     private book = $state<Book | null>(null)
     private books = $state<Book[]>([])
     private initialized = $state(false)
+    private outlineList = $state<FlatHeading[] | null>(null)
+    private totalPages = $state<number>(0)
+    private goToPageCallback = $state<((page: number) => void) | null>(null)
 
     constructor() {
         if (browser) {
@@ -41,6 +46,13 @@ class ViewerStore {
                     const parsed = JSON.parse(savedBook) as Book
                     if (parsed && parsed.url && parsed.url.startsWith("blob:")) {
                         parsed.url = ""
+                    }
+                    if (
+                        parsed &&
+                        parsed.previewDataUrl &&
+                        parsed.previewDataUrl.startsWith("blob:")
+                    ) {
+                        parsed.previewDataUrl = ""
                     }
                     this.book = parsed
                 } catch (e) {
@@ -56,6 +68,27 @@ class ViewerStore {
             })
             window.addEventListener("beforeunload", flush)
         }
+    }
+
+    get activeOutline() {
+        return this.outlineList
+    }
+    set activeOutline(list: FlatHeading[] | null) {
+        this.outlineList = list
+    }
+
+    get activeTotalPages() {
+        return this.totalPages
+    }
+    set activeTotalPages(pages: number) {
+        this.totalPages = pages
+    }
+
+    get goToPage() {
+        return this.goToPageCallback
+    }
+    set goToPage(callback: ((page: number) => void) | null) {
+        this.goToPageCallback = callback
     }
 
     get isInitialized() {
@@ -74,6 +107,9 @@ class ViewerStore {
                         if (book.url && book.url.startsWith("blob:")) {
                             book.url = ""
                         }
+                        if (book.previewDataUrl && book.previewDataUrl.startsWith("blob:")) {
+                            book.previewDataUrl = ""
+                        }
                     }
                 } catch (e) {
                     console.error("Failed to parse books from localStorage", e)
@@ -85,7 +121,14 @@ class ViewerStore {
                 try {
                     const cachedPreview = await getBookPreview(book.id)
                     if (cachedPreview) {
-                        book.previewDataUrl = cachedPreview
+                        if (cachedPreview instanceof Blob) {
+                            book.previewDataUrl = URL.createObjectURL(cachedPreview)
+                        } else if (
+                            typeof cachedPreview === "string" &&
+                            !cachedPreview.startsWith("blob:")
+                        ) {
+                            book.previewDataUrl = cachedPreview
+                        }
                     }
 
                     const fileOrHandle = await getBookFile(book.id)
@@ -180,6 +223,13 @@ class ViewerStore {
                 console.error("Failed to revoke object URL", e)
             }
         }
+        if (browser && book.previewDataUrl && book.previewDataUrl.startsWith("blob:")) {
+            try {
+                URL.revokeObjectURL(book.previewDataUrl)
+            } catch (e) {
+                console.error("Failed to revoke preview object URL", e)
+            }
+        }
         this.books = this.books.filter((b) => b.id !== book.id)
 
         try {
@@ -208,6 +258,17 @@ class ViewerStore {
         const index = this.books.findIndex((b) => b.id === book.id)
         if (index >= 0) {
             const existingPreview = this.books[index].previewDataUrl
+            if (
+                existingPreview &&
+                existingPreview !== book.previewDataUrl &&
+                existingPreview.startsWith("blob:")
+            ) {
+                try {
+                    URL.revokeObjectURL(existingPreview)
+                } catch (e) {
+                    console.error("Failed to revoke old preview URL", e)
+                }
+            }
             const updatedBook = {
                 ...book,
                 previewDataUrl:

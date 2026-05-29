@@ -121,6 +121,7 @@
             processFiles(files)
         }
     }
+
     useKeymap([
         {
             keys: "shift+i",
@@ -128,7 +129,7 @@
                 e.preventDefault()
                 handleImportClick(null as any)
             },
-            description: "Import book",
+            description: m.keymap_import_book(),
         },
     ])
 </script>
@@ -154,7 +155,7 @@
         class="reader-card"
         class:drag-active={isDragging}
         role="region"
-        aria-label="PDF drop zone"
+        aria-label={m.pdf_drop_zone()}
         ondragenter={handleDragEnter}
         ondragleave={handleDragLeave}
         ondragover={handleDragOver}

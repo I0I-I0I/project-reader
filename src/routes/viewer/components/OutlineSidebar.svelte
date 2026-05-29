@@ -4,7 +4,7 @@
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
     import { useKeymap } from "$lib/keymaps"
-    import { untrack } from "svelte"
+    import { getContext, untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
 
     let {
@@ -22,7 +22,6 @@
         onCloseOutline: () => void
         onMouseLeave?: (e: MouseEvent) => void
     }>()
-
 
     let searchQuery = $state("")
     let selectedIndex = $state(-1)
@@ -87,27 +86,22 @@
 
     let lastQuery = ""
 
-    // Unified effect to set/reset selectedIndex based on active heading and search query
     $effect(() => {
         if (isOutlineLoading || !filteredOutlineList || filteredOutlineList.length === 0) return
 
         const currentQuery = searchQuery
         untrack(() => {
             if (selectedIndex === -1) {
-                // Initial mount or reset: Find active heading
                 const index = filteredOutlineList.findIndex((h: FlatHeading) =>
                     activeHeadings.has(h),
                 )
                 selectedIndex = index !== -1 ? index : 0
                 lastQuery = currentQuery
             } else if (currentQuery !== lastQuery) {
-                // Search query changed
                 lastQuery = currentQuery
                 if (currentQuery !== "") {
-                    // Select first matching search result
                     selectedIndex = 0
                 } else {
-                    // Search cleared: reset to active heading
                     const index = filteredOutlineList.findIndex((h: FlatHeading) =>
                         activeHeadings.has(h),
                     )
@@ -117,7 +111,6 @@
         })
     })
 
-    // Auto-scroll selected element into view
     $effect(() => {
         const _ = selectedIndex
         const __ = filteredOutlineList.length
@@ -126,7 +119,27 @@
         })
     })
 
-    useKeymap([
+    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+
+    useKeymap(
+        [
+            {
+                keys: "escape",
+                action: () => {
+                    onCloseOutline()
+                },
+                description: m.keymap_close_outline(),
+                allowInInputs: true,
+            },
+            {
+                keys: "q",
+                action: () => {
+                    onCloseOutline()
+                },
+                description: m.keymap_close_outline(),
+                allowInInputs: true,
+            },
             {
                 keys: "j",
                 description: m.keymap_next_heading(),
@@ -196,7 +209,9 @@
                     searchInputRef?.select()
                 },
             },
-    ])
+        ],
+        activeNodeBeforeOpen,
+    )
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
@@ -220,7 +235,7 @@
         }
     })
 
-    function slideAndFly(node: HTMLElement, { duration = 150 }) {
+    function slideAndFly(_: HTMLElement, { duration = 150 }) {
         return {
             duration,
             css: (t: number) => {
@@ -254,7 +269,7 @@
                 bind:this={searchInputRef}
                 type="text"
                 bind:value={searchQuery}
-                placeholder="Search headings... (/)"
+                placeholder={m.search_headings_placeholder()}
                 class="search-input"
                 onkeydown={handleSearchKeydown}
             />
@@ -265,7 +280,7 @@
                         searchQuery = ""
                         searchInputRef?.focus()
                     }}
-                    aria-label="Clear search"
+                    aria-label={m.clear_search_aria()}
                 >
                     ×
                 </button>
@@ -283,7 +298,7 @@
                 {m.no_outline()}
             </div>
         {:else if filteredOutlineList.length === 0}
-            <div class="no-outline">No matching headings found</div>
+            <div class="no-outline">{m.no_matching_headings()}</div>
         {:else}
             <nav class="outline-nav">
                 {#each filteredOutlineList as heading, index}

@@ -99,17 +99,26 @@ function getPreviewsDB(): Promise<IDBDatabase> {
 }
 
 export async function saveBookPreview(id: string, previewDataUrl: string): Promise<void> {
+    let dataToStore: Blob | string = previewDataUrl
+    if (previewDataUrl.startsWith("blob:")) {
+        try {
+            const response = await fetch(previewDataUrl)
+            dataToStore = await response.blob()
+        } catch (e) {
+            console.error("Failed to fetch blob from URL, saving URL string instead", e)
+        }
+    }
     const db = await getPreviewsDB()
     return new Promise((resolve, reject) => {
         const tx = db.transaction("previews", "readwrite")
         const store = tx.objectStore("previews")
-        const request = store.put(previewDataUrl, id)
+        const request = store.put(dataToStore, id)
         request.onsuccess = () => resolve()
         request.onerror = () => reject(request.error)
     })
 }
 
-export async function getBookPreview(id: string): Promise<string | undefined> {
+export async function getBookPreview(id: string): Promise<Blob | string | undefined> {
     const db = await getPreviewsDB()
     return new Promise((resolve, reject) => {
         const tx = db.transaction("previews", "readonly")

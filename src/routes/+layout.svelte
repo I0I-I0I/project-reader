@@ -3,34 +3,38 @@
     import { settingsStore } from "$lib/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
-    import { useKeymap, type KeymapNode } from "$lib/keymaps"
+    import { type KeymapNode, useKeymap } from "$lib/keymaps"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
+    import Prompt from "$lib/components/Prompt.svelte"
 
     let { children } = $props()
 
     let currentActiveNode = $state<KeymapNode | null>(null)
     let isHelpOpen = $state(false)
+    let isPromptOpen = $state(false)
+    let promptValue = $state("")
+
+    let rootNode: KeymapNode
 
     setContext("set_active_keymap_node", (node: KeymapNode | null) => {
         currentActiveNode = node
     })
 
-    const rootNode = useKeymap([
+    setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
+
+    rootNode = useKeymap([
         {
-            keys: "shift+t",
-            action: () => {
-                settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
+            keys: "ctrl+k",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                isPromptOpen = !isPromptOpen
             },
-            description: m.keymap_change_theme(),
+            description: m.keymap_prompt(),
+            allowInInputs: true,
+            category: "commands",
         },
-        {
-            keys: "shift+a",
-            action: () => {
-                settingsStore.animations = !settingsStore.animations
-            },
-            description: m.keymap_toggle_animations(),
-        },
+        ...settingsStore.getKeymaps(),
         {
             keys: "j",
             action: () => {
@@ -40,6 +44,7 @@
                 })
             },
             description: m.keymap_scroll_down(),
+            category: "navigation",
         },
         {
             keys: "arrowdown",
@@ -50,6 +55,7 @@
                 })
             },
             description: m.keymap_scroll_down(),
+            category: "navigation",
         },
         {
             keys: "k",
@@ -60,6 +66,7 @@
                 })
             },
             description: m.keymap_scroll_up(),
+            category: "navigation",
         },
         {
             keys: "arrowup",
@@ -70,6 +77,7 @@
                 })
             },
             description: m.keymap_scroll_up(),
+            category: "navigation",
         },
         {
             keys: "d",
@@ -80,6 +88,7 @@
                 })
             },
             description: m.keymap_scroll_down(),
+            category: "navigation",
         },
         {
             keys: "pagedown",
@@ -90,6 +99,7 @@
                 })
             },
             description: m.keymap_scroll_down(),
+            category: "navigation",
         },
         {
             keys: "u",
@@ -100,6 +110,7 @@
                 })
             },
             description: m.keymap_scroll_up(),
+            category: "navigation",
         },
         {
             keys: "pageup",
@@ -110,6 +121,7 @@
                 })
             },
             description: m.keymap_scroll_up(),
+            category: "navigation",
         },
         {
             keys: "?",
@@ -117,10 +129,9 @@
                 isHelpOpen = !isHelpOpen
             },
             description: m.keymap_toggle_help(),
+            category: "commands",
         },
     ])
-
-    setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
 
     $effect(() => {
         settingsStore.updateDOM()
@@ -146,6 +157,9 @@
     {@render children()}
     {#if isHelpOpen}
         <KeymapHelp onClose={() => (isHelpOpen = false)} />
+    {/if}
+    {#if isPromptOpen}
+        <Prompt bind:value={promptValue} onClose={() => (isPromptOpen = false)} />
     {/if}
 </div>
 

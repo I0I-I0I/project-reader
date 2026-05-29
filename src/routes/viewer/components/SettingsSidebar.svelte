@@ -13,6 +13,8 @@
     import PauseIcon from "$lib/components/icons/PauseIcon.svelte"
     import { settingsStore, type Theme } from "$lib/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
+    import { useKeymap } from "$lib/keymaps"
+    import { getContext } from "svelte"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -43,6 +45,31 @@
             },
         }
     }
+
+    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+
+    useKeymap(
+        [
+            {
+                keys: "escape",
+                action: () => {
+                    onClose()
+                },
+                description: m.keymap_close_settings(),
+                allowInInputs: true,
+            },
+            {
+                keys: "q",
+                action: () => {
+                    onClose()
+                },
+                description: m.keymap_close_settings(),
+                allowInInputs: true,
+            },
+        ],
+        activeNodeBeforeOpen,
+    )
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->

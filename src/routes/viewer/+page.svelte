@@ -27,203 +27,192 @@
     }
 
     useKeymap([
-            {
-                keys: "j",
-                description: m.keymap_scroll_down(),
-                action: () => {
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: 150,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        {
+            keys: "j",
+            description: m.keymap_scroll_down(),
+            category: "navigation",
+            action: () => {
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: 150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "arrowdown",
-                description: m.keymap_scroll_down(),
-                action: () => {
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: 150,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "arrowdown",
+            description: m.keymap_scroll_down(),
+            category: "navigation",
+            action: () => {
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: 150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "k",
-                description: m.keymap_scroll_up(),
-                action: () => {
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: -150,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "k",
+            description: m.keymap_scroll_up(),
+            category: "navigation",
+            action: () => {
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: -150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "arrowup",
-                description: m.keymap_scroll_up(),
-                action: () => {
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: -150,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "arrowup",
+            description: m.keymap_scroll_up(),
+            category: "navigation",
+            action: () => {
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: -150,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "d",
-                description: m.keymap_scroll_page_down(),
-                action: () => {
-                    const currentHeight = window.innerHeight
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: currentHeight / 2,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "d",
+            description: m.keymap_scroll_page_down(),
+            category: "navigation",
+            action: () => {
+                const currentHeight = window.innerHeight
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: currentHeight / 2,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "pagedown",
-                description: m.keymap_scroll_page_down(),
-                action: () => {
-                    const currentHeight = window.innerHeight
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: currentHeight / 2,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "pagedown",
+            description: m.keymap_scroll_page_down(),
+            category: "navigation",
+            action: () => {
+                const currentHeight = window.innerHeight
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: currentHeight / 2,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "u",
-                description: m.keymap_scroll_page_up(),
-                action: () => {
-                    const currentHeight = window.innerHeight
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: currentHeight / -2,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "u",
+            description: m.keymap_scroll_page_up(),
+            category: "navigation",
+            action: () => {
+                const currentHeight = window.innerHeight
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: currentHeight / -2,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "pageup",
-                description: m.keymap_scroll_page_up(),
-                action: () => {
-                    const currentHeight = window.innerHeight
-                    const pane = getScrollContainer()
-                    if (pane)
-                        pane.scrollBy({
-                            top: currentHeight / -2,
-                            behavior: settingsStore.animations ? "smooth" : "auto",
-                        })
-                },
+        },
+        {
+            keys: "pageup",
+            description: m.keymap_scroll_page_up(),
+            category: "navigation",
+            action: () => {
+                const currentHeight = window.innerHeight
+                const pane = getScrollContainer()
+                if (pane)
+                    pane.scrollBy({
+                        top: currentHeight / -2,
+                        behavior: settingsStore.animations ? "smooth" : "auto",
+                    })
             },
-            {
-                keys: "space",
-                description: m.keymap_next_page(),
-                action: () => {
-                    nextPage()
-                },
+        },
+        {
+            keys: "space",
+            description: m.keymap_next_page(),
+            category: "navigation",
+            action: () => {
+                nextPage()
             },
-            {
-                keys: "arrowright",
-                description: m.keymap_next_page(),
-                action: () => {
-                    nextPage()
-                },
+        },
+        {
+            keys: "arrowright",
+            description: m.keymap_next_page(),
+            category: "navigation",
+            action: () => {
+                nextPage()
             },
-            {
-                keys: "shift+space",
-                description: m.keymap_prev_page(),
-                action: () => {
-                    prevPage()
-                },
+        },
+        {
+            keys: "shift+space",
+            description: m.keymap_prev_page(),
+            category: "navigation",
+            action: () => {
+                prevPage()
             },
-            {
-                keys: "arrowleft",
-                description: m.keymap_prev_page(),
-                action: () => {
-                    prevPage()
-                },
+        },
+        {
+            keys: "arrowleft",
+            description: m.keymap_prev_page(),
+            category: "navigation",
+            action: () => {
+                prevPage()
             },
-            {
-                keys: "shift+o",
-                description: m.keymap_toggle_outline(),
-                action: () => {
-                    isOutlineOpen = !isOutlineOpen
-                },
+        },
+        {
+            keys: "shift+o",
+            description: m.keymap_toggle_outline(),
+            category: "commands",
+            action: () => {
+                isOutlineOpen = !isOutlineOpen
             },
-            {
-                keys: "shift+s",
-                description: m.keymap_toggle_settings(),
-                action: () => {
-                    isSettingsOpen = !isSettingsOpen
-                },
+        },
+        {
+            keys: "shift+s",
+            description: m.keymap_toggle_settings(),
+            category: "commands",
+            action: () => {
+                isSettingsOpen = !isSettingsOpen
             },
-            {
-                keys: "q",
-                description: m.keymap_close_viewer(),
-                action: () => {
-                    goto(resolve("/"))
-                },
+        },
+        {
+            keys: "q",
+            description: m.keymap_close_viewer(),
+            category: "commands",
+            action: () => {
+                goto(resolve("/"))
             },
-            {
-                keys: "shift+m",
-                description: m.keymap_hide_toolbars(),
-                action: () => {
-                    isToolbarsVisible = !isToolbarsVisible
-                },
+        },
+        {
+            keys: "shift+m",
+            description: m.keymap_hide_toolbars(),
+            category: "commands",
+            action: () => {
+                isToolbarsVisible = !isToolbarsVisible
             },
-            {
-                keys: "shift+l",
-                description: m.keymap_toggle_layouts(),
-                action: () => {
-                    settingsStore.layout_next()
-                },
-            },
-            {
-                keys: "-",
-                description: m.keymap_zoom_out(),
-                action: () => {
-                    settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5)
-                },
-            },
-            {
-                keys: "shift++",
-                description: m.keymap_zoom_in(),
-                action: () => {
-                    settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3)
-                },
-            },
-            {
-                keys: "=",
-                description: m.keymap_zoom_to_fit(),
-                action: () => {
-                    settingsStore.scale = 1.5
-                },
-            },
-            {
-                keys: "g",
-                description: m.keymap_goto_page(),
-                action: () => {
-                    const cPage = prompt("Enter page number:")
-                    if (cPage) {
-                        const page = parseInt(cPage, 10)
-                        if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                            currentPage = page
-                        }
+        },
+        {
+            keys: "g",
+            description: m.keymap_goto_page(),
+            category: "navigation",
+            action: () => {
+                const cPage = prompt(m.enter_page_number())
+                if (cPage) {
+                    const page = parseInt(cPage, 10)
+                    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                        currentPage = page
                     }
-                },
+                }
             },
+        },
     ])
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
@@ -493,6 +482,31 @@
         }
     })
 
+    $effect(() => {
+        viewerStore.activeOutline = outlineList
+        return () => {
+            viewerStore.activeOutline = null
+        }
+    })
+
+    $effect(() => {
+        viewerStore.activeTotalPages = totalPages
+        return () => {
+            viewerStore.activeTotalPages = 0
+        }
+    })
+
+    $effect(() => {
+        viewerStore.goToPage = (page: number) => {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page
+            }
+        }
+        return () => {
+            viewerStore.goToPage = null
+        }
+    })
+
     function handleClose() {
         viewerStore.setCurrentBook(null)
         goto(resolve("/"))
@@ -697,8 +711,10 @@
                                     e.stopPropagation()
                                     isToolbarsVisible = !isToolbarsVisible
                                 }}
-                                aria-label={isToolbarsVisible ? "Hide toolbars" : "Show toolbars"}
-                                title={isToolbarsVisible ? "Hide toolbars" : "Show toolbars"}
+                                aria-label={isToolbarsVisible
+                                    ? m.hide_toolbars()
+                                    : m.show_toolbars()}
+                                title={isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}
                             >
                                 {#if isToolbarsVisible}
                                     <svg

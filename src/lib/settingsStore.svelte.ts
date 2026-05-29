@@ -1,4 +1,6 @@
 import { browser } from "$app/environment"
+import * as m from "$lib/paraglide/messages"
+import type { ShortcutAction } from "./keymaps"
 
 export type Theme = "light" | "dark" | "system"
 export type Layout = "single" | "split" | "scroll"
@@ -137,6 +139,74 @@ class SettingsStore {
 
         document.documentElement.classList.toggle("dark", isDark)
         document.documentElement.style.colorScheme = isDark ? "dark" : "light"
+    }
+
+    getKeymaps(): ShortcutAction[] {
+        return [
+            {
+                keys: "shift+t",
+                description: m.keymap_change_theme(),
+                category: "settings",
+                subtitle: () =>
+                    `${m.theme()}: ${this.theme === "dark" ? m.dark() : this.theme === "light" ? m.light() : m.system()}`,
+                action: () => {
+                    this.theme = this.theme === "light" ? "dark" : "light"
+                },
+            },
+            {
+                keys: "shift+a",
+                description: m.keymap_toggle_animations(),
+                category: "settings",
+                subtitle: () =>
+                    `${m.animations()}: ${this.animations ? m.animations_enabled() : m.animations_disabled()}`,
+                action: () => {
+                    this.animations = !this.animations
+                },
+            },
+            {
+                keys: "shift+l",
+                description: m.keymap_toggle_layouts(),
+                category: "settings",
+                subtitle: () => {
+                    const layoutNames = {
+                        single: m.single_page(),
+                        split: m.split_pages(),
+                        scroll: m.scroll_pages(),
+                    }
+                    return `${m.layout()}: ${layoutNames[this.layout]}`
+                },
+                action: () => {
+                    this.layout_next()
+                },
+            },
+            {
+                keys: "shift++",
+                description: m.keymap_zoom_in(),
+                category: "settings",
+                subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
+                action: () => {
+                    this.scale = Math.min(this.scale + 0.1, 3)
+                },
+            },
+            {
+                keys: "-",
+                description: m.keymap_zoom_out(),
+                category: "settings",
+                subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
+                action: () => {
+                    this.scale = Math.max(this.scale - 0.1, 0.5)
+                },
+            },
+            {
+                keys: "=",
+                description: m.keymap_zoom_to_fit(),
+                category: "settings",
+                subtitle: () => m.set_scale_150_subtitle(),
+                action: () => {
+                    this.scale = 1.5
+                },
+            },
+        ]
     }
 }
 
