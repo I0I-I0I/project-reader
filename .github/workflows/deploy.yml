@@ -1,0 +1,30 @@
+name: Deploy to Server
+
+on:
+    push:
+        branches:
+            - master
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Deploy to Server
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.REMOTE_HOST }}
+                  username: ${{ secrets.REMOTE_USER }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  script: |
+                      mkdir -p ~/apps/project-reader
+                      cd ~/apps/project-reader
+                      # If repo doesn't exist, clone it. Otherwise, pull.
+                      if [ ! -d ".git" ]; then
+                        git clone https://github.com/${{ github.repository }}.git .
+                      else
+                        git pull origin master
+                      fi
+                      docker compose up --build -d
