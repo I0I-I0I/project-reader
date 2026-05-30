@@ -5,6 +5,7 @@
     import * as m from "$lib/paraglide/messages"
     import { untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import * as pdfjs from "pdfjs-dist"
 
     let { pdf, pageNumber, scale, offsetY, width, height } = $props<{
         pdf: PDFDocument
@@ -17,6 +18,7 @@
 
     let imageUrl = $state<string | null>(null)
     let isLoading = $state(false)
+    let textLayerContainer = $state<HTMLElement | null>(null)
 
     const containerStyle = $derived(`width: ${width}px; height: ${height}px;`)
 
@@ -57,6 +59,50 @@
             }
         })
     })
+
+    $effect(() => {
+        if (!imageUrl || !textLayerContainer || !pdf) return
+        const currentScale = scale
+
+        const controller = new AbortController()
+        const container = textLayerContainer
+
+        const renderText = async () => {
+            try {
+                const { textContent, viewport } = await pdf.getTextAndViewport(
+                    pageNumber,
+                    currentScale,
+                )
+                if (controller.signal.aborted) return
+
+                container.innerHTML = ""
+                container.style.setProperty("--scale-factor", currentScale.toString())
+
+                const textLayer = new pdfjs.TextLayer({
+                    textContentSource: textContent,
+                    container,
+                    viewport: viewport.clone({ dontFlip: true }),
+                })
+
+                await textLayer.render()
+                if (controller.signal.aborted) {
+                    container.innerHTML = ""
+                }
+            } catch (err) {
+                if (controller.signal.aborted) return
+                console.error(
+                    `[ScrollPage] Failed to render text layer for page ${pageNumber}`,
+                    err,
+                )
+            }
+        }
+
+        renderText()
+
+        return () => {
+            controller.abort()
+        }
+    })
 </script>
 
 <div class="scroll-page" style="top: {offsetY}px;" data-page={pageNumber}>
@@ -68,6 +114,7 @@
                     alt={m.page_render_alt({ page: pageNumber })}
                     class="pdf-image"
                 />
+                <div bind:this={textLayerContainer} class="textLayer"></div>
             </div>
         {:else}
             <div class="placeholder" style={containerStyle}>
@@ -99,6 +146,7 @@
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
         display: inline-flex;
+        position: relative;
     }
 
     .pdf-image {
@@ -109,6 +157,32 @@
 
     :global(html.dark) .pdf-image {
         filter: invert(1) hue-rotate(180deg);
+    }
+
+    /* Text Layer Styles */
+    :global(.textLayer) {
+        position: absolute;
+        text-align: initial;
+        inset: 0;
+        overflow: hidden;
+        opacity: 1;
+        line-height: 1;
+        text-wrap: nowrap;
+        pointer-events: auto;
+    }
+
+    :global(.textLayer span),
+    :global(.textLayer br) {
+        color: transparent;
+        position: absolute;
+        white-space: pre;
+        cursor: text;
+        transform-origin: 0% 0%;
+    }
+
+    :global(.textLayer ::selection) {
+        background: color-mix(in srgb, var(--viewer-accent) 35%, transparent);
+        color: transparent;
     }
 
     .placeholder {

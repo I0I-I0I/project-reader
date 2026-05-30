@@ -1,5 +1,6 @@
 import * as pdfjs from "pdfjs-dist"
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url"
+import type { TextContent } from "pdfjs-dist/types/src/display/api"
 
 export class Page {
     constructor(public pageNumber: number) {}
@@ -30,6 +31,12 @@ interface DocumentInterface {
     getPage(pageNumber: number): Promise<Page>
     getCanvasPage(page: Page, scale?: number, signal?: AbortSignal): Promise<string>
     getAllPageDimensions(): Promise<{ width: number; height: number }[]>
+    getTextContent(pageNumber: number): Promise<TextContent>
+    getViewport(pageNumber: number, scale: number): Promise<pdfjs.PageViewport>
+    getTextAndViewport(
+        pageNumber: number,
+        scale: number,
+    ): Promise<{ textContent: TextContent; viewport: pdfjs.PageViewport }>
     close(): Promise<void>
 }
 
@@ -46,6 +53,9 @@ export default class PDFDocument implements DocumentInterface {
     public defaultHeight: number | null = null
     private pageCache = new Map<number, string>()
     private renderedQuality: number | null = null
+    private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
+    private pageProxyCacheOrder: number[] = []
+    private readonly MAX_PAGE_PROXY_CACHE_SIZE = 10
 
     constructor(public url: string) {}
 
@@ -108,10 +118,7 @@ export default class PDFDocument implements DocumentInterface {
     }
 
     async getAllPageDimensions(): Promise<{ width: number; height: number }[]> {
-        if (!this.pdfDoc) {
-            throw new Error("PDF document has not been loaded")
-        }
-
+        const pdfDoc = this.getRequiredPdfDoc()
         const dimensions: { width: number; height: number }[] = []
 
         const batchSize = 10
@@ -119,7 +126,7 @@ export default class PDFDocument implements DocumentInterface {
             const end = Math.min(i + batchSize - 1, this.pageCount)
             const batchPromises = []
             for (let j = i; j <= end; j++) {
-                batchPromises.push(this.pdfDoc.getPage(j))
+                batchPromises.push(pdfDoc.getPage(j))
             }
 
             const pages = await Promise.all(
@@ -169,11 +176,9 @@ export default class PDFDocument implements DocumentInterface {
     }
 
     async getOutline(): Promise<FlatHeading[] | null> {
-        if (!this.pdfDoc) {
-            throw new Error("PDF document has not been loaded")
-        }
+        const pdfDoc = this.getRequiredPdfDoc()
 
-        const outline = await this.pdfDoc.getOutline()
+        const outline = await pdfDoc.getOutline()
         if (!outline) {
             return null
         }
@@ -189,7 +194,7 @@ export default class PDFDocument implements DocumentInterface {
                     try {
                         let explicitDest: any[] | null = null
                         if (typeof dest === "string") {
-                            explicitDest = await this.pdfDoc!.getDestination(dest)
+                            explicitDest = await pdfDoc.getDestination(dest)
                         } else if (Array.isArray(dest)) {
                             explicitDest = dest
                         }
@@ -197,7 +202,7 @@ export default class PDFDocument implements DocumentInterface {
                         if (explicitDest && explicitDest.length > 0) {
                             const pageRef = explicitDest[0]
                             if (pageRef && typeof pageRef === "object") {
-                                const pageIndex = await this.pdfDoc!.getPageIndex(pageRef)
+                                const pageIndex = await pdfDoc.getPageIndex(pageRef)
                                 pageNumber = pageIndex + 1
                             } else if (typeof pageRef === "number") {
                                 pageNumber = pageRef + 1
@@ -223,22 +228,10 @@ export default class PDFDocument implements DocumentInterface {
     }
 
     async getCanvasPage(page: Page, quality: number = 1, signal?: AbortSignal): Promise<string> {
-        if (!this.pdfDoc) {
-            throw new Error("PDF document has not been loaded")
-        }
+        const pdfDoc = this.getRequiredPdfDoc()
 
         if (this.renderedQuality !== null && this.renderedQuality !== quality) {
-            for (const url of this.pageCache.values()) {
-                try {
-                    URL.revokeObjectURL(url)
-                } catch (err) {
-                    console.warn(
-                        "[PDFDocument] Error revoking page cache URL during quality change:",
-                        err,
-                    )
-                }
-            }
-            this.pageCache.clear()
+            this.clearPageCache("quality change")
         }
         this.renderedQuality = quality
 
@@ -249,7 +242,7 @@ export default class PDFDocument implements DocumentInterface {
 
         let pdfPage: pdfjs.PDFPageProxy | null = null
         try {
-            pdfPage = await this.pdfDoc.getPage(page.pageNumber)
+            pdfPage = await pdfDoc.getPage(page.pageNumber)
             if (signal?.aborted) throw new Error("Rendering cancelled")
 
             const canvas = document.createElement("canvas")
@@ -313,7 +306,93 @@ export default class PDFDocument implements DocumentInterface {
         }
     }
 
+    private async getPageProxy(pageNumber: number): Promise<pdfjs.PDFPageProxy> {
+        const pdfDoc = this.getRequiredPdfDoc()
+        if (this.pageProxyCache.has(pageNumber)) {
+            this.pageProxyCacheOrder = this.pageProxyCacheOrder.filter((num) => num !== pageNumber)
+            this.pageProxyCacheOrder.push(pageNumber)
+            return this.pageProxyCache.get(pageNumber)!
+        }
+
+        const page = await pdfDoc.getPage(pageNumber)
+
+        this.pageProxyCache.set(pageNumber, page)
+        this.pageProxyCacheOrder.push(pageNumber)
+
+        if (this.pageProxyCacheOrder.length > this.MAX_PAGE_PROXY_CACHE_SIZE) {
+            const evictedPageNum = this.pageProxyCacheOrder.shift()
+            if (evictedPageNum !== undefined) {
+                const evictedPage = this.pageProxyCache.get(evictedPageNum)
+                if (evictedPage) {
+                    try {
+                        evictedPage.cleanup()
+                    } catch (err) {
+                        console.warn(
+                            `[PDFDocument] Error cleaning up evicted page proxy ${evictedPageNum}:`,
+                            err,
+                        )
+                    }
+                    this.pageProxyCache.delete(evictedPageNum)
+                }
+            }
+        }
+
+        return page
+    }
+
+    async getTextContent(pageNumber: number): Promise<TextContent> {
+        const page = await this.getPageProxy(pageNumber)
+        return await page.getTextContent()
+    }
+
+    async getViewport(pageNumber: number, scale: number): Promise<pdfjs.PageViewport> {
+        const page = await this.getPageProxy(pageNumber)
+        return page.getViewport({ scale })
+    }
+
+    async getTextAndViewport(
+        pageNumber: number,
+        scale: number,
+    ): Promise<{ textContent: TextContent; viewport: pdfjs.PageViewport }> {
+        const page = await this.getPageProxy(pageNumber)
+        const textContent = await page.getTextContent()
+        const viewport = page.getViewport({ scale })
+        return { textContent, viewport }
+    }
+
+    private getRequiredPdfDoc(): pdfjs.PDFDocumentProxy {
+        if (!this.pdfDoc) {
+            throw new Error("PDF document has not been loaded")
+        }
+        return this.pdfDoc
+    }
+
+    private clearPageCache(context = ""): void {
+        const suffix = context ? ` during ${context}` : ""
+        for (const url of this.pageCache.values()) {
+            try {
+                URL.revokeObjectURL(url)
+            } catch (err) {
+                console.warn(`[PDFDocument] Error revoking page cache URL${suffix}:`, err)
+            }
+        }
+        this.pageCache.clear()
+    }
+
+    private clearPageProxyCache(): void {
+        for (const page of this.pageProxyCache.values()) {
+            try {
+                page.cleanup()
+            } catch (err) {
+                console.warn("[PDFDocument] Error cleaning up page proxy during cache clear:", err)
+            }
+        }
+        this.pageProxyCache.clear()
+        this.pageProxyCacheOrder = []
+    }
+
     async close(): Promise<void> {
+        this.clearPageProxyCache()
         if (this.pdfDoc) {
             try {
                 await this.pdfDoc.destroy()
@@ -322,14 +401,7 @@ export default class PDFDocument implements DocumentInterface {
             }
             this.pdfDoc = null
         }
-        for (const url of this.pageCache.values()) {
-            try {
-                URL.revokeObjectURL(url)
-            } catch (err) {
-                console.warn("[PDFDocument] Error revoking page cache URL:", err)
-            }
-        }
-        this.pageCache.clear()
+        this.clearPageCache()
         this.title = null
         this.author = null
         this.pageCount = 0

@@ -11,7 +11,6 @@
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
-    import ScrollCanvasPane from "./components/ScrollCanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
@@ -20,11 +19,7 @@
     import { useKeymap } from "$lib/keymaps"
 
     function getScrollContainer() {
-        if (settingsStore.layout === "scroll") {
-            return document.querySelector(".scroll-canvas-pane")
-        } else {
-            return document.querySelector(".canvas-frame")
-        }
+        return document.querySelector(".canvas-frame")
     }
 
     useKeymap([
@@ -528,12 +523,13 @@
 
     function handleBodyClick(e: MouseEvent) {
         if (uiStore.isToolbarsVisible) return
+        if (!uiStore.isCompact) return
 
         const { clientX } = e
         const { innerWidth } = window
-        if (clientX < innerWidth / 2) {
+        if (clientX < innerWidth * 0.3) {
             prevPage()
-        } else {
+        } else if (clientX > innerWidth * 0.7) {
             nextPage()
         }
     }
@@ -679,24 +675,15 @@
                             ></div>
                         {/if}
 
-                        {#if settingsStore.layout === "scroll"}
-                            <ScrollCanvasPane
-                                {pdf}
-                                scale={settingsStore.scale}
-                                {totalPages}
-                                bind:currentPage
-                            />
-                        {:else}
-                            <CanvasPane
-                                {isPageLoading}
-                                {currentPageImage}
-                                {currentPageImage2}
-                                {currentPage}
-                                {pdf}
-                                scale={settingsStore.scale}
-                                layoutMode={settingsStore.layout === "split" ? "split" : "single"}
-                            />
-                        {/if}
+                        <CanvasPane
+                            {pdf}
+                            scale={settingsStore.scale}
+                            bind:currentPage
+                            {isPageLoading}
+                            {currentPageImage}
+                            {currentPageImage2}
+                            layoutMode={settingsStore.layout}
+                        />
 
                         {#if isLoaded}
                             <button
