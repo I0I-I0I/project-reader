@@ -57,6 +57,7 @@
         if (!currentUrl) return
 
         let canceled = false
+        let loadedDoc: PDFDocument | null = null
 
         untrack(() => {
             isLoaded = false
@@ -66,12 +67,15 @@
             const loadPdf = async (pdfUrl: string) => {
                 try {
                     const doc = new PDFDocument(pdfUrl)
-                    await doc.load()
+                    await doc.load(settingsStore.scale)
 
                     if (!canceled) {
+                        loadedDoc = doc
                         pdf = doc
                         totalPages = await doc.getPageNumber()
                         isLoaded = true
+                    } else {
+                        await doc.close()
                     }
                 } catch (err) {
                     console.error("Failed to load PDF:", err)
@@ -86,6 +90,9 @@
 
         return () => {
             canceled = true
+            if (loadedDoc) {
+                loadedDoc.close()
+            }
         }
     })
 
@@ -93,12 +100,10 @@
         const currentPdf = pdf
         const loaded = isLoaded
         const pageNo = currentPage
+        const quality = settingsStore.quality
 
         if (!currentPdf || !loaded) {
             untrack(() => {
-                if (currentPageImage && currentPageImage.startsWith("blob:")) {
-                    URL.revokeObjectURL(currentPageImage)
-                }
                 currentPageImage = null
             })
             return
@@ -114,21 +119,15 @@
                 try {
                     const page = await currentPdf.getPage(pNo)
 
-                    img = await currentPdf.getCanvasPage(page, 1.5, controller.signal)
+                    img = await currentPdf.getCanvasPage(page, quality, controller.signal)
 
                     if (!controller.signal.aborted) {
                         untrack(() => {
-                            if (currentPageImage && currentPageImage.startsWith("blob:")) {
-                                URL.revokeObjectURL(currentPageImage)
-                            }
                             currentPageImage = img
                             isPageLoading = false
                         })
-                    } else {
-                        if (img && img.startsWith("blob:")) URL.revokeObjectURL(img)
                     }
                 } catch (err: any) {
-                    if (img && img.startsWith("blob:")) URL.revokeObjectURL(img)
                     if (err.message?.startsWith("Rendering cancelled")) {
                         console.error("Failed to render page:", err)
                     }
@@ -149,9 +148,10 @@
     })
 
     import { onDestroy } from "svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
     onDestroy(() => {
-        if (currentPageImage && currentPageImage.startsWith("blob:")) {
-            URL.revokeObjectURL(currentPageImage)
+        if (pdf) {
+            pdf.close()
         }
     })
 

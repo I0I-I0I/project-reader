@@ -316,6 +316,7 @@
         if (!currentUrl) return
 
         let canceled = false
+        let loadedDoc: PDFDocument | null = null
 
         untrack(() => {
             isLoaded = false
@@ -325,9 +326,10 @@
             const loadPdf = async (pdfUrl: string) => {
                 try {
                     const doc = new PDFDocument(pdfUrl)
-                    await doc.load()
+                    await doc.load(settingsStore.scale)
 
                     if (!canceled) {
+                        loadedDoc = doc
                         pdf = doc
                         const pagesCount = await doc.getPageNumber()
                         totalPages = pagesCount
@@ -340,6 +342,8 @@
                                 totalPages: pagesCount,
                             })
                         }
+                    } else {
+                        await doc.close()
                     }
                 } catch (err) {
                     console.error("Failed to load PDF:", err)
@@ -356,6 +360,9 @@
 
         return () => {
             canceled = true
+            if (loadedDoc) {
+                loadedDoc.close()
+            }
         }
     })
 
@@ -363,17 +370,11 @@
         const currentPdf = pdf
         const loaded = isLoaded
         const pageNo = currentPage
-        const currentScale = settingsStore.scale
         const mode = settingsStore.layout
+        const quality = settingsStore.quality
 
         if (!currentPdf || !loaded || mode === "scroll") {
             untrack(() => {
-                if (currentPageImage && currentPageImage.startsWith("blob:")) {
-                    URL.revokeObjectURL(currentPageImage)
-                }
-                if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
-                    URL.revokeObjectURL(currentPageImage2)
-                }
                 currentPageImage = null
                 currentPageImage2 = null
             })
@@ -390,36 +391,21 @@
                 let img2: string | null = null
                 try {
                     const page1 = await currentPdf.getPage(pageNo)
-                    img1 = await currentPdf.getCanvasPage(page1, currentScale, controller.signal)
+                    img1 = await currentPdf.getCanvasPage(page1, quality, controller.signal)
 
                     if (mode === "split" && pageNo + 1 <= totalPages) {
                         const page2 = await currentPdf.getPage(pageNo + 1)
-                        img2 = await currentPdf.getCanvasPage(
-                            page2,
-                            currentScale,
-                            controller.signal,
-                        )
+                        img2 = await currentPdf.getCanvasPage(page2, quality, controller.signal)
                     }
 
                     if (!controller.signal.aborted) {
                         untrack(() => {
-                            if (currentPageImage && currentPageImage.startsWith("blob:")) {
-                                URL.revokeObjectURL(currentPageImage)
-                            }
-                            if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
-                                URL.revokeObjectURL(currentPageImage2)
-                            }
                             currentPageImage = img1
                             currentPageImage2 = img2
                             isPageLoading = false
                         })
-                    } else {
-                        if (img1 && img1.startsWith("blob:")) URL.revokeObjectURL(img1)
-                        if (img2 && img2.startsWith("blob:")) URL.revokeObjectURL(img2)
                     }
                 } catch (err: any) {
-                    if (img1 && img1.startsWith("blob:")) URL.revokeObjectURL(img1)
-                    if (img2 && img2.startsWith("blob:")) URL.revokeObjectURL(img2)
                     if (err.message?.startsWith("Rendering cancelled")) {
                         console.error("Failed to render page(s):", err)
                     }
@@ -440,11 +426,8 @@
     })
 
     onDestroy(() => {
-        if (currentPageImage && currentPageImage.startsWith("blob:")) {
-            URL.revokeObjectURL(currentPageImage)
-        }
-        if (currentPageImage2 && currentPageImage2.startsWith("blob:")) {
-            URL.revokeObjectURL(currentPageImage2)
+        if (pdf) {
+            pdf.close()
         }
     })
 
@@ -709,6 +692,8 @@
                                 {currentPageImage}
                                 {currentPageImage2}
                                 {currentPage}
+                                {pdf}
+                                scale={settingsStore.scale}
                                 layoutMode={settingsStore.layout === "split" ? "split" : "single"}
                             />
                         {/if}

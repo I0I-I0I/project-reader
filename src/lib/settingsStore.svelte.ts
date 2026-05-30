@@ -8,18 +8,30 @@ export type Layout = "single" | "split" | "scroll"
 export interface Settings {
     layout: Layout
     scale: number
+    quality: number
     theme: Theme
     language: "en" | "ru"
     animations: boolean
+
+    maxScale: number
+    minScale: number
+    maxQuality: number
+    minQuality: number
 }
 
 class SettingsStore {
     private settings = $state<Settings>({
         layout: "scroll",
         scale: 1.5,
+        quality: 2,
         theme: "system",
         language: "en",
         animations: true,
+
+        maxScale: 5,
+        minScale: 0.25,
+        maxQuality: 5,
+        minQuality: 1,
     })
 
     constructor() {
@@ -53,7 +65,11 @@ class SettingsStore {
             if (["single", "split", "scroll"].includes(parsed.layout)) {
                 sanitized.layout = parsed.layout
             }
-            if (typeof parsed.scale === "number" && parsed.scale >= 0.5 && parsed.scale <= 3) {
+            if (
+                typeof parsed.scale === "number" &&
+                parsed.scale >= this.settings.minScale &&
+                parsed.scale <= this.settings.maxScale
+            ) {
                 sanitized.scale = parsed.scale
             }
             if (["light", "dark", "system"].includes(parsed.theme)) {
@@ -131,6 +147,46 @@ class SettingsStore {
         this.updateSetting("animations", value)
     }
 
+    set maxScale(value: Settings["maxScale"]) {
+        this.updateSetting("maxScale", value)
+    }
+
+    get maxScale(): Settings["maxScale"] {
+        return this.settings.maxScale
+    }
+
+    get minScale(): Settings["minScale"] {
+        return this.settings.minScale
+    }
+
+    set minScale(value: Settings["minScale"]) {
+        this.updateSetting("minScale", value)
+    }
+
+    get quality(): Settings["quality"] {
+        return this.settings.quality
+    }
+
+    set quality(value: Settings["quality"]) {
+        this.updateSetting("quality", value)
+    }
+
+    get maxQuality(): Settings["maxQuality"] {
+        return this.settings.maxQuality
+    }
+
+    set maxQuality(value: Settings["maxQuality"]) {
+        this.updateSetting("maxQuality", value)
+    }
+
+    get minQuality(): Settings["minQuality"] {
+        return this.settings.minQuality
+    }
+
+    set minQuality(value: Settings["minQuality"]) {
+        this.updateSetting("minQuality", value)
+    }
+
     updateDOM() {
         if (!browser) return
         const isDark =
@@ -185,7 +241,7 @@ class SettingsStore {
                 category: "settings",
                 subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
                 action: () => {
-                    this.scale = Math.min(this.scale + 0.1, 3)
+                    this.scale = Math.min(this.scale + 0.1, this.settings.maxScale)
                 },
             },
             {
@@ -194,7 +250,7 @@ class SettingsStore {
                 category: "settings",
                 subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
                 action: () => {
-                    this.scale = Math.max(this.scale - 0.1, 0.5)
+                    this.scale = Math.max(this.scale - 0.1, this.settings.minScale)
                 },
             },
             {

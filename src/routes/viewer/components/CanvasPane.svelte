@@ -1,14 +1,32 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Spinner from "$lib/components/ui/Spinner.svelte"
+    import type PDFDocument from "$lib/pdf"
 
-    let { isPageLoading, currentPageImage, currentPageImage2, currentPage, layoutMode } = $props<{
+    let {
+        isPageLoading,
+        currentPageImage,
+        currentPageImage2,
+        currentPage,
+        layoutMode,
+        scale = 1.5,
+        pdf,
+    } = $props<{
         isPageLoading: boolean
         currentPageImage: string | null
         currentPageImage2?: string | null
         currentPage: number
         layoutMode?: "single" | "split"
+        scale?: number
+        pdf: PDFDocument | null
     }>()
+
+    const wrapperStyle = $derived.by(() => {
+        if (!pdf || !pdf.defaultWidth || !pdf.defaultHeight) {
+            return `width: ${612 * scale}px; height: ${792 * scale}px;`
+        }
+        return `width: ${pdf.defaultWidth * scale}px; height: ${pdf.defaultHeight * scale}px;`
+    })
 </script>
 
 <div class="canvas-pane">
@@ -19,7 +37,7 @@
             </div>
         {:else if currentPageImage}
             <div class="pages-container" class:split-mode={layoutMode === "split"}>
-                <div class="pdf-image-wrapper">
+                <div class="pdf-image-wrapper" style={wrapperStyle}>
                     <img
                         src={currentPageImage}
                         alt={m.page_render_alt({ page: currentPage })}
@@ -27,7 +45,7 @@
                     />
                 </div>
                 {#if layoutMode === "split" && currentPageImage2}
-                    <div class="pdf-image-wrapper">
+                    <div class="pdf-image-wrapper" style={wrapperStyle}>
                         <img
                             src={currentPageImage2}
                             alt={m.page_render_alt({ page: currentPage + 1 })}
@@ -91,14 +109,17 @@
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
         display: inline-flex;
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+            height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: top center;
     }
 
     .pdf-image {
         display: block;
-        max-width: 100%;
-        height: auto;
+        width: 100%;
+        height: 100%;
     }
 
     :global(html.dark) .pdf-image {

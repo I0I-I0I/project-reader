@@ -3,7 +3,8 @@
     import { Page } from "$lib/pdf"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { onDestroy, untrack } from "svelte"
+    import { untrack } from "svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
 
     let { pdf, pageNumber, scale, offsetY, width, height } = $props<{
         pdf: PDFDocument
@@ -16,37 +17,33 @@
 
     let imageUrl = $state<string | null>(null)
     let isLoading = $state(false)
-    let loadedScale = $state<number | null>(null)
 
     const containerStyle = $derived(`width: ${width}px; height: ${height}px;`)
 
     $effect(() => {
-        const currentScale = scale
         const currentPdf = pdf
+        const quality = settingsStore.quality
 
         return untrack(() => {
-            if (currentPdf && (!imageUrl || loadedScale !== currentScale) && !isLoading) {
+            if (currentPdf) {
+                // If quality changed, we must discard the old image URL
+                imageUrl = null
+
                 const controller = new AbortController()
 
-                // Debounce rendering to avoid thrashing during fast scrolls
                 const timeout = setTimeout(() => {
                     isLoading = true
                     currentPdf
-                        .getCanvasPage(new Page(pageNumber), currentScale, controller.signal)
+                        .getCanvasPage(new Page(pageNumber), quality, controller.signal)
                         .then((url: string) => {
                             if (controller.signal.aborted) {
-                                URL.revokeObjectURL(url)
                                 return
                             }
-                            if (imageUrl && imageUrl.startsWith("blob:")) {
-                                URL.revokeObjectURL(imageUrl)
-                            }
                             imageUrl = url
-                            loadedScale = currentScale
                             isLoading = false
                         })
                         .catch((err: any) => {
-                            if (err.meessage?.startsWith("Rendering cancelled")) {
+                            if (err.message?.startsWith("Rendering cancelled")) {
                                 console.error(`[ScrollPage] Failed to load page ${pageNumber}`, err)
                             }
                             isLoading = false
@@ -59,12 +56,6 @@
                 }
             }
         })
-    })
-
-    onDestroy(() => {
-        if (imageUrl && imageUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(imageUrl)
-        }
     })
 </script>
 

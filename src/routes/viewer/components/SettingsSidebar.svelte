@@ -27,11 +27,11 @@
     }>()
 
     function upScale() {
-        settingsStore.scale = Math.min(settingsStore.scale + 0.25, 3)
+        settingsStore.scale = Math.min(settingsStore.scale + 0.25, settingsStore.maxScale)
     }
 
     function downScale() {
-        settingsStore.scale = Math.max(settingsStore.scale - 0.25, 0.5)
+        settingsStore.scale = Math.max(settingsStore.scale - 0.25, settingsStore.minScale)
     }
 
     function handleScaleChange(e: Event) {
@@ -44,6 +44,14 @@
         } else {
             input.value = Math.round(settingsStore.scale * 100).toString()
         }
+    }
+
+    function downQuality() {
+        settingsStore.quality = Math.max(settingsStore.quality - 1, settingsStore.minQuality)
+    }
+
+    function upQuality() {
+        settingsStore.quality = Math.min(settingsStore.quality + 1, settingsStore.maxQuality)
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -151,14 +159,29 @@
                         value={Math.round(settingsStore.scale * 100)}
                         onchange={handleScaleChange}
                         onkeydown={handleKeyDown}
-                        min="50"
-                        max="300"
+                        min={Math.round(settingsStore.minScale * 100)}
+                        max={Math.round(settingsStore.maxScale * 100)}
                         class="scale-input"
                         aria-label={m.zoom_scale()}
                     />
                     <span class="percent-sign">%</span>
                 </div>
                 <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
+                    <PlusIcon />
+                </Button>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h4 class="section-title">{m.quality()}</h4>
+            <div class="zoom-controls">
+                <Button onclick={downQuality} aria-label={m.quality_down()} class="zoom-btn">
+                    <MinusIcon />
+                </Button>
+                <div class="scale-input-container">
+                    <span>{settingsStore.quality}</span>
+                </div>
+                <Button onclick={upQuality} aria-label={m.quality_up()} class="zoom-btn">
                     <PlusIcon />
                 </Button>
             </div>

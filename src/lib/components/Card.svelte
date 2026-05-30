@@ -7,6 +7,7 @@
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
+    import { settingsStore } from "$lib/settingsStore.svelte"
 
     interface Props extends HTMLButtonAttributes {
         book: Book
@@ -38,7 +39,7 @@
             const loadPreview = async () => {
                 const doc = new PDFDocument(book.url)
                 try {
-                    await doc.load()
+                    await doc.load(settingsStore.scale)
                     const totalPages = await doc.getPageNumber()
                     const author = await doc.getAuthor()
                     let imageUrl = book.previewDataUrl

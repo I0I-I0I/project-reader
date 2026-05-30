@@ -43,7 +43,11 @@
             {#if uiStore.isCompact}
                 <button
                     class="mobile-zoom-btn"
-                    onclick={() => (settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5))}
+                    onclick={() =>
+                        (settingsStore.scale = Math.max(
+                            settingsStore.scale - 0.1,
+                            settingsStore.minScale,
+                        ))}
                     aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
                     title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
                 >
@@ -51,7 +55,11 @@
                 </button>
                 <button
                     class="mobile-zoom-btn"
-                    onclick={() => (settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3))}
+                    onclick={() =>
+                        (settingsStore.scale = Math.min(
+                            settingsStore.scale + 0.1,
+                            settingsStore.maxScale,
+                        ))}
                     aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
                     title={m.zoom_in ? m.zoom_in() : "Zoom In"}
                 >

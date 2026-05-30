@@ -44,10 +44,12 @@ export default class PDFDocument implements DocumentInterface {
     private pageCount = 0
     public defaultWidth: number | null = null
     public defaultHeight: number | null = null
+    private pageCache = new Map<number, string>()
+    private renderedQuality: number | null = null
 
     constructor(public url: string) {}
 
-    async load(): Promise<PDFDocument> {
+    async load(_quality: number = 1): Promise<PDFDocument> {
         try {
             const response = await fetch(this.url)
             if (!response.ok) {
@@ -220,9 +222,29 @@ export default class PDFDocument implements DocumentInterface {
         return resolvedHeadings
     }
 
-    async getCanvasPage(page: Page, scale: number = 1.5, signal?: AbortSignal): Promise<string> {
+    async getCanvasPage(page: Page, quality: number = 1, signal?: AbortSignal): Promise<string> {
         if (!this.pdfDoc) {
             throw new Error("PDF document has not been loaded")
+        }
+
+        if (this.renderedQuality !== null && this.renderedQuality !== quality) {
+            for (const url of this.pageCache.values()) {
+                try {
+                    URL.revokeObjectURL(url)
+                } catch (err) {
+                    console.warn(
+                        "[PDFDocument] Error revoking page cache URL during quality change:",
+                        err,
+                    )
+                }
+            }
+            this.pageCache.clear()
+        }
+        this.renderedQuality = quality
+
+        const cacheKey = page.pageNumber
+        if (this.pageCache.has(cacheKey)) {
+            return this.pageCache.get(cacheKey)!
         }
 
         let pdfPage: pdfjs.PDFPageProxy | null = null
@@ -230,16 +252,22 @@ export default class PDFDocument implements DocumentInterface {
             pdfPage = await this.pdfDoc.getPage(page.pageNumber)
             if (signal?.aborted) throw new Error("Rendering cancelled")
 
-            const viewport = pdfPage.getViewport({ scale })
-
             const canvas = document.createElement("canvas")
             const context = canvas.getContext("2d")
             if (!context) {
                 throw new Error("Could not instantiate HTML5 canvas 2D rendering context")
             }
 
+            const dpr = window.devicePixelRatio || 1
+            const viewport = pdfPage.getViewport({ scale: quality })
+
             canvas.width = viewport.width
             canvas.height = viewport.height
+            canvas.style.width = `${viewport.width / dpr}px`
+            canvas.style.height = `${viewport.height / dpr}px`
+
+            context.imageSmoothingEnabled = true
+            context.imageSmoothingQuality = "high"
 
             const renderContext = {
                 canvasContext: context,
@@ -268,7 +296,9 @@ export default class PDFDocument implements DocumentInterface {
 
             pdfPage.cleanup()
 
-            return URL.createObjectURL(blob)
+            const blobUrl = URL.createObjectURL(blob)
+            this.pageCache.set(cacheKey, blobUrl)
+            return blobUrl
         } catch (err: any) {
             if (pdfPage) pdfPage.cleanup()
             if (
@@ -292,6 +322,14 @@ export default class PDFDocument implements DocumentInterface {
             }
             this.pdfDoc = null
         }
+        for (const url of this.pageCache.values()) {
+            try {
+                URL.revokeObjectURL(url)
+            } catch (err) {
+                console.warn("[PDFDocument] Error revoking page cache URL:", err)
+            }
+        }
+        this.pageCache.clear()
         this.title = null
         this.author = null
         this.pageCount = 0
