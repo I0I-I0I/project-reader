@@ -12,27 +12,33 @@ export interface Settings {
     theme: Theme
     language: "en" | "ru"
     animations: boolean
+}
 
+interface Constants {
     maxScale: number
     minScale: number
     maxQuality: number
     minQuality: number
 }
 
-class SettingsStore {
-    private settings = $state<Settings>({
-        layout: "scroll",
-        scale: 1.5,
-        quality: 2,
-        theme: "system",
-        language: "en",
-        animations: true,
+export const CONSTANTS: Constants = {
+    maxScale: 5,
+    minScale: 0.25,
+    maxQuality: 5,
+    minQuality: 1,
+}
 
-        maxScale: 5,
-        minScale: 0.25,
-        maxQuality: 5,
-        minQuality: 1,
-    })
+export const DEFAULT_SETTINGS: Settings = {
+    layout: "scroll",
+    scale: 1.5,
+    quality: 3,
+    theme: "system",
+    language: "en",
+    animations: true,
+}
+
+class SettingsStore {
+    private settings = $state<Settings>({ ...DEFAULT_SETTINGS })
 
     constructor() {
         if (browser) {
@@ -67,8 +73,8 @@ class SettingsStore {
             }
             if (
                 typeof parsed.scale === "number" &&
-                parsed.scale >= this.settings.minScale &&
-                parsed.scale <= this.settings.maxScale
+                parsed.scale >= CONSTANTS.minScale &&
+                parsed.scale <= CONSTANTS.maxScale
             ) {
                 sanitized.scale = parsed.scale
             }
@@ -80,6 +86,9 @@ class SettingsStore {
             }
             if (typeof parsed.animations === "boolean") {
                 sanitized.animations = parsed.animations
+            }
+            if (typeof parsed.quality === "number" && parsed.quality >= 1 && parsed.quality <= 5) {
+                sanitized.quality = parsed.quality
             }
         }
 
@@ -147,44 +156,12 @@ class SettingsStore {
         this.updateSetting("animations", value)
     }
 
-    set maxScale(value: Settings["maxScale"]) {
-        this.updateSetting("maxScale", value)
-    }
-
-    get maxScale(): Settings["maxScale"] {
-        return this.settings.maxScale
-    }
-
-    get minScale(): Settings["minScale"] {
-        return this.settings.minScale
-    }
-
-    set minScale(value: Settings["minScale"]) {
-        this.updateSetting("minScale", value)
-    }
-
     get quality(): Settings["quality"] {
         return this.settings.quality
     }
 
     set quality(value: Settings["quality"]) {
         this.updateSetting("quality", value)
-    }
-
-    get maxQuality(): Settings["maxQuality"] {
-        return this.settings.maxQuality
-    }
-
-    set maxQuality(value: Settings["maxQuality"]) {
-        this.updateSetting("maxQuality", value)
-    }
-
-    get minQuality(): Settings["minQuality"] {
-        return this.settings.minQuality
-    }
-
-    set minQuality(value: Settings["minQuality"]) {
-        this.updateSetting("minQuality", value)
     }
 
     updateDOM() {
@@ -241,7 +218,7 @@ class SettingsStore {
                 category: "settings",
                 subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
                 action: () => {
-                    this.scale = Math.min(this.scale + 0.1, this.settings.maxScale)
+                    this.scale = Math.min(this.scale + 0.1, CONSTANTS.maxScale)
                 },
             },
             {
@@ -250,16 +227,7 @@ class SettingsStore {
                 category: "settings",
                 subtitle: () => m.scale_subtitle({ scale: Math.round(this.scale * 100) }),
                 action: () => {
-                    this.scale = Math.max(this.scale - 0.1, this.settings.minScale)
-                },
-            },
-            {
-                keys: "=",
-                description: m.keymap_zoom_to_fit(),
-                category: "settings",
-                subtitle: () => m.set_scale_150_subtitle(),
-                action: () => {
-                    this.scale = 1.5
+                    this.scale = Math.max(this.scale - 0.1, CONSTANTS.minScale)
                 },
             },
         ]

@@ -172,7 +172,7 @@
         display: none;
     }
 
-    @media (max-width: 600px), (max-height: 500px) {
+    @media (max-width: 800px), (max-height: 500px) {
         .viewer-footer {
             padding: 6px 12px;
             padding-bottom: calc(6px + env(safe-area-inset-bottom));
@@ -214,7 +214,7 @@
         }
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 800px), (max-height: 500px) {
         .page-label {
             display: none;
         }

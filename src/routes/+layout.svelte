@@ -166,8 +166,8 @@
 <style>
     :global(:root) {
         /* Centralized breakpoints */
-        --breakpoint-mobile: 600px;
-        --breakpoint-tablet: 768px;
+        --breakpoint-mobile: 800px;
+        --breakpoint-tablet: 850px;
         --breakpoint-desktop: 900px;
         --breakpoint-large-desktop: 1024px;
         --breakpoint-prompt: 640px;
@@ -232,7 +232,7 @@
         box-sizing: border-box;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 850px) {
         .app {
             padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
                 calc(20px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));

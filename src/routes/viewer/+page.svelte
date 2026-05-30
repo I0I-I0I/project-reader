@@ -3,7 +3,7 @@
     import type { FlatHeading } from "$lib/pdf"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { untrack, onMount, onDestroy, getContext, setContext } from "svelte"
+    import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { goto } from "$app/navigation"
 
@@ -968,7 +968,7 @@
         height: 24px;
     }
 
-    @media (max-width: 600px), (max-height: 500px) {
+    @media (max-width: 800px), (max-height: 500px) {
         .fab-prompt {
             bottom: calc(16px + 44px + 12px);
             right: 16px;

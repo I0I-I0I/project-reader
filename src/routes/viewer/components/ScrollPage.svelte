@@ -6,6 +6,34 @@
     import { untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
     import * as pdfjs from "pdfjs-dist"
+    import { MEDIA_QUERIES } from "$lib/breakpoints"
+    import { onMount } from "svelte"
+
+    let isMobilePhone = $state(false)
+    let isShortHeight = $state(false)
+
+    onMount(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
+        isMobilePhone = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isMobilePhone = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+
+        const heightQuery = window.matchMedia("(max-height: 500px)")
+        isShortHeight = heightQuery.matches
+
+        const heightHandler = (e: MediaQueryListEvent) => {
+            isShortHeight = e.matches
+        }
+        heightQuery.addEventListener("change", heightHandler)
+
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+            heightQuery.removeEventListener("change", heightHandler)
+        }
+    })
 
     let { pdf, pageNumber, scale, offsetY, width, height } = $props<{
         pdf: PDFDocument
@@ -20,7 +48,9 @@
     let isLoading = $state(false)
     let textLayerContainer = $state<HTMLElement | null>(null)
 
-    const containerStyle = $derived(`width: ${width}px; height: ${height}px;`)
+    const containerStyle = $derived(
+        `width: ${width}px; height: ${height}px; --aspect-ratio: ${width} / ${height};`,
+    )
 
     $effect(() => {
         const currentPdf = pdf
@@ -105,7 +135,12 @@
     })
 </script>
 
-<div class="scroll-page" style="top: {offsetY}px;" data-page={pageNumber}>
+<div
+    class="scroll-page"
+    style="top: {offsetY}px;"
+    data-page={pageNumber}
+    class:mobile-full-width={isMobilePhone && !isShortHeight}
+>
     <div class="page-container" style={containerStyle}>
         {#if imageUrl}
             <div class="pdf-image-wrapper" style={containerStyle}>
@@ -214,5 +249,30 @@
             border-width: 1.5px;
             box-shadow: 4px 4px 0 var(--shadow-color);
         }
+    }
+
+    .scroll-page.mobile-full-width {
+        padding: 0;
+    }
+
+    .scroll-page.mobile-full-width .page-container {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: var(--aspect-ratio) !important;
+    }
+
+    .scroll-page.mobile-full-width .pdf-image-wrapper,
+    .scroll-page.mobile-full-width .placeholder {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: var(--aspect-ratio) !important;
+        border-width: 0;
+        border-bottom: 2px solid var(--border-color) !important;
+        box-shadow: none;
+    }
+
+    .scroll-page.mobile-full-width .pdf-image {
+        width: 100% !important;
+        height: auto !important;
     }
 </style>

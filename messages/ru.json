@@ -98,6 +98,7 @@
     "no_matching_headings": "Совпадающих заголовков не найдено",
     "scale_subtitle": "Масштаб: {scale}%",
     "set_scale_150_subtitle": "Установить масштаб на 150%",
+    "keymap_reset_scale": "Сбросить масштаб",
     "keymap_import_book": "Импортировать книгу",
     "unknown_author": "Неизвестный автор"
 }

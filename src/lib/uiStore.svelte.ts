@@ -9,9 +9,12 @@ class UIStore {
     constructor() {
         if (browser) {
             const checkCompact = () => {
-                const isTouch = window.matchMedia("(pointer: coarse)").matches
+                const isTouch =
+                    window.matchMedia("(pointer: coarse)").matches ||
+                    navigator.maxTouchPoints > 0 ||
+                    "ontouchstart" in window
                 const isSmallScreen = window.matchMedia(MEDIA_QUERIES.TABLET).matches
-                const ua = navigator.userAgent || navigator.vendor || (window as any).opera
+                const ua = navigator.userAgent || ""
                 const isUAPhone =
                     /iPhone|iPod/.test(ua) ||
                     (/Android/.test(ua) && /Mobile/.test(ua)) ||
@@ -19,9 +22,15 @@ class UIStore {
                 this.#isCompact = isUAPhone || (isTouch && isSmallScreen)
             }
 
-            checkCompact()
+            // Defer initial check to avoid hydration mismatch
+            setTimeout(checkCompact, 0)
+
             const mediaQueryList = window.matchMedia(MEDIA_QUERIES.TABLET)
-            mediaQueryList.addEventListener("change", checkCompact)
+            if (mediaQueryList.addEventListener) {
+                mediaQueryList.addEventListener("change", checkCompact)
+            } else if ((mediaQueryList as any).addListener) {
+                ;(mediaQueryList as any).addListener(checkCompact)
+            }
         }
     }
 

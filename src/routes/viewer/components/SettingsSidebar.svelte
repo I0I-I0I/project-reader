@@ -9,29 +9,56 @@
     import SunIcon from "$lib/components/icons/SunIcon.svelte"
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
-    import PlayIcon from "$lib/components/icons/PlayIcon.svelte"
-    import PauseIcon from "$lib/components/icons/PauseIcon.svelte"
-    import { settingsStore, type Theme } from "$lib/settingsStore.svelte"
+    import Toggle from "$lib/components/ui/Toggle.svelte"
+    import { CONSTANTS, settingsStore, type Theme } from "$lib/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
     import { useKeymap } from "$lib/keymaps"
-    import { getContext } from "svelte"
+    import { getContext, onMount } from "svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
     import type { Pathname } from "$app/types"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/locale"
+    import { MEDIA_QUERIES } from "$lib/breakpoints"
+    import { browser } from "$app/environment"
 
     let { onClose } = $props<{
         onClose: () => void
     }>()
 
+    let isMobilePhone = $state(browser ? window.matchMedia(MEDIA_QUERIES.MOBILE).matches : false)
+    let isShortHeight = $state(browser ? window.matchMedia("(max-height: 500px)").matches : false)
+
+    onMount(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
+        isMobilePhone = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isMobilePhone = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+
+        const heightQuery = window.matchMedia("(max-height: 500px)")
+        isShortHeight = heightQuery.matches
+
+        const heightHandler = (e: MediaQueryListEvent) => {
+            isShortHeight = e.matches
+        }
+        heightQuery.addEventListener("change", heightHandler)
+
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+            heightQuery.removeEventListener("change", heightHandler)
+        }
+    })
+
     function upScale() {
-        settingsStore.scale = Math.min(settingsStore.scale + 0.25, settingsStore.maxScale)
+        settingsStore.scale = Math.min(settingsStore.scale + 0.25, CONSTANTS.maxScale)
     }
 
     function downScale() {
-        settingsStore.scale = Math.max(settingsStore.scale - 0.25, settingsStore.minScale)
+        settingsStore.scale = Math.max(settingsStore.scale - 0.25, CONSTANTS.minScale)
     }
 
     function handleScaleChange(e: Event) {
@@ -47,11 +74,11 @@
     }
 
     function downQuality() {
-        settingsStore.quality = Math.max(settingsStore.quality - 1, settingsStore.minQuality)
+        settingsStore.quality = Math.max(settingsStore.quality - 1, CONSTANTS.minQuality)
     }
 
     function upQuality() {
-        settingsStore.quality = Math.min(settingsStore.quality + 1, settingsStore.maxQuality)
+        settingsStore.quality = Math.min(settingsStore.quality + 1, CONSTANTS.maxQuality)
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -147,30 +174,32 @@
             </div>
         </section>
 
-        <section class="settings-section">
-            <h4 class="section-title">{m.page()}</h4>
-            <div class="zoom-controls">
-                <Button onclick={downScale} aria-label={m.zoom_out()} class="zoom-btn">
-                    <MinusIcon />
-                </Button>
-                <div class="scale-input-container">
-                    <input
-                        type="number"
-                        value={Math.round(settingsStore.scale * 100)}
-                        onchange={handleScaleChange}
-                        onkeydown={handleKeyDown}
-                        min={Math.round(settingsStore.minScale * 100)}
-                        max={Math.round(settingsStore.maxScale * 100)}
-                        class="scale-input"
-                        aria-label={m.zoom_scale()}
-                    />
-                    <span class="percent-sign">%</span>
+        {#if !isMobilePhone || isShortHeight}
+            <section class="settings-section">
+                <h4 class="section-title">{m.page()}</h4>
+                <div class="zoom-controls">
+                    <Button onclick={downScale} aria-label={m.zoom_out()} class="zoom-btn">
+                        <MinusIcon />
+                    </Button>
+                    <div class="scale-input-container">
+                        <input
+                            type="number"
+                            value={Math.round(settingsStore.scale * 100)}
+                            onchange={handleScaleChange}
+                            onkeydown={handleKeyDown}
+                            min={Math.round(CONSTANTS.minScale * 100)}
+                            max={Math.round(CONSTANTS.maxScale * 100)}
+                            class="scale-input"
+                            aria-label={m.zoom_scale()}
+                        />
+                        <span class="percent-sign">%</span>
+                    </div>
+                    <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
+                        <PlusIcon />
+                    </Button>
                 </div>
-                <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
-                    <PlusIcon />
-                </Button>
-            </div>
-        </section>
+            </section>
+        {/if}
 
         <section class="settings-section">
             <h4 class="section-title">{m.quality()}</h4>
@@ -206,22 +235,12 @@
         <section class="settings-section">
             <h4 class="section-title">{m.animations()}</h4>
             <div class="animation-options">
-                <button
-                    class="option-btn"
-                    class:active={settingsStore.animations}
-                    onclick={() => (settingsStore.animations = true)}
-                >
-                    <PlayIcon />
-                    <span>{m.animations_enabled()}</span>
-                </button>
-                <button
-                    class="option-btn"
-                    class:active={!settingsStore.animations}
-                    onclick={() => (settingsStore.animations = false)}
-                >
-                    <PauseIcon />
-                    <span>{m.animations_disabled()}</span>
-                </button>
+                <Toggle
+                    bind:checked={settingsStore.animations}
+                    label={settingsStore.animations
+                        ? m.animations_enabled()
+                        : m.animations_disabled()}
+                />
             </div>
         </section>
 

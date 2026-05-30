@@ -483,7 +483,7 @@
         pointer-events: none;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 800px) {
         .card-metadata {
             padding: 8px;
             gap: 2px;

@@ -3,8 +3,8 @@
  * Centralizes the breakpoints used across the app to reduce maintenance burden.
  */
 export const BREAKPOINTS = {
-    MOBILE: 600,
-    TABLET: 768,
+    MOBILE: 800,
+    TABLET: 850,
     DESKTOP: 900,
     LARGE_DESKTOP: 1024,
     PROMPT: 640,
@@ -14,7 +14,7 @@ export const BREAKPOINTS = {
  * Media query helper strings for consistent JS/CSS-in-JS usage.
  */
 export const MEDIA_QUERIES = {
-    MOBILE: `(max-width: ${BREAKPOINTS.MOBILE}px)`,
+    MOBILE: `(max-width: ${BREAKPOINTS.MOBILE}px), (max-height: 500px)`,
     TABLET: `(max-width: ${BREAKPOINTS.TABLET}px)`,
     DESKTOP: `(max-width: ${BREAKPOINTS.DESKTOP}px)`,
     LARGE_DESKTOP: `(max-width: ${BREAKPOINTS.LARGE_DESKTOP}px)`,

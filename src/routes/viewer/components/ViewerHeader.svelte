@@ -3,10 +3,11 @@
     import Button from "$lib/components/ui/Button.svelte"
     import MenuIcon from "$lib/components/icons/MenuIcon.svelte"
     import SettingsIcon from "$lib/components/icons/SettingsIcon.svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte"
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
+    import { MEDIA_QUERIES } from "$lib/breakpoints"
+    import { onMount } from "svelte"
 
     let {
         name,
@@ -21,6 +22,32 @@
         isSettingsOpen?: boolean
         onClose: () => void
     }>()
+
+    let isMobilePhone = $state(false)
+    let isShortHeight = $state(false)
+
+    onMount(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
+        isMobilePhone = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isMobilePhone = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+
+        const heightQuery = window.matchMedia("(max-height: 500px)")
+        isShortHeight = heightQuery.matches
+
+        const heightHandler = (e: MediaQueryListEvent) => {
+            isShortHeight = e.matches
+        }
+        heightQuery.addEventListener("change", heightHandler)
+
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+            heightQuery.removeEventListener("change", heightHandler)
+        }
+    })
 </script>
 
 <div class="viewer-header">
@@ -40,13 +67,13 @@
     </div>
     <div class="header-actions">
         {#if isLoaded}
-            {#if uiStore.isCompact}
+            {#if !isMobilePhone || isShortHeight}
                 <button
-                    class="mobile-zoom-btn"
+                    class="header-zoom-btn"
                     onclick={() =>
                         (settingsStore.scale = Math.max(
                             settingsStore.scale - 0.1,
-                            settingsStore.minScale,
+                            CONSTANTS.minScale,
                         ))}
                     aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
                     title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
@@ -54,11 +81,11 @@
                     <MinusIcon />
                 </button>
                 <button
-                    class="mobile-zoom-btn"
+                    class="header-zoom-btn"
                     onclick={() =>
                         (settingsStore.scale = Math.min(
                             settingsStore.scale + 0.1,
-                            settingsStore.maxScale,
+                            CONSTANTS.maxScale,
                         ))}
                     aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
                     title={m.zoom_in ? m.zoom_in() : "Zoom In"}
@@ -206,28 +233,43 @@
         margin-left: 4px;
     }
 
-    .mobile-zoom-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    .header-zoom-btn {
         background: var(--button-bg);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
+        padding: 0;
         color: var(--text-color);
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 0;
+        margin-right: 4px;
         flex-shrink: 0;
     }
 
-    .mobile-zoom-btn :global(svg) {
+    .header-zoom-btn :global(svg) {
         width: 16px;
         height: 16px;
     }
 
-    .mobile-zoom-btn:active {
+    @media (hover: hover) {
+        .header-zoom-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--viewer-accent);
+        }
+    }
+
+    @media (width >= 1200px) {
+        .header-zoom-btn {
+            display: none;
+        }
+    }
+
+    .header-zoom-btn:active {
         transform: translate(1px, 1px);
         box-shadow: 1px 1px 0 var(--shadow-color);
         background: var(--viewer-accent-active);
@@ -237,7 +279,7 @@
         display: none;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 800px), (max-height: 500px) {
         .viewer-header {
             padding: 8px 12px;
             padding-top: calc(8px + env(safe-area-inset-top));
@@ -305,7 +347,6 @@
         }
 
         .burger-btn,
-        .mobile-zoom-btn,
         .settings-btn {
             width: 30px;
             height: 30px;

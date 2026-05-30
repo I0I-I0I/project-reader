@@ -3,10 +3,11 @@
     import * as pdfjs from "pdfjs-dist"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type PDFDocument from "$lib/pdf"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
+    import { useKeymap } from "$lib/keymaps"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -16,7 +17,7 @@
         currentPageImage2 = null,
         currentPage = $bindable(),
         layoutMode = "single",
-        scale = 1.5,
+        scale = settingsStore.scale,
         pdf,
     } = $props<{
         isPageLoading?: boolean
@@ -28,11 +29,122 @@
         pdf: PDFDocument | null
     }>()
 
+    let containerWidth = $state(0)
+    let isMobilePhone = $state(false)
+    let isShortHeight = $state(false)
+    let hasInitiallyFit = false
+
+    $effect(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
+        isMobilePhone = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isMobilePhone = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+
+        const heightQuery = window.matchMedia("(max-height: 500px)")
+        isShortHeight = heightQuery.matches
+
+        const heightHandler = (e: MediaQueryListEvent) => {
+            isShortHeight = e.matches
+        }
+        heightQuery.addEventListener("change", heightHandler)
+
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+            heightQuery.removeEventListener("change", heightHandler)
+        }
+    })
+
+    function fitToWidth() {
+        if (!pdf || containerWidth <= 0) return
+        const defaultWidth = pdf.defaultWidth || 612
+        const horizontalPadding = containerWidth < 900 ? 32 : 80
+
+        let targetScale: number
+        const isSplitSideBySide =
+            layoutMode === "split" && typeof window !== "undefined" && window.innerWidth > 1024
+        if (isSplitSideBySide) {
+            const gap = 32
+            const borderShadowAllowance = 24
+            const availableWidth = Math.max(
+                containerWidth - horizontalPadding - borderShadowAllowance - gap,
+                100,
+            )
+            const cappedAvailableWidth = Math.min(availableWidth, 3400)
+            targetScale = cappedAvailableWidth / (defaultWidth * 2)
+        } else {
+            const availableWidth = Math.max(containerWidth - horizontalPadding - 12, 100)
+            const cappedAvailableWidth = Math.min(availableWidth, 1700)
+            targetScale = cappedAvailableWidth / defaultWidth
+        }
+
+        settingsStore.scale = Math.max(
+            CONSTANTS.minScale,
+            Math.min(CONSTANTS.maxScale, targetScale),
+        )
+    }
+
+    $effect(() => {
+        if (pdf && containerWidth > 0 && !hasInitiallyFit) {
+            hasInitiallyFit = true
+            if (!isMobilePhone) {
+                const hasSavedScale = (() => {
+                    try {
+                        const saved = localStorage.getItem("settings")
+                        if (saved) {
+                            const parsed = JSON.parse(saved)
+                            return typeof parsed.scale === "number"
+                        }
+                    } catch {}
+                    return false
+                })()
+
+                if (!hasSavedScale) {
+                    fitToWidth()
+                }
+            }
+        }
+    })
+
+    useKeymap([
+        {
+            keys: "=",
+            description: m.keymap_zoom_to_fit ? m.keymap_zoom_to_fit() : "Zoom to fit",
+            category: "settings",
+            action: () => {
+                fitToWidth()
+            },
+        },
+    ])
+
+    const effectiveScale = $derived.by(() => {
+        if (isMobilePhone && containerWidth > 0 && pdf) {
+            const defaultWidth = pdf.defaultWidth || 612
+            if (isShortHeight) {
+                return (containerWidth / defaultWidth) * (scale / 1.5)
+            }
+            return containerWidth / defaultWidth
+        }
+        return scale
+    })
+
+    const getPageHeight = $derived((dim: { width: number; height: number }) => {
+        if (isMobilePhone && containerWidth > 0) {
+            if (isShortHeight) {
+                return containerWidth * (dim.height / dim.width) * (scale / 1.5)
+            }
+            return containerWidth * (dim.height / dim.width)
+        }
+        return dim.height * scale
+    })
+
     const wrapperStyle = $derived.by(() => {
         if (!pdf || !pdf.defaultWidth || !pdf.defaultHeight) {
-            return `width: ${612 * scale}px; height: ${792 * scale}px;`
+            return `width: ${612 * effectiveScale}px; height: ${792 * effectiveScale}px; --aspect-ratio: 612 / 792;`
         }
-        return `width: ${pdf.defaultWidth * scale}px; height: ${pdf.defaultHeight * scale}px;`
+        return `width: ${pdf.defaultWidth * effectiveScale}px; height: ${pdf.defaultHeight * effectiveScale}px; --aspect-ratio: ${pdf.defaultWidth} / ${pdf.defaultHeight};`
     })
 
     let container = $state<HTMLElement | null>(null)
@@ -61,7 +173,7 @@
         }
     })
 
-    const PAGE_GAP = $derived(isMobile ? 16 : 80)
+    const PAGE_GAP = $derived(isMobilePhone && !isShortHeight ? 2 : isMobile ? 16 : 80)
 
     $effect(() => {
         if (pdf && layoutMode === "scroll") {
@@ -90,7 +202,7 @@
         let currentOffset = 0
         for (const dim of pageDimensions) {
             offsets.push(currentOffset)
-            currentOffset += dim.height * scale + PAGE_GAP
+            currentOffset += getPageHeight(dim) + PAGE_GAP
         }
         return offsets
     })
@@ -98,7 +210,7 @@
     const totalHeight = $derived(
         pageOffsets.length > 0
             ? pageOffsets[pageOffsets.length - 1] +
-                  pageDimensions[pageDimensions.length - 1].height * scale +
+                  getPageHeight(pageDimensions[pageDimensions.length - 1]) +
                   PAGE_GAP
             : 0,
     )
@@ -118,7 +230,7 @@
         let foundPage = 1
         for (let i = 0; i < pageOffsets.length; i++) {
             const top = pageOffsets[i]
-            const height = pageDimensions[i].height * scale + PAGE_GAP
+            const height = getPageHeight(pageDimensions[i]) + PAGE_GAP
             if (viewportMiddle >= top && viewportMiddle < top + height) {
                 foundPage = i + 1
                 break
@@ -145,7 +257,7 @@
         let endIdx = pageDimensions.length - 1
 
         for (let i = 0; i < pageOffsets.length; i++) {
-            const bottom = pageOffsets[i] + pageDimensions[i].height * scale + PAGE_GAP
+            const bottom = pageOffsets[i] + getPageHeight(pageDimensions[i]) + PAGE_GAP
             if (bottom > renderTop) {
                 startIdx = i
                 break
@@ -171,7 +283,7 @@
     $effect(() => {
         if (layoutMode !== "scroll") return
         const targetPage = currentPage
-        const currentScale = scale
+        const currentScale = effectiveScale
         const offsets = pageOffsets
 
         untrack(() => {
@@ -252,7 +364,13 @@
         if (currentPageImage && textLayer1) {
             textLayerController1?.abort()
             textLayerController1 = new AbortController()
-            renderTextLayer(pdf, currentPage, textLayer1, scale, textLayerController1.signal)
+            renderTextLayer(
+                pdf,
+                currentPage,
+                textLayer1,
+                effectiveScale,
+                textLayerController1.signal,
+            )
         }
         return () => {
             textLayerController1?.abort()
@@ -264,7 +382,13 @@
         if (currentPageImage2 && textLayer2) {
             textLayerController2?.abort()
             textLayerController2 = new AbortController()
-            renderTextLayer(pdf, currentPage + 1, textLayer2, scale, textLayerController2.signal)
+            renderTextLayer(
+                pdf,
+                currentPage + 1,
+                textLayer2,
+                effectiveScale,
+                textLayerController2.signal,
+            )
         }
         return () => {
             textLayerController2?.abort()
@@ -279,10 +403,15 @@
                 <ScrollPage
                     {pdf}
                     pageNumber={i + 1}
-                    {scale}
+                    scale={isMobilePhone
+                        ? (containerWidth / pageDimensions[i].width) *
+                          (isShortHeight ? scale / 1.5 : 1)
+                        : scale}
                     offsetY={pageOffsets[i]}
-                    width={pageDimensions[i].width * scale}
-                    height={pageDimensions[i].height * scale}
+                    width={isMobilePhone
+                        ? containerWidth * (isShortHeight ? scale / 1.5 : 1)
+                        : pageDimensions[i].width * scale}
+                    height={getPageHeight(pageDimensions[i])}
                 />
             {/each}
         </div>
@@ -318,11 +447,17 @@
     {/if}
 {/snippet}
 
-<div class="canvas-pane" class:scroll-mode={layoutMode === "scroll"}>
+<div
+    class="canvas-pane"
+    class:scroll-mode={layoutMode === "scroll"}
+    class:mobile-full-width={isMobilePhone && !isShortHeight}
+    class:single-layout={layoutMode === "single"}
+>
     <div
         class="canvas-frame"
         bind:this={container}
         bind:clientHeight={containerHeight}
+        bind:clientWidth={containerWidth}
         onscroll={handleScroll}
         onscrollend={() => {
             if (isAutoScrolling) {
@@ -487,32 +622,47 @@
         }
     }
 
-    @media (max-width: 600px) {
-        .canvas-pane {
-            padding: 6px;
-        }
+    .canvas-pane.mobile-full-width {
+        padding: 0;
+    }
 
-        .canvas-pane.scroll-mode {
-            padding: 0;
-        }
+    .canvas-pane.mobile-full-width.scroll-mode {
+        padding: 0;
+    }
 
-        .canvas-frame {
-            padding: 16px;
-            border-width: 1.5px;
-        }
+    .canvas-pane.mobile-full-width .canvas-frame {
+        padding: 0;
+        border-width: 0;
+    }
 
-        .canvas-pane.scroll-mode .canvas-frame {
-            padding: 0;
-            border-width: 0;
-        }
+    .canvas-pane.mobile-full-width.single-layout .canvas-frame {
+        align-items: safe center;
+    }
 
-        .pdf-image-wrapper {
-            border-width: 1.5px;
-            box-shadow: 2px 2px 0 var(--shadow-color);
-        }
+    .canvas-pane.mobile-full-width.scroll-mode .canvas-frame {
+        padding: 0;
+        border-width: 0;
+    }
 
-        .pages-container {
-            gap: 16px;
-        }
+    .canvas-pane.mobile-full-width .pdf-image-wrapper {
+        border-width: 0;
+        box-shadow: none;
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: var(--aspect-ratio) !important;
+        border-bottom: 2px solid var(--border-color) !important;
+    }
+
+    .canvas-pane.mobile-full-width .pdf-image {
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .canvas-pane.mobile-full-width .pages-container {
+        width: 100%;
+        gap: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 </style>
