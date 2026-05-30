@@ -165,6 +165,13 @@
 
 <style>
     :global(:root) {
+        /* Centralized breakpoints */
+        --breakpoint-mobile: 600px;
+        --breakpoint-tablet: 768px;
+        --breakpoint-desktop: 900px;
+        --breakpoint-large-desktop: 1024px;
+        --breakpoint-prompt: 640px;
+
         /* Theme light tokens */
         --bg-color: #f5f0e1;
         --text-color: #1a1a1a;

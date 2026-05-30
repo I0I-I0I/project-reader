@@ -3,6 +3,7 @@
     import { settingsStore } from "$lib/settingsStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
+    import { MEDIA_QUERIES } from "$lib/breakpoints"
 
     let {
         pdf,
@@ -24,7 +25,22 @@
     let scrollTop = $state(0)
     let containerHeight = $state(0)
 
-    const PAGE_GAP = 80 // Matching .scroll-page padding (40px top + 40px bottom)
+    let isMobile = $state(false)
+
+    $effect(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
+        isMobile = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isMobile = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+        }
+    })
+
+    const PAGE_GAP = $derived(isMobile ? 16 : 80)
 
     $effect(() => {
         if (pdf) {

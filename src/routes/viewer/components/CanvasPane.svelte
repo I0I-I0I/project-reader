@@ -112,6 +112,17 @@
         }
     }
 
+    @media (max-width: 900px) {
+        .canvas-frame {
+            padding: 16px;
+        }
+
+        .pages-container,
+        .pages-container.split-mode {
+            gap: 16px;
+        }
+    }
+
     @media (max-width: 600px) {
         .canvas-pane {
             padding: 6px;

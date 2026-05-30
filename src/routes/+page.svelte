@@ -29,23 +29,25 @@
         {/if}
     </main>
 
-    <button
-        class="mobile-prompt-btn"
-        onclick={() => (uiStore.isPromptOpen = true)}
-        aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
-        title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
-    >
-        <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-            stroke-linecap="square"
-            stroke-linejoin="miter"
+    {#if uiStore.isCompact}
+        <button
+            class="mobile-prompt-btn"
+            onclick={() => (uiStore.isPromptOpen = true)}
+            aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+            title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
         >
-            <path d="M5 7l5 5-5 5M12 17h7" />
-        </svg>
-    </button>
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+            >
+                <path d="M5 7l5 5-5 5M12 17h7" />
+            </svg>
+        </button>
+    {/if}
 </div>
 
 <style>
@@ -63,10 +65,6 @@
         gap: 20px;
     }
 
-    .mobile-prompt-btn {
-        display: none;
-    }
-
     @media (max-width: 600px) {
         .container {
             gap: 20px;
@@ -76,40 +74,40 @@
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 12px;
         }
+    }
 
-        .mobile-prompt-btn {
-            position: fixed;
-            bottom: calc(16px + env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-            width: 44px;
-            height: 44px;
-            background: var(--button-bg);
-            border: 2px solid var(--border-color);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 100;
-            color: var(--text-color);
-            padding: 0;
-            transition:
-                transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+    .mobile-prompt-btn {
+        position: fixed;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        width: 44px;
+        height: 44px;
+        background: var(--button-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+        color: var(--text-color);
+        padding: 0;
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        .mobile-prompt-btn:active {
-            transform: translateX(-50%) translate(1px, 1px);
-            box-shadow: 1px 1px 0 var(--shadow-color);
-            background: var(--button-hover-bg);
-        }
+    .mobile-prompt-btn:active {
+        transform: translateX(-50%) translate(1px, 1px);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        background: var(--button-hover-bg);
+    }
 
-        .mobile-prompt-btn svg {
-            width: 18px;
-            height: 18px;
-        }
+    .mobile-prompt-btn svg {
+        width: 18px;
+        height: 18px;
     }
 </style>

@@ -15,7 +15,7 @@ export interface Settings {
 
 class SettingsStore {
     private settings = $state<Settings>({
-        layout: "single",
+        layout: "scroll",
         scale: 1.5,
         theme: "system",
         language: "en",

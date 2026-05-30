@@ -15,6 +15,12 @@
     import { cubicOut } from "svelte/easing"
     import { useKeymap } from "$lib/keymaps"
     import { getContext } from "svelte"
+    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { resolve } from "$app/paths"
+    import { page } from "$app/state"
+    import type { Pathname } from "$app/types"
+    import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
+    import { getLanguageName } from "$lib/locale"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -26,6 +32,24 @@
 
     function downScale() {
         settingsStore.scale = Math.max(settingsStore.scale - 0.25, 0.5)
+    }
+
+    function handleScaleChange(e: Event) {
+        const input = e.target as HTMLInputElement
+        const value = parseInt(input.value, 10)
+        if (!isNaN(value)) {
+            const clamped = Math.max(50, Math.min(300, value))
+            settingsStore.scale = clamped / 100
+            input.value = clamped.toString()
+        } else {
+            input.value = Math.round(settingsStore.scale * 100).toString()
+        }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+        if (e.key === "Enter") {
+            ;(e.target as HTMLInputElement).blur()
+        }
     }
 
     const THEMES: { value: Theme; label: () => string; Icon: typeof SunIcon }[] = [
@@ -121,7 +145,19 @@
                 <Button onclick={downScale} aria-label={m.zoom_out()} class="zoom-btn">
                     <MinusIcon />
                 </Button>
-                <span class="scale-display">{Math.round(settingsStore.scale * 100)}%</span>
+                <div class="scale-input-container">
+                    <input
+                        type="number"
+                        value={Math.round(settingsStore.scale * 100)}
+                        onchange={handleScaleChange}
+                        onkeydown={handleKeyDown}
+                        min="50"
+                        max="300"
+                        class="scale-input"
+                        aria-label={m.zoom_scale()}
+                    />
+                    <span class="percent-sign">%</span>
+                </div>
                 <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
                     <PlusIcon />
                 </Button>
@@ -163,6 +199,23 @@
                     <PauseIcon />
                     <span>{m.animations_disabled()}</span>
                 </button>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h4 class="section-title">{m.language_switcher()}</h4>
+            <div class="language-options">
+                {#each locales as locale (locale)}
+                    <a
+                        data-sveltekit-reload
+                        href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}
+                        class="option-btn"
+                        class:active={getLocale() === locale}
+                    >
+                        <GlobeIcon />
+                        <span>{getLanguageName(locale)}</span>
+                    </a>
+                {/each}
             </div>
         </section>
     </div>
@@ -265,6 +318,7 @@
 
     .layout-options,
     .theme-options,
+    .language-options,
     .animation-options {
         display: flex;
         flex-direction: column;
@@ -287,6 +341,8 @@
         cursor: pointer;
         text-transform: uppercase;
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        box-sizing: border-box;
     }
 
     @media (hover: hover) {
@@ -317,10 +373,53 @@
         padding: 8px;
     }
 
-    .scale-display {
+    .scale-input-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--button-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        padding: 0 8px;
+        height: 40px;
+        box-sizing: border-box;
+        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .scale-input-container:focus-within {
+        border-color: var(--viewer-accent-active, var(--border-color));
+        background: var(--viewer-accent, var(--button-bg));
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+    }
+
+    .scale-input {
+        width: 36px;
+        border: none;
+        background: transparent;
+        font-family: inherit;
         font-size: 14px;
         font-weight: 900;
         color: var(--text-color);
+        text-align: right;
+        padding: 0;
+        margin: 0;
+        outline: none;
+        appearance: textfield;
+        -moz-appearance: textfield;
+    }
+
+    .scale-input::-webkit-outer-spin-button,
+    .scale-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .percent-sign {
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--text-color);
+        margin-left: 2px;
     }
 
     :global(.zoom-btn) {

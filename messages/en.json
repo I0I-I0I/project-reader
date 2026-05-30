@@ -36,6 +36,7 @@
     "settings": "SETTINGS",
     "zoom_in": "ZOOM IN",
     "zoom_out": "ZOOM OUT",
+    "zoom_scale": "Zoom scale",
     "layout": "LAYOUT",
     "single_page": "SINGLE PAGE",
     "split_pages": "TWO PAGES",

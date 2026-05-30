@@ -1,5 +1,6 @@
 <script lang="ts">
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import { onMount } from "svelte"
     import type { Snippet } from "svelte"
     import { fade, scale } from "svelte/transition"
 
@@ -10,6 +11,43 @@
     }
 
     const { onClose, children, align = "center" }: Props = $props()
+
+    let viewportHeight = $state("100dvh")
+    let viewportTop = $state("0px")
+
+    onMount(() => {
+        if (typeof window === "undefined") return
+
+        const visualViewport = window.visualViewport
+        if (!visualViewport) {
+            console.warn(
+                "window.visualViewport is not supported in this browser. Falling back to window.innerHeight.",
+            )
+            const updateViewportFallback = () => {
+                viewportHeight = `${window.innerHeight}px`
+                viewportTop = "0px"
+            }
+            window.addEventListener("resize", updateViewportFallback)
+            updateViewportFallback()
+            return () => {
+                window.removeEventListener("resize", updateViewportFallback)
+            }
+        }
+
+        const updateViewport = () => {
+            viewportHeight = `${visualViewport.height}px`
+            viewportTop = `${visualViewport.offsetTop}px`
+        }
+
+        visualViewport.addEventListener("resize", updateViewport)
+        visualViewport.addEventListener("scroll", updateViewport)
+        updateViewport()
+
+        return () => {
+            visualViewport.removeEventListener("resize", updateViewport)
+            visualViewport.removeEventListener("scroll", updateViewport)
+        }
+    })
 
     function handleBackdropClick(event: MouseEvent) {
         if (event.target === event.currentTarget) {
@@ -27,6 +65,7 @@
 <div
     class="backdrop"
     class:align-top={align === "top"}
+    style="height: {viewportHeight}; top: {viewportTop};"
     transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
     onclick={handleBackdropClick}
     onkeydown={handleKeyDown}
@@ -90,6 +129,29 @@
         to {
             transform: scale(1);
             opacity: 1;
+        }
+    }
+
+    @media (max-width: 640px), (max-height: 800px) {
+        .backdrop.align-top {
+            align-items: flex-end;
+            padding: 0;
+        }
+
+        .float-card {
+            max-width: 100%;
+            border-radius: 0;
+            max-height: 100%;
+            box-shadow: none;
+            border-left: none;
+            border-right: none;
+            border-bottom: none;
+        }
+    }
+
+    @media (max-height: 800px) {
+        .float-card {
+            height: 100%;
         }
     }
 </style>

@@ -139,9 +139,9 @@
         background: rgba(0, 0, 0, 0.05);
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 900px) {
         .scroll-page {
-            padding: 0px;
+            padding: 8px 0px;
         }
 
         .pdf-image-wrapper,

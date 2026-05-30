@@ -6,6 +6,7 @@
     import { settingsStore } from "$lib/settingsStore.svelte"
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
 
     let {
         name,
@@ -39,22 +40,24 @@
     </div>
     <div class="header-actions">
         {#if isLoaded}
-            <button
-                class="mobile-zoom-btn"
-                onclick={() => (settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5))}
-                aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
-                title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
-            >
-                <MinusIcon />
-            </button>
-            <button
-                class="mobile-zoom-btn"
-                onclick={() => (settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3))}
-                aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
-                title={m.zoom_in ? m.zoom_in() : "Zoom In"}
-            >
-                <PlusIcon />
-            </button>
+            {#if uiStore.isCompact}
+                <button
+                    class="mobile-zoom-btn"
+                    onclick={() => (settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5))}
+                    aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
+                    title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
+                >
+                    <MinusIcon />
+                </button>
+                <button
+                    class="mobile-zoom-btn"
+                    onclick={() => (settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3))}
+                    aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
+                    title={m.zoom_in ? m.zoom_in() : "Zoom In"}
+                >
+                    <PlusIcon />
+                </button>
+            {/if}
             <button
                 class="burger-btn settings-btn"
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
@@ -196,7 +199,30 @@
     }
 
     .mobile-zoom-btn {
-        display: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--button-bg);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        color: var(--text-color);
+        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .mobile-zoom-btn :global(svg) {
+        width: 16px;
+        height: 16px;
+    }
+
+    .mobile-zoom-btn:active {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        background: var(--viewer-accent-active);
     }
 
     .close-icon {
@@ -250,35 +276,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-    }
-
-    @media (max-width: 1024px) {
-        .mobile-zoom-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--button-bg);
-            border: 2px solid var(--border-color);
-            box-shadow: 2px 2px 0 var(--shadow-color);
-            width: 32px;
-            height: 32px;
-            cursor: pointer;
-            color: var(--text-color);
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 0;
-            flex-shrink: 0;
-        }
-
-        .mobile-zoom-btn :global(svg) {
-            width: 16px;
-            height: 16px;
-        }
-
-        .mobile-zoom-btn:active {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0 var(--shadow-color);
-            background: var(--viewer-accent-active);
         }
     }
 

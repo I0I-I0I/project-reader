@@ -19,10 +19,7 @@
         { value: "system", label: () => m.system(), Icon: SystemIcon },
     ] as const
 
-    const LANGUAGE_NAMES: Record<string, string> = {
-        en: "English",
-        ru: "Русский",
-    }
+    import { getLanguageName } from "$lib/locale"
 
     function selectTheme(theme: Theme) {
         settingsStore.theme = theme
@@ -77,9 +74,7 @@
             <Switcher label={m.language_switcher()}>
                 {#snippet trigger()}
                     <GlobeIcon class="switcher-icon" />
-                    <span class="current-label"
-                        >{LANGUAGE_NAMES[getLocale()] || getLocale().toUpperCase()}</span
-                    >
+                    <span class="current-label">{getLanguageName(getLocale())}</span>
                 {/snippet}
                 {#snippet children({ close })}
                     {#each locales as locale (locale)}
@@ -94,7 +89,7 @@
                                 aria-current={getLocale() === locale ? "true" : undefined}
                                 onclick={close}
                             >
-                                <span>{LANGUAGE_NAMES[locale] || locale.toUpperCase()}</span>
+                                <span>{getLanguageName(locale)}</span>
                             </a>
                         </li>
                     {/each}

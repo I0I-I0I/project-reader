@@ -121,7 +121,11 @@
             {#if kind === "book" && book.totalPages && book.totalPages > 0}
                 <div class="progress-container">
                     <div class="progress-bar-track">
-                        <div class="progress-bar-fill" style="width: {progressPercent}%"></div>
+                        <div
+                            class="progress-bar-fill"
+                            class:has-border={progressPercent > 0 && progressPercent < 100}
+                            style="width: {progressPercent}%"
+                        ></div>
                     </div>
                     <span class="progress-text">{progressPercent}%</span>
                 </div>
@@ -458,6 +462,10 @@
         height: 100%;
         background: var(--badge-bg);
         transition: width 0.3s ease-in-out;
+        box-sizing: border-box;
+    }
+
+    .progress-bar-fill.has-border {
         border-right: 2px solid var(--border-color);
     }
 

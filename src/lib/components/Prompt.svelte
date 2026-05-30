@@ -380,7 +380,7 @@
                 {/if}
             </div>
 
-            <div class="footer">
+            <div class="footer" class:empty-value={value === ""}>
                 <div class="suggestion-info">
                     {#if value === ""}
                         <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}
@@ -415,6 +415,11 @@
         width: 100%;
         background: var(--card-bg);
         overflow: hidden;
+    }
+
+    .prompt-container > div {
+        display: flex;
+        flex-direction: column;
     }
 
     .prompt-container.enable-animations {
@@ -814,5 +819,56 @@
 
     :global(html.dark mark.highlight) {
         background: rgba(225, 112, 85, 0.4);
+    }
+
+    @media (max-width: 640px), (max-height: 800px) {
+        .prompt-container > div {
+            flex-direction: column-reverse;
+        }
+
+        .results-list {
+            flex-direction: column-reverse;
+            max-height: 60dvh;
+        }
+
+        .prompt-container .shortcut-keys,
+        .prompt-container .category-badge,
+        .prompt-container .shortcuts-help {
+            display: none;
+        }
+
+        .input-wrapper {
+            border-bottom: none;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .input-wrapper::after {
+            bottom: auto;
+            top: -2px;
+        }
+
+        .footer {
+            border-top: none;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .footer.empty-value {
+            display: none !important;
+        }
+    }
+
+    @media (max-height: 800px) {
+        .prompt-container {
+            height: 100% !important;
+        }
+
+        .prompt-container > div {
+            height: 100% !important;
+        }
+
+        .results-list {
+            flex: 1 !important;
+            max-height: none !important;
+        }
     }
 </style>
