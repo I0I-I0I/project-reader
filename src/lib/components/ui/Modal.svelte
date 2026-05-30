@@ -81,8 +81,10 @@
         transition: transform 0.1s ease;
     }
 
-    .close-btn:hover {
-        transform: scale(1.15);
+    @media (hover: hover) {
+        .close-btn:hover {
+            transform: scale(1.15);
+        }
     }
 
     .close-btn:active {

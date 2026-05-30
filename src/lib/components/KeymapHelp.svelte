@@ -280,8 +280,10 @@
         gap: 16px;
     }
 
-    .shortcut-row:hover {
-        background: var(--card-hover-bg);
+    @media (hover: hover) {
+        .shortcut-row:hover {
+            background: var(--card-hover-bg);
+        }
     }
 
     .key-combo {
@@ -349,7 +351,7 @@
         border-radius: 4px;
     }
 
-    .search-input:focus {
+    .search-input:focus-visible {
         transform: translate(-1px, -1px);
         box-shadow: 3px 3px 0 var(--shadow-color);
         border-color: var(--border-color);
@@ -372,8 +374,10 @@
         transition: opacity 0.1s ease;
     }
 
-    .clear-search-btn:hover {
-        opacity: 1;
+    @media (hover: hover) {
+        .clear-search-btn:hover {
+            opacity: 1;
+        }
     }
 
     .empty-state {

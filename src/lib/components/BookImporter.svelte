@@ -223,10 +223,12 @@
         user-select: none;
     }
 
-    .btn:hover:not(:disabled) {
-        transform: translate(-1px, -1px);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
+    @media (hover: hover) {
+        .btn:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--shadow-color);
+            background: var(--button-hover-bg, #faf8f5);
+        }
     }
 
     .btn:active:not(:disabled) {
@@ -293,9 +295,11 @@
         border-color: var(--border-color);
     }
 
-    .upload-btn:hover {
-        background: var(--badge-bg);
-        opacity: 0.9;
+    @media (hover: hover) {
+        .upload-btn:hover {
+            background: var(--badge-bg);
+            opacity: 0.9;
+        }
     }
 
     /* Card variant styles */
@@ -318,10 +322,12 @@
         padding: 0;
     }
 
-    .card:hover {
-        transform: translate(-4px, -4px);
-        box-shadow: 8px 8px 0 var(--shadow-color);
-        background-color: var(--card-hover-bg);
+    @media (hover: hover) {
+        .card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 8px 8px 0 var(--shadow-color);
+            background-color: var(--card-hover-bg);
+        }
     }
 
     .card:active {

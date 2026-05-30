@@ -15,6 +15,7 @@
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
     import { useKeymap } from "$lib/keymaps"
 
@@ -196,7 +197,7 @@
             description: m.keymap_hide_toolbars(),
             category: "commands",
             action: () => {
-                isToolbarsVisible = !isToolbarsVisible
+                uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
             },
         },
         {
@@ -284,7 +285,6 @@
     let outlineList = $state<FlatHeading[] | null>(null)
     let isOutlineLoading = $state(false)
 
-    let isToolbarsVisible = $state(true)
     let isHoverTriggered = $state(false)
 
     let activeHeadings = $derived.by(() => {
@@ -544,7 +544,7 @@
     }
 
     function handleBodyClick(e: MouseEvent) {
-        if (isToolbarsVisible) return
+        if (uiStore.isToolbarsVisible) return
 
         const { clientX } = e
         const { innerWidth } = window
@@ -622,7 +622,7 @@
     <div class="fullscreen-viewer">
         <div class="reader-card">
             <div class="viewer-layout">
-                {#if isToolbarsVisible}
+                {#if uiStore.isToolbarsVisible}
                     <div transition:slideHeader={{ duration: settingsStore.animations ? 250 : 0 }}>
                         <ViewerHeader
                             {name}
@@ -663,7 +663,7 @@
                                     isHoverTriggered = false
                                 }}
                                 onMouseLeave={() => {
-                                    if (!isToolbarsVisible && isHoverTriggered) {
+                                    if (!uiStore.isToolbarsVisible && isHoverTriggered) {
                                         isOutlineOpen = false
                                         isHoverTriggered = false
                                     }
@@ -684,7 +684,7 @@
                             <SettingsSidebar onClose={() => (isSettingsOpen = false)} />
                         {/if}
 
-                        {#if !isToolbarsVisible && !isOutlineOpen}
+                        {#if !uiStore.isToolbarsVisible && !isOutlineOpen}
                             <!-- svelte-ignore a11y_mouse_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
@@ -715,17 +715,43 @@
 
                         {#if isLoaded}
                             <button
+                                class="fab-prompt"
+                                class:hidden-toolbars={!uiStore.isToolbarsVisible}
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    uiStore.isPromptOpen = true
+                                }}
+                                aria-label={m.keymap_prompt
+                                    ? m.keymap_prompt()
+                                    : "Open Command Prompt"}
+                                title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="3"
+                                    stroke-linecap="square"
+                                    stroke-linejoin="miter"
+                                >
+                                    <path d="M5 7l5 5-5 5M12 17h7" />
+                                </svg>
+                            </button>
+
+                            <button
                                 class="fab-toggle"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    isToolbarsVisible = !isToolbarsVisible
+                                    uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
                                 }}
-                                aria-label={isToolbarsVisible
+                                aria-label={uiStore.isToolbarsVisible
                                     ? m.hide_toolbars()
                                     : m.show_toolbars()}
-                                title={isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}
+                                title={uiStore.isToolbarsVisible
+                                    ? m.hide_toolbars()
+                                    : m.show_toolbars()}
                             >
-                                {#if isToolbarsVisible}
+                                {#if uiStore.isToolbarsVisible}
                                     <svg
                                         viewBox="0 0 24 24"
                                         fill="none"
@@ -753,7 +779,7 @@
                     {/if}
                 </div>
 
-                {#if isLoaded && isToolbarsVisible}
+                {#if isLoaded && uiStore.isToolbarsVisible}
                     <div transition:slideFooter={{ duration: settingsStore.animations ? 250 : 0 }}>
                         <ViewerFooter
                             bind:currentPage
@@ -774,8 +800,8 @@
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
-        height: 100dvh;
+        right: 0;
+        bottom: 0;
         z-index: 9999;
         background-color: var(--bg-color);
         display: flex;
@@ -886,6 +912,53 @@
         cursor: pointer;
     }
 
+    .fab-prompt {
+        position: absolute;
+        bottom: calc(24px + 50px + 16px);
+        right: 24px;
+        width: 50px;
+        height: 50px;
+        background: var(--viewer-accent);
+        border: 3px solid var(--border-color);
+        box-shadow: 6px 6px 0 var(--shadow-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+        transition:
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        color: var(--text-color);
+        padding: 0;
+    }
+
+    .fab-prompt.hidden-toolbars {
+        transform: translateX(100px);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    @media (hover: hover) {
+        .fab-prompt:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0 var(--shadow-color);
+            background: var(--viewer-accent-active);
+        }
+    }
+
+    .fab-prompt:active {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+
+    .fab-prompt svg {
+        width: 22px;
+        height: 22px;
+    }
+
     .fab-toggle {
         position: absolute;
         bottom: 24px;
@@ -905,10 +978,12 @@
         padding: 0;
     }
 
-    .fab-toggle:hover {
-        transform: translate(-2px, -2px);
-        box-shadow: 8px 8px 0 var(--shadow-color);
-        background: var(--viewer-accent-active);
+    @media (hover: hover) {
+        .fab-toggle:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0 var(--shadow-color);
+            background: var(--viewer-accent-active);
+        }
     }
 
     .fab-toggle:active {
@@ -921,7 +996,21 @@
         height: 24px;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 600px), (max-height: 500px) {
+        .fab-prompt {
+            bottom: calc(16px + 44px + 12px);
+            right: 16px;
+            width: 44px;
+            height: 44px;
+            border-width: 2px;
+            box-shadow: 4px 4px 0 var(--shadow-color);
+        }
+
+        .fab-prompt svg {
+            width: 18px;
+            height: 18px;
+        }
+
         .fab-toggle {
             bottom: 16px;
             right: 16px;

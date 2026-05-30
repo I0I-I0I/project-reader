@@ -73,11 +73,18 @@
         border-color: var(--tooltip-bg) transparent transparent transparent;
     }
 
-    .action-btn:hover .tooltip,
     .action-btn:focus-visible .tooltip {
         opacity: 1;
         visibility: visible;
         transform: translateX(-50%) translateY(0);
+    }
+
+    @media (hover: hover) {
+        .action-btn:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
     }
 
     .action-btn :global(svg) {

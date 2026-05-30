@@ -530,8 +530,10 @@
         margin-left: 8px;
     }
 
-    .close-btn:hover {
-        opacity: 0.9;
+    @media (hover: hover) {
+        .close-btn:hover {
+            opacity: 0.9;
+        }
     }
 
     .prompt-container.enable-animations .close-btn {
@@ -540,8 +542,10 @@
             transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    .prompt-container.enable-animations .close-btn:hover {
-        transform: rotate(90deg) scale(1.15);
+    @media (hover: hover) {
+        .prompt-container.enable-animations .close-btn:hover {
+            transform: rotate(90deg) scale(1.15);
+        }
     }
 
     .results-list {
@@ -583,12 +587,20 @@
         gap: 12px;
     }
 
-    .result-item:hover,
     .result-item.selected {
         background: var(--button-hover-bg);
         border-color: var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         transform: translate(-1px, -1px);
+    }
+
+    @media (hover: hover) {
+        .result-item:hover {
+            background: var(--button-hover-bg);
+            border-color: var(--border-color);
+            box-shadow: 2px 2px 0 var(--shadow-color);
+            transform: translate(-1px, -1px);
+        }
     }
 
     .prompt-container.enable-animations .result-item {
@@ -599,10 +611,16 @@
             transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    .prompt-container.enable-animations .result-item:hover,
     .prompt-container.enable-animations .result-item.selected {
         transform: translate(-2px, -2px);
         box-shadow: 3px 3px 0 var(--shadow-color);
+    }
+
+    @media (hover: hover) {
+        .prompt-container.enable-animations .result-item:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+        }
     }
 
     .icon-container {

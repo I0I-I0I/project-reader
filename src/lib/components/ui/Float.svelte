@@ -49,7 +49,7 @@
         top: 0;
         left: 0;
         width: 100vw;
-        height: 100vh;
+        height: 100dvh;
         background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
@@ -72,13 +72,14 @@
         box-shadow: 6px 6px 0 var(--shadow-color);
         width: 100%;
         max-width: 580px;
-        max-height: 80vh;
+        max-height: 85dvh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         border-radius: 4px;
         font-family: inherit;
         animation: card-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        overscroll-behavior: contain;
     }
 
     @keyframes card-appear {

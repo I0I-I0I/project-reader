@@ -59,7 +59,7 @@
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
         overflow: auto;
         display: flex;
-        justify-content: center;
+        justify-content: safe center;
         align-items: flex-start;
         position: relative;
         padding: 40px;
@@ -69,8 +69,7 @@
         display: flex;
         gap: 24px;
         align-items: flex-start;
-        justify-content: center;
-        max-width: 100%;
+        justify-content: safe center;
     }
 
     .pages-container.split-mode {
@@ -94,7 +93,6 @@
         display: inline-flex;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: top center;
-        max-width: 100%;
     }
 
     .pdf-image {

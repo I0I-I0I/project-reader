@@ -157,10 +157,12 @@
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .header-btn-wrapper :global(.action-btn:hover) {
-        transform: translate(-2px, -2px);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        background: var(--button-hover-bg);
+    @media (hover: hover) {
+        .header-btn-wrapper :global(.action-btn:hover) {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--shadow-color);
+            background: var(--button-hover-bg);
+        }
     }
 
     .header-btn-wrapper :global(.action-btn:active) {

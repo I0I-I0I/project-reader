@@ -334,6 +334,9 @@
                     {m.page()}
                     <input
                         type="number"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        aria-label="Page number"
                         value={currentPage}
                         min="1"
                         max={totalPages}
@@ -468,14 +471,19 @@
         padding: 4px 10px;
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         color: var(--text-color);
     }
 
-    .header-actions :global(.action-btn:hover) {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
+    @media (hover: hover) {
+        .header-actions :global(.action-btn:hover) {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--button-hover-bg, #faf8f5);
+        }
     }
 
     .header-actions :global(.action-btn:active) {
@@ -566,7 +574,10 @@
         border: 2px solid var(--border-color);
         box-shadow: 3px 3px 0 var(--shadow-color);
         padding: 8px 16px;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -574,10 +585,12 @@
         color: var(--text-color);
     }
 
-    .viewer-footer :global(.action-btn:hover:not(:disabled)) {
-        transform: translate(-1px, -1px);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
+    @media (hover: hover) {
+        .viewer-footer :global(.action-btn:hover:not(:disabled)) {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 var(--shadow-color);
+            background: var(--button-hover-bg, #faf8f5);
+        }
     }
 
     .viewer-footer :global(.action-btn:active:not(:disabled)) {
@@ -618,7 +631,7 @@
         outline: none;
     }
 
-    .page-input:focus {
+    .page-input:focus-visible {
         border-color: var(--page-input-focus);
     }
 
@@ -639,15 +652,20 @@
         cursor: pointer;
         padding: 0;
         color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         margin-right: 8px;
         flex-shrink: 0;
     }
 
-    .burger-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--viewer-accent);
+    @media (hover: hover) {
+        .burger-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--viewer-accent);
+        }
     }
 
     .burger-btn:active,
@@ -702,15 +720,21 @@
         justify-content: center;
         cursor: pointer;
         color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 0;
     }
 
-    .close-sidebar-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--close-sidebar-hover-bg);
-        color: var(--close-sidebar-hover-text);
+    @media (hover: hover) {
+        .close-sidebar-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--close-sidebar-hover-bg);
+            color: var(--close-sidebar-hover-text);
+        }
     }
 
     .close-sidebar-btn:active {
@@ -761,14 +785,19 @@
         color: var(--text-color);
         cursor: pointer;
         text-align: left;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            font-weight 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
     }
 
-    .outline-item:hover:not(:disabled) {
-        background: var(--outline-hover-bg);
-        color: var(--text-color);
-        font-weight: 800;
+    @media (hover: hover) {
+        .outline-item:hover:not(:disabled) {
+            background: var(--outline-hover-bg);
+            color: var(--text-color);
+            font-weight: 800;
+        }
     }
 
     .outline-item.active:not(:disabled) {

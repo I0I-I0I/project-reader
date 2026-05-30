@@ -3,6 +3,9 @@
     import Button from "$lib/components/ui/Button.svelte"
     import MenuIcon from "$lib/components/icons/MenuIcon.svelte"
     import SettingsIcon from "$lib/components/icons/SettingsIcon.svelte"
+    import { settingsStore } from "$lib/settingsStore.svelte"
+    import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
+    import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
 
     let {
         name,
@@ -37,6 +40,22 @@
     <div class="header-actions">
         {#if isLoaded}
             <button
+                class="mobile-zoom-btn"
+                onclick={() => (settingsStore.scale = Math.max(settingsStore.scale - 0.1, 0.5))}
+                aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
+                title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
+            >
+                <MinusIcon />
+            </button>
+            <button
+                class="mobile-zoom-btn"
+                onclick={() => (settingsStore.scale = Math.min(settingsStore.scale + 0.1, 3))}
+                aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
+                title={m.zoom_in ? m.zoom_in() : "Zoom In"}
+            >
+                <PlusIcon />
+            </button>
+            <button
                 class="burger-btn settings-btn"
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
                 aria-label={m.settings()}
@@ -68,6 +87,9 @@
         );
         border-bottom: 3px solid var(--border-color);
         padding: 16px 24px;
+        padding-top: calc(16px + env(safe-area-inset-top));
+        padding-left: calc(24px + env(safe-area-inset-left));
+        padding-right: calc(24px + env(safe-area-inset-right));
         color: var(--doc-text-color);
         position: relative;
     }
@@ -122,10 +144,12 @@
         gap: 6px;
     }
 
-    .header-actions :global(.action-btn:hover) {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
+    @media (hover: hover) {
+        .header-actions :global(.action-btn:hover) {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--button-hover-bg, #faf8f5);
+        }
     }
 
     .header-actions :global(.action-btn:active) {
@@ -150,10 +174,12 @@
         flex-shrink: 0;
     }
 
-    .burger-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--viewer-accent);
+    @media (hover: hover) {
+        .burger-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--viewer-accent);
+        }
     }
 
     .burger-btn:active,
@@ -169,6 +195,10 @@
         margin-left: 4px;
     }
 
+    .mobile-zoom-btn {
+        display: none;
+    }
+
     .close-icon {
         display: none;
     }
@@ -176,6 +206,9 @@
     @media (max-width: 600px) {
         .viewer-header {
             padding: 8px 12px;
+            padding-top: calc(8px + env(safe-area-inset-top));
+            padding-left: calc(12px + env(safe-area-inset-left));
+            padding-right: calc(12px + env(safe-area-inset-right));
             border-bottom-width: 2px;
         }
 
@@ -217,6 +250,66 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .mobile-zoom-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--button-bg);
+            border: 2px solid var(--border-color);
+            box-shadow: 2px 2px 0 var(--shadow-color);
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .mobile-zoom-btn :global(svg) {
+            width: 16px;
+            height: 16px;
+        }
+
+        .mobile-zoom-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0 var(--shadow-color);
+            background: var(--viewer-accent-active);
+        }
+    }
+
+    @media (max-height: 500px) {
+        .viewer-header {
+            padding: 6px 16px;
+            padding-top: calc(6px + env(safe-area-inset-top));
+            padding-left: calc(16px + env(safe-area-inset-left));
+            padding-right: calc(16px + env(safe-area-inset-right));
+        }
+
+        .file-name {
+            font-size: 13px;
+        }
+
+        .file-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+        }
+
+        .burger-btn,
+        .mobile-zoom-btn,
+        .settings-btn {
+            width: 30px;
+            height: 30px;
+        }
+
+        .header-actions :global(.action-btn) {
+            height: 30px;
+            padding: 4px 10px;
+            font-size: 11px;
         }
     }
 

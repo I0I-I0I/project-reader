@@ -109,10 +109,12 @@
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .switcher-trigger:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--button-hover-bg);
+    @media (hover: hover) {
+        .switcher-trigger:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--button-hover-bg);
+        }
     }
 
     .switcher-trigger:active {
@@ -175,8 +177,10 @@
         transition: all 0.1s ease;
     }
 
-    :global(.dropdown-item:hover) {
-        background: var(--dropdown-hover-bg);
+    @media (hover: hover) {
+        :global(.dropdown-item:hover) {
+            background: var(--dropdown-hover-bg);
+        }
     }
 
     :global(.dropdown-item.active) {

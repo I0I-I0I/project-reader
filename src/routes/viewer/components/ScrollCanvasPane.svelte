@@ -187,7 +187,7 @@
     .scroll-canvas-pane {
         flex: 1;
         overflow-y: auto;
-        overflow-x: hidden;
+        overflow-x: auto;
         background: var(--canvas-frame-bg);
         background-image: radial-gradient(var(--border-color) 1px, transparent 0);
         background-size: 24px 24px;
@@ -215,7 +215,9 @@
         border: 2px solid var(--viewer-body-bg);
     }
 
-    .scroll-canvas-pane::-webkit-scrollbar-thumb:hover {
-        background: var(--viewer-accent-active);
+    @media (hover: hover) {
+        .scroll-canvas-pane::-webkit-scrollbar-thumb:hover {
+            background: var(--viewer-accent-active);
+        }
     }
 </style>

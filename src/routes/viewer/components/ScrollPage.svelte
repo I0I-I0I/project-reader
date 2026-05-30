@@ -94,7 +94,7 @@
         left: 0;
         right: 0;
         display: flex;
-        justify-content: center;
+        justify-content: safe center;
         align-items: flex-start;
         padding: 40px;
         box-sizing: border-box;
@@ -102,14 +102,12 @@
 
     .page-container {
         position: relative;
-        max-width: 100%;
     }
 
     .pdf-image-wrapper {
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
         display: inline-flex;
-        max-width: 100%;
     }
 
     .pdf-image {
@@ -141,9 +139,9 @@
         background: rgba(0, 0, 0, 0.05);
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 800px) {
         .scroll-page {
-            padding: 16px;
+            padding: 0px;
         }
 
         .pdf-image-wrapper,

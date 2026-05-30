@@ -7,12 +7,12 @@
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
 
     let { children } = $props()
 
     let currentActiveNode = $state<KeymapNode | null>(null)
     let isHelpOpen = $state(false)
-    let isPromptOpen = $state(false)
     let promptValue = $state("")
 
     let rootNode: KeymapNode
@@ -28,7 +28,7 @@
             keys: "ctrl+k",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                isPromptOpen = !isPromptOpen
+                uiStore.isPromptOpen = !uiStore.isPromptOpen
             },
             description: m.keymap_prompt(),
             allowInInputs: true,
@@ -158,8 +158,8 @@
     {#if isHelpOpen}
         <KeymapHelp onClose={() => (isHelpOpen = false)} />
     {/if}
-    {#if isPromptOpen}
-        <Prompt bind:value={promptValue} onClose={() => (isPromptOpen = false)} />
+    {#if uiStore.isPromptOpen}
+        <Prompt bind:value={promptValue} onClose={() => (uiStore.isPromptOpen = false)} />
     {/if}
 </div>
 
@@ -211,16 +211,24 @@
         transition:
             background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
             color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
     }
 
     .app {
         padding: 40px;
+        padding-top: calc(40px + env(safe-area-inset-top));
+        padding-right: calc(40px + env(safe-area-inset-right));
+        padding-bottom: calc(40px + env(safe-area-inset-bottom));
+        padding-left: calc(40px + env(safe-area-inset-left));
         min-height: 100dvh;
+        box-sizing: border-box;
     }
 
     @media (max-width: 768px) {
         .app {
-            padding: 20px 16px;
+            padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+                calc(20px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
         }
     }
 </style>

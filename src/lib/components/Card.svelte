@@ -184,10 +184,12 @@
         flex-direction: column;
     }
 
-    .card:hover {
-        transform: translate(-4px, -4px);
-        box-shadow: 8px 8px 0 var(--shadow-color);
-        background-color: var(--card-hover-bg);
+    @media (hover: hover) {
+        .card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 8px 8px 0 var(--shadow-color);
+            background-color: var(--card-hover-bg);
+        }
     }
 
     .card:active {
@@ -348,16 +350,24 @@
         pointer-events: none;
     }
 
-    .card:hover .remove-btn,
     .remove-btn:focus-within {
         opacity: 1;
         pointer-events: auto;
     }
 
-    .remove-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        filter: brightness(1.15);
+    @media (hover: hover) {
+        .card:hover .remove-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
+    @media (hover: hover) {
+        .remove-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            filter: brightness(1.15);
+        }
     }
 
     .remove-btn:active {
@@ -382,10 +392,12 @@
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .card:hover .lock-overlay {
-        background: rgba(0, 0, 0, 0.7);
-        opacity: 1;
-        backdrop-filter: blur(5px);
+    @media (hover: hover) {
+        .card:hover .lock-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            opacity: 1;
+            backdrop-filter: blur(5px);
+        }
     }
 
     .lock-icon {
@@ -396,8 +408,10 @@
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .card:hover .lock-overlay .lock-icon {
-        transform: scale(1.15) rotate(-5deg);
+    @media (hover: hover) {
+        .card:hover .lock-overlay .lock-icon {
+            transform: scale(1.15) rotate(-5deg);
+        }
     }
 
     .lock-text {
@@ -413,9 +427,11 @@
         transition: all 0.1s ease;
     }
 
-    .card:hover .lock-text {
-        background: var(--viewer-accent, #00cec9);
-        color: var(--text-color, #1a1a1a);
+    @media (hover: hover) {
+        .card:hover .lock-text {
+            background: var(--viewer-accent, #00cec9);
+            color: var(--text-color, #1a1a1a);
+        }
     }
 
     .progress-container {

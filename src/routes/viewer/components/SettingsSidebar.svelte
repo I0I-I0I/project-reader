@@ -192,6 +192,8 @@
         background: var(--sidebar-header-bg);
         border-bottom: 3px solid var(--border-color);
         padding: 10px 16px;
+        padding-top: calc(10px + env(safe-area-inset-top));
+        padding-right: calc(16px + env(safe-area-inset-right));
         flex-shrink: 0;
     }
 
@@ -222,11 +224,13 @@
         padding: 0;
     }
 
-    .close-sidebar-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--close-sidebar-hover-bg);
-        color: var(--close-sidebar-hover-text);
+    @media (hover: hover) {
+        .close-sidebar-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--close-sidebar-hover-bg);
+            color: var(--close-sidebar-hover-text);
+        }
     }
 
     .close-sidebar-btn:active {
@@ -241,6 +245,7 @@
         display: flex;
         flex-direction: column;
         gap: 24px;
+        overscroll-behavior: contain;
     }
 
     .settings-section {
@@ -284,10 +289,12 @@
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .option-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--viewer-accent);
+    @media (hover: hover) {
+        .option-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--viewer-accent);
+        }
     }
 
     .option-btn.active {

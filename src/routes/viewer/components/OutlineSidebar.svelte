@@ -349,6 +349,8 @@
         background: var(--sidebar-header-bg);
         border-bottom: 3px solid var(--border-color);
         padding: 10px 16px;
+        padding-top: calc(10px + env(safe-area-inset-top));
+        padding-left: calc(16px + env(safe-area-inset-left));
         flex-shrink: 0;
     }
 
@@ -379,11 +381,13 @@
         padding: 0;
     }
 
-    .close-sidebar-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--close-sidebar-hover-bg);
-        color: var(--close-sidebar-hover-text);
+    @media (hover: hover) {
+        .close-sidebar-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 var(--shadow-color);
+            background: var(--close-sidebar-hover-bg);
+            color: var(--close-sidebar-hover-text);
+        }
     }
 
     .close-sidebar-btn:active {
@@ -395,6 +399,7 @@
         flex: 1;
         overflow-y: auto;
         background: var(--sidebar-content-bg);
+        overscroll-behavior: contain;
     }
 
     .outline-loader {
@@ -438,10 +443,12 @@
         box-sizing: border-box;
     }
 
-    .outline-item:hover:not(:disabled) {
-        background: var(--outline-hover-bg);
-        color: var(--text-color);
-        font-weight: 800;
+    @media (hover: hover) {
+        .outline-item:hover:not(:disabled) {
+            background: var(--outline-hover-bg);
+            color: var(--text-color);
+            font-weight: 800;
+        }
     }
 
     .outline-item.active:not(:disabled) {
@@ -500,7 +507,7 @@
         box-sizing: border-box;
     }
 
-    .search-input:focus {
+    .search-input:focus-visible {
         transform: translate(-1px, -1px);
         box-shadow: 3px 3px 0 var(--shadow-color);
         border-color: var(--border-color);
@@ -523,8 +530,10 @@
         transition: opacity 0.1s ease;
     }
 
-    .clear-search-btn:hover {
-        opacity: 1;
+    @media (hover: hover) {
+        .clear-search-btn:hover {
+            opacity: 1;
+        }
     }
 
     .outline-item.selected:not(:disabled) {

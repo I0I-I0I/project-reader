@@ -40,6 +40,9 @@
         <span class="page-label">{m.page()}</span>
         <input
             type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            aria-label="Page number"
             value={currentPage}
             min="1"
             max={totalPages}
@@ -64,6 +67,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 16px;
         background: var(--viewer-footer-bg);
         background-image: repeating-linear-gradient(
             -45deg,
@@ -74,16 +78,23 @@
         );
         border-top: 3px solid var(--border-color);
         padding: 18px 24px;
+        padding-bottom: calc(18px + env(safe-area-inset-bottom));
+        padding-left: calc(24px + env(safe-area-inset-left));
+        padding-right: calc(24px + env(safe-area-inset-right));
     }
 
     .viewer-footer :global(.action-btn) {
         background: var(--button-bg);
-        min-width: 140px;
+        min-width: 0;
+        flex: 0 1 auto;
         border: 2.5px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         padding: 10px 20px;
         font-weight: 800;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -91,10 +102,12 @@
         color: var(--text-color);
     }
 
-    .viewer-footer :global(.action-btn:hover:not(:disabled)) {
-        transform: translate(-2px, -2px);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        background: var(--button-hover-bg, #faf8f5);
+    @media (hover: hover) {
+        .viewer-footer :global(.action-btn:hover:not(:disabled)) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--shadow-color);
+            background: var(--button-hover-bg, #faf8f5);
+        }
     }
 
     .viewer-footer :global(.action-btn:active:not(:disabled)) {
@@ -119,6 +132,7 @@
         text-shadow: 2px 2px 0 var(--pagination-text-shadow);
         text-transform: uppercase;
         letter-spacing: 1px;
+        flex-shrink: 0;
     }
 
     .page-input {
@@ -133,10 +147,12 @@
         background: var(--button-bg);
         color: var(--text-color);
         outline: none;
-        transition: all 0.1s ease;
+        transition:
+            border-color 0.1s ease,
+            background-color 0.1s ease;
     }
 
-    .page-input:focus {
+    .page-input:focus-visible {
         border-color: var(--page-input-focus);
     }
 
@@ -145,13 +161,23 @@
         cursor: not-allowed;
     }
 
+    .btn-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+    }
+
     .btn-arrow {
         display: none;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 600px), (max-height: 500px) {
         .viewer-footer {
-            padding: 8px 12px;
+            padding: 6px 12px;
+            padding-bottom: calc(6px + env(safe-area-inset-bottom));
+            padding-left: calc(12px + env(safe-area-inset-left));
+            padding-right: calc(12px + env(safe-area-inset-right));
             border-top-width: 2px;
         }
 
@@ -161,6 +187,7 @@
             height: 40px;
             padding: 0 !important;
             box-shadow: 2px 2px 0 var(--shadow-color);
+            flex: 0 0 40px;
         }
 
         .btn-text {
@@ -187,7 +214,7 @@
         }
     }
 
-    @media (max-width: 400px) {
+    @media (max-width: 800px) {
         .page-label {
             display: none;
         }
