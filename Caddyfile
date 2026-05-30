@@ -1,18 +1,4 @@
-# Replace this placeholder with your actual domain name (e.g., reader.yourdomain.com)
-# Caddy will automatically acquire and renew Let's Encrypt SSL certificates for this domain!
-#
-# If you are testing locally or using a raw IP, you can use:
-# http://82.22.50.165
-# (Note: Let's Encrypt does not support raw IPs for SSL, so Caddy will serve over HTTP).
-
-{
-    # Global options
-    email your-email@example.com # Email used for Let's Encrypt certificate expiry notifications
-}
-
-preview.project-vpn-xray.mooo.com {
-    # If a domain name is specified above instead of ":80, :443", Caddy will handle SSL automatically.
-    # For general port 80/443 mapping:
+:80 {
     reverse_proxy app:3000
 
     # Modern compression
@@ -20,15 +6,10 @@ preview.project-vpn-xray.mooo.com {
 
     # Strict security headers
     header {
-        # Disable MIME-sniffing
         X-Content-Type-Options "nosniff"
-        # Protect against clickjacking
         X-Frame-Options "DENY"
-        # Enable browser XSS protection
         X-XSS-Protection "1; mode=block"
-        # Enforce HTTPS
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        # Referrer policy
         Referrer-Policy "strict-origin-when-cross-origin"
     }
 }

@@ -13,16 +13,20 @@ services:
         image: caddy:2-alpine
         container_name: project-reader-caddy
         restart: always
-        ports:
-            - "80:80"
-            - "443:443"
-            - "443:443/udp" # Support HTTP/3 (QUIC)
+        # No ports exposed to the host! Communicates purely internally on the Docker network.
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
             - caddy_data:/data
             - caddy_config:/config
         depends_on:
             - app
+        networks:
+            - default
+            - proxy-net
+
+networks:
+    proxy-net:
+        external: true
 
 volumes:
     caddy_data:
