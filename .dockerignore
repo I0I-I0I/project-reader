@@ -11,3 +11,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 src/lib/paraglide
 project.inlang/cache/
+.agents
+.antigravitycli
+.github
+assets/design
+spec
+tmp
+*.md
