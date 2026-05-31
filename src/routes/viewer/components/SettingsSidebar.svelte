@@ -10,9 +10,9 @@
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
     import Toggle from "$lib/components/ui/Toggle.svelte"
-    import { CONSTANTS, settingsStore, type Theme } from "$lib/settingsStore.svelte"
+    import { CONSTANTS, settingsStore, type Theme } from "$lib/stores/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap } from "$lib/keymaps.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
     import { getContext, onMount } from "svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
@@ -21,7 +21,7 @@
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/locale"
     import { browser } from "$app/environment"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     let { onClose } = $props<{
         onClose: () => void

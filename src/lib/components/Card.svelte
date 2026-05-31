@@ -3,11 +3,12 @@
     import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
     import { goto } from "$app/navigation"
-    import { viewerStore, type Book } from "$lib/viewerStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { booksStore, type Book } from "$lib/stores/booksStore.svelte"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
 
     interface Props extends HTMLButtonAttributes {
@@ -49,7 +50,7 @@
                         imageUrl = await doc.getCanvasPage(page)
                     }
                     if (!isCancelled) {
-                        viewerStore.updateBook({
+                        booksStore.updateBook({
                             ...book,
                             previewDataUrl: imageUrl,
                             totalPages,
@@ -75,7 +76,7 @@
             let activeBook = book
             if (book.isLocked) {
                 isRestoring = true
-                const freshUrl = await viewerStore.restoreBookAccess(book)
+                const freshUrl = await booksStore.restoreBookAccess(book)
                 activeBook = { ...book, url: freshUrl, isLocked: false }
             }
             viewerStore.setCurrentBook(activeBook)
@@ -89,7 +90,7 @@
 
     const onRemove = (e: MouseEvent) => {
         e.stopPropagation()
-        viewerStore.removeBook(book)
+        booksStore.removeBook(book)
     }
 </script>
 

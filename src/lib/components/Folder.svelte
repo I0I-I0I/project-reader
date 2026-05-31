@@ -7,9 +7,10 @@
 
     interface Props {
         type?: "new-folder" | "folder"
+        onCreate?: (name: string) => void
     }
 
-    const { type = "folder" }: Props = $props()
+    const { type = "folder", onCreate }: Props = $props()
 
     let isCreatingFolder = $state(false)
     let folderName = $state("")
@@ -39,6 +40,10 @@
 
         errors = []
         isCreatingFolder = false
+
+        if (onCreate) {
+            onCreate(folderName)
+        }
     }
 </script>
 
@@ -46,7 +51,11 @@
     <Button
         variant="none"
         size="none"
-        onclick={type === "new-folder" ? onCreateFolder : undefined}
+        onclick={type === "new-folder"
+            ? () => {
+                  onCreateFolder()
+              }
+            : undefined}
         type="button"
         class="card-main-button"
     >

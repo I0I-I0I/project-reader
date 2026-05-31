@@ -3,12 +3,12 @@
     import * as pdfjs from "pdfjs-dist"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type PDFDocument from "$lib/pdf"
-    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
-    import { useKeymap } from "$lib/keymaps.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 

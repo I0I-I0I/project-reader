@@ -5,12 +5,12 @@
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
 
-    import { viewerStore } from "$lib/viewerStore.svelte"
+    import { booksStore } from "$lib/stores/booksStore.svelte"
     import Card from "$lib/components/Card.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import Folder from "$lib/components/Folder.svelte"
 
-    const books = $derived(viewerStore.getBooks())
+    const books = $derived(booksStore.books)
 </script>
 
 <div class="container">

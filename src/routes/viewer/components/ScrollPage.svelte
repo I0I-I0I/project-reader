@@ -4,8 +4,8 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { untrack } from "svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as pdfjs from "pdfjs-dist"
     import { onMount } from "svelte"
 

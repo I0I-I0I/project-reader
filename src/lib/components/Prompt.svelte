@@ -6,10 +6,11 @@
     import { flip } from "svelte/animate"
     import Fuse from "fuse.js"
     import Float from "./ui/Float.svelte"
-    import { viewerStore } from "$lib/viewerStore.svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { useKeymap } from "$lib/keymaps.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
     import CommandIcon from "./icons/CommandIcon.svelte"
@@ -77,7 +78,7 @@
             return undefined
         }
 
-        const books = viewerStore.getBooks()
+        const books = booksStore.books
         for (const book of books) {
             list.push({
                 id: `book-${book.id}`,
@@ -87,7 +88,7 @@
                 action: async () => {
                     if (book.isLocked) {
                         try {
-                            await viewerStore.restoreBookAccess(book)
+                            await booksStore.restoreBookAccess(book)
                         } catch (e) {
                             alert(e instanceof Error ? e.message : String(e))
                             return

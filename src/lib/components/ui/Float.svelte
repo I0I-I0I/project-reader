@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { onMount } from "svelte"
     import type { Snippet } from "svelte"
     import { fade, scale } from "svelte/transition"

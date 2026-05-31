@@ -5,7 +5,8 @@
     import Button from "$lib/components/ui/Button.svelte"
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy } from "svelte"
-    import { viewerStore } from "$lib/viewerStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { booksStore } from "$lib/stores/booksStore.svelte"
     import { goto } from "$app/navigation"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
@@ -14,10 +15,10 @@
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
-    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
-    import { useKeymap, getShortcutHint } from "$lib/keymaps.svelte"
+    import { useKeymap, getShortcutHint } from "$lib/stores/keymapStore.svelte"
 
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
@@ -271,7 +272,7 @@
     }
 
     onMount(() => {
-        if (viewerStore.isInitialized && !viewerStore.getCurrentBook()) {
+        if (booksStore.isInitialized && !viewerStore.getCurrentBook()) {
             goto(resolve("/"))
             return
         }
@@ -279,7 +280,7 @@
     })
 
     $effect(() => {
-        if (viewerStore.isInitialized) {
+        if (booksStore.isInitialized) {
             const currentBook = viewerStore.getCurrentBook()
             if (!currentBook || currentBook.isLocked) {
                 goto(resolve("/"))

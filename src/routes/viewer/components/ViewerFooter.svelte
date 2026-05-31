@@ -2,8 +2,12 @@
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/ui/Button.svelte"
     import { getContext } from "svelte"
-    import { KEYMAP_CONTEXT_KEY, type KeymapNode, getShortcutHint } from "$lib/keymaps.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import {
+        KEYMAP_CONTEXT_KEY,
+        type KeymapNode,
+        getShortcutHint,
+    } from "$lib/stores/keymapStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     const keymapNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
 

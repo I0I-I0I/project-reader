@@ -148,7 +148,7 @@
     })
 
     import { onDestroy } from "svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     onDestroy(() => {
         if (pdf) {
             pdf.close()

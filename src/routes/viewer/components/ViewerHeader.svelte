@@ -5,10 +5,14 @@
     import SettingsIcon from "$lib/components/icons/SettingsIcon.svelte"
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
-    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import { onMount, getContext } from "svelte"
-    import { KEYMAP_CONTEXT_KEY, type KeymapNode, getShortcutHint } from "$lib/keymaps.svelte"
+    import {
+        KEYMAP_CONTEXT_KEY,
+        type KeymapNode,
+        getShortcutHint,
+    } from "$lib/stores/keymapStore.svelte"
 
     let {
         name,

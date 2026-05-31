@@ -7,7 +7,7 @@
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
-    import { settingsStore, type Theme } from "$lib/settingsStore.svelte"
+    import { settingsStore, type Theme } from "$lib/stores/settingsStore.svelte"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
     import type { Pathname } from "$app/types"

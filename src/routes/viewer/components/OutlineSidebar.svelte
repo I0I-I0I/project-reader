@@ -3,11 +3,11 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap, getShortcutHint, getRawShortcutHint } from "$lib/keymaps.svelte"
+    import { useKeymap, getShortcutHint, getRawShortcutHint } from "$lib/stores/keymapStore.svelte"
     import { getContext, untrack } from "svelte"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     let {
         isOutlineLoading,

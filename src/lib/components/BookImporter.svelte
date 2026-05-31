@@ -1,9 +1,9 @@
 <script lang="ts">
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { viewerStore } from "$lib/viewerStore.svelte"
+    import { booksStore } from "$lib/stores/booksStore.svelte"
     import { saveBookFile } from "$lib/db"
-    import { useKeymap } from "$lib/keymaps.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -27,7 +27,7 @@
             try {
                 await saveBookFile(id, file)
                 const url = URL.createObjectURL(file)
-                viewerStore.addBook({
+                booksStore.addBook({
                     id,
                     url,
                     name,
@@ -72,7 +72,7 @@
                         await saveBookFile(id, handle)
                         const file = await handle.getFile()
                         const url = URL.createObjectURL(file)
-                        viewerStore.addBook({
+                        booksStore.addBook({
                             id,
                             url,
                             name: handle.name,

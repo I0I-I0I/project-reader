@@ -1,5 +1,5 @@
 import { browser } from "$app/environment"
-import { MEDIA_QUERIES } from "./breakpoints"
+import { MEDIA_QUERIES } from "$lib/breakpoints"
 
 class UIStore {
     #isToolbarsVisible = $state(true)

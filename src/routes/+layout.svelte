@@ -1,13 +1,14 @@
 <script lang="ts">
     import favicon from "$lib/assets/favicon.svg"
-    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
-    import { viewerStore } from "$lib/viewerStore.svelte"
-    import { type KeymapNode, useKeymap } from "$lib/keymaps.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { type KeymapNode, useKeymap } from "$lib/stores/keymapStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
-    import { uiStore } from "$lib/uiStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     let { children } = $props()
 
@@ -174,7 +175,9 @@
     })
 
     onMount(() => {
-        viewerStore.initBooks()
+        booksStore.init().then(() => {
+            viewerStore.syncWithBooks()
+        })
 
         const handleKeydown = (event: KeyboardEvent) => {
             const activeNode = currentActiveNode || rootNode
