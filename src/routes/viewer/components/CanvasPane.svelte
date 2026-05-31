@@ -8,7 +8,7 @@
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap } from "$lib/keymaps.svelte"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -147,6 +147,7 @@
     let scrollTop = $state(0)
     let containerHeight = $state(0)
     let isMobile = $state(false)
+    let isStackedMode = $state(false)
 
     let textLayer1 = $state<HTMLElement | null>(null)
     let textLayer2 = $state<HTMLElement | null>(null)
@@ -157,6 +158,19 @@
 
         const handler = (e: MediaQueryListEvent) => {
             isMobile = e.matches
+        }
+        mediaQuery.addEventListener("change", handler)
+        return () => {
+            mediaQuery.removeEventListener("change", handler)
+        }
+    })
+
+    $effect(() => {
+        const mediaQuery = window.matchMedia(MEDIA_QUERIES.LARGE_DESKTOP)
+        isStackedMode = mediaQuery.matches
+
+        const handler = (e: MediaQueryListEvent) => {
+            isStackedMode = e.matches
         }
         mediaQuery.addEventListener("change", handler)
         return () => {
@@ -416,23 +430,45 @@
         </div>
     {:else if currentPageImage}
         <div class="pages-container" class:split-mode={layoutMode === "split"}>
-            <div class="pdf-image-wrapper" style={wrapperStyle}>
-                <img
-                    src={currentPageImage}
-                    alt={m.page_render_alt({ page: currentPage })}
-                    class="pdf-image"
-                />
-                <div bind:this={textLayer1} class="textLayer"></div>
-            </div>
-            {#if layoutMode === "split" && currentPageImage2}
+            {#if layoutMode === "split" && currentPageImage2 && !isStackedMode}
+                <div class="book-spread">
+                    <div class="pdf-image-wrapper split-left" style={wrapperStyle}>
+                        <img
+                            src={currentPageImage}
+                            alt={m.page_render_alt({ page: currentPage })}
+                            class="pdf-image"
+                        />
+                        <div bind:this={textLayer1} class="textLayer"></div>
+                    </div>
+                    <div class="book-spine"></div>
+                    <div class="pdf-image-wrapper split-right" style={wrapperStyle}>
+                        <img
+                            src={currentPageImage2}
+                            alt={m.page_render_alt({ page: currentPage + 1 })}
+                            class="pdf-image"
+                        />
+                        <div bind:this={textLayer2} class="textLayer"></div>
+                    </div>
+                </div>
+            {:else}
                 <div class="pdf-image-wrapper" style={wrapperStyle}>
                     <img
-                        src={currentPageImage2}
-                        alt={m.page_render_alt({ page: currentPage + 1 })}
+                        src={currentPageImage}
+                        alt={m.page_render_alt({ page: currentPage })}
                         class="pdf-image"
                     />
-                    <div bind:this={textLayer2} class="textLayer"></div>
+                    <div bind:this={textLayer1} class="textLayer"></div>
                 </div>
+                {#if layoutMode === "split" && currentPageImage2}
+                    <div class="pdf-image-wrapper" style={wrapperStyle}>
+                        <img
+                            src={currentPageImage2}
+                            alt={m.page_render_alt({ page: currentPage + 1 })}
+                            class="pdf-image"
+                        />
+                        <div bind:this={textLayer2} class="textLayer"></div>
+                    </div>
+                {/if}
             {/if}
         </div>
     {/if}
@@ -655,5 +691,62 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+
+    /* Book Spread joined layout */
+    .book-spread {
+        display: flex;
+        position: relative;
+        align-items: flex-start;
+        box-shadow: 12px 12px 0 var(--shadow-color);
+        border: 3px solid var(--border-color);
+        background: var(--surface-color);
+    }
+
+    .book-spread .pdf-image-wrapper {
+        border: none;
+        box-shadow: none;
+    }
+
+    .book-spread .split-left {
+        border-right: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    :global(html.dark) .book-spread .split-left {
+        border-right-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .book-spine {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 32px;
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.05) 30%,
+            rgba(0, 0, 0, 0.12) 48%,
+            rgba(0, 0, 0, 0.18) 50%,
+            rgba(0, 0, 0, 0.12) 52%,
+            rgba(0, 0, 0, 0.05) 70%,
+            rgba(0, 0, 0, 0) 100%
+        );
+    }
+
+    :global(html.dark) .book-spine {
+        background: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.15) 30%,
+            rgba(0, 0, 0, 0.35) 48%,
+            rgba(0, 0, 0, 0.5) 50%,
+            rgba(0, 0, 0, 0.35) 52%,
+            rgba(0, 0, 0, 0.15) 70%,
+            rgba(0, 0, 0, 0) 100%
+        );
     }
 </style>

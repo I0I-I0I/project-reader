@@ -12,7 +12,7 @@
     import Toggle from "$lib/components/ui/Toggle.svelte"
     import { CONSTANTS, settingsStore, type Theme } from "$lib/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap } from "$lib/keymaps.svelte"
     import { getContext, onMount } from "svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
@@ -130,7 +130,14 @@
 >
     <div class="sidebar-header">
         <h3>{m.settings()}</h3>
-        <Button variant="close" size="small" square={true} onclick={onClose} aria-label={m.close()}>
+        <Button
+            variant="close"
+            size="small"
+            square={true}
+            onclick={onClose}
+            aria-label={m.close()}
+            tooltip={m.close()}
+        >
             ×
         </Button>
     </div>
@@ -207,6 +214,23 @@
                         <PlusIcon />
                     </Button>
                 </div>
+                <div class="slider-container">
+                    <input
+                        type="range"
+                        min={Math.round(CONSTANTS.minScale * 100)}
+                        max={Math.round(CONSTANTS.maxScale * 100)}
+                        step="5"
+                        value={Math.round(settingsStore.scale * 100)}
+                        oninput={(e) => {
+                            const val = parseInt((e.target as HTMLInputElement).value, 10)
+                            if (!isNaN(val)) {
+                                settingsStore.scale = val / 100
+                            }
+                        }}
+                        class="sidebar-slider"
+                        aria-label="Zoom scale slider"
+                    />
+                </div>
             </section>
         {/if}
 
@@ -236,6 +260,23 @@
                 >
                     <PlusIcon />
                 </Button>
+            </div>
+            <div class="slider-container">
+                <input
+                    type="range"
+                    min={CONSTANTS.minQuality}
+                    max={CONSTANTS.maxQuality}
+                    step="1"
+                    value={settingsStore.quality}
+                    oninput={(e) => {
+                        const val = parseInt((e.target as HTMLInputElement).value, 10)
+                        if (!isNaN(val)) {
+                            settingsStore.quality = val
+                        }
+                    }}
+                    class="sidebar-slider"
+                    aria-label="Rendering quality slider"
+                />
             </div>
         </section>
 
@@ -295,21 +336,22 @@
         top: 0;
         bottom: 0;
         width: 280px;
-        background: var(--surface-color);
+        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
+        backdrop-filter: blur(16px);
         border-left: 3px solid var(--border-color);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         z-index: 200;
         box-sizing: border-box;
-        box-shadow: -10px 0 0 rgba(0, 0, 0, 0.1);
+        box-shadow: -10px 0 0 rgba(0, 0, 0, 0.08);
     }
 
     .sidebar-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: var(--accent-active-color);
+        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
         border-bottom: 3px solid var(--border-color);
         padding: 10px 16px;
         padding-top: calc(10px + env(safe-area-inset-top));
@@ -333,6 +375,7 @@
         display: flex;
         flex-direction: column;
         gap: 24px;
+        background: transparent;
         overscroll-behavior: contain;
     }
 
@@ -443,5 +486,55 @@
             width: 100%;
             border-left: none;
         }
+    }
+
+    .slider-container {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin-top: 4px;
+    }
+
+    .sidebar-slider {
+        width: 100%;
+        height: 8px;
+        appearance: none;
+        -webkit-appearance: none;
+        background: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .sidebar-slider::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 12px;
+        height: 18px;
+        background: var(--accent-active-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        cursor: pointer;
+        transition: transform 0.1s ease;
+    }
+
+    .sidebar-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+    }
+
+    .sidebar-slider::-moz-range-thumb {
+        width: 12px;
+        height: 18px;
+        background: var(--accent-active-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        cursor: pointer;
+        border-radius: 0;
+        transition: transform 0.1s ease;
+    }
+
+    .sidebar-slider::-moz-range-thumb:hover {
+        transform: scale(1.1);
     }
 </style>

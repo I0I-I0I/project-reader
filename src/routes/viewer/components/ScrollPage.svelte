@@ -132,6 +132,12 @@
     class:mobile-full-width={uiStore.isCompact && !isShortHeight}
 >
     <div class="page-container" style={containerStyle}>
+        {#if !uiStore.isCompact}
+            <div class="scroll-page-badge" class:hidden-toolbars={!uiStore.isToolbarsVisible}>
+                {m.page()}
+                {pageNumber}
+            </div>
+        {/if}
         {#if imageUrl}
             <div class="pdf-image-wrapper" style={containerStyle}>
                 <img
@@ -264,5 +270,30 @@
     .scroll-page.mobile-full-width .pdf-image {
         width: 100% !important;
         height: auto !important;
+    }
+
+    .scroll-page-badge {
+        position: absolute;
+        top: -12px;
+        left: -12px;
+        background: var(--accent-active-color);
+        color: var(--text-color);
+        border: 2.5px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        z-index: 10;
+        pointer-events: none;
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease;
+    }
+
+    .scroll-page-badge.hidden-toolbars {
+        opacity: 0;
+        transform: translateY(-8px);
     }
 </style>

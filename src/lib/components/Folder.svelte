@@ -107,12 +107,12 @@
         box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
-    .card-main-button {
+    :global(.card-main-button) {
         background: transparent;
         border: none;
         width: 100%;
         height: 100%;
-        display: flex;
+        display: flex !important;
         flex-direction: column;
         align-items: stretch;
         justify-content: flex-start;
@@ -211,16 +211,5 @@
         align-items: center;
         width: 100%;
         margin-top: 8px;
-    }
-
-    .modal-errors {
-        color: var(--text-color);
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        margin: 0;
-        padding: 4px;
-        background-color: var(--error-bg);
-        border-radius: 4px;
     }
 </style>

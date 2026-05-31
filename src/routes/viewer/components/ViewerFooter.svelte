@@ -1,7 +1,11 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/ui/Button.svelte"
+    import { getContext } from "svelte"
+    import { KEYMAP_CONTEXT_KEY, type KeymapNode, getShortcutHint } from "$lib/keymaps.svelte"
     import { uiStore } from "$lib/uiStore.svelte"
+
+    const keymapNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
 
     let {
         currentPage = $bindable(),
@@ -29,16 +33,39 @@
 </script>
 
 <div class="viewer-footer">
+    {#if uiStore.isCompact}
+        <div class="mobile-scrub-bar">
+            <input
+                type="range"
+                min="1"
+                max={totalPages}
+                value={currentPage}
+                oninput={(e) => {
+                    const val = parseInt((e.target as HTMLInputElement).value, 10)
+                    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                        currentPage = val
+                    }
+                }}
+                class="mobile-scrubber"
+                disabled={isPageLoading}
+                aria-label="Mobile page scrub slider"
+            />
+            <div class="mobile-progress" style="width: {(currentPage / totalPages) * 100}%"></div>
+        </div>
+    {/if}
+
     <Button
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
         onclick={prevPage}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
+        tooltip={m.prev_page() + getShortcutHint(keymapNode, "prev-page")}
     >
         <span class="btn-text">{m.prev_page()}</span>
         <span class="btn-arrow">←</span>
     </Button>
+
     <div class="pagination-indicator">
         <span class="page-label">{m.page()}</span>
         <input
@@ -55,12 +82,34 @@
         />
         {m.of_pages({ total: totalPages })}
     </div>
+
+    {#if !uiStore.isCompact}
+        <div class="scrubber-container">
+            <input
+                type="range"
+                min="1"
+                max={totalPages}
+                value={currentPage}
+                oninput={(e) => {
+                    const val = parseInt((e.target as HTMLInputElement).value, 10)
+                    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                        currentPage = val
+                    }
+                }}
+                class="footer-scrubber"
+                disabled={isPageLoading}
+                aria-label="Page scrub slider"
+            />
+        </div>
+    {/if}
+
     <Button
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
         onclick={nextPage}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
+        tooltip={m.next_page() + getShortcutHint(keymapNode, "next-page")}
     >
         <span class="btn-text">{m.next_page()}</span>
         <span class="btn-arrow">→</span>
@@ -69,6 +118,8 @@
 
 <style>
     .viewer-footer {
+        position: relative;
+        z-index: 10;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -223,5 +274,89 @@
         .page-label {
             display: none;
         }
+    }
+
+    /* Scrubber Styles */
+    .scrubber-container {
+        flex: 1;
+        max-width: 320px;
+        margin: 0 16px;
+        display: flex;
+        align-items: center;
+    }
+
+    .footer-scrubber {
+        width: 100%;
+        height: 10px;
+        appearance: none;
+        -webkit-appearance: none;
+        background: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .footer-scrubber::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 14px;
+        height: 22px;
+        background: var(--accent-active-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        cursor: pointer;
+        transition: transform 0.1s ease;
+    }
+
+    .footer-scrubber::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+    }
+
+    .footer-scrubber::-moz-range-thumb {
+        width: 14px;
+        height: 22px;
+        background: var(--accent-active-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        cursor: pointer;
+        border-radius: 0;
+        transition: transform 0.1s ease;
+    }
+
+    .footer-scrubber::-moz-range-thumb:hover {
+        transform: scale(1.1);
+    }
+
+    /* Mobile Scrub Bar at the top edge of footer */
+    .mobile-scrub-bar {
+        position: absolute;
+        top: -4px;
+        left: 0;
+        right: 0;
+        height: 12px;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+    }
+
+    .mobile-scrubber {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 12;
+    }
+
+    .mobile-progress {
+        height: 4px;
+        background: var(--accent-active-color);
+        border-bottom: 2px solid var(--border-color);
+        transition: width 0.1s ease;
+        z-index: 11;
+        pointer-events: none;
     }
 </style>

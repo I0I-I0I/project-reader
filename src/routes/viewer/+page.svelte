@@ -14,17 +14,38 @@
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
     import { uiStore } from "$lib/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap, getShortcutHint } from "$lib/keymaps.svelte"
 
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
     }
 
-    useKeymap([
+    const keymapNode = useKeymap([
         {
+            id: "zoom-in",
+            keys: "shift++",
+            description: m.keymap_zoom_in(),
+            category: "settings",
+            subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
+            action: () => {
+                settingsStore.scale = Math.min(settingsStore.scale + 0.1, CONSTANTS.maxScale)
+            },
+        },
+        {
+            id: "zoom-out",
+            keys: "-",
+            description: m.keymap_zoom_out(),
+            category: "settings",
+            subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
+            action: () => {
+                settingsStore.scale = Math.max(settingsStore.scale - 0.1, CONSTANTS.minScale)
+            },
+        },
+        {
+            id: "scroll-down",
             keys: "j",
             description: m.keymap_scroll_down(),
             category: "navigation",
@@ -38,6 +59,7 @@
             },
         },
         {
+            id: "scroll-down",
             keys: "arrowdown",
             description: m.keymap_scroll_down(),
             category: "navigation",
@@ -51,6 +73,7 @@
             },
         },
         {
+            id: "scroll-up",
             keys: "k",
             description: m.keymap_scroll_up(),
             category: "navigation",
@@ -64,6 +87,7 @@
             },
         },
         {
+            id: "scroll-up",
             keys: "arrowup",
             description: m.keymap_scroll_up(),
             category: "navigation",
@@ -77,6 +101,7 @@
             },
         },
         {
+            id: "scroll-page-down",
             keys: "d",
             description: m.keymap_scroll_page_down(),
             category: "navigation",
@@ -91,6 +116,7 @@
             },
         },
         {
+            id: "scroll-page-down",
             keys: "pagedown",
             description: m.keymap_scroll_page_down(),
             category: "navigation",
@@ -105,6 +131,7 @@
             },
         },
         {
+            id: "scroll-page-up",
             keys: "u",
             description: m.keymap_scroll_page_up(),
             category: "navigation",
@@ -119,6 +146,7 @@
             },
         },
         {
+            id: "scroll-page-up",
             keys: "pageup",
             description: m.keymap_scroll_page_up(),
             category: "navigation",
@@ -133,6 +161,7 @@
             },
         },
         {
+            id: "next-page",
             keys: "space",
             description: m.keymap_next_page(),
             category: "navigation",
@@ -141,6 +170,7 @@
             },
         },
         {
+            id: "next-page",
             keys: "arrowright",
             description: m.keymap_next_page(),
             category: "navigation",
@@ -149,6 +179,7 @@
             },
         },
         {
+            id: "prev-page",
             keys: "shift+space",
             description: m.keymap_prev_page(),
             category: "navigation",
@@ -157,6 +188,7 @@
             },
         },
         {
+            id: "prev-page",
             keys: "arrowleft",
             description: m.keymap_prev_page(),
             category: "navigation",
@@ -165,6 +197,7 @@
             },
         },
         {
+            id: "toggle-outline",
             keys: "shift+o",
             description: m.keymap_toggle_outline(),
             category: "commands",
@@ -173,6 +206,7 @@
             },
         },
         {
+            id: "toggle-settings",
             keys: "shift+s",
             description: m.keymap_toggle_settings(),
             category: "commands",
@@ -181,6 +215,7 @@
             },
         },
         {
+            id: "close-viewer",
             keys: "q",
             description: m.keymap_close_viewer(),
             category: "commands",
@@ -189,6 +224,7 @@
             },
         },
         {
+            id: "hide-toolbars",
             keys: "shift+m",
             description: m.keymap_hide_toolbars(),
             category: "commands",
@@ -197,6 +233,7 @@
             },
         },
         {
+            id: "goto-page",
             keys: "g",
             description: m.keymap_goto_page(),
             category: "navigation",
@@ -603,7 +640,10 @@
         <div class="reader-card">
             <div class="viewer-layout">
                 {#if uiStore.isToolbarsVisible}
-                    <div transition:slideHeader={{ duration: settingsStore.animations ? 250 : 0 }}>
+                    <div
+                        style="position: relative; z-index: 250;"
+                        transition:slideHeader={{ duration: settingsStore.animations ? 250 : 0 }}
+                    >
                         <ViewerHeader
                             {name}
                             {isLoaded}
@@ -690,7 +730,7 @@
                             <Button
                                 size="large"
                                 variant="fab"
-                                class="fab-prompt {!uiStore.isToolbarsVisible
+                                class="viewer-fab-btn fab-prompt {!uiStore.isToolbarsVisible
                                     ? 'hidden-toolbars'
                                     : ''}"
                                 onclick={(e) => {
@@ -700,7 +740,7 @@
                                 aria-label={m.keymap_prompt
                                     ? m.keymap_prompt()
                                     : "Open Command Prompt"}
-                                title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+                                tooltip={`${m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}${getShortcutHint(keymapNode, "open-prompt")}`}
                             >
                                 <svg
                                     viewBox="0 0 24 24"
@@ -717,7 +757,7 @@
                             <Button
                                 variant="fab"
                                 size="large"
-                                class="fab-toggle"
+                                class="viewer-fab-btn fab-toggle"
                                 onclick={(e) => {
                                     e.stopPropagation()
                                     uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
@@ -725,9 +765,7 @@
                                 aria-label={uiStore.isToolbarsVisible
                                     ? m.hide_toolbars()
                                     : m.show_toolbars()}
-                                title={uiStore.isToolbarsVisible
-                                    ? m.hide_toolbars()
-                                    : m.show_toolbars()}
+                                tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(keymapNode, "hide-toolbars")}`}
                             >
                                 {#if uiStore.isToolbarsVisible}
                                     <svg
@@ -758,7 +796,10 @@
                 </div>
 
                 {#if isLoaded && uiStore.isToolbarsVisible}
-                    <div transition:slideFooter={{ duration: settingsStore.animations ? 250 : 0 }}>
+                    <div
+                        style="position: relative; z-index: 250;"
+                        transition:slideFooter={{ duration: settingsStore.animations ? 250 : 0 }}
+                    >
                         <ViewerFooter
                             bind:currentPage
                             {totalPages}
@@ -823,9 +864,9 @@
         display: block;
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(2px);
-        z-index: 150;
+        background: rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(4px);
+        z-index: 20;
         cursor: pointer;
         animation: fade-in 0.2s ease-out;
     }
@@ -840,10 +881,13 @@
         cursor: pointer;
     }
 
-    :global(.fab-prompt) {
+    :global(.viewer-fab-btn) {
         position: absolute;
-        bottom: calc(24px + 50px + 16px);
         right: 24px;
+    }
+
+    :global(.fab-prompt) {
+        bottom: calc(24px + 50px + 16px);
     }
 
     :global(.fab-prompt.hidden-toolbars) {

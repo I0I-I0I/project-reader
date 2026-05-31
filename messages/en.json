@@ -93,7 +93,7 @@
     "hide_toolbars": "Hide toolbars",
     "keymap_close_settings": "Close settings sidebar",
     "keymap_close_outline": "Close outline sidebar",
-    "search_headings_placeholder": "Search headings... (/)",
+    "search_headings_placeholder": "Search headings...",
     "clear_search_aria": "Clear search",
     "no_matching_headings": "No matching headings found",
     "scale_subtitle": "Scale: {scale}%",

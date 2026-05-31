@@ -298,6 +298,7 @@
         color: var(--text-color);
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-height: 1.3;
@@ -315,6 +316,7 @@
         opacity: 0.7;
         display: -webkit-box;
         -webkit-line-clamp: 1;
+        line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-height: 1.2;

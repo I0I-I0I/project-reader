@@ -3,10 +3,11 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap, getShortcutHint, getRawShortcutHint } from "$lib/keymaps.svelte"
     import { getContext, untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
 
     let {
         isOutlineLoading,
@@ -123,9 +124,10 @@
     const getActiveNode = getContext<() => any>("get_active_keymap_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    useKeymap(
+    const sidebarKeymapNode = useKeymap(
         [
             {
+                id: "close-outline",
                 keys: "escape",
                 action: () => {
                     onCloseOutline()
@@ -134,6 +136,7 @@
                 allowInInputs: true,
             },
             {
+                id: "close-outline",
                 keys: "q",
                 action: () => {
                     onCloseOutline()
@@ -142,6 +145,7 @@
                 allowInInputs: true,
             },
             {
+                id: "next-heading",
                 keys: "j",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -150,6 +154,7 @@
                 },
             },
             {
+                id: "next-heading",
                 keys: "arrowdown",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -158,6 +163,7 @@
                 },
             },
             {
+                id: "prev-heading",
                 keys: "k",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -166,6 +172,7 @@
                 },
             },
             {
+                id: "prev-heading",
                 keys: "arrowup",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -174,6 +181,7 @@
                 },
             },
             {
+                id: "next-heading",
                 keys: "ctrl+n",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -182,6 +190,7 @@
                 },
             },
             {
+                id: "prev-heading",
                 keys: "ctrl+p",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -190,6 +199,7 @@
                 },
             },
             {
+                id: "select-heading",
                 keys: "enter",
                 description: m.keymap_select_heading(),
                 action: (event) => {
@@ -202,6 +212,7 @@
                 },
             },
             {
+                id: "search-headings",
                 keys: "/",
                 description: m.keymap_search_headings(),
                 action: (event) => {
@@ -265,6 +276,7 @@
             square={true}
             onclick={onCloseOutline}
             aria-label={m.close()}
+            tooltip={m.close()}
         >
             ×
         </Button>
@@ -276,7 +288,7 @@
                 bind:this={searchInputRef}
                 type="text"
                 bind:value={searchQuery}
-                placeholder={m.search_headings_placeholder()}
+                placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarKeymapNode, "search-headings")}`}
                 class="search-input"
                 onkeydown={handleSearchKeydown}
             />
@@ -330,6 +342,31 @@
             </nav>
         {/if}
     </div>
+
+    {#if !uiStore.isCompact}
+        <div class="sidebar-footer-hint">
+            <span class="hint-item"
+                ><kbd
+                    >{getRawShortcutHint(sidebarKeymapNode, "next-heading")}/{getRawShortcutHint(
+                        sidebarKeymapNode,
+                        "prev-heading",
+                    )}</kbd
+                > Navigate</span
+            >
+            <span class="hint-divider">•</span>
+            <span class="hint-item"
+                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "select-heading")}</kbd> Go</span
+            >
+            <span class="hint-divider">•</span>
+            <span class="hint-item"
+                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "search-headings")}</kbd> Search</span
+            >
+            <span class="hint-divider">•</span>
+            <span class="hint-item"
+                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "close-outline")}</kbd> Close</span
+            >
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -339,21 +376,22 @@
         top: 0;
         bottom: 0;
         width: 280px;
-        background: var(--surface-color);
+        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
+        backdrop-filter: blur(16px);
         border-right: 3px solid var(--border-color);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         z-index: 200;
         box-sizing: border-box;
-        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.1);
+        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.08);
     }
 
     .sidebar-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: var(--accent-active-color);
+        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
         border-bottom: 3px solid var(--border-color);
         padding: 10px 16px;
         padding-top: calc(10px + env(safe-area-inset-top));
@@ -373,7 +411,7 @@
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
-        background: var(--surface-color);
+        background: transparent;
         overscroll-behavior: contain;
     }
 
@@ -459,7 +497,7 @@
     .sidebar-search {
         position: relative;
         padding: 10px 16px;
-        background: var(--accent-active-color);
+        background: color-mix(in srgb, var(--accent-active-color) 70%, transparent);
         border-bottom: 3px solid var(--border-color);
         display: flex;
         align-items: center;
@@ -528,5 +566,40 @@
             width: 100%;
             border-right: none;
         }
+    }
+
+    .sidebar-footer-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 8px;
+        background: var(--accent-active-color);
+        border-top: 3px solid var(--border-color);
+        font-size: 9px;
+        font-weight: 900;
+        color: var(--text-color);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .sidebar-footer-hint kbd {
+        background: var(--surface-color);
+        border: 1.5px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        border-radius: 2px;
+        padding: 1px 4px;
+        font-family: monospace;
+        font-weight: 900;
+    }
+
+    .hint-divider {
+        opacity: 0.5;
+    }
+
+    .hint-item {
+        line-height: 1.5;
     }
 </style>

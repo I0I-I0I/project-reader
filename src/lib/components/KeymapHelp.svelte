@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getContext } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
-    import { useKeymap, type KeymapNode } from "$lib/keymaps"
+    import { useKeymap, type KeymapNode } from "$lib/keymaps.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
 

@@ -93,7 +93,7 @@
     "hide_toolbars": "Скрыть панели инструментов",
     "keymap_close_settings": "Закрыть настройки",
     "keymap_close_outline": "Закрыть оглавление",
-    "search_headings_placeholder": "Поиск по оглавлению... (/)",
+    "search_headings_placeholder": "Поиск по оглавлению...",
     "clear_search_aria": "Очистить поиск",
     "no_matching_headings": "Совпадающих заголовков не найдено",
     "scale_subtitle": "Масштаб: {scale}%",

@@ -3,7 +3,7 @@
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { saveBookFile } from "$lib/db"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap } from "$lib/keymaps.svelte"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -384,6 +384,7 @@
         color: var(--text-color);
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-height: 1.3;
@@ -401,6 +402,7 @@
         opacity: 0.7;
         display: -webkit-box;
         -webkit-line-clamp: 1;
+        line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-height: 1.2;

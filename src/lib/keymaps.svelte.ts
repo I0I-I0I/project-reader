@@ -1,6 +1,8 @@
 import { getContext, setContext, onMount } from "svelte"
+import { SvelteMap } from "svelte/reactivity"
 
 export type ShortcutAction = {
+    id?: string // Unique identifier for dynamic lookup
     keys: string
     action: (event: KeyboardEvent) => void
     description: string
@@ -10,8 +12,8 @@ export type ShortcutAction = {
 }
 
 export class KeymapNode {
-    parent: KeymapNode | null = null
-    bindings: Map<string, ShortcutAction> = new Map()
+    parent = $state<KeymapNode | null>(null)
+    bindings = new SvelteMap<string, ShortcutAction>()
 
     constructor(parent: KeymapNode | null = null) {
         this.parent = parent
@@ -168,4 +170,42 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
     })
 
     return node
+}
+
+export function getRawShortcutHint(keymapNode: KeymapNode | null, id: string): string {
+    if (!keymapNode) return ""
+    const keymaps = keymapNode.getAllKeymaps()
+    const actions = keymaps.filter((a) => a.id === id)
+    if (actions.length === 0) return ""
+
+    const primaryAction = actions.reduce((best, current) => {
+        if (current.keys.includes("arrow")) return current
+        return best.keys.length <= current.keys.length ? best : current
+    })
+
+    return formatKeyString(primaryAction.keys)
+}
+
+export function getShortcutHint(keymapNode: KeymapNode | null, id: string): string {
+    const raw = getRawShortcutHint(keymapNode, id)
+    return raw ? ` [${raw}]` : ""
+}
+
+export function formatKeyString(keys: string): string {
+    return keys
+        .split("+")
+        .map((part) => {
+            const lower = part.toLowerCase().trim()
+            if (lower === "arrowleft") return "←"
+            if (lower === "arrowright") return "→"
+            if (lower === "arrowup") return "↑"
+            if (lower === "arrowdown") return "↓"
+            if (lower === "ctrl") return "Ctrl"
+            if (lower === "shift") return "Shift"
+            if (lower === "alt") return "Alt"
+            if (lower === "space") return "Space"
+            if (lower === "escape") return "Esc"
+            return part.toUpperCase()
+        })
+        .join("+")
 }

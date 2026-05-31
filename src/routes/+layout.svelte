@@ -1,9 +1,9 @@
 <script lang="ts">
     import favicon from "$lib/assets/favicon.svg"
-    import { settingsStore } from "$lib/settingsStore.svelte"
+    import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
-    import { type KeymapNode, useKeymap } from "$lib/keymaps"
+    import { type KeymapNode, useKeymap } from "$lib/keymaps.svelte"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
@@ -25,6 +25,7 @@
 
     rootNode = useKeymap([
         {
+            id: "open-prompt",
             keys: "ctrl+k",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
@@ -34,7 +35,42 @@
             allowInInputs: true,
             category: "commands",
         },
-        ...settingsStore.getKeymaps(),
+        {
+            keys: "shift+t",
+            description: m.keymap_change_theme(),
+            category: "settings",
+            subtitle: () =>
+                `${m.theme()}: ${settingsStore.theme === "dark" ? m.dark() : settingsStore.theme === "light" ? m.light() : m.system()}`,
+            action: () => {
+                settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
+            },
+        },
+        {
+            keys: "shift+a",
+            description: m.keymap_toggle_animations(),
+            category: "settings",
+            subtitle: () =>
+                `${m.animations()}: ${settingsStore.animations ? m.animations_enabled() : m.animations_disabled()}`,
+            action: () => {
+                settingsStore.animations = !settingsStore.animations
+            },
+        },
+        {
+            keys: "shift+l",
+            description: m.keymap_toggle_layouts(),
+            category: "settings",
+            subtitle: () => {
+                const layoutNames = {
+                    single: m.single_page(),
+                    split: m.split_pages(),
+                    scroll: m.scroll_pages(),
+                }
+                return `${m.layout()}: ${layoutNames[settingsStore.layout]}`
+            },
+            action: () => {
+                settingsStore.layout_next()
+            },
+        },
         {
             keys: "j",
             action: () => {

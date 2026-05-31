@@ -9,7 +9,7 @@
     import { viewerStore } from "$lib/viewerStore.svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { useKeymap } from "$lib/keymaps"
+    import { useKeymap } from "$lib/keymaps.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
     import CommandIcon from "./icons/CommandIcon.svelte"
