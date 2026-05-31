@@ -789,56 +789,10 @@
 
     .reader-card {
         flex: 1;
-        background: var(--card-bg, #ffffff);
+        background: var(--surface-color, #ffffff);
         overflow: hidden;
         display: flex;
         flex-direction: column;
-
-        /* Light theme local styling custom properties */
-        --viewer-header-bg: #ffde4d;
-        --viewer-footer-bg: #ff7675;
-        --viewer-accent: #00cec9;
-        --viewer-accent-active: #ffde4d;
-        --viewer-body-bg: #faf8f5;
-        --canvas-pane-bg: #fcfcfc;
-        --canvas-frame-bg: #ffffff;
-        --sidebar-content-bg: #faf8f5;
-        --sidebar-header-bg: #ffde4d;
-        --outline-hover-bg: #00cec9;
-        --outline-active-bg: #ffde4d;
-        --outline-item-border: rgba(0, 0, 0, 0.15);
-        --page-input-focus: #00cec9;
-        --page-input-disabled-bg: #eee;
-        --doc-text-color: #1a1a1a;
-        --doc-file-badge-bg: #1a1a1a;
-        --doc-file-badge-text: #ffffff;
-        --pane-loader-bg: rgba(250, 248, 245, 0.85);
-        --pagination-text-shadow: #1a1a1a;
-        --no-outline-text: #777777;
-    }
-
-    :global(html.dark) .reader-card {
-        /* Dark theme local styling custom properties */
-        --viewer-header-bg: #2e2824;
-        --viewer-footer-bg: #8c3a32;
-        --viewer-accent: #7b9c7a;
-        --viewer-accent-active: #917c05;
-        --viewer-body-bg: #1b1715;
-        --canvas-pane-bg: #100d0b;
-        --canvas-frame-bg: #241f1c;
-        --sidebar-content-bg: #241f1c;
-        --sidebar-header-bg: #2e2824;
-        --outline-hover-bg: #7b9c7a;
-        --outline-active-bg: #5c5146;
-        --outline-item-border: rgba(210, 199, 177, 0.15);
-        --page-input-focus: #38ada9;
-        --page-input-disabled-bg: #1b1715;
-        --doc-text-color: var(--text-color);
-        --doc-file-badge-bg: #5c5146;
-        --doc-file-badge-text: #d2c7b1;
-        --pane-loader-bg: rgba(27, 23, 21, 0.85);
-        --pagination-text-shadow: #100d0b;
-        --no-outline-text: #a09580;
     }
 
     /* Active Reader Screen */
@@ -853,7 +807,7 @@
         flex: 1;
         overflow: hidden;
         position: relative;
-        background: var(--viewer-body-bg);
+        background: var(--surface-hover-color);
         display: flex;
         flex-direction: row;
     }

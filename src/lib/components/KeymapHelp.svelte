@@ -282,7 +282,7 @@
 
     @media (hover: hover) {
         .shortcut-row:hover {
-            background: var(--card-hover-bg);
+            background: var(--surface-hover-color);
         }
     }
 
@@ -297,7 +297,7 @@
         font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
         font-size: 0.85rem;
         font-weight: 700;
-        background: var(--button-bg);
+        background: var(--surface-color);
         color: var(--text-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
@@ -341,7 +341,7 @@
         font-family: inherit;
         font-size: 0.9rem;
         font-weight: 700;
-        background: var(--button-bg);
+        background: var(--surface-color);
         color: var(--text-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);

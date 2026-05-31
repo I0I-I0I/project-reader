@@ -106,8 +106,8 @@
         height: var(--spinner-size);
         border: var(--thickness) solid var(--border-color);
         border-radius: 50%;
-        border-top-color: var(--badge-bg);
-        border-right-color: var(--badge-bg);
+        border-top-color: var(--danger-active-color);
+        border-right-color: var(--danger-active-color);
         box-sizing: border-box;
         flex-shrink: 0;
         transition: border-color 0.3s ease;
@@ -148,7 +148,7 @@
         width: 100%;
         height: 100%;
         border: var(--thickness) solid var(--border-color);
-        background-color: var(--card-bg);
+        background-color: var(--surface-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         box-sizing: border-box;
         position: relative;
@@ -164,7 +164,7 @@
     .square-inner {
         width: 42%;
         height: 42%;
-        background-color: var(--badge-bg);
+        background-color: var(--danger-active-color);
         border: calc(var(--thickness) * 0.7) solid var(--border-color);
         box-sizing: border-box;
         transition: border-color 0.3s ease;
@@ -319,7 +319,7 @@
         }
         50% {
             transform: translateY(-30%);
-            background-color: var(--badge-bg);
+            background-color: var(--danger-active-color);
             box-shadow: 2px 2px 0 var(--shadow-color);
         }
     }

@@ -74,7 +74,7 @@
         display: inline-block;
         width: 48px;
         height: 24px;
-        background: var(--button-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -94,16 +94,16 @@
     }
 
     .toggle-input:checked + .toggle-track {
-        background: var(--viewer-accent);
+        background: var(--accent-color);
     }
 
     .toggle-input:checked + .toggle-track .toggle-thumb {
         left: 26px;
-        background: var(--viewer-accent-active);
+        background: var(--accent-active-color);
     }
 
     .toggle-input:focus-visible + .toggle-track {
-        border-color: var(--viewer-accent-active);
+        border-color: var(--accent-active-color);
         outline: none;
     }
 
@@ -111,10 +111,10 @@
         .toggle-label-wrapper:hover .toggle-track {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--button-hover-bg);
+            background: var(--surface-hover-color);
         }
         .toggle-input:checked + .toggle-track:hover {
-            background: var(--viewer-accent);
+            background: var(--accent-color);
         }
     }
 

@@ -4,6 +4,7 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type PDFDocument from "$lib/pdf"
     import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
@@ -30,19 +31,10 @@
     }>()
 
     let containerWidth = $state(0)
-    let isMobilePhone = $state(false)
     let isShortHeight = $state(false)
     let hasInitiallyFit = false
 
     $effect(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
-        isMobilePhone = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isMobilePhone = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-
         const heightQuery = window.matchMedia("(max-height: 500px)")
         isShortHeight = heightQuery.matches
 
@@ -52,7 +44,6 @@
         heightQuery.addEventListener("change", heightHandler)
 
         return () => {
-            mediaQuery.removeEventListener("change", handler)
             heightQuery.removeEventListener("change", heightHandler)
         }
     })
@@ -89,7 +80,7 @@
     $effect(() => {
         if (pdf && containerWidth > 0 && !hasInitiallyFit) {
             hasInitiallyFit = true
-            if (!isMobilePhone) {
+            if (!uiStore.isCompact) {
                 const hasSavedScale = (() => {
                     try {
                         const saved = localStorage.getItem("settings")
@@ -120,7 +111,7 @@
     ])
 
     const effectiveScale = $derived.by(() => {
-        if (isMobilePhone && containerWidth > 0 && pdf) {
+        if (uiStore.isCompact && containerWidth > 0 && pdf) {
             const defaultWidth = pdf.defaultWidth || 612
             if (isShortHeight) {
                 return (containerWidth / defaultWidth) * (scale / 1.5)
@@ -131,7 +122,7 @@
     })
 
     const getPageHeight = $derived((dim: { width: number; height: number }) => {
-        if (isMobilePhone && containerWidth > 0) {
+        if (uiStore.isCompact && containerWidth > 0) {
             if (isShortHeight) {
                 return containerWidth * (dim.height / dim.width) * (scale / 1.5)
             }
@@ -173,7 +164,7 @@
         }
     })
 
-    const PAGE_GAP = $derived(isMobilePhone && !isShortHeight ? 2 : isMobile ? 16 : 80)
+    const PAGE_GAP = $derived(uiStore.isCompact && !isShortHeight ? 2 : isMobile ? 16 : 80)
 
     $effect(() => {
         if (pdf && layoutMode === "scroll") {
@@ -403,12 +394,12 @@
                 <ScrollPage
                     {pdf}
                     pageNumber={i + 1}
-                    scale={isMobilePhone
+                    scale={uiStore.isCompact
                         ? (containerWidth / pageDimensions[i].width) *
                           (isShortHeight ? scale / 1.5 : 1)
                         : scale}
                     offsetY={pageOffsets[i]}
-                    width={isMobilePhone
+                    width={uiStore.isCompact
                         ? containerWidth * (isShortHeight ? scale / 1.5 : 1)
                         : pageDimensions[i].width * scale}
                     height={getPageHeight(pageDimensions[i])}
@@ -450,7 +441,7 @@
 <div
     class="canvas-pane"
     class:scroll-mode={layoutMode === "scroll"}
-    class:mobile-full-width={isMobilePhone && !isShortHeight}
+    class:mobile-full-width={uiStore.isCompact && !isShortHeight}
     class:single-layout={layoutMode === "single"}
 >
     <div
@@ -481,14 +472,14 @@
         height: 100%;
         box-sizing: border-box;
         overflow: hidden;
-        background: var(--canvas-pane-bg);
+        background: var(--canvas-bg-color);
         width: 100%;
         flex: 1;
     }
 
     .canvas-frame {
         flex: 1;
-        background: var(--canvas-frame-bg);
+        background: var(--surface-color);
         background-image: radial-gradient(var(--border-color) 1px, transparent 0);
         background-size: 24px 24px;
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
@@ -511,17 +502,17 @@
     }
 
     .canvas-pane.scroll-mode .canvas-frame::-webkit-scrollbar-track {
-        background: var(--viewer-body-bg);
+        background: var(--surface-hover-color);
     }
 
     .canvas-pane.scroll-mode .canvas-frame::-webkit-scrollbar-thumb {
-        background: var(--viewer-accent);
-        border: 2px solid var(--viewer-body-bg);
+        background: var(--accent-color);
+        border: 2px solid var(--surface-hover-color);
     }
 
     @media (hover: hover) {
         .canvas-pane.scroll-mode .canvas-frame::-webkit-scrollbar-thumb:hover {
-            background: var(--viewer-accent-active);
+            background: var(--accent-active-color);
         }
     }
 
@@ -547,7 +538,7 @@
         justify-content: center;
         position: absolute;
         inset: 0;
-        background: var(--pane-loader-bg);
+        background: var(--overlay-color);
         backdrop-filter: blur(2px);
         z-index: 10;
     }
@@ -596,7 +587,7 @@
     }
 
     :global(.textLayer ::selection) {
-        background: color-mix(in srgb, var(--viewer-accent) 35%, transparent);
+        background: color-mix(in srgb, var(--accent-color) 35%, transparent);
         color: transparent;
     }
 

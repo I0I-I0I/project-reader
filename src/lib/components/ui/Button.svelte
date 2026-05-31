@@ -93,48 +93,14 @@
 {/if}
 
 <style>
-    :global(html.light) .button {
-        --btn-fab-accent: #00cec9;
-        --btn-fab-accent-active: #ffde4d;
-        --btn-accent-active: #ffde4d;
-        --btn-brutalist-hover-bg: #00cec9;
-        --btn-bg: #ffffff;
-        --btn-hover-bg: #faf8f5;
-        --btn-border: #1a1a1a;
-        --btn-shadow: #1a1a1a;
-        --btn-text: #1a1a1a;
-        --btn-ghost-hover-bg: rgba(0, 0, 0, 0.05);
-        --btn-tooltip-bg: #1a1a1a;
-        --btn-tooltip-text: #f5f0e1;
-        --btn-close-hover-bg: #ff7675;
-        --btn-close-hover-text: #ffffff;
-    }
-
-    :global(html.dark) .button {
-        --btn-fab-accent: #7b9c7a;
-        --btn-fab-accent-active: #917c05;
-        --btn-accent-active: #917c05;
-        --btn-brutalist-hover-bg: #b85244;
-        --btn-bg: #241f1c;
-        --btn-hover-bg: #2e2824;
-        --btn-border: #5c5146;
-        --btn-shadow: #100d0b;
-        --btn-text: #d2c7b1;
-        --btn-ghost-hover-bg: rgba(210, 199, 177, 0.08);
-        --btn-tooltip-bg: #d2c7b1;
-        --btn-tooltip-text: #1b1715;
-        --btn-close-hover-bg: #b85244;
-        --btn-close-hover-text: #ffffff;
-    }
-
     .button {
         text-decoration: none;
     }
 
     .action-btn {
-        background: var(--btn-bg, var(--button-bg, #ffffff));
-        border: 2px solid var(--btn-border, var(--border-color, #1a1a1a));
-        box-shadow: 3px 3px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        background: var(--surface-color, var(--surface-color, #ffffff));
+        border: 2px solid var(--border-color, var(--border-color, #1a1a1a));
+        box-shadow: 3px 3px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         padding: 8px 16px;
         display: inline-flex;
         align-items: center;
@@ -165,12 +131,12 @@
     @media (hover: hover) {
         .action-btn:hover:not(:disabled) {
             transform: translate(-1px, -1px);
-            box-shadow: 4px 4px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
-            background: var(--btn-hover-bg, var(--button-hover-bg, #faf8f5));
+            box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
+            background: var(--surface-hover-color, var(--surface-hover-color, #faf8f5));
         }
 
         .action-btn.square:hover:not(:disabled) {
-            background: var(--btn-fab-accent, #faf8f5);
+            background: var(--accent-color, #faf8f5);
         }
     }
 
@@ -178,22 +144,22 @@
     .action-btn.active:not(:disabled),
     .action-btn.open {
         transform: translate(2px, 2px);
-        box-shadow: 1px 1px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
-        background: var(--btn-fab-accent-active, var(--btn-accent-active, #eae6d8));
-        border-color: var(--btn-border, var(--border-color, #1a1a1a));
+        box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
+        background: var(--accent-active-color, var(--accent-active-color, #eae6d8));
+        border-color: var(--border-color, var(--border-color, #1a1a1a));
     }
 
     .action-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
-        box-shadow: 1px 1px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         transform: translate(1px, 1px);
     }
 
     .fab-prompt {
-        background: var(--btn-fab-accent, #faf8f5);
-        border: 3px solid var(--btn-border, var(--border-color, #1a1a1a));
-        box-shadow: 6px 6px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        background: var(--accent-color, #faf8f5);
+        border: 3px solid var(--border-color, var(--border-color, #1a1a1a));
+        box-shadow: 6px 6px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -214,14 +180,14 @@
     @media (hover: hover) {
         .fab-prompt:hover:not(:disabled) {
             transform: translate(-2px, -2px);
-            box-shadow: 8px 8px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
-            background: var(--btn-fab-accent-active, var(--btn-accent-active, #eae6d8));
+            box-shadow: 8px 8px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
+            background: var(--accent-active-color, var(--accent-active-color, #eae6d8));
         }
     }
 
     .fab-prompt:active:not(:disabled) {
         transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        box-shadow: 2px 2px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
     }
 
     .fab-prompt :global(svg) {
@@ -234,7 +200,7 @@
             width: 44px;
             height: 44px;
             border-width: 2px;
-            box-shadow: 4px 4px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+            box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         }
 
         .fab-prompt :global(svg) {
@@ -244,9 +210,9 @@
     }
 
     .brutalist-btn {
-        background: var(--btn-bg, var(--button-bg, #ffffff));
-        border: 2px solid var(--btn-border, var(--border-color, #1a1a1a));
-        box-shadow: 2px 2px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        background: var(--surface-color, var(--surface-color, #ffffff));
+        border: 2px solid var(--border-color, var(--border-color, #1a1a1a));
+        box-shadow: 2px 2px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         padding: 8px 16px;
         display: inline-flex;
         align-items: center;
@@ -267,14 +233,14 @@
     @media (hover: hover) {
         .brutalist-btn:hover:not(:disabled) {
             transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
-            background: var(--btn-brutalist-hover-bg, var(--button-hover-bg, #faf8f5));
+            box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
+            background: var(--accent-color, var(--surface-hover-color, #faf8f5));
         }
     }
 
     .brutalist-btn:active:not(:disabled) {
         transform: translate(2px, 2px);
-        box-shadow: 0px 0px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        box-shadow: 0px 0px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
     }
 
     .ghost-btn {
@@ -299,12 +265,12 @@
 
     @media (hover: hover) {
         .ghost-btn:hover:not(:disabled) {
-            background: var(--btn-ghost-hover-bg, var(--link-hover-bg, rgba(0, 0, 0, 0.05)));
+            background: var(--faded-color, var(--faded-color, rgba(0, 0, 0, 0.05)));
         }
     }
 
     .close-btn {
-        background: var(--button-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         font-family: inherit;
@@ -327,15 +293,15 @@
     @media (hover: hover) {
         .close-btn:hover:not(:disabled) {
             transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
-            background: var(--btn-close-hover-bg, var(--button-hover-bg, #faf8f5));
-            color: var(--btn-close-hover-text, var(--text-color, #1a1a1a));
+            box-shadow: 3px 3px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
+            background: var(--danger-active-color, var(--surface-hover-color, #faf8f5));
+            color: var(--danger-text-color, var(--text-color, #1a1a1a));
         }
     }
 
     .close-btn:active:not(:disabled) {
         transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--btn-shadow, var(--shadow-color, #1a1a1a));
+        box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
     }
 
     .none-btn {
@@ -363,8 +329,8 @@
         bottom: calc(100% + 10px);
         left: 50%;
         transform: translateX(-50%) translateY(4px);
-        background-color: var(--btn-tooltip-bg, var(--tooltip-bg, #1a1a1a));
-        color: var(--btn-tooltip-text, var(--tooltip-text, #f5f0e1));
+        background-color: var(--muted-bg-color, var(--muted-bg-color, #1a1a1a));
+        color: var(--muted-text-color, var(--muted-text-color, #f5f0e1));
         padding: 6px 12px;
         font-size: 11px;
         font-weight: bold;
@@ -389,7 +355,7 @@
         transform: translateX(-50%);
         border-width: 5px;
         border-style: solid;
-        border-color: var(--btn-tooltip-bg, var(--tooltip-bg, #1a1a1a)) transparent transparent
+        border-color: var(--muted-bg-color, var(--muted-bg-color, #1a1a1a)) transparent transparent
             transparent;
     }
 

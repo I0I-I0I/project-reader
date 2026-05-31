@@ -53,7 +53,7 @@
     .input-field:focus {
         transform: translate(-1px, -1px);
         box-shadow: 4px 4px 0 var(--shadow-color);
-        border-color: var(--viewer-accent, #00cec9);
+        border-color: var(--accent-color, #00cec9);
     }
 
     .input-field::placeholder {

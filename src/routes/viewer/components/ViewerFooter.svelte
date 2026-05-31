@@ -73,7 +73,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 16px;
-        background: var(--viewer-footer-bg);
+        background: var(--danger-color);
         background-image: repeating-linear-gradient(
             -45deg,
             transparent,
@@ -89,7 +89,7 @@
     }
 
     .viewer-footer :global(.action-btn) {
-        background: var(--button-bg);
+        background: var(--surface-color);
         min-width: 0;
         flex: 0 1 auto;
         border: 2.5px solid var(--border-color);
@@ -111,7 +111,7 @@
         .viewer-footer :global(.action-btn:hover:not(:disabled)) {
             transform: translate(-2px, -2px);
             box-shadow: 6px 6px 0 var(--shadow-color);
-            background: var(--button-hover-bg, #faf8f5);
+            background: var(--surface-hover-color, #faf8f5);
         }
     }
 
@@ -133,8 +133,8 @@
         gap: 12px;
         font-weight: 900;
         font-size: 15px;
-        color: var(--badge-text, #ffffff);
-        text-shadow: 2px 2px 0 var(--pagination-text-shadow);
+        color: var(--danger-text-color, #ffffff);
+        text-shadow: 2px 2px 0 var(--shadow-color);
         text-transform: uppercase;
         letter-spacing: 1px;
         flex-shrink: 0;
@@ -149,7 +149,7 @@
         font-family: inherit;
         font-size: 16px;
         font-weight: 900;
-        background: var(--button-bg);
+        background: var(--surface-color);
         color: var(--text-color);
         outline: none;
         transition:
@@ -158,11 +158,11 @@
     }
 
     .page-input:focus-visible {
-        border-color: var(--page-input-focus);
+        border-color: var(--accent-color);
     }
 
     .page-input:disabled {
-        background: var(--page-input-disabled-bg);
+        background: var(--disabled-bg-color);
         cursor: not-allowed;
     }
 

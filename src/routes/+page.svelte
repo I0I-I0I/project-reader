@@ -85,7 +85,7 @@
         transform: translateX(-50%);
         width: 44px;
         height: 44px;
-        background: var(--button-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 3px 3px 0 var(--shadow-color);
         border-radius: 50%;
@@ -105,7 +105,7 @@
     .mobile-prompt-btn:active {
         transform: translateX(-50%) translate(1px, 1px);
         box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--button-hover-bg);
+        background: var(--surface-hover-color);
     }
 
     .mobile-prompt-btn svg {

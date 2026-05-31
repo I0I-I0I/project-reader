@@ -413,7 +413,7 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        background: var(--card-bg);
+        background: var(--surface-color);
         overflow: hidden;
     }
 
@@ -432,7 +432,7 @@
         align-items: center;
         padding: 16px;
         border-bottom: 2px solid var(--border-color);
-        background: var(--card-bg);
+        background: var(--surface-color);
     }
 
     .input-wrapper::after {
@@ -560,7 +560,7 @@
         overflow-y: auto;
         padding: 8px;
         gap: 4px;
-        background: var(--card-bg);
+        background: var(--surface-color);
     }
 
     .results-list::-webkit-scrollbar {
@@ -593,7 +593,7 @@
     }
 
     .result-item.selected {
-        background: var(--button-hover-bg);
+        background: var(--surface-hover-color);
         border-color: var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         transform: translate(-1px, -1px);
@@ -601,7 +601,7 @@
 
     @media (hover: hover) {
         .result-item:hover {
-            background: var(--button-hover-bg);
+            background: var(--surface-hover-color);
             border-color: var(--border-color);
             box-shadow: 2px 2px 0 var(--shadow-color);
             transform: translate(-1px, -1px);
@@ -763,7 +763,7 @@
         padding: 1px 5px;
         border: 1.5px solid var(--border-color);
         border-radius: 3px;
-        background: var(--button-bg);
+        background: var(--surface-color);
         color: var(--text-color);
         box-shadow: 1px 1px 0 var(--border-color);
         white-space: nowrap;
@@ -793,7 +793,7 @@
         align-items: center;
         padding: 10px 16px;
         border-top: 2px solid var(--border-color);
-        background: var(--card-hover-bg);
+        background: var(--surface-hover-color);
         font-size: 0.75rem;
         color: var(--text-color);
         opacity: 0.8;

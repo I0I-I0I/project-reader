@@ -182,7 +182,7 @@
 
 <style>
     .card {
-        background: var(--card-bg);
+        background: var(--surface-color);
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
@@ -196,7 +196,7 @@
         .card:hover {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
-            background-color: var(--card-hover-bg);
+            background-color: var(--surface-hover-color);
         }
     }
 
@@ -324,8 +324,8 @@
         position: absolute;
         top: 15px;
         right: 15px;
-        background: var(--badge-bg);
-        color: var(--badge-text);
+        background: var(--danger-active-color);
+        color: var(--danger-text-color);
         font-size: 11px;
         font-weight: bold;
         padding: 4px 10px;
@@ -410,7 +410,7 @@
 
     @media (hover: hover) {
         .card:hover .lock-text {
-            background: var(--viewer-accent, #00cec9);
+            background: var(--accent-color, #00cec9);
             color: var(--text-color, #1a1a1a);
         }
     }
@@ -421,7 +421,7 @@
         left: 0;
         width: 100%;
         height: 28px;
-        background: var(--card-bg);
+        background: var(--surface-color);
         border-top: 2px solid var(--border-color);
         box-sizing: border-box;
         overflow: hidden;
@@ -437,7 +437,7 @@
 
     .progress-bar-fill {
         height: 100%;
-        background: var(--badge-bg);
+        background: var(--danger-active-color);
         transition: width 0.3s ease-in-out;
         box-sizing: border-box;
     }

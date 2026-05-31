@@ -145,7 +145,7 @@
     }
 
     .header-btn-wrapper :global(.action-btn) {
-        background: var(--button-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         padding: 8px 16px;
         box-shadow: 2px 2px 0 var(--shadow-color);
@@ -156,7 +156,7 @@
         .header-btn-wrapper :global(.action-btn:hover) {
             transform: translate(-2px, -2px);
             box-shadow: 4px 4px 0 var(--shadow-color);
-            background: var(--button-hover-bg);
+            background: var(--surface-hover-color);
         }
     }
 

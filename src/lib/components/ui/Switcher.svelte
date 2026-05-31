@@ -97,7 +97,7 @@
         align-items: center;
         gap: 8px;
         border: 2px solid var(--border-color);
-        background: var(--button-bg);
+        background: var(--surface-color);
         color: var(--text-color);
         padding: 6px 12px;
         box-shadow: 2px 2px 0 var(--shadow-color);
@@ -113,7 +113,7 @@
         .switcher-trigger:hover {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--button-hover-bg);
+            background: var(--surface-hover-color);
         }
     }
 
@@ -138,7 +138,7 @@
         margin: 0;
         padding: 4px;
         border: 2px solid var(--border-color);
-        background: var(--dropdown-bg);
+        background: var(--surface-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         min-width: 140px;
         display: flex;
@@ -179,7 +179,7 @@
 
     @media (hover: hover) {
         :global(.dropdown-item:hover) {
-            background: var(--dropdown-hover-bg);
+            background: var(--surface-hover-color);
         }
     }
 

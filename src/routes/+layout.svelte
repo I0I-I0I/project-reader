@@ -172,41 +172,61 @@
         --breakpoint-large-desktop: 1024px;
         --breakpoint-prompt: 640px;
 
-        /* Theme light tokens */
+        /* Base Colors - Light Theme */
         --bg-color: #f5f0e1;
         --text-color: #1a1a1a;
         --border-color: #1a1a1a;
         --shadow-color: #1a1a1a;
-        --card-bg: #ffffff;
-        --card-hover-bg: #faf8f5;
-        --button-bg: #ffffff;
-        --button-hover-bg: #faf8f5;
-        --tooltip-bg: #1a1a1a;
-        --tooltip-text: #f5f0e1;
-        --dropdown-bg: #ffffff;
-        --dropdown-hover-bg: #f5f0e1;
-        --badge-bg: #ff4d4d;
-        --badge-text: #ffffff;
-        --link-hover-bg: rgba(0, 0, 0, 0.05);
+
+        --surface-color: #ffffff;
+        --surface-hover-color: #faf8f5;
+
+        --accent-color: #00cec9;
+        --accent-active-color: #ffde4d;
+
+        --danger-color: #ff7675;
+        --danger-active-color: #ff4d4d;
+        --danger-text-color: #ffffff;
+
+        --muted-bg-color: #1a1a1a;
+        --muted-text-color: #f5f0e1;
+
+        --canvas-bg-color: #fcfcfc;
+        --disabled-bg-color: #eee;
+
+        --overlay-color: rgba(250, 248, 245, 0.85);
+        --faded-color: rgba(0, 0, 0, 0.05);
+        --faded-text-color: #777777;
+        --outline-item-border: rgba(0, 0, 0, 0.15);
     }
 
     :global(html.dark) {
-        /* Theme dark tokens */
-        --bg-color: #1b1715;
-        --text-color: #d2c7b1;
-        --border-color: #5c5146;
-        --shadow-color: #100d0b;
-        --card-bg: #241f1c;
-        --card-hover-bg: #2e2824;
-        --button-bg: #241f1c;
-        --button-hover-bg: #2e2824;
-        --tooltip-bg: #d2c7b1;
-        --tooltip-text: #1b1715;
-        --dropdown-bg: #241f1c;
-        --dropdown-hover-bg: #2e2824;
-        --badge-bg: #b85244;
-        --badge-text: #ffffff;
-        --link-hover-bg: rgba(210, 199, 177, 0.08);
+        /* Base Colors - Dark Theme */
+        --bg-color: #000000;
+        --text-color: #e4e4e7;
+        --border-color: #27272a;
+        --shadow-color: #000000;
+
+        --surface-color: #09090b;
+        --surface-hover-color: #1c1c1e;
+
+        --accent-color: #a78bfa;
+        --accent-active-color: #8b5cf6;
+
+        --danger-color: #f87171;
+        --danger-active-color: #ef4444;
+        --danger-text-color: #ffffff;
+
+        --muted-bg-color: #e4e4e7;
+        --muted-text-color: #000000;
+
+        --canvas-bg-color: #000000;
+        --disabled-bg-color: #18181b;
+
+        --overlay-color: rgba(0, 0, 0, 0.85);
+        --faded-color: rgba(228, 228, 231, 0.08);
+        --faded-text-color: #a1a1aa;
+        --outline-item-border: rgba(228, 228, 231, 0.15);
     }
 
     :global(body) {

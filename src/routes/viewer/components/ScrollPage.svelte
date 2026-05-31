@@ -5,22 +5,13 @@
     import * as m from "$lib/paraglide/messages"
     import { untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
     import * as pdfjs from "pdfjs-dist"
-    import { MEDIA_QUERIES } from "$lib/breakpoints"
     import { onMount } from "svelte"
 
-    let isMobilePhone = $state(false)
     let isShortHeight = $state(false)
 
     onMount(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
-        isMobilePhone = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isMobilePhone = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-
         const heightQuery = window.matchMedia("(max-height: 500px)")
         isShortHeight = heightQuery.matches
 
@@ -30,7 +21,6 @@
         heightQuery.addEventListener("change", heightHandler)
 
         return () => {
-            mediaQuery.removeEventListener("change", handler)
             heightQuery.removeEventListener("change", heightHandler)
         }
     })
@@ -139,7 +129,7 @@
     class="scroll-page"
     style="top: {offsetY}px;"
     data-page={pageNumber}
-    class:mobile-full-width={isMobilePhone && !isShortHeight}
+    class:mobile-full-width={uiStore.isCompact && !isShortHeight}
 >
     <div class="page-container" style={containerStyle}>
         {#if imageUrl}
@@ -216,14 +206,14 @@
     }
 
     :global(.textLayer ::selection) {
-        background: color-mix(in srgb, var(--viewer-accent) 35%, transparent);
+        background: color-mix(in srgb, var(--accent-color) 35%, transparent);
         color: transparent;
     }
 
     .placeholder {
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
-        background: var(--canvas-frame-bg);
+        background: var(--surface-color);
         display: flex;
         align-items: center;
         justify-content: center;

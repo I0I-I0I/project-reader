@@ -106,7 +106,7 @@
     }
 
     .float-card {
-        background: var(--card-bg);
+        background: var(--surface-color);
         border: 3px solid var(--border-color);
         box-shadow: 6px 6px 0 var(--shadow-color);
         width: 100%;

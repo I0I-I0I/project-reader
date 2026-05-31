@@ -6,7 +6,7 @@
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
     import { CONSTANTS, settingsStore } from "$lib/settingsStore.svelte"
-    import { MEDIA_QUERIES } from "$lib/breakpoints"
+    import { uiStore } from "$lib/uiStore.svelte"
     import { onMount } from "svelte"
 
     let {
@@ -23,18 +23,9 @@
         onClose: () => void
     }>()
 
-    let isMobilePhone = $state(false)
     let isShortHeight = $state(false)
 
     onMount(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
-        isMobilePhone = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isMobilePhone = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-
         const heightQuery = window.matchMedia("(max-height: 500px)")
         isShortHeight = heightQuery.matches
 
@@ -44,7 +35,6 @@
         heightQuery.addEventListener("change", heightHandler)
 
         return () => {
-            mediaQuery.removeEventListener("change", handler)
             heightQuery.removeEventListener("change", heightHandler)
         }
     })
@@ -68,7 +58,7 @@
     </div>
     <div class="header-actions">
         {#if isLoaded}
-            {#if !isMobilePhone || isShortHeight}
+            {#if !uiStore.isCompact || isShortHeight}
                 <Button
                     variant="action"
                     square={true}
@@ -98,7 +88,7 @@
             {/if}
             <Button
                 variant="action"
-                square={isMobilePhone}
+                square={uiStore.isCompact}
                 open={isSettingsOpen}
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
                 aria-label={m.settings()}
@@ -110,7 +100,7 @@
 
         <Button
             variant="close"
-            square={isMobilePhone}
+            square={uiStore.isCompact}
             onclick={onClose}
             aria-label={m.close_document()}
         >
@@ -125,7 +115,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: var(--viewer-header-bg);
+        background: var(--accent-active-color);
         background-image: repeating-linear-gradient(
             45deg,
             transparent,
@@ -138,7 +128,7 @@
         padding-top: calc(16px + env(safe-area-inset-top));
         padding-left: calc(24px + env(safe-area-inset-left));
         padding-right: calc(24px + env(safe-area-inset-right));
-        color: var(--doc-text-color);
+        color: var(--text-color);
         position: relative;
     }
 
@@ -150,8 +140,8 @@
     }
 
     .file-badge {
-        background: var(--doc-file-badge-bg);
-        color: var(--doc-file-badge-text);
+        background: var(--muted-bg-color);
+        color: var(--muted-text-color);
         font-size: 11px;
         font-weight: 900;
         padding: 4px 10px;
@@ -164,7 +154,7 @@
     .file-name {
         font-size: 16px;
         font-weight: 900;
-        color: var(--doc-text-color);
+        color: var(--text-color);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

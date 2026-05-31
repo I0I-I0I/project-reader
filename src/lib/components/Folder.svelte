@@ -84,7 +84,7 @@
 
 <style>
     .card {
-        background: var(--card-bg);
+        background: var(--surface-color);
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
@@ -98,7 +98,7 @@
         .card:hover {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
-            background-color: var(--card-hover-bg);
+            background-color: var(--surface-hover-color);
         }
     }
 

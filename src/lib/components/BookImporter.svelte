@@ -193,7 +193,7 @@
 <style>
     .reader-card {
         grid-column: 1 / -1;
-        background: var(--card-bg, #ffffff);
+        background: var(--surface-color, #ffffff);
         border: 3px solid var(--border-color);
         box-shadow: 8px 8px 0 var(--shadow-color);
         margin-top: 20px;
@@ -205,7 +205,7 @@
 
     /* Neo-brutalist button style */
     .btn {
-        background: var(--button-bg, #ffffff);
+        background: var(--surface-color, #ffffff);
         border: 2px solid var(--border-color);
         font-family: inherit;
         font-size: 13px;
@@ -227,7 +227,7 @@
         .btn:hover:not(:disabled) {
             transform: translate(-1px, -1px);
             box-shadow: 4px 4px 0 var(--shadow-color);
-            background: var(--button-hover-bg, #faf8f5);
+            background: var(--surface-hover-color, #faf8f5);
         }
     }
 
@@ -247,7 +247,7 @@
     .upload-zone {
         padding: 48px;
         text-align: center;
-        background: var(--card-bg, #ffffff);
+        background: var(--surface-color, #ffffff);
     }
 
     .dashed-border {
@@ -260,13 +260,13 @@
     }
 
     .upload-icon-wrapper {
-        background: var(--badge-bg);
+        background: var(--danger-active-color);
         border: 2.5px solid var(--border-color);
         padding: 16px;
         border-radius: 50%;
         display: inline-flex;
         box-shadow: 3px 3px 0 var(--shadow-color);
-        color: var(--badge-text, #ffffff);
+        color: var(--danger-text-color, #ffffff);
         margin-bottom: 8px;
     }
 
@@ -290,21 +290,21 @@
 
     .upload-btn {
         margin-top: 8px;
-        background: var(--badge-bg);
-        color: var(--badge-text, #ffffff);
+        background: var(--danger-active-color);
+        color: var(--danger-text-color, #ffffff);
         border-color: var(--border-color);
     }
 
     @media (hover: hover) {
         .upload-btn:hover {
-            background: var(--badge-bg);
+            background: var(--danger-active-color);
             opacity: 0.9;
         }
     }
 
     /* Card variant styles */
     .card {
-        background: var(--card-bg);
+        background: var(--surface-color);
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
@@ -326,7 +326,7 @@
         .card:hover {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
-            background-color: var(--card-hover-bg);
+            background-color: var(--surface-hover-color);
         }
     }
 
@@ -459,21 +459,21 @@
 
     /* Drag and drop active states */
     .card.drag-active {
-        background-color: var(--card-hover-bg);
-        border-color: var(--badge-bg);
+        background-color: var(--surface-hover-color);
+        border-color: var(--danger-active-color);
         transform: translate(-6px, -6px);
         box-shadow: 8px 8px 0 var(--shadow-color);
     }
 
     .reader-card.drag-active {
-        border-color: var(--badge-bg);
-        background-color: var(--card-hover-bg);
+        border-color: var(--danger-active-color);
+        background-color: var(--surface-hover-color);
         transform: translate(-4px, -4px);
         box-shadow: 12px 12px 0 var(--shadow-color);
     }
 
     .reader-card.drag-active .dashed-border {
-        border-color: var(--badge-bg);
+        border-color: var(--danger-active-color);
         background: rgba(255, 77, 77, 0.04);
     }
 
@@ -496,8 +496,8 @@
     .reader-card.drag-active .upload-icon-wrapper,
     .card.drag-active .card-icon {
         animation: float 1.2s ease-in-out infinite;
-        border-color: var(--badge-bg);
-        background: var(--badge-bg);
-        color: var(--badge-text);
+        border-color: var(--danger-active-color);
+        background: var(--danger-active-color);
+        color: var(--danger-text-color);
     }
 </style>

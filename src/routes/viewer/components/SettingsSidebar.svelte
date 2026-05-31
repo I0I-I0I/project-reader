@@ -20,25 +20,16 @@
     import type { Pathname } from "$app/types"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/locale"
-    import { MEDIA_QUERIES } from "$lib/breakpoints"
     import { browser } from "$app/environment"
+    import { uiStore } from "$lib/uiStore.svelte"
 
     let { onClose } = $props<{
         onClose: () => void
     }>()
 
-    let isMobilePhone = $state(browser ? window.matchMedia(MEDIA_QUERIES.MOBILE).matches : false)
     let isShortHeight = $state(browser ? window.matchMedia("(max-height: 500px)").matches : false)
 
     onMount(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.MOBILE)
-        isMobilePhone = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isMobilePhone = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-
         const heightQuery = window.matchMedia("(max-height: 500px)")
         isShortHeight = heightQuery.matches
 
@@ -48,7 +39,6 @@
         heightQuery.addEventListener("change", heightHandler)
 
         return () => {
-            mediaQuery.removeEventListener("change", handler)
             heightQuery.removeEventListener("change", heightHandler)
         }
     })
@@ -179,7 +169,7 @@
             </div>
         </section>
 
-        {#if !isMobilePhone || isShortHeight}
+        {#if !uiStore.isCompact || isShortHeight}
             <section class="settings-section">
                 <h4 class="section-title">{m.page()}</h4>
                 <div class="zoom-controls">
@@ -305,7 +295,7 @@
         top: 0;
         bottom: 0;
         width: 280px;
-        background: var(--sidebar-content-bg);
+        background: var(--surface-color);
         border-left: 3px solid var(--border-color);
         display: flex;
         flex-direction: column;
@@ -319,7 +309,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: var(--sidebar-header-bg);
+        background: var(--accent-active-color);
         border-bottom: 3px solid var(--border-color);
         padding: 10px 16px;
         padding-top: calc(10px + env(safe-area-inset-top));
@@ -331,7 +321,7 @@
         margin: 0;
         font-size: 14px;
         font-weight: 900;
-        color: var(--doc-text-color);
+        color: var(--text-color);
         letter-spacing: 0.5px;
         text-transform: uppercase;
     }
@@ -356,7 +346,7 @@
         margin: 0;
         font-size: 11px;
         font-weight: 900;
-        color: var(--no-outline-text);
+        color: var(--faded-text-color);
         text-transform: uppercase;
         letter-spacing: 1px;
     }
@@ -375,17 +365,17 @@
     }
 
     :global(.option-btn.active) {
-        background: var(--btn-accent-active, var(--viewer-accent-active)) !important;
+        background: var(--accent-active-color, var(--accent-active-color)) !important;
         transform: translate(2px, 2px) !important;
-        box-shadow: 1px 1px 0 var(--btn-shadow, var(--shadow-color)) !important;
-        border-color: var(--btn-border, var(--border-color)) !important;
+        box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color)) !important;
+        border-color: var(--border-color, var(--border-color)) !important;
     }
 
     .zoom-controls {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: var(--canvas-frame-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         padding: 8px;
     }
@@ -394,7 +384,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--button-bg);
+        background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         padding: 0 8px;
@@ -404,8 +394,8 @@
     }
 
     .scale-input-container:focus-within {
-        border-color: var(--viewer-accent-active, var(--border-color));
-        background: var(--viewer-accent, var(--button-bg));
+        border-color: var(--accent-active-color, var(--border-color));
+        background: var(--accent-color, var(--surface-color));
         transform: translate(-1px, -1px);
         box-shadow: 3px 3px 0 var(--shadow-color);
     }
