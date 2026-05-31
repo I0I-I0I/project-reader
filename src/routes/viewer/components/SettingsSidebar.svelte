@@ -140,37 +140,42 @@
 >
     <div class="sidebar-header">
         <h3>{m.settings()}</h3>
-        <button class="close-sidebar-btn" onclick={onClose} aria-label={m.close()}> × </button>
+        <Button variant="close" size="small" square={true} onclick={onClose} aria-label={m.close()}>
+            ×
+        </Button>
     </div>
 
     <div class="sidebar-content">
         <section class="settings-section">
             <h4 class="section-title">{m.layout()}</h4>
             <div class="layout-options">
-                <button
-                    class="option-btn"
-                    class:active={settingsStore.layout === "single"}
+                <Button
+                    class={"option-btn" + (settingsStore.layout === "single" ? " active" : "")}
+                    variant="action"
+                    size="default"
                     onclick={() => (settingsStore.layout = "single")}
                 >
                     <SinglePageIcon />
                     <span>{m.single_page()}</span>
-                </button>
-                <button
-                    class="option-btn"
-                    class:active={settingsStore.layout === "split"}
+                </Button>
+                <Button
+                    class={"option-btn" + (settingsStore.layout === "split" ? " active" : "")}
+                    variant="action"
+                    size="default"
                     onclick={() => (settingsStore.layout = "split")}
                 >
                     <SplitPagesIcon />
                     <span>{m.split_pages()}</span>
-                </button>
-                <button
-                    class="option-btn"
-                    class:active={settingsStore.layout === "scroll"}
+                </Button>
+                <Button
+                    class={"option-btn" + (settingsStore.layout === "scroll" ? " active" : "")}
+                    variant="action"
+                    size="default"
                     onclick={() => (settingsStore.layout = "scroll")}
                 >
                     <ScrollPagesIcon />
                     <span>{m.scroll_pages()}</span>
-                </button>
+                </Button>
             </div>
         </section>
 
@@ -178,7 +183,14 @@
             <section class="settings-section">
                 <h4 class="section-title">{m.page()}</h4>
                 <div class="zoom-controls">
-                    <Button onclick={downScale} aria-label={m.zoom_out()} class="zoom-btn">
+                    <Button
+                        variant="action"
+                        size="default"
+                        square={true}
+                        onclick={downScale}
+                        aria-label={m.zoom_out()}
+                        class="zoom-btn"
+                    >
                         <MinusIcon />
                     </Button>
                     <div class="scale-input-container">
@@ -194,7 +206,14 @@
                         />
                         <span class="percent-sign">%</span>
                     </div>
-                    <Button onclick={upScale} aria-label={m.zoom_in()} class="zoom-btn">
+                    <Button
+                        variant="action"
+                        size="default"
+                        square={true}
+                        onclick={upScale}
+                        aria-label={m.zoom_in()}
+                        class="zoom-btn"
+                    >
                         <PlusIcon />
                     </Button>
                 </div>
@@ -204,13 +223,27 @@
         <section class="settings-section">
             <h4 class="section-title">{m.quality()}</h4>
             <div class="zoom-controls">
-                <Button onclick={downQuality} aria-label={m.quality_down()} class="zoom-btn">
+                <Button
+                    variant="action"
+                    size="default"
+                    square={true}
+                    onclick={downQuality}
+                    aria-label={m.quality_down()}
+                    class="zoom-btn"
+                >
                     <MinusIcon />
                 </Button>
                 <div class="scale-input-container">
                     <span>{settingsStore.quality}</span>
                 </div>
-                <Button onclick={upQuality} aria-label={m.quality_up()} class="zoom-btn">
+                <Button
+                    variant="action"
+                    size="default"
+                    square={true}
+                    onclick={upQuality}
+                    aria-label={m.quality_up()}
+                    class="zoom-btn"
+                >
                     <PlusIcon />
                 </Button>
             </div>
@@ -220,14 +253,15 @@
             <h4 class="section-title">{m.theme()}</h4>
             <div class="theme-options">
                 {#each THEMES as { value, label, Icon }}
-                    <button
-                        class="option-btn"
-                        class:active={settingsStore.theme === value}
+                    <Button
+                        class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
+                        variant="action"
+                        size="default"
                         onclick={() => (settingsStore.theme = value)}
                     >
                         <Icon class="theme-icon" />
                         <span>{label()}</span>
-                    </button>
+                    </Button>
                 {/each}
             </div>
         </section>
@@ -248,15 +282,16 @@
             <h4 class="section-title">{m.language_switcher()}</h4>
             <div class="language-options">
                 {#each locales as locale (locale)}
-                    <a
+                    <Button
                         data-sveltekit-reload
                         href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}
-                        class="option-btn"
-                        class:active={getLocale() === locale}
+                        class={"option-btn" + (getLocale() === locale ? " active" : "")}
+                        variant="action"
+                        size="default"
                     >
                         <GlobeIcon />
                         <span>{getLanguageName(locale)}</span>
-                    </a>
+                    </Button>
                 {/each}
             </div>
         </section>
@@ -301,38 +336,6 @@
         text-transform: uppercase;
     }
 
-    .close-sidebar-btn {
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        font-family: inherit;
-        font-size: 14px;
-        font-weight: 800;
-        width: 26px;
-        height: 26px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 0;
-    }
-
-    @media (hover: hover) {
-        .close-sidebar-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--close-sidebar-hover-bg);
-            color: var(--close-sidebar-hover-text);
-        }
-    }
-
-    .close-sidebar-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-    }
-
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -367,43 +370,15 @@
         gap: 8px;
     }
 
-    .option-btn {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        padding: 10px 14px;
-        font-family: inherit;
-        font-size: 12px;
-        font-weight: 800;
-        color: var(--text-color);
-        cursor: pointer;
-        text-transform: uppercase;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        text-decoration: none;
-        box-sizing: border-box;
+    :global(.option-btn) {
+        justify-content: flex-start !important;
     }
 
-    @media (hover: hover) {
-        .option-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--viewer-accent);
-        }
-    }
-
-    .option-btn.active {
-        background: var(--viewer-accent-active);
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-    }
-
-    .option-btn :global(svg) {
-        width: 18px;
-        height: 18px;
+    :global(.option-btn.active) {
+        background: var(--btn-accent-active, var(--viewer-accent-active)) !important;
+        transform: translate(2px, 2px) !important;
+        box-shadow: 1px 1px 0 var(--btn-shadow, var(--shadow-color)) !important;
+        border-color: var(--btn-border, var(--border-color)) !important;
     }
 
     .zoom-controls {

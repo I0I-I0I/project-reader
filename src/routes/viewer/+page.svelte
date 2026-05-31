@@ -2,6 +2,7 @@
     import PDFDocument from "$lib/pdf"
     import type { FlatHeading } from "$lib/pdf"
     import Spinner from "$lib/components/ui/Spinner.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/viewerStore.svelte"
@@ -686,9 +687,12 @@
                         />
 
                         {#if isLoaded}
-                            <button
-                                class="fab-prompt"
-                                class:hidden-toolbars={!uiStore.isToolbarsVisible}
+                            <Button
+                                size="large"
+                                variant="fab"
+                                class="fab-prompt {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
                                     uiStore.isPromptOpen = true
@@ -708,9 +712,11 @@
                                 >
                                     <path d="M5 7l5 5-5 5M12 17h7" />
                                 </svg>
-                            </button>
+                            </Button>
 
-                            <button
+                            <Button
+                                variant="fab"
+                                size="large"
                                 class="fab-toggle"
                                 onclick={(e) => {
                                     e.stopPropagation()
@@ -746,7 +752,7 @@
                                         <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />
                                     </svg>
                                 {/if}
-                            </button>
+                            </Button>
                         {/if}
                     {/if}
                 </div>
@@ -807,8 +813,6 @@
         --doc-file-badge-bg: #1a1a1a;
         --doc-file-badge-text: #ffffff;
         --pane-loader-bg: rgba(250, 248, 245, 0.85);
-        --close-sidebar-hover-bg: #ff7675;
-        --close-sidebar-hover-text: #ffffff;
         --pagination-text-shadow: #1a1a1a;
         --no-outline-text: #777777;
     }
@@ -816,25 +820,23 @@
     :global(html.dark) .reader-card {
         /* Dark theme local styling custom properties */
         --viewer-header-bg: #2e2824;
-        --viewer-footer-bg: #b85244;
-        --viewer-accent: #b85244;
-        --viewer-accent-active: #5c5146;
+        --viewer-footer-bg: #8c3a32;
+        --viewer-accent: #7b9c7a;
+        --viewer-accent-active: #917c05;
         --viewer-body-bg: #1b1715;
         --canvas-pane-bg: #100d0b;
         --canvas-frame-bg: #241f1c;
         --sidebar-content-bg: #241f1c;
         --sidebar-header-bg: #2e2824;
-        --outline-hover-bg: #b85244;
+        --outline-hover-bg: #7b9c7a;
         --outline-active-bg: #5c5146;
         --outline-item-border: rgba(210, 199, 177, 0.15);
-        --page-input-focus: #b85244;
+        --page-input-focus: #38ada9;
         --page-input-disabled-bg: #1b1715;
         --doc-text-color: var(--text-color);
         --doc-file-badge-bg: #5c5146;
         --doc-file-badge-text: #d2c7b1;
         --pane-loader-bg: rgba(27, 23, 21, 0.85);
-        --close-sidebar-hover-bg: #b85244;
-        --close-sidebar-hover-text: #ffffff;
         --pagination-text-shadow: #100d0b;
         --no-outline-text: #a09580;
     }
@@ -884,117 +886,33 @@
         cursor: pointer;
     }
 
-    .fab-prompt {
+    :global(.fab-prompt) {
         position: absolute;
         bottom: calc(24px + 50px + 16px);
         right: 24px;
-        width: 50px;
-        height: 50px;
-        background: var(--viewer-accent);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        z-index: 100;
-        transition:
-            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-            opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        color: var(--text-color);
-        padding: 0;
     }
 
-    .fab-prompt.hidden-toolbars {
+    :global(.fab-prompt.hidden-toolbars) {
         transform: translateX(100px);
         opacity: 0;
         pointer-events: none;
     }
 
-    @media (hover: hover) {
-        .fab-prompt:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 8px 8px 0 var(--shadow-color);
-            background: var(--viewer-accent-active);
-        }
-    }
-
-    .fab-prompt:active {
-        transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-    }
-
-    .fab-prompt svg {
-        width: 22px;
-        height: 22px;
-    }
-
-    .fab-toggle {
+    :global(.fab-toggle) {
         position: absolute;
         bottom: 24px;
         right: 24px;
-        width: 50px;
-        height: 50px;
-        background: var(--viewer-accent);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        z-index: 100;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        color: var(--text-color);
-        padding: 0;
-    }
-
-    @media (hover: hover) {
-        .fab-toggle:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 8px 8px 0 var(--shadow-color);
-            background: var(--viewer-accent-active);
-        }
-    }
-
-    .fab-toggle:active {
-        transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-    }
-
-    .fab-toggle svg {
-        width: 24px;
-        height: 24px;
     }
 
     @media (max-width: 800px), (max-height: 500px) {
-        .fab-prompt {
+        :global(.fab-prompt) {
             bottom: calc(16px + 44px + 12px);
             right: 16px;
-            width: 44px;
-            height: 44px;
-            border-width: 2px;
-            box-shadow: 4px 4px 0 var(--shadow-color);
         }
 
-        .fab-prompt svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .fab-toggle {
+        :global(.fab-toggle) {
             bottom: 16px;
             right: 16px;
-            width: 44px;
-            height: 44px;
-            border-width: 2px;
-            box-shadow: 4px 4px 0 var(--shadow-color);
-        }
-
-        .fab-toggle svg {
-            width: 20px;
-            height: 20px;
         }
     }
 

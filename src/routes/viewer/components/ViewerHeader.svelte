@@ -53,14 +53,15 @@
 <div class="viewer-header">
     <div class="doc-info">
         {#if isLoaded}
-            <button
-                class="burger-btn"
+            <Button
+                variant="action"
+                square={true}
+                open={isOutlineOpen}
                 onclick={() => (isOutlineOpen = !isOutlineOpen)}
                 aria-label={m.outline()}
-                class:open={isOutlineOpen}
             >
                 <MenuIcon />
-            </button>
+            </Button>
         {/if}
         <span class="file-badge">PDF</span>
         <span class="file-name" title={name}>{name || "document.pdf"}</span>
@@ -68,8 +69,9 @@
     <div class="header-actions">
         {#if isLoaded}
             {#if !isMobilePhone || isShortHeight}
-                <button
-                    class="header-zoom-btn"
+                <Button
+                    variant="action"
+                    square={true}
                     onclick={() =>
                         (settingsStore.scale = Math.max(
                             settingsStore.scale - 0.1,
@@ -79,9 +81,10 @@
                     title={m.zoom_out ? m.zoom_out() : "Zoom Out"}
                 >
                     <MinusIcon />
-                </button>
-                <button
-                    class="header-zoom-btn"
+                </Button>
+                <Button
+                    variant="action"
+                    square={true}
                     onclick={() =>
                         (settingsStore.scale = Math.min(
                             settingsStore.scale + 0.1,
@@ -91,21 +94,28 @@
                     title={m.zoom_in ? m.zoom_in() : "Zoom In"}
                 >
                     <PlusIcon />
-                </button>
+                </Button>
             {/if}
-            <button
-                class="burger-btn settings-btn"
+            <Button
+                variant="action"
+                square={isMobilePhone}
+                open={isSettingsOpen}
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
                 aria-label={m.settings()}
-                class:open={isSettingsOpen}
             >
                 <SettingsIcon />
-            </button>
+                <span class="settings-text">{m.settings()}</span>
+            </Button>
         {/if}
 
-        <Button onclick={onClose} aria-label={m.close_document()}>
-            <span class="close-text">{m.close()} ×</span>
+        <Button
+            variant="close"
+            square={isMobilePhone}
+            onclick={onClose}
+            aria-label={m.close_document()}
+        >
             <span class="close-icon">×</span>
+            <span class="close-text">{m.close()}</span>
         </Button>
     </div>
 </div>
@@ -168,115 +178,11 @@
         gap: 12px;
     }
 
-    .header-actions :global(.action-btn) {
-        background: var(--button-bg);
-        font-size: 12px;
-        font-weight: 800;
-        padding: 8px 14px;
-        border: 2.5px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        color: var(--text-color);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    @media (hover: hover) {
-        .header-actions :global(.action-btn:hover) {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--button-hover-bg, #faf8f5);
-        }
-    }
-
-    .header-actions :global(.action-btn:active) {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-    }
-
-    .burger-btn {
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        width: 36px;
-        height: 36px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 0;
-        color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-right: 8px;
-        flex-shrink: 0;
-    }
-
-    @media (hover: hover) {
-        .burger-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--viewer-accent);
-        }
-    }
-
-    .burger-btn:active,
-    .burger-btn.open {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--viewer-accent-active);
-    }
-
-    .settings-btn {
-        display: inline-flex;
-        margin-right: 0;
-        margin-left: 4px;
-    }
-
-    .header-zoom-btn {
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        width: 36px;
-        height: 36px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 0;
-        color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-right: 4px;
-        flex-shrink: 0;
-    }
-
-    .header-zoom-btn :global(svg) {
-        width: 16px;
-        height: 16px;
-    }
-
-    @media (hover: hover) {
-        .header-zoom-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--viewer-accent);
-        }
-    }
-
-    @media (width >= 1200px) {
-        .header-zoom-btn {
-            display: none;
-        }
-    }
-
-    .header-zoom-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--viewer-accent-active);
-    }
-
     .close-icon {
-        display: none;
+        display: inline-block;
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1;
     }
 
     @media (max-width: 800px), (max-height: 500px) {
@@ -288,17 +194,6 @@
             border-bottom-width: 2px;
         }
 
-        .burger-btn {
-            width: 32px;
-            height: 32px;
-            margin-right: 4px;
-        }
-
-        .settings-btn {
-            margin-right: 0;
-            margin-left: 4px;
-        }
-
         .file-name {
             font-size: 12px;
         }
@@ -308,24 +203,9 @@
             padding: 2px 6px;
         }
 
+        .settings-text,
         .close-text {
             display: none;
-        }
-
-        .close-icon {
-            display: inline-block;
-            font-size: 16px;
-            font-weight: 900;
-            line-height: 1;
-        }
-
-        .header-actions :global(.action-btn) {
-            min-width: unset;
-            padding: 4px 8px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
     }
 
@@ -344,18 +224,6 @@
         .file-badge {
             font-size: 9px;
             padding: 2px 6px;
-        }
-
-        .burger-btn,
-        .settings-btn {
-            width: 30px;
-            height: 30px;
-        }
-
-        .header-actions :global(.action-btn) {
-            height: 30px;
-            padding: 4px 10px;
-            font-size: 11px;
         }
     }
 

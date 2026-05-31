@@ -6,6 +6,7 @@
     import { useKeymap } from "$lib/keymaps"
     import { getContext, untrack } from "svelte"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import Button from "$lib/components/ui/Button.svelte"
 
     let {
         isOutlineLoading,
@@ -258,9 +259,15 @@
 >
     <div class="sidebar-header">
         <h3>{m.outline()}</h3>
-        <button class="close-sidebar-btn" onclick={onCloseOutline} aria-label={m.close()}>
+        <Button
+            variant="close"
+            size="small"
+            square={true}
+            onclick={onCloseOutline}
+            aria-label={m.close()}
+        >
             ×
-        </button>
+        </Button>
     </div>
 
     {#if outlineList && outlineList.length > 0}
@@ -361,38 +368,6 @@
         color: var(--doc-text-color);
         letter-spacing: 0.5px;
         text-transform: uppercase;
-    }
-
-    .close-sidebar-btn {
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        font-family: inherit;
-        font-size: 14px;
-        font-weight: 800;
-        width: 26px;
-        height: 26px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--text-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 0;
-    }
-
-    @media (hover: hover) {
-        .close-sidebar-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--close-sidebar-hover-bg);
-            color: var(--close-sidebar-hover-text);
-        }
-    }
-
-    .close-sidebar-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
     .sidebar-content {

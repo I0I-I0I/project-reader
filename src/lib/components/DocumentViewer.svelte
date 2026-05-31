@@ -228,14 +228,15 @@
         <div class="viewer-header">
             <div class="doc-info">
                 {#if isLoaded}
-                    <button
-                        class="burger-btn"
+                    <Button
+                        variant="action"
+                        square={true}
+                        open={isOutlineOpen}
                         onclick={() => (isOutlineOpen = !isOutlineOpen)}
                         aria-label={m.outline()}
-                        class:open={isOutlineOpen}
                     >
                         <MenuIcon />
-                    </button>
+                    </Button>
                 {/if}
                 <span class="file-badge">PDF</span>
                 <span class="file-name" title={name}>{name || "document.pdf"}</span>
@@ -398,17 +399,17 @@
         /* Dark theme local styling custom properties */
         --viewer-header-bg: #2e2824;
         --viewer-footer-bg: #b85244;
-        --viewer-accent: #b85244;
-        --viewer-accent-active: #5c5146;
+        --viewer-accent: #38ada9;
+        --viewer-accent-active: #78685a;
         --viewer-body-bg: #1b1715;
         --canvas-pane-bg: #100d0b;
         --canvas-frame-bg: #241f1c;
         --sidebar-content-bg: #241f1c;
         --sidebar-header-bg: #2e2824;
-        --outline-hover-bg: #b85244;
+        --outline-hover-bg: #38ada9;
         --outline-active-bg: #5c5146;
         --outline-item-border: rgba(210, 199, 177, 0.15);
-        --page-input-focus: #b85244;
+        --page-input-focus: #38ada9;
         --page-input-disabled-bg: #1b1715;
         --doc-text-color: var(--text-color);
         --doc-file-badge-bg: #5c5146;
@@ -638,41 +639,6 @@
     .page-input:disabled {
         background: var(--page-input-disabled-bg);
         cursor: not-allowed;
-    }
-
-    .burger-btn {
-        background: var(--button-bg);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        width: 36px;
-        height: 36px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 0;
-        color: var(--text-color);
-        transition:
-            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-right: 8px;
-        flex-shrink: 0;
-    }
-
-    @media (hover: hover) {
-        .burger-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            background: var(--viewer-accent);
-        }
-    }
-
-    .burger-btn:active,
-    .burger-btn.open {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--viewer-accent-active);
     }
 
     .outline-sidebar {

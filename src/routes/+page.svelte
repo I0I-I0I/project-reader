@@ -8,6 +8,7 @@
     import { viewerStore } from "$lib/viewerStore.svelte"
     import Card from "$lib/components/Card.svelte"
     import { uiStore } from "$lib/uiStore.svelte"
+    import Folder from "$lib/components/Folder.svelte"
 
     const books = $derived(viewerStore.getBooks())
 </script>
@@ -20,6 +21,7 @@
 
     <main class="grid">
         {#if books.length !== 0}
+            <Folder type="new-folder" />
             {#each books as book (book.id)}
                 <Card {book} kind="book" extension="pdf" Icon={BookIcon} />
             {/each}

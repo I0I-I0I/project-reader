@@ -8,6 +8,7 @@
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/settingsStore.svelte"
+    import Button from "./ui/Button.svelte"
 
     interface Props extends HTMLButtonAttributes {
         book: Book
@@ -166,14 +167,16 @@
     </button>
 
     {#if kind === "book"}
-        <button
-            type="button"
+        <Button
+            variant="fab"
+            square={true}
+            size="large"
             class="remove-btn"
             aria-label={m.remove_book ? m.remove_book() : "Remove book"}
             onclick={onRemove}
         >
             <TrashIcon />
-        </button>
+        </Button>
     {/if}
 </div>
 
@@ -333,51 +336,24 @@
         text-transform: uppercase;
     }
 
-    .remove-btn {
+    :global(.remove-btn) {
         position: absolute;
         top: 15px;
         left: 15px;
-        background: var(--badge-bg);
-        color: var(--badge-text);
-        border: 2.5px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        padding: 6px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 12;
-        transition:
-            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-            opacity 0.2s ease-out;
         opacity: 0;
         pointer-events: none;
     }
 
-    .remove-btn:focus-within {
+    :global(.remove-btn):focus-within {
         opacity: 1;
         pointer-events: auto;
     }
 
     @media (hover: hover) {
-        .card:hover .remove-btn {
+        .card:hover :global(.remove-btn) {
             opacity: 1;
             pointer-events: auto;
         }
-    }
-
-    @media (hover: hover) {
-        .remove-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-            filter: brightness(1.15);
-        }
-    }
-
-    .remove-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
     .lock-overlay {
@@ -509,20 +485,17 @@
             padding: 2px 6px;
         }
 
-        .remove-btn {
+        :global(.remove-btn) {
             opacity: 1;
-            pointer-events: auto;
             top: 8px;
             left: 8px;
-            padding: 4px;
-            border-width: 1.5px;
         }
 
-        .remove-btn :global(svg) {
-            width: 14px;
-            height: 14px;
-            stroke-width: 2.5;
-        }
+        /* .remove-btn :global(svg) { */
+        /*     width: 14px; */
+        /*     height: 14px; */
+        /*     stroke-width: 2.5; */
+        /* } */
 
         .lock-icon {
             width: 20px;

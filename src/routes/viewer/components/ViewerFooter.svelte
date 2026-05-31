@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/ui/Button.svelte"
+    import { uiStore } from "$lib/uiStore.svelte"
 
     let {
         currentPage = $bindable(),
@@ -29,6 +30,8 @@
 
 <div class="viewer-footer">
     <Button
+        variant="action"
+        size={uiStore.isCompact ? "default" : "large"}
         onclick={prevPage}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
@@ -53,6 +56,8 @@
         {m.of_pages({ total: totalPages })}
     </div>
     <Button
+        variant="action"
+        size={uiStore.isCompact ? "default" : "large"}
         onclick={nextPage}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
