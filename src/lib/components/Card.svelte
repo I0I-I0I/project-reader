@@ -339,7 +339,7 @@
     }
 
     :global(.remove-btn) {
-        position: absolute;
+        position: absolute !important;
         top: 15px;
         left: 15px;
         opacity: 0;

@@ -882,7 +882,7 @@
     }
 
     :global(.viewer-fab-btn) {
-        position: absolute;
+        position: absolute !important;
         right: 24px;
     }
 

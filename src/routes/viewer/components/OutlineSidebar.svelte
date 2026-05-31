@@ -321,10 +321,12 @@
         {:else}
             <nav class="outline-nav">
                 {#each filteredOutlineList as heading, index}
-                    <button
-                        class="outline-item depth-{heading.depth}"
-                        class:active={activeHeadings.has(heading)}
-                        class:selected={index === selectedIndex}
+                    <Button
+                        variant="none"
+                        size="none"
+                        class="outline-item depth-{heading.depth} {activeHeadings.has(heading)
+                            ? 'active'
+                            : ''} {index === selectedIndex ? 'selected' : ''}"
                         onclick={() => {
                             selectHeading(heading)
                             selectedIndex = index
@@ -337,7 +339,7 @@
                         {#if heading.pageNumber !== undefined}
                             <span class="heading-page">{heading.pageNumber}</span>
                         {/if}
-                    </button>
+                    </Button>
                 {/each}
             </nav>
         {/if}
@@ -381,7 +383,7 @@
         border-right: 3px solid var(--border-color);
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: visible;
         z-index: 200;
         box-sizing: border-box;
         box-shadow: 10px 0 0 rgba(0, 0, 0, 0.08);
@@ -397,6 +399,8 @@
         padding-top: calc(10px + env(safe-area-inset-top));
         padding-left: calc(16px + env(safe-area-inset-left));
         flex-shrink: 0;
+        position: relative;
+        z-index: 10;
     }
 
     .sidebar-header h3 {
@@ -436,44 +440,44 @@
         padding: 8px 0;
     }
 
-    .outline-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        background: none;
-        border: none;
-        border-bottom: 1px dashed var(--outline-item-border);
-        padding: 10px 16px;
-        padding-left: calc(16px + var(--depth) * 12px);
-        font-family: inherit;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--text-color);
-        cursor: pointer;
-        text-align: left;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        box-sizing: border-box;
+    .outline-nav :global(.outline-item) {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        background: none !important;
+        border: none !important;
+        border-bottom: 1px dashed var(--outline-item-border) !important;
+        padding: 10px 16px !important;
+        padding-left: calc(16px + var(--depth) * 12px) !important;
+        font-family: inherit !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: var(--text-color) !important;
+        cursor: pointer !important;
+        text-align: left !important;
+        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-sizing: border-box !important;
     }
 
     @media (hover: hover) {
-        .outline-item:hover:not(:disabled) {
-            background: var(--accent-color);
-            color: var(--text-color);
-            font-weight: 800;
+        .outline-nav :global(.outline-item:hover:not(:disabled)) {
+            background: var(--accent-color) !important;
+            color: var(--text-color) !important;
+            font-weight: 800 !important;
         }
     }
 
-    .outline-item.active:not(:disabled) {
-        background: var(--accent-active-color);
-        color: var(--text-color);
-        font-weight: 900;
-        border-bottom-style: solid;
+    .outline-nav :global(.outline-item.active:not(:disabled)) {
+        background: var(--accent-active-color) !important;
+        color: var(--text-color) !important;
+        font-weight: 900 !important;
+        border-bottom-style: solid !important;
     }
 
-    .outline-item:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+    .outline-nav :global(.outline-item:disabled) {
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
     }
 
     .heading-title {
@@ -503,6 +507,7 @@
         align-items: center;
         flex-shrink: 0;
         box-sizing: border-box;
+        z-index: 5;
     }
 
     .search-input {
@@ -549,16 +554,16 @@
         }
     }
 
-    .outline-item.selected:not(:disabled) {
-        background: var(--accent-color);
-        box-shadow: inset 4px 0 0 var(--border-color);
-        font-weight: 800;
+    .outline-nav :global(.outline-item.selected:not(:disabled)) {
+        background: var(--accent-color) !important;
+        box-shadow: inset 4px 0 0 var(--border-color) !important;
+        font-weight: 800 !important;
     }
 
-    .outline-item.active.selected:not(:disabled) {
-        background: var(--accent-active-color);
-        box-shadow: inset 4px 0 0 var(--border-color);
-        font-weight: 900;
+    .outline-nav :global(.outline-item.active.selected:not(:disabled)) {
+        background: var(--accent-active-color) !important;
+        box-shadow: inset 4px 0 0 var(--border-color) !important;
+        font-weight: 900 !important;
     }
 
     @media (max-width: 480px) {

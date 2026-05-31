@@ -341,7 +341,7 @@
         border-left: 3px solid var(--border-color);
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: visible;
         z-index: 200;
         box-sizing: border-box;
         box-shadow: -10px 0 0 rgba(0, 0, 0, 0.08);
@@ -357,6 +357,8 @@
         padding-top: calc(10px + env(safe-area-inset-top));
         padding-right: calc(16px + env(safe-area-inset-right));
         flex-shrink: 0;
+        position: relative;
+        z-index: 10;
     }
 
     .sidebar-header h3 {

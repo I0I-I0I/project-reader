@@ -141,17 +141,6 @@
 {/if}
 
 <style>
-    .button {
-        text-decoration: none;
-        position: relative;
-    }
-
-    .button:hover,
-    .button:focus-visible,
-    .button.open {
-        z-index: 1000;
-    }
-
     .action-btn {
         background: var(--surface-color, var(--surface-color, #ffffff));
         border: 2px solid var(--border-color, var(--border-color, #1a1a1a));
@@ -220,6 +209,7 @@
         justify-content: center;
         cursor: pointer;
         z-index: 100;
+        position: relative;
         box-sizing: border-box;
         transition:
             transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -337,6 +327,7 @@
         gap: 8px;
         cursor: pointer;
         color: var(--text-color);
+        position: relative;
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 8px 16px;
     }
@@ -370,6 +361,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        position: relative;
         box-sizing: border-box;
     }
 
@@ -388,7 +380,10 @@
         font-weight: bold;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        white-space: nowrap;
+        white-space: normal;
+        max-width: 240px;
+        width: max-content;
+        word-break: break-word;
         border-radius: 4px;
         pointer-events: none;
         opacity: 0;
