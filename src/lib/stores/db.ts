@@ -1,30 +1,40 @@
 import { Dexie, type EntityTable } from "dexie"
 import type { FolderNode, FileNode, BookPreview, FileContent } from "./vfsStore.types"
 
+export type TableName = "books" | "previews" | "folders" | "fileContents"
+
 interface IDBBooks {
     get(id: string): Promise<FileNode | undefined>
     put(book: FileNode): Promise<string>
+    bulkPut(books: FileNode[]): Promise<string>
     delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
     getAll(): Promise<FileNode[]>
 }
 
 interface IDBBookPreviews {
     get(id: string): Promise<BookPreview | undefined>
     put(preview: BookPreview): Promise<string>
+    bulkPut(previews: BookPreview[]): Promise<string>
     delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
 }
 
 interface IDBFileContents {
     get(id: string): Promise<FileContent | undefined>
     put(content: FileContent): Promise<string>
+    bulkPut(contents: FileContent[]): Promise<string>
     delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
     getAll(): Promise<FileContent[]>
 }
 
 interface IDBFolders {
     get(id: string): Promise<FolderNode | undefined>
     put(folder: FolderNode): Promise<string>
+    bulkPut(folders: FolderNode[]): Promise<string>
     delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
     getAll(): Promise<FolderNode[]>
 }
 
@@ -33,7 +43,7 @@ export interface IDatabase {
     previews: IDBBookPreviews
     folders: IDBFolders
     fileContents: IDBFileContents
-    transaction<T>(mode: "r" | "rw", tables: string[], callback: () => Promise<T>): Promise<T>
+    transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T>
 }
 
 const db = new Dexie("Database") as Dexie & {
@@ -86,8 +96,14 @@ class DBBooks implements IDBBooks {
     put(book: FileNode): Promise<string> {
         return db.books.put(book)
     }
+    bulkPut(books: FileNode[]): Promise<string> {
+        return db.books.bulkPut(books)
+    }
     delete(id: string): Promise<void> {
         return db.books.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.books.bulkDelete(ids)
     }
     getAll(): Promise<FileNode[]> {
         return db.books.toArray()
@@ -101,8 +117,14 @@ class DBBookPreviews implements IDBBookPreviews {
     put(preview: BookPreview): Promise<string> {
         return db.previews.put(preview)
     }
+    bulkPut(previews: BookPreview[]): Promise<string> {
+        return db.previews.bulkPut(previews)
+    }
     delete(id: string): Promise<void> {
         return db.previews.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.previews.bulkDelete(ids)
     }
 }
 
@@ -113,8 +135,14 @@ class DBFileContents implements IDBFileContents {
     put(content: FileContent): Promise<string> {
         return db.fileContents.put(content)
     }
+    bulkPut(contents: FileContent[]): Promise<string> {
+        return db.fileContents.bulkPut(contents)
+    }
     delete(id: string): Promise<void> {
         return db.fileContents.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.fileContents.bulkDelete(ids)
     }
     getAll(): Promise<FileContent[]> {
         return db.fileContents.toArray()
@@ -128,8 +156,14 @@ class DBFolders implements IDBFolders {
     put(folder: FolderNode): Promise<string> {
         return db.folders.put(folder)
     }
+    bulkPut(folders: FolderNode[]): Promise<string> {
+        return db.folders.bulkPut(folders)
+    }
     delete(id: string): Promise<void> {
         return db.folders.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.folders.bulkDelete(ids)
     }
     getAll(): Promise<FolderNode[]> {
         return db.folders.toArray()
@@ -142,7 +176,7 @@ export class Database implements IDatabase {
     folders = new DBFolders()
     fileContents = new DBFileContents()
 
-    transaction<T>(mode: "r" | "rw", tables: string[], callback: () => Promise<T>): Promise<T> {
+    transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T> {
         return db.transaction(mode, tables, callback)
     }
 }

@@ -24,9 +24,9 @@
             const name = file.name
             try {
                 const id = await vfsStore.createFile(name, vfsStore.currentFolderId, file)
-                const fileNode = vfsStore.nodes[id]
-                if (fileNode && fileNode.type === "file" && onimport) {
-                    onimport({ url: fileNode.url || "", name })
+                if (onimport) {
+                    const url = await vfsStore.getFileUrl(id)
+                    onimport({ url, name })
                 }
             } catch (err) {
                 console.error("Failed to process file:", err)
@@ -63,9 +63,9 @@
                             vfsStore.currentFolderId,
                             handle,
                         )
-                        const fileNode = vfsStore.nodes[id]
-                        if (fileNode && fileNode.type === "file" && onimport) {
-                            onimport({ url: fileNode.url || "", name: handle.name })
+                        if (onimport) {
+                            const url = await vfsStore.getFileUrl(id)
+                            onimport({ url, name: handle.name })
                         }
                     } catch (err) {
                         console.error("Failed to import book via handle:", err)

@@ -17,6 +17,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import { onMount, onDestroy } from "svelte"
 
     interface Props extends HTMLButtonAttributes {
         node: VFSNode
@@ -31,10 +32,28 @@
     const isSelected = $derived(vfsStore.selectedIds.has(node.id))
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
+    
+    // PHASE 2: Fetch preview URL lazily when the card is visible/rendered
+    let previewUrl = $state("")
+    
+    onMount(async () => {
+        if (node.type === "file") {
+            previewUrl = await vfsStore.getPreviewUrl(node.id)
+        }
+    })
+
+    onDestroy(() => {
+        if (node.type === "file") {
+            vfsStore.revokePreviewUrl(node.id)
+        }
+    })
 
     const book = $derived.by(() => {
         if (node.type === "file") {
-            return fileNodeToBook(node)
+            const b = fileNodeToBook(node)
+            b.previewDataUrl = previewUrl
+            b.isLocked = vfsStore.isLockedMap[node.id]
+            return b
         }
         return null
     })
@@ -48,29 +67,25 @@
         return 0
     })
 
+    // Metadata regeneration logic: If metadata is missing but we have a way to get the file
     $effect(() => {
         if (
             node.type === "file" &&
-            node.url &&
-            (!node.previewDataUrl ||
-                !node.metadata.totalPages ||
-                node.metadata.author === undefined)
+            (!node.metadata.totalPages || node.metadata.author === undefined)
         ) {
             let isCancelled = false
-            const loadPreview = async () => {
-                const doc = new PDFDocument(node.url!)
+            const loadMetadata = async () => {
+                const url = await vfsStore.getFileUrl(node.id)
+                if (!url || isCancelled) return
+
+                const doc = new PDFDocument(url)
                 try {
                     await doc.load(settingsStore.scale)
                     const totalPages = await doc.getPageNumber()
                     const author = await doc.getAuthor()
-                    let imageUrl = node.previewDataUrl
-                    if (!node.previewDataUrl) {
-                        const page = await doc.getPage(1)
-                        imageUrl = await doc.getCanvasPage(page)
-                    }
+                    
                     if (!isCancelled) {
                         await vfsStore.updateFile(node.id, {
-                            previewDataUrl: imageUrl,
                             metadata: {
                                 ...node.metadata,
                                 totalPages,
@@ -79,12 +94,16 @@
                         })
                     }
                 } catch (err) {
-                    console.error("[Card] Failed to load PDF preview:", err)
+                    console.error("[Card] Failed to regenerate PDF metadata:", err)
                 } finally {
                     await doc.close()
+                    // If the node was locked before, we should probably revoke the URL we just created
+                    if (vfsStore.isLockedMap[node.id]) {
+                        vfsStore.revokeFileUrl(node.id)
+                    }
                 }
             }
-            loadPreview()
+            loadMetadata()
             return () => {
                 isCancelled = true
             }
@@ -104,15 +123,18 @@
             if (isRestoring) return
             try {
                 let fileNode = node as FileNode
-                if (fileNode.isLocked) {
+                const isLocked = vfsStore.isLockedMap[fileNode.id]
+                
+                if (isLocked) {
                     isRestoring = true
-                    const freshUrl = await vfsStore.restoreFileAccess(fileNode.id)
-                    fileNode = vfsStore.nodes[fileNode.id] as FileNode
+                    await vfsStore.restoreFileAccess(fileNode.id)
                 }
-                viewerStore.setCurrentBook(fileNodeToBook(fileNode))
+                
+                // setCurrentBook will handle fetching the full URL lazily
+                await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
                 goto(resolve("/viewer"))
             } catch (err) {
-                console.error("[Card] Failed to restore book access:", err)
+                console.error("[Card] Failed to open book:", err)
             } finally {
                 isRestoring = false
             }
@@ -136,7 +158,10 @@
         console.warn(
             `[Card] Preview image failed to load for node ${node.id}, attempting to regenerate...`,
         )
-        await vfsStore.updateFile(node.id, { previewDataUrl: "" })
+        // This will trigger the getPreviewUrl again in a bit, but we might want to force clear it in DB
+        // For now, let's just clear the local cache
+        vfsStore.revokePreviewUrl(node.id)
+        previewUrl = await vfsStore.getPreviewUrl(node.id)
     }
 
     const onRemove = async (e: MouseEvent) => {

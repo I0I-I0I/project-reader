@@ -5,10 +5,10 @@ import type { FileNode } from "./vfsStore.types"
 
 export interface Book {
     id: string
-    url: string
     name: string
     updatedAt: number
     pageNumber: number
+    url?: string
     pdfDest?: string
     isLocked?: boolean
     previewDataUrl?: string
@@ -21,9 +21,6 @@ export function fileNodeToBook(node: FileNode): Book {
         id: node.id,
         name: node.name,
         updatedAt: node.updatedAt,
-        url: node.url || "",
-        isLocked: node.isLocked || false,
-        previewDataUrl: node.previewDataUrl,
         pageNumber: node.metadata.pageNumber || 1,
         pdfDest: node.metadata.pdfDest,
         totalPages: node.metadata.totalPages,
@@ -43,16 +40,9 @@ class ViewerStore {
             if (savedBook) {
                 try {
                     const parsed = JSON.parse(savedBook) as Book
-                    if (parsed && parsed.url && parsed.url.startsWith("blob:")) {
-                        parsed.url = ""
-                    }
-                    if (
-                        parsed &&
-                        parsed.previewDataUrl &&
-                        parsed.previewDataUrl.startsWith("blob:")
-                    ) {
-                        parsed.previewDataUrl = ""
-                    }
+                    // Clean up any stale blob URLs from storage
+                    if (parsed.url?.startsWith("blob:")) parsed.url = ""
+                    if (parsed.previewDataUrl?.startsWith("blob:")) parsed.previewDataUrl = ""
                     this.book = parsed
                 } catch (e) {
                     console.error("Failed to parse book from localStorage", e)
@@ -94,7 +84,14 @@ class ViewerStore {
         if (this.book) {
             const matchingNode = vfsStore.nodes[this.book.id]
             if (matchingNode && matchingNode.type === "file") {
-                this.book = fileNodeToBook(matchingNode)
+                const oldUrl = this.book.url
+                const oldPreview = this.book.previewDataUrl
+                this.book = {
+                    ...fileNodeToBook(matchingNode),
+                    url: oldUrl,
+                    previewDataUrl: oldPreview,
+                    isLocked: vfsStore.isLockedMap[matchingNode.id]
+                }
             }
         }
     }
@@ -112,9 +109,9 @@ class ViewerStore {
         const save = () => {
             if (this.book) {
                 const clean = { ...this.book }
-                if (clean.previewDataUrl && clean.previewDataUrl.startsWith("blob:")) {
-                    clean.previewDataUrl = ""
-                }
+                // Never persist blob URLs
+                if (clean.url?.startsWith("blob:")) clean.url = ""
+                if (clean.previewDataUrl?.startsWith("blob:")) clean.previewDataUrl = ""
                 localStorage.setItem("book", JSON.stringify(clean))
             } else {
                 localStorage.removeItem("book")
@@ -128,7 +125,24 @@ class ViewerStore {
         }
     }
 
-    setCurrentBook(newBook: Book | null) {
+    async setCurrentBook(newBook: Book | null) {
+        // Revoke old URL if it was a blob URL created by us
+        if (this.book && this.book.id !== newBook?.id) {
+            vfsStore.revokeFileUrl(this.book.id)
+            vfsStore.revokePreviewUrl(this.book.id)
+        }
+
+        if (newBook) {
+            // Lazily fetch URLs if they are missing
+            if (!newBook.url) {
+                newBook.url = await vfsStore.getFileUrl(newBook.id)
+            }
+            if (!newBook.previewDataUrl) {
+                newBook.previewDataUrl = await vfsStore.getPreviewUrl(newBook.id)
+            }
+            newBook.isLocked = vfsStore.isLockedMap[newBook.id]
+        }
+
         this.book = newBook
         this.persistToLocalStorage(true)
     }
@@ -140,8 +154,6 @@ class ViewerStore {
     async updateBook(book: Book) {
         await vfsStore.updateFile(book.id, {
             name: book.name,
-            previewDataUrl: book.previewDataUrl,
-            url: book.url,
             isLocked: book.isLocked,
             metadata: {
                 pageNumber: book.pageNumber,

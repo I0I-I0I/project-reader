@@ -23,7 +23,6 @@ export interface FileContent {
 export interface FolderNode extends BaseNode {
     type: "folder"
     childrenIds: string[]
-    previewDataUrl?: string
 }
 
 export type BookMetadata = {
@@ -38,8 +37,6 @@ export interface FileNode extends BaseNode {
     isLocked?: boolean
     size: number
     metadata: BookMetadata
-    previewDataUrl?: string
-    url?: string
 }
 
 export type VFSNode = FolderNode | FileNode

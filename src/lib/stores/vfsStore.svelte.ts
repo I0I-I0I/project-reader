@@ -22,6 +22,11 @@ class VFSStore {
     initialized = $state<boolean>(false)
     db = new Database()
 
+    // Transient Object URLs managed lazily
+    previewUrls = $state<Record<string, string>>({})
+    fileUrls = $state<Record<string, string>>({})
+    isLockedMap = $state<Record<string, boolean>>({})
+
     private nativeFiles = new Map<string, File>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
 
@@ -58,12 +63,17 @@ class VFSStore {
         if (!browser) return
 
         try {
-            const allFolders = await this.db.folders.getAll()
-            const allFiles = await this.db.files.getAll()
-            const allContents = await this.db.fileContents.getAll()
-            const contentMap = new Map<string, FileContent>()
+            // PHASE 2 OPTIMIZATION: Only load metadata on startup.
+            // No N+1 queries for previews, no eager Object URLs.
+            const [allFolders, allFiles, allContents] = await Promise.all([
+                this.db.folders.getAll(),
+                this.db.files.getAll(),
+                this.db.fileContents.getAll(),
+            ])
+
             for (const c of allContents) {
-                contentMap.set(c.id, c)
+                if (c.file) this.nativeFiles.set(c.id, c.file)
+                if (c.handle) this.nativeHandles.set(c.id, c.handle)
             }
 
             const newNodes: VFSNodes = {}
@@ -72,63 +82,8 @@ class VFSStore {
             }
 
             for (const fileNode of allFiles) {
-                const content = contentMap.get(fileNode.id)
-                if (content) {
-                    if (content.file) {
-                        this.nativeFiles.set(fileNode.id, content.file)
-                    }
-                    if (content.handle) {
-                        this.nativeHandles.set(fileNode.id, content.handle)
-                    }
-                }
-
-                fileNode.url = ""
-                fileNode.isLocked = true
-
-                try {
-                    const cachedPreview = await this.db.previews.get(fileNode.id)
-                    if (cachedPreview) {
-                        fileNode.previewDataUrl = URL.createObjectURL(cachedPreview.data)
-                    }
-                } catch (e) {
-                    console.error(`Failed to load preview for file ${fileNode.name}:`, e)
-                }
-
-                const nativeFile = this.nativeFiles.get(fileNode.id)
-                const nativeHandle = this.nativeHandles.get(fileNode.id)
-
-                if (nativeFile) {
-                    try {
-                        fileNode.url = URL.createObjectURL(nativeFile)
-                        fileNode.isLocked = false
-                    } catch (e) {
-                        console.error(
-                            `Failed to create Object URL for file blob ${fileNode.name}:`,
-                            e,
-                        )
-                    }
-                } else if (nativeHandle) {
-                    try {
-                        const status = await nativeHandle.queryPermission({ mode: "read" })
-                        if (status === "granted") {
-                            const fileObj = await nativeHandle.getFile()
-                            fileNode.url = URL.createObjectURL(fileObj)
-                            fileNode.isLocked = false
-                        } else {
-                            fileNode.url = ""
-                            fileNode.isLocked = true
-                        }
-                    } catch (e) {
-                        console.error(
-                            `Failed to query permission for file handle ${fileNode.name}:`,
-                            e,
-                        )
-                        fileNode.url = ""
-                        fileNode.isLocked = true
-                    }
-                }
-
                 newNodes[fileNode.id] = fileNode
+                this.isLockedMap[fileNode.id] = !this.nativeFiles.has(fileNode.id)
             }
 
             this.nodes = newNodes
@@ -139,6 +94,77 @@ class VFSStore {
             console.error("VFS initialization failed:", err)
         } finally {
             this.initialized = true
+        }
+    }
+
+    /**
+     * Lazily fetches and creates an Object URL for a node's preview.
+     */
+    async getPreviewUrl(id: string): Promise<string> {
+        if (this.previewUrls[id]) return this.previewUrls[id]
+
+        try {
+            const cachedPreview = await this.db.previews.get(id)
+            if (cachedPreview) {
+                const url = URL.createObjectURL(cachedPreview.data)
+                this.previewUrls[id] = url
+                return url
+            }
+        } catch (e) {
+            console.error(`Failed to load preview for node ${id}:`, e)
+        }
+        return ""
+    }
+
+    revokePreviewUrl(id: string) {
+        const url = this.previewUrls[id]
+        if (url) {
+            URL.revokeObjectURL(url)
+            delete this.previewUrls[id]
+        }
+    }
+
+    /**
+     * Lazily fetches and creates an Object URL for a file's content.
+     */
+    async getFileUrl(id: string): Promise<string> {
+        if (this.fileUrls[id]) return this.fileUrls[id]
+
+        const node = this.nodes[id]
+        if (!node || node.type !== "file") return ""
+
+        try {
+            const nativeFile = this.nativeFiles.get(id)
+            const nativeHandle = this.nativeHandles.get(id)
+
+            if (nativeFile) {
+                const url = URL.createObjectURL(nativeFile)
+                this.fileUrls[id] = url
+                this.isLockedMap[id] = false
+                return url
+            } else if (nativeHandle) {
+                const status = await nativeHandle.queryPermission({ mode: "read" })
+                if (status === "granted") {
+                    const fileObj = await nativeHandle.getFile()
+                    const url = URL.createObjectURL(fileObj)
+                    this.fileUrls[id] = url
+                    this.isLockedMap[id] = false
+                    return url
+                }
+            }
+        } catch (e) {
+            console.error(`Failed to create file URL for node ${id}:`, e)
+        }
+        
+        this.isLockedMap[id] = true
+        return ""
+    }
+
+    revokeFileUrl(id: string) {
+        const url = this.fileUrls[id]
+        if (url) {
+            URL.revokeObjectURL(url)
+            delete this.fileUrls[id]
         }
     }
 
@@ -160,10 +186,6 @@ class VFSStore {
             console.error("Failed to retrieve file object during VFS file creation:", e)
         }
 
-        // On mobile/iOS Safari, File objects from file inputs are temporary file references.
-        // Reading them into an ArrayBuffer and reconstructing a clean File object
-        // forces the browser to serialize the actual bytes into IndexedDB,
-        // preventing the file from becoming an "empty shell" or losing access on reload/close.
         if (fileObj && isFile) {
             try {
                 const arrayBuffer = await fileObj.arrayBuffer()
@@ -176,7 +198,6 @@ class VFSStore {
             }
         }
 
-        let previewDataUrl: string | undefined = undefined
         let previewBlob: Blob | null = null
         let totalPages: number | undefined = undefined
         let author: string | null | undefined = undefined
@@ -194,25 +215,16 @@ class VFSStore {
                     try {
                         const response = await fetch(pageUrl)
                         previewBlob = await response.blob()
-                        previewDataUrl = URL.createObjectURL(previewBlob)
                     } catch (e) {
                         console.error("Failed to save preview blob during creation:", e)
                     }
-                    try {
-                        URL.revokeObjectURL(pageUrl)
-                    } catch (e) {
-                        console.error("Failed to revoke temp page URL:", e)
-                    }
+                    URL.revokeObjectURL(pageUrl)
                 }
             } catch (err) {
                 console.error("Failed to extract PDF preview during import:", err)
             } finally {
                 await doc.close()
-                try {
-                    URL.revokeObjectURL(tempUrl)
-                } catch (e) {
-                    console.error("Failed to revoke temp file URL:", e)
-                }
+                URL.revokeObjectURL(tempUrl)
             }
         }
 
@@ -232,14 +244,7 @@ class VFSStore {
                 author,
                 ...metadata,
             },
-            url:
-                isFile && fileObj
-                    ? URL.createObjectURL(fileObj)
-                    : isFile
-                      ? URL.createObjectURL(fileSource as File)
-                      : "",
             isLocked: !isFile,
-            previewDataUrl,
         }
 
         const fileContent: FileContent = { id }
@@ -272,7 +277,6 @@ class VFSStore {
             },
         )
 
-        // Store native references in non-reactive maps and delete from the node to avoid Svelte proxying
         if (isFile) {
             this.nativeFiles.set(id, fileContent.file!)
         } else {
@@ -280,6 +284,8 @@ class VFSStore {
         }
 
         this.nodes[id] = newFile
+        this.isLockedMap[id] = !isFile
+
         if (parentId === null) {
             this.rootIds.push(id)
         } else {
@@ -352,20 +358,22 @@ class VFSStore {
         }
         collect(id)
 
+        const fileIds = nodesToDelete.filter((n) => n.type === "file").map((n) => n.id)
+        const folderIds = nodesToDelete.filter((n) => n.type === "folder").map((n) => n.id)
         const now = Date.now()
 
+        // PHASE 4 OPTIMIZATION: Use bulkDelete for efficient batch removal
         await this.db.transaction(
             "rw",
             ["books", "folders", "previews", "fileContents"],
             async () => {
-                for (const node of nodesToDelete) {
-                    if (node.type === "file") {
-                        await this.db.files.delete(node.id)
-                        await this.db.previews.delete(node.id)
-                        await this.db.fileContents.delete(node.id)
-                    } else {
-                        await this.db.folders.delete(node.id)
-                    }
+                if (fileIds.length > 0) {
+                    await this.db.files.bulkDelete(fileIds)
+                    await this.db.previews.bulkDelete(fileIds)
+                    await this.db.fileContents.bulkDelete(fileIds)
+                }
+                if (folderIds.length > 0) {
+                    await this.db.folders.bulkDelete(folderIds)
                 }
 
                 if (rootNode.parentId !== null) {
@@ -386,20 +394,9 @@ class VFSStore {
             if (node.type === "file") {
                 this.nativeFiles.delete(node.id)
                 this.nativeHandles.delete(node.id)
-                if (node.url && node.url.startsWith("blob:")) {
-                    try {
-                        URL.revokeObjectURL(node.url)
-                    } catch (e) {
-                        console.error(e)
-                    }
-                }
-                if (node.previewDataUrl && node.previewDataUrl.startsWith("blob:")) {
-                    try {
-                        URL.revokeObjectURL(node.previewDataUrl)
-                    } catch (e) {
-                        console.error(e)
-                    }
-                }
+                this.revokeFileUrl(node.id)
+                this.revokePreviewUrl(node.id)
+                delete this.isLockedMap[node.id]
             }
             if (this.selectedId === node.id) this.selectedId = null
             if (this.activeFileId === node.id) this.activeFileId = null
@@ -426,31 +423,7 @@ class VFSStore {
             if (updates.metadata !== undefined) {
                 node.metadata = { ...node.metadata, ...updates.metadata }
             }
-            if (updates.previewDataUrl !== undefined) {
-                if (
-                    node.previewDataUrl &&
-                    node.previewDataUrl !== updates.previewDataUrl &&
-                    node.previewDataUrl.startsWith("blob:")
-                ) {
-                    try {
-                        URL.revokeObjectURL(node.previewDataUrl)
-                    } catch (e) {
-                        console.error("Failed to revoke preview URL:", e)
-                    }
-                }
-                node.previewDataUrl = updates.previewDataUrl
-            }
-            if (updates.url !== undefined) {
-                if (node.url && node.url !== updates.url && node.url.startsWith("blob:")) {
-                    try {
-                        URL.revokeObjectURL(node.url)
-                    } catch (e) {
-                        console.error("Failed to revoke object URL:", e)
-                    }
-                }
-                node.url = updates.url
-            }
-            if (updates.isLocked !== undefined) node.isLocked = updates.isLocked
+            if (updates.isLocked !== undefined) this.isLockedMap[id] = updates.isLocked
 
             node.updatedAt = Date.now()
             await this.saveFileToDb(node)
@@ -468,8 +441,6 @@ class VFSStore {
             if (folderUpdates.name !== undefined) node.name = folderUpdates.name
             if (folderUpdates.childrenIds !== undefined)
                 node.childrenIds = folderUpdates.childrenIds
-            if (folderUpdates.previewDataUrl !== undefined)
-                node.previewDataUrl = folderUpdates.previewDataUrl
 
             node.updatedAt = Date.now()
             await this.db.folders.put($state.snapshot(node) as FolderNode)
@@ -494,60 +465,24 @@ class VFSStore {
 
         const node = this.nodes[id]
         if (node && node.type === "file") {
-            if (
-                node.previewDataUrl &&
-                node.previewDataUrl !== previewDataUrl &&
-                node.previewDataUrl.startsWith("blob:")
-            ) {
-                try {
-                    URL.revokeObjectURL(node.previewDataUrl)
-                } catch (e) {
-                    console.error("Failed to revoke old preview URL:", e)
-                }
-            }
-            node.previewDataUrl = previewDataUrl
+            this.revokePreviewUrl(id)
             node.updatedAt = Date.now()
             await this.saveFileToDb(node)
         }
     }
 
     async restoreFileAccess(id: string): Promise<string> {
+        this.revokeFileUrl(id)
+        const url = await this.getFileUrl(id)
+        if (!url) throw new Error("Failed to restore file access")
+
         const node = this.nodes[id]
-        if (!node || node.type !== "file") {
-            throw new Error("File not found or is not a file")
+        if (node && node.type === "file") {
+            node.updatedAt = Date.now()
+            await this.saveFileToDb(node)
         }
 
-        let fileObj: File
-        const nativeFile = this.nativeFiles.get(id)
-        const nativeHandle = this.nativeHandles.get(id)
-
-        if (nativeFile) {
-            fileObj = nativeFile
-        } else if (nativeHandle) {
-            const allowed = await this.verifyFileSystemPermission(nativeHandle)
-            if (!allowed) {
-                throw new Error("Permission to read local file was denied")
-            }
-            fileObj = await nativeHandle.getFile()
-        } else {
-            throw new Error("No file content or handle available in database")
-        }
-
-        if (node.url && node.url.startsWith("blob:")) {
-            try {
-                URL.revokeObjectURL(node.url)
-            } catch (e) {
-                console.error("Failed to revoke old object URL", e)
-            }
-        }
-
-        const freshUrl = URL.createObjectURL(fileObj)
-        node.url = freshUrl
-        node.isLocked = false
-        node.updatedAt = Date.now()
-        await this.saveFileToDb(node)
-
-        return freshUrl
+        return url
     }
 
     private async verifyFileSystemPermission(handle: FileSystemFileHandle): Promise<boolean> {
@@ -585,9 +520,7 @@ class VFSStore {
                 totalPages: node.metadata.totalPages,
                 author: node.metadata.author,
             },
-            previewDataUrl: node.previewDataUrl,
-            url: node.url,
-            isLocked: node.isLocked,
+            isLocked: this.isLockedMap[node.id],
         }
         await this.db.files.put(plainNode)
     }
@@ -596,7 +529,6 @@ class VFSStore {
         const node = this.nodes[id]
         if (!node) return
 
-        // Prevent moving a folder into itself or its descendants
         if (node.type === "folder" && newParentId !== null) {
             let currentId: string | null = newParentId
             while (currentId) {
@@ -616,14 +548,12 @@ class VFSStore {
         node.updatedAt = now
 
         await this.db.transaction("rw", ["books", "folders"], async () => {
-            // Update node itself in DB
             if (node.type === "file") {
                 await this.saveFileToDb(node as FileNode)
             } else {
                 await this.db.folders.put($state.snapshot(node) as FolderNode)
             }
 
-            // Remove from old parent in DB
             if (oldParentId !== null) {
                 const oldParent = this.nodes[oldParentId]
                 if (oldParent && oldParent.type === "folder") {
@@ -636,7 +566,6 @@ class VFSStore {
                 }
             }
 
-            // Add to new parent in DB
             if (newParentId !== null) {
                 const newParent = this.nodes[newParentId]
                 if (newParent && newParent.type === "folder") {
@@ -650,7 +579,6 @@ class VFSStore {
             }
         })
 
-        // Update local state reactivity
         if (oldParentId === null) {
             this.rootIds = this.rootIds.filter((rid) => rid !== id)
         } else {
