@@ -485,26 +485,6 @@ class VFSStore {
         return url
     }
 
-    private async verifyFileSystemPermission(handle: FileSystemFileHandle): Promise<boolean> {
-        if (typeof handle.queryPermission !== "function") {
-            return true
-        }
-        const options: { mode: "read" } = { mode: "read" }
-        try {
-            if ((await handle.queryPermission(options)) === "granted") {
-                return true
-            }
-            if (typeof handle.requestPermission === "function") {
-                if ((await handle.requestPermission(options)) === "granted") {
-                    return true
-                }
-            }
-        } catch (e) {
-            console.error("Error verifying/requesting permission:", e)
-        }
-        return false
-    }
-
     private async saveFileToDb(node: FileNode): Promise<void> {
         const plainNode: FileNode = {
             id: node.id,

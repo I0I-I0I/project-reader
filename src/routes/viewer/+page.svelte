@@ -611,7 +611,9 @@
             document.activeElement.blur()
         }
         viewerStore.setCurrentBook(null)
-        const backUrl = vfsStore.currentFolderId ? `/?folder=${vfsStore.currentFolderId}` : "/"
+        const backUrl: "/" | `/?${string}` = vfsStore.currentFolderId
+            ? `/?folder=${vfsStore.currentFolderId}`
+            : "/"
         goto(resolve(backUrl))
     }
 
@@ -713,7 +715,7 @@
     }
 </script>
 
-{#if url}
+{#if viewerStore.getCurrentBook()}
     <div class="fullscreen-viewer">
         <div class="reader-card">
             <div class="viewer-layout">

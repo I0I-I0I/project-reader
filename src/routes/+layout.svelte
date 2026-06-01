@@ -214,8 +214,8 @@
     })
 
     onMount(() => {
-        vfsStore.init().then(() => {
-            viewerStore.syncWithBooks()
+        vfsStore.init().then(async () => {
+            await viewerStore.syncWithBooks()
         })
 
         const handleKeydown = (event: KeyboardEvent) => {

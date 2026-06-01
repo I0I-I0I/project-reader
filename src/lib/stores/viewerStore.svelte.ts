@@ -80,16 +80,24 @@ class ViewerStore {
         this.goToPageCallback = callback
     }
 
-    syncWithBooks() {
+    async syncWithBooks() {
         if (this.book) {
             const matchingNode = vfsStore.nodes[this.book.id]
             if (matchingNode && matchingNode.type === "file") {
-                const oldUrl = this.book.url
-                const oldPreview = this.book.previewDataUrl
+                let currentUrl = this.book.url
+                let currentPreview = this.book.previewDataUrl
+
+                if (!currentUrl) {
+                    currentUrl = await vfsStore.getFileUrl(this.book.id)
+                }
+                if (!currentPreview) {
+                    currentPreview = await vfsStore.getPreviewUrl(this.book.id)
+                }
+
                 this.book = {
                     ...fileNodeToBook(matchingNode),
-                    url: oldUrl,
-                    previewDataUrl: oldPreview,
+                    url: currentUrl,
+                    previewDataUrl: currentPreview,
                     isLocked: vfsStore.isLockedMap[matchingNode.id],
                 }
             }
