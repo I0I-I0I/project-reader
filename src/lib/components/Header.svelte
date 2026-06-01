@@ -35,12 +35,6 @@
         <h1 class="title" data-text={m.library()}>{m.library()}</h1>
     </div>
     <div class="actions-wrapper" role="toolbar" aria-label={m.action_controls()}>
-        <div class="action-nav">
-            <div class="header-btn-wrapper">
-                <Button Icon={NewFolderIcon} aria-label={m.new_folder()} tooltip={m.new_folder()} />
-            </div>
-        </div>
-
         <div class="header-btn-wrapper">
             <Switcher label={m.select_theme()}>
                 {#snippet trigger()}

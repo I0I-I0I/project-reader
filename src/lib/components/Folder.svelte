@@ -1,9 +1,10 @@
 <script lang="ts">
+    import * as m from "$lib/paraglide/messages"
     import FolderIcon from "./icons/FolderIcon.svelte"
-    import NewFolderIcon from "./icons/NewFolderIcon.svelte"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
     import Input from "./ui/Input.svelte"
+    import NewFolderIcon from "./icons/NewFolderIcon.svelte"
 
     interface Props {
         type?: "new-folder" | "folder"
@@ -33,7 +34,6 @@
 
     function handleCreate() {
         if (folderName.length <= 0) {
-            // errors = [m.folder_name_required()]
             errors = ["Folder name is required"]
             return
         }
@@ -47,19 +47,13 @@
     }
 </script>
 
-<div class="card">
-    <Button
-        variant="none"
-        size="none"
-        onclick={type === "new-folder"
-            ? () => {
-                  onCreateFolder()
-              }
-            : undefined}
-        type="button"
-        class="card-main-button"
-    >
-        <div class="card-cover-container"></div>
+<button
+    type="button"
+    class="card"
+    class:card-action={type === "new-folder"}
+    onclick={type === "new-folder" ? onCreateFolder : undefined}
+>
+    <div class="card-cover-container">
         <div class="card-icon" aria-hidden="true">
             {#if type === "new-folder"}
                 <NewFolderIcon />
@@ -67,14 +61,22 @@
                 <FolderIcon />
             {/if}
         </div>
-        <div class="card-metadata">
-            <p class="card-title">Create a new folder</p>
-        </div>
-    </Button>
-</div>
+    </div>
+    <div class="card-metadata">
+        <p class="card-title">
+            {type === "new-folder" ? (m.new_folder ? m.new_folder() : "New Folder") : "Folder"}
+        </p>
+        {#if type === "new-folder"}
+            <p class="card-author">&nbsp;</p>
+        {/if}
+    </div>
+</button>
 
 {#if isCreatingFolder}
-    <Modal onClose={() => (isCreatingFolder = false)} title="Create a new folder">
+    <Modal
+        onClose={() => (isCreatingFolder = false)}
+        title={m.new_folder ? m.new_folder() : "New Folder"}
+    >
         <div class="modal-form">
             <Input
                 placeholder="e.g. My Favorite Books"
@@ -101,6 +103,20 @@
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        color: inherit;
+        width: 100%;
+        height: 100%;
+        user-select: none;
+    }
+
+    .card-action {
+        background-color: transparent;
     }
 
     @media (hover: hover) {
@@ -114,23 +130,6 @@
     .card:active {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
-    }
-
-    :global(.card-main-button) {
-        background: transparent;
-        border: none;
-        width: 100%;
-        height: 100%;
-        display: flex !important;
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: flex-start;
-        padding: 0;
-        cursor: pointer;
-        font-family: inherit;
-        text-align: left;
-        color: inherit;
-        box-sizing: border-box;
     }
 
     .card-cover-container {
@@ -188,6 +187,24 @@
         line-height: 1.3;
     }
 
+    .card-author {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        word-wrap: break-word;
+        color: var(--text-color);
+        opacity: 0.7;
+        display: -webkit-box;
+        line-clamp: 1;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.2;
+    }
+
     @media (max-width: 800px) {
         .card-metadata {
             padding: 8px;
@@ -196,6 +213,10 @@
 
         .card-title {
             font-size: 11px;
+        }
+
+        .card-author {
+            font-size: 9.5px;
         }
 
         .card-icon :global(svg) {

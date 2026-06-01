@@ -6,8 +6,9 @@
     import { flip } from "svelte/animate"
     import Fuse from "fuse.js"
     import Float from "./ui/Float.svelte"
-    import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import type { FileNode } from "$lib/stores/vfsStore.types"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
@@ -78,23 +79,28 @@
             return undefined
         }
 
-        const books = booksStore.books
-        for (const book of books) {
+        const files = Object.values(vfsStore.nodes).filter(
+            (node) => node.type === "file",
+        ) as FileNode[]
+        for (const fileNode of files) {
+            const book = fileNodeToBook(fileNode)
             list.push({
                 id: `book-${book.id}`,
                 title: book.name,
                 subtitle: book.pageNumber ? `${m.page()} ${book.pageNumber}` : m.not_read_yet(),
                 category: "books",
                 action: async () => {
-                    if (book.isLocked) {
+                    let activeNode = fileNode
+                    if (activeNode.isLocked) {
                         try {
-                            await booksStore.restoreBookAccess(book)
+                            await vfsStore.restoreFileAccess(activeNode.id)
+                            activeNode = vfsStore.nodes[activeNode.id] as FileNode
                         } catch (e) {
                             alert(e instanceof Error ? e.message : String(e))
                             return
                         }
                     }
-                    viewerStore.setCurrentBook(book)
+                    viewerStore.setCurrentBook(fileNodeToBook(activeNode))
                     goto(resolve("/viewer"))
                     onClose()
                 },

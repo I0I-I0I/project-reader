@@ -6,7 +6,7 @@
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { goto } from "$app/navigation"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
@@ -272,7 +272,7 @@
     }
 
     onMount(() => {
-        if (booksStore.isInitialized && !viewerStore.getCurrentBook()) {
+        if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
             goto(resolve("/"))
             return
         }
@@ -280,7 +280,7 @@
     })
 
     $effect(() => {
-        if (booksStore.isInitialized) {
+        if (vfsStore.initialized) {
             const currentBook = viewerStore.getCurrentBook()
             if (!currentBook || currentBook.isLocked) {
                 goto(resolve("/"))

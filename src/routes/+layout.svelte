@@ -3,7 +3,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { onMount, setContext } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { type KeymapNode, useKeymap } from "$lib/stores/keymapStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
@@ -175,7 +175,7 @@
     })
 
     onMount(() => {
-        booksStore.init().then(() => {
+        vfsStore.init().then(() => {
             viewerStore.syncWithBooks()
         })
 

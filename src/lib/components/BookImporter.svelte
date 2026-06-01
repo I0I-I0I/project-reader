@@ -1,8 +1,7 @@
 <script lang="ts">
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { booksStore } from "$lib/stores/booksStore.svelte"
-    import { saveBookFile } from "$lib/db"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
     interface Props {
@@ -23,20 +22,11 @@
                 continue
             }
             const name = file.name
-            const id = `book_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
             try {
-                await saveBookFile(id, file)
-                const url = URL.createObjectURL(file)
-                booksStore.addBook({
-                    id,
-                    url,
-                    name,
-                    updatedAt: Date.now(),
-                    pageNumber: 1,
-                    isLocked: false,
-                })
-                if (onimport) {
-                    onimport({ url, name })
+                const id = await vfsStore.createFile(name, vfsStore.currentFolderId, file)
+                const fileNode = vfsStore.nodes[id]
+                if (fileNode && fileNode.type === "file" && onimport) {
+                    onimport({ url: fileNode.url || "", name })
                 }
             } catch (err) {
                 console.error("Failed to process file:", err)
@@ -67,21 +57,15 @@
                 })
 
                 for (const handle of handles) {
-                    const id = `book_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
                     try {
-                        await saveBookFile(id, handle)
-                        const file = await handle.getFile()
-                        const url = URL.createObjectURL(file)
-                        booksStore.addBook({
-                            id,
-                            url,
-                            name: handle.name,
-                            updatedAt: Date.now(),
-                            pageNumber: 1,
-                            isLocked: false,
-                        })
-                        if (onimport) {
-                            onimport({ url, name: handle.name })
+                        const id = await vfsStore.createFile(
+                            handle.name,
+                            vfsStore.currentFolderId,
+                            handle,
+                        )
+                        const fileNode = vfsStore.nodes[id]
+                        if (fileNode && fileNode.type === "file" && onimport) {
+                            onimport({ url: fileNode.url || "", name: handle.name })
                         }
                     } catch (err) {
                         console.error("Failed to import book via handle:", err)

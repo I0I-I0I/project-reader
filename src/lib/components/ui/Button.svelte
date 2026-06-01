@@ -235,22 +235,10 @@
         box-shadow: 2px 2px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
     }
 
-    .fab-btn :global(svg) {
-        width: 22px;
-        height: 22px;
-    }
-
     @media (max-width: 800px), (max-height: 500px) {
         .fab-btn {
-            width: 44px;
-            height: 44px;
             border-width: 2px;
             box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
-        }
-
-        .fab-btn :global(svg) {
-            width: 18px;
-            height: 18px;
         }
     }
 
@@ -482,30 +470,115 @@
     .default-size {
         max-height: 36px;
         min-height: 36px;
+
+        * > :global(svg) {
+            width: 24px;
+            height: 24px;
+        }
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-height: 24px;
+            min-height: 24px;
+
+            * > :global(svg) {
+                width: 16px;
+                height: 16px;
+            }
+        }
     }
 
     .default-size.square {
         max-width: 36px;
         min-width: 36px;
+
+        * > :global(svg) {
+            width: 24px;
+            height: 24px;
+        }
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-width: 24px;
+            min-width: 24px;
+
+            * > :global(svg) {
+                width: 16px;
+                height: 16px;
+            }
+        }
     }
 
     .large-size {
         max-height: 48px;
         min-height: 48px;
+
+        * > :global(svg) {
+            width: 32px;
+            height: 32px;
+        }
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-height: 32px;
+            min-height: 32px;
+
+            * > :global(svg) {
+                width: 24px;
+                height: 24px;
+            }
+        }
     }
 
     .large-size.square {
         max-width: 48px;
         min-width: 48px;
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-width: 32px;
+            min-width: 32px;
+
+            * > :global(svg) {
+                width: 24px;
+                height: 24px;
+            }
+        }
     }
 
     .small-size {
         max-height: 26px;
         min-height: 26px;
+
+        * > :global(svg) {
+            width: 18px;
+            height: 18px;
+        }
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-height: 18px;
+            min-height: 18px;
+
+            * > :global(svg) {
+                width: 12px;
+                height: 12px;
+            }
+        }
     }
 
     .small-size.square {
         max-width: 26px;
         min-width: 26px;
+
+        * > :global(svg) {
+            width: 18px;
+            height: 18px;
+        }
+
+        @media (max-width: 800px), (max-height: 500px) {
+            max-width: 18px;
+            min-width: 18px;
+
+            * > :global(svg) {
+                width: 12px;
+                height: 12px;
+            }
+        }
     }
 </style>

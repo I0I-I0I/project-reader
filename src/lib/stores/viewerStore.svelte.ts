@@ -1,10 +1,34 @@
 import { browser } from "$app/environment"
 import type { FlatHeading } from "$lib/pdf"
-import { booksStore, type Book } from "./booksStore.svelte"
+import { vfsStore } from "./vfsStore.svelte"
+import type { FileNode } from "./vfsStore.types"
 
-function cleanBookForLocalStorage(book: Book): Book {
-    const { previewDataUrl: _, ...rest } = book
-    return rest
+export interface Book {
+    id: string
+    url: string
+    name: string
+    updatedAt: number
+    pageNumber: number
+    pdfDest?: string
+    isLocked?: boolean
+    previewDataUrl?: string
+    totalPages?: number
+    author?: string | null
+}
+
+export function fileNodeToBook(node: FileNode): Book {
+    return {
+        id: node.id,
+        name: node.name,
+        updatedAt: node.updatedAt,
+        url: node.url || "",
+        isLocked: node.isLocked || false,
+        previewDataUrl: node.previewDataUrl,
+        pageNumber: node.metadata.pageNumber || 1,
+        pdfDest: node.metadata.pdfDest,
+        totalPages: node.metadata.totalPages,
+        author: node.metadata.author,
+    }
 }
 
 class ViewerStore {
@@ -68,14 +92,9 @@ class ViewerStore {
 
     syncWithBooks() {
         if (this.book) {
-            const matchingBook = booksStore.books.find((b) => b.id === this.book?.id)
-            if (matchingBook) {
-                this.book = {
-                    ...this.book,
-                    url: matchingBook.url,
-                    isLocked: matchingBook.isLocked,
-                    previewDataUrl: matchingBook.previewDataUrl,
-                }
+            const matchingNode = vfsStore.nodes[this.book.id]
+            if (matchingNode && matchingNode.type === "file") {
+                this.book = fileNodeToBook(matchingNode)
             }
         }
     }
@@ -92,7 +111,11 @@ class ViewerStore {
 
         const save = () => {
             if (this.book) {
-                localStorage.setItem("book", JSON.stringify(cleanBookForLocalStorage(this.book)))
+                const clean = { ...this.book }
+                if (clean.previewDataUrl && clean.previewDataUrl.startsWith("blob:")) {
+                    clean.previewDataUrl = ""
+                }
+                localStorage.setItem("book", JSON.stringify(clean))
             } else {
                 localStorage.removeItem("book")
             }
@@ -114,8 +137,21 @@ class ViewerStore {
         return this.book
     }
 
-    updateBook(book: Book) {
-        booksStore.updateBook(book)
+    async updateBook(book: Book) {
+        // Persist metadata & url changes to vfsStore
+        await vfsStore.updateFile(book.id, {
+            name: book.name,
+            previewDataUrl: book.previewDataUrl,
+            url: book.url,
+            isLocked: book.isLocked,
+            metadata: {
+                pageNumber: book.pageNumber,
+                pdfDest: book.pdfDest,
+                totalPages: book.totalPages,
+                author: book.author,
+            },
+        })
+
         if (this.book && this.book.id === book.id) {
             this.book = book
             this.persistToLocalStorage(false)
@@ -124,4 +160,3 @@ class ViewerStore {
 }
 
 export const viewerStore = new ViewerStore()
-export type { Book } from "./booksStore.svelte"

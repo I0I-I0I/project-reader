@@ -3,28 +3,38 @@
     import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
     import { goto } from "$app/navigation"
-    import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { booksStore, type Book } from "$lib/stores/booksStore.svelte"
+    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
+    import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
 
     interface Props extends HTMLButtonAttributes {
-        book: Book
-        kind: "folder" | "book"
-        extension?: "pdf" | "epub"
+        node: VFSNode
         Icon?: Component
     }
 
-    let { book, Icon, kind, extension, ...props }: Props = $props()
+    let { node, Icon, ...props }: Props = $props()
     let isRestoring = $state(false)
 
+    const kind = $derived(node.type === "file" ? "book" : "folder")
+    const extension = $derived(node.type === "file" ? "pdf" : undefined)
+
+    const book = $derived.by(() => {
+        if (node.type === "file") {
+            return fileNodeToBook(node)
+        }
+        return null
+    })
+
     let progressPercent = $derived.by(() => {
-        if (kind === "book" && book.totalPages && book.totalPages > 0) {
-            const page = book.pageNumber || 1
-            const total = book.totalPages
+        if (node.type === "file" && node.metadata.totalPages && node.metadata.totalPages > 0) {
+            const page = node.metadata.pageNumber || 1
+            const total = node.metadata.totalPages
             return Math.min(100, Math.max(0, Math.round((page / total) * 100)))
         }
         return 0
@@ -32,29 +42,32 @@
 
     $effect(() => {
         if (
-            kind === "book" &&
-            extension === "pdf" &&
-            book.url &&
-            (!book.previewDataUrl || !book.totalPages || book.author === undefined)
+            node.type === "file" &&
+            node.url &&
+            (!node.previewDataUrl ||
+                !node.metadata.totalPages ||
+                node.metadata.author === undefined)
         ) {
             let isCancelled = false
             const loadPreview = async () => {
-                const doc = new PDFDocument(book.url)
+                const doc = new PDFDocument(node.url!)
                 try {
                     await doc.load(settingsStore.scale)
                     const totalPages = await doc.getPageNumber()
                     const author = await doc.getAuthor()
-                    let imageUrl = book.previewDataUrl
-                    if (!book.previewDataUrl) {
+                    let imageUrl = node.previewDataUrl
+                    if (!node.previewDataUrl) {
                         const page = await doc.getPage(1)
                         imageUrl = await doc.getCanvasPage(page)
                     }
                     if (!isCancelled) {
-                        booksStore.updateBook({
-                            ...book,
+                        await vfsStore.updateFile(node.id, {
                             previewDataUrl: imageUrl,
-                            totalPages,
-                            author,
+                            metadata: {
+                                ...node.metadata,
+                                totalPages,
+                                author,
+                            },
                         })
                     }
                 } catch (err) {
@@ -71,26 +84,37 @@
     })
 
     const onClick = async () => {
-        if (isRestoring) return
-        try {
-            let activeBook = book
-            if (book.isLocked) {
-                isRestoring = true
-                const freshUrl = await booksStore.restoreBookAccess(book)
-                activeBook = { ...book, url: freshUrl, isLocked: false }
+        if (node.type === "folder") {
+            vfsStore.currentFolderId = node.id
+        } else {
+            if (isRestoring) return
+            try {
+                let fileNode = node as FileNode
+                if (fileNode.isLocked) {
+                    isRestoring = true
+                    const freshUrl = await vfsStore.restoreFileAccess(fileNode.id)
+                    fileNode = vfsStore.nodes[fileNode.id] as FileNode
+                }
+                viewerStore.setCurrentBook(fileNodeToBook(fileNode))
+                goto(resolve("/viewer"))
+            } catch (err) {
+                console.error("[Card] Failed to restore book access:", err)
+            } finally {
+                isRestoring = false
             }
-            viewerStore.setCurrentBook(activeBook)
-            goto(resolve("/viewer"))
-        } catch (err) {
-            console.error("[Card] Failed to restore book access:", err)
-        } finally {
-            isRestoring = false
         }
     }
 
-    const onRemove = (e: MouseEvent) => {
+    const handleImageError = async () => {
+        console.warn(
+            `[Card] Preview image failed to load for node ${node.id}, attempting to regenerate...`,
+        )
+        await vfsStore.updateFile(node.id, { previewDataUrl: "" })
+    }
+
+    const onRemove = async (e: MouseEvent) => {
         e.stopPropagation()
-        booksStore.removeBook(book)
+        await vfsStore.deleteNode(node.id)
     }
 </script>
 
@@ -109,19 +133,27 @@
                 </div>
             {/if}
 
-            {#if book.previewDataUrl}
+            {#if book && book.previewDataUrl}
                 <div class="card-preview" aria-hidden="true">
                     <div class="pdf-image-wrapper">
-                        <img src={book.previewDataUrl} alt="Cover preview" />
+                        <img
+                            src={book.previewDataUrl}
+                            alt="Cover preview"
+                            onerror={handleImageError}
+                        />
                     </div>
                 </div>
-            {:else if Icon}
+            {:else}
                 <div class="card-icon" aria-hidden="true">
-                    <Icon />
+                    {#if kind === "folder"}
+                        <FolderIcon />
+                    {:else if Icon}
+                        <Icon />
+                    {/if}
                 </div>
             {/if}
 
-            {#if kind === "book" && book.totalPages && book.totalPages > 0}
+            {#if kind === "book" && book && book.totalPages && book.totalPages > 0}
                 <div class="progress-container">
                     <div class="progress-bar-track">
                         <div
@@ -136,8 +168,8 @@
         </div>
 
         <div class="card-metadata">
-            <p class="card-title">{book.name}</p>
-            {#if kind === "book"}
+            <p class="card-title">{node.name}</p>
+            {#if kind === "book" && book}
                 <p class="card-author">
                     {#if book.author}
                         {book.author}
@@ -148,7 +180,7 @@
             {/if}
         </div>
 
-        {#if book.isLocked}
+        {#if kind === "book" && book && book.isLocked}
             <div class="lock-overlay" aria-hidden="true">
                 <svg
                     viewBox="0 0 24 24"
@@ -167,13 +199,16 @@
         {/if}
     </button>
 
-    {#if kind === "book"}
+    {#if kind === "book" || kind === "folder"}
         <Button
             variant="fab"
             square={true}
             size="large"
             class="remove-btn"
-            aria-label={m.remove_book ? m.remove_book() : "Remove book"}
+            aria-label={kind === "book"
+                ? (m.remove_book ? m.remove_book() : "Remove book")
+                : (m.remove_folder ? m.remove_folder() : "Remove folder")}
+            tooltip={`${kind === "book" ? m.remove_book() : m.remove_folder()}`}
             onclick={onRemove}
         >
             <TrashIcon />

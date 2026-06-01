@@ -19,6 +19,7 @@
     "select_theme": "SELECT THEME",
     "file_format": "FILE FORMAT",
     "remove_book": "Remove book",
+    "remove_folder": "Remove folder",
     "import_pdf": "IMPORT PDF DOCUMENT",
     "upload_p_text": "Select a local PDF document to load and extract its content in real-time.",
     "choose_pdf": "CHOOSE PDF FILE",

@@ -1,29 +1,57 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Header from "$lib/components/Header.svelte"
-    import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
+    import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
 
-    import { booksStore } from "$lib/stores/booksStore.svelte"
+    import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import Card from "$lib/components/Card.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Folder from "$lib/components/Folder.svelte"
 
-    const books = $derived(booksStore.books)
+    const currentNodes = $derived(
+        [...vfsStore.currentNodes].sort((a, b) => {
+            if (a.type === "folder" && b.type !== "folder") return -1
+            if (a.type !== "folder" && b.type === "folder") return 1
+            return b.updatedAt - a.updatedAt
+        }),
+    )
+
+    let breadcrumbs = $derived.by(() => {
+        const segments: Array<{ name: string; id: string | null }> = [
+            { name: m.library(), id: null },
+        ]
+        let currentId = vfsStore.currentFolderId
+        const pathNodes: any[] = []
+        while (currentId !== null) {
+            const node = vfsStore.nodes[currentId]
+            if (node && node.type === "folder") {
+                pathNodes.unshift(node)
+                currentId = node.parentId
+            } else {
+                break
+            }
+        }
+        for (const node of pathNodes) {
+            segments.push({ name: node.name, id: node.id })
+        }
+        return segments
+    })
 </script>
 
 <div class="container">
     <Header />
-    {#if books.length !== 0}
-        <Breadcrumbs breadcrumbs={[m.library(), m.test()]} />
-    {/if}
+    <Breadcrumbs {breadcrumbs} />
 
     <main class="grid">
-        {#if books.length !== 0}
-            <Folder type="new-folder" />
-            {#each books as book (book.id)}
-                <Card {book} kind="book" extension="pdf" Icon={BookIcon} />
+        {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null}
+            <Folder
+                type="new-folder"
+                onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)}
+            />
+            {#each currentNodes as node (node.id)}
+                <Card {node} Icon={BookIcon} />
             {/each}
             <BookImporter variant="card" />
         {:else}
@@ -58,7 +86,6 @@
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 40px;
     }
 
     .grid {
@@ -68,10 +95,6 @@
     }
 
     @media (max-width: 800px) {
-        .container {
-            gap: 20px;
-        }
-
         .grid {
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 12px;
