@@ -241,14 +241,10 @@
             keys: "g",
             description: m.keymap_goto_page(),
             category: "navigation",
-            action: () => {
-                const cPage = prompt(m.enter_page_number())
-                if (cPage) {
-                    const page = parseInt(cPage, 10)
-                    if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                        currentPage = page
-                    }
-                }
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.promptMode = "page"
+                uiStore.isPromptOpen = true
             },
         },
     ])

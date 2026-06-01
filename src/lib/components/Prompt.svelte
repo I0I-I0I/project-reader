@@ -1,15 +1,11 @@
 <script lang="ts">
     import { onMount, getContext, untrack } from "svelte"
-    import { goto } from "$app/navigation"
-    import { resolve } from "$app/paths"
     import { fade, fly } from "svelte/transition"
     import { flip } from "svelte/animate"
     import Fuse from "fuse.js"
     import Float from "./ui/Float.svelte"
-    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
-    import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import type { FileNode } from "$lib/stores/vfsStore.types"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
@@ -19,24 +15,31 @@
     import NavigationIcon from "./icons/NavigationIcon.svelte"
     import SearchNoResultsIcon from "./icons/SearchNoResultsIcon.svelte"
 
-    interface Props {
-        onClose: () => void
-        value: string
-    }
-
-    let { value = $bindable(""), onClose }: Props = $props()
-
-    interface SearchItem {
+    export interface SearchItem {
         id: string
         title: string
         subtitle?: string
-        category: "books" | "commands" | "settings" | "navigation"
+        category: "books" | "commands" | "settings" | "navigation" | string
         keys?: string
         action: () => void
         pageNumber?: number
         englishTitle?: string
         englishSubtitle?: string
     }
+
+    interface Props {
+        onClose: () => void
+        value: string
+        items: SearchItem[]
+        placeholder?: string
+    }
+
+    let {
+        value = $bindable(""),
+        onClose,
+        items,
+        placeholder = m.prompt_placeholder(),
+    }: Props = $props()
 
     let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
@@ -61,113 +64,7 @@
         }, 0)
     }
 
-    let allItems = $derived.by(() => {
-        const list: SearchItem[] = []
-
-        const getEnglishTranslation = (localizedText: string): string | undefined => {
-            if (!localizedText) return undefined
-            for (const key of Object.keys(m)) {
-                const fn = (m as any)[key]
-                if (typeof fn === "function") {
-                    try {
-                        if (fn() === localizedText) {
-                            return fn({}, { locale: "en" })
-                        }
-                    } catch (e) {}
-                }
-            }
-            return undefined
-        }
-
-        const files = Object.values(vfsStore.nodes).filter(
-            (node) => node.type === "file",
-        ) as FileNode[]
-        for (const fileNode of files) {
-            const book = fileNodeToBook(fileNode)
-            list.push({
-                id: `book-${book.id}`,
-                title: book.name,
-                subtitle: book.pageNumber ? `${m.page()} ${book.pageNumber}` : m.not_read_yet(),
-                category: "books",
-                action: async () => {
-                    let activeNode = fileNode
-                    if (activeNode.isLocked) {
-                        try {
-                            await vfsStore.restoreFileAccess(activeNode.id)
-                            activeNode = vfsStore.nodes[activeNode.id] as FileNode
-                        } catch (e) {
-                            alert(e instanceof Error ? e.message : String(e))
-                            return
-                        }
-                    }
-                    viewerStore.setCurrentBook(fileNodeToBook(activeNode))
-                    goto(resolve("/viewer"))
-                    onClose()
-                },
-            })
-        }
-
-        const getActiveNode = getContext<() => any>("get_active_keymap_node")
-        const activeNode = getActiveNode ? getActiveNode() : null
-        if (activeNode) {
-            const keymaps = activeNode.getAllKeymaps()
-            const seen = new Set<string>()
-            for (const keymap of keymaps) {
-                if (keymap.description && !seen.has(keymap.keys)) {
-                    seen.add(keymap.keys)
-                    const engTitle = getEnglishTranslation(keymap.description)
-                    list.push({
-                        id: `command-${keymap.keys}`,
-                        title: keymap.description,
-                        englishTitle: engTitle,
-                        subtitle: keymap.subtitle
-                            ? keymap.subtitle()
-                            : m.shortcut_hint({ keys: keymap.keys.toUpperCase() }),
-                        englishSubtitle: keymap.subtitle
-                            ? undefined
-                            : m.shortcut_hint(
-                                  { keys: keymap.keys.toUpperCase() },
-                                  { locale: "en" },
-                              ),
-                        category: keymap.category || "commands",
-                        keys: keymap.keys,
-                        action: () => {
-                            const event = new KeyboardEvent("keydown", {
-                                bubbles: true,
-                                cancelable: true,
-                            })
-                            keymap.action(event)
-                            onClose()
-                        },
-                    })
-                }
-            }
-        }
-
-        const num = parseInt(value.trim(), 10)
-        const activeTotalPages = viewerStore.activeTotalPages
-        if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
-            list.unshift({
-                id: `nav-page-${num}`,
-                title: `${m.keymap_goto_page()} ${num}`,
-                englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${num}`,
-                subtitle: m.jump_page_desc({ page: num, total: activeTotalPages }),
-                englishSubtitle: m.jump_page_desc(
-                    { page: num, total: activeTotalPages },
-                    { locale: "en" },
-                ),
-                category: "navigation",
-                action: () => {
-                    if (viewerStore.goToPage) {
-                        viewerStore.goToPage(num)
-                    }
-                    onClose()
-                },
-            })
-        }
-
-        return list
-    })
+    let allItems = $derived(items)
 
     const fuseOptions = {
         keys: [
@@ -185,6 +82,9 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
+        if (uiStore.promptMode === "page") {
+            return allItems.map((item) => ({ item, matches: [] }))
+        }
         if (query === "") {
             return allItems.slice(0, 10).map((item) => ({ item, matches: [] }))
         }
@@ -310,7 +210,7 @@
                     class="prompt-input"
                     type="text"
                     bind:value
-                    placeholder={m.prompt_placeholder()}
+                    {placeholder}
                     aria-label={m.prompt_search_aria()}
                 />
                 <button class="close-btn" onclick={onClose} aria-label={m.prompt_close_aria()}

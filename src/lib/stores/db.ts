@@ -70,7 +70,10 @@ db.version(2)
                     delete book.handle
                     await tx.table("books").put(book)
                 } catch (e) {
-                    console.error(`Failed to migrate file content during database upgrade for book ${book.id}:`, e)
+                    console.error(
+                        `Failed to migrate file content during database upgrade for book ${book.id}:`,
+                        e,
+                    )
                 }
             }
         }

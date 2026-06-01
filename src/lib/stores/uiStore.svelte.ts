@@ -5,6 +5,7 @@ class UIStore {
     #isToolbarsVisible = $state(true)
     #isPromptOpen = $state(false)
     #isCompact = $state(false)
+    #promptMode = $state<"global" | "files" | "page">("global")
 
     constructor() {
         if (browser) {
@@ -47,6 +48,14 @@ class UIStore {
 
     set isPromptOpen(value: boolean) {
         this.#isPromptOpen = value
+    }
+
+    get promptMode(): "global" | "files" | "page" {
+        return this.#promptMode
+    }
+
+    set promptMode(value: "global" | "files" | "page") {
+        this.#promptMode = value
     }
 
     get isCompact(): boolean {
