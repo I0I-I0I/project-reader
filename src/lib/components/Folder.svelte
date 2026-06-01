@@ -1,57 +1,22 @@
 <script lang="ts">
-    import { flushSync } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import FolderIcon from "./icons/FolderIcon.svelte"
-    import Modal from "./ui/Modal.svelte"
-    import Button from "./ui/Button.svelte"
-    import Input from "./ui/Input.svelte"
     import NewFolderIcon from "./icons/NewFolderIcon.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     interface Props {
         type?: "new-folder" | "folder"
-        onCreate?: (name: string) => void
+        onclick?: () => void
     }
 
-    const { type = "folder", onCreate }: Props = $props()
+    const { type = "folder", onclick }: Props = $props()
 
-    let isCreatingFolder = $state(false)
-    let folderName = $state("")
-    let errors = $state<string[]>([])
-
-    function onCreateFolder() {
-        flushSync(() => {
-            isCreatingFolder = true
-            folderName = ""
-        })
-
-        const input = document.getElementById("folder-name-input") as HTMLInputElement | null
-        if (input) {
-            input.focus()
-            input.select()
+    function handleClick() {
+        if (type === "new-folder") {
+            uiStore.isNewFolderModalOpen = true
         }
-    }
-
-    function validateInput() {
-        if (folderName.length <= 0) {
-            errors = ["Folder name is required"]
-            return false
-        }
-
-        errors = []
-        return true
-    }
-
-    function handleCreate() {
-        if (folderName.length <= 0) {
-            errors = ["Folder name is required"]
-            return
-        }
-
-        errors = []
-        isCreatingFolder = false
-
-        if (onCreate) {
-            onCreate(folderName)
+        if (onclick) {
+            onclick()
         }
     }
 </script>
@@ -60,7 +25,7 @@
     type="button"
     class="card"
     class:card-action={type === "new-folder"}
-    onclick={type === "new-folder" ? onCreateFolder : undefined}
+    onclick={handleClick}
 >
     <div class="card-cover-container">
         <div class="card-icon" aria-hidden="true">
@@ -80,35 +45,6 @@
         {/if}
     </div>
 </button>
-
-{#if isCreatingFolder}
-    <Modal
-        onClose={() => (isCreatingFolder = false)}
-        title={m.new_folder ? m.new_folder() : "New Folder"}
-        autofocusClose={false}
-    >
-        <div class="modal-form">
-            <Input
-                id="folder-name-input"
-                placeholder="e.g. My Favorite Books"
-                label="Folder Name"
-                bind:value={folderName}
-                onfocusout={validateInput}
-                onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                        e.preventDefault()
-                        handleCreate()
-                    }
-                }}
-                {errors}
-            />
-            <div class="modal-actions">
-                <Button variant="brutalist" onclick={handleCreate}>Create</Button>
-                <Button variant="ghost" onclick={() => (isCreatingFolder = false)}>Cancel</Button>
-            </div>
-        </div>
-    </Modal>
-{/if}
 
 <style>
     .card {
@@ -240,24 +176,5 @@
             width: 36px;
             height: 36px;
         }
-    }
-
-    .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        width: 100%;
-        margin-top: 10px;
-        box-sizing: border-box;
-        padding: 0 24px 24px 24px;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 16px;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        margin-top: 8px;
     }
 </style>

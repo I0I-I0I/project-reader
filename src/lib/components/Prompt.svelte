@@ -162,6 +162,7 @@
     )
 
     function getHighlightedText(text: string, matches: readonly any[], key: string): string {
+        if (typeof text !== "string") return String(text || "")
         const match = matches.find((m) => m.key === key)
         if (!match) return text
 

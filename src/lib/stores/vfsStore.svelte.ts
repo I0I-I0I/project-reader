@@ -571,6 +571,86 @@ class VFSStore {
         await this.db.files.put(plainNode)
     }
 
+    async moveNode(id: string, newParentId: string | null) {
+        const node = this.nodes[id]
+        if (!node) return
+
+        // Prevent moving a folder into itself or its descendants
+        if (node.type === "folder" && newParentId !== null) {
+            let currentId: string | null = newParentId
+            while (currentId) {
+                if (currentId === id) {
+                    throw new Error("Cannot move a folder into itself or its descendants")
+                }
+                const current = this.nodes[currentId]
+                currentId = current ? current.parentId : null
+            }
+        }
+
+        const oldParentId = node.parentId
+        if (oldParentId === newParentId) return
+
+        const now = Date.now()
+        node.parentId = newParentId
+        node.updatedAt = now
+
+        await this.db.transaction("rw", ["books", "folders"], async () => {
+            // Update node itself in DB
+            if (node.type === "file") {
+                await this.saveFileToDb(node as FileNode)
+            } else {
+                await this.db.folders.put($state.snapshot(node) as FolderNode)
+            }
+
+            // Remove from old parent in DB
+            if (oldParentId !== null) {
+                const oldParent = this.nodes[oldParentId]
+                if (oldParent && oldParent.type === "folder") {
+                    const updatedOldParent = {
+                        ...oldParent,
+                        childrenIds: oldParent.childrenIds.filter((cid) => cid !== id),
+                        updatedAt: now,
+                    }
+                    await this.db.folders.put($state.snapshot(updatedOldParent) as FolderNode)
+                }
+            }
+
+            // Add to new parent in DB
+            if (newParentId !== null) {
+                const newParent = this.nodes[newParentId]
+                if (newParent && newParent.type === "folder") {
+                    const updatedNewParent = {
+                        ...newParent,
+                        childrenIds: [...newParent.childrenIds, id],
+                        updatedAt: now,
+                    }
+                    await this.db.folders.put($state.snapshot(updatedNewParent) as FolderNode)
+                }
+            }
+        })
+
+        // Update local state reactivity
+        if (oldParentId === null) {
+            this.rootIds = this.rootIds.filter((rid) => rid !== id)
+        } else {
+            const oldParent = this.nodes[oldParentId]
+            if (oldParent && oldParent.type === "folder") {
+                oldParent.childrenIds = oldParent.childrenIds.filter((cid) => cid !== id)
+                oldParent.updatedAt = now
+            }
+        }
+
+        if (newParentId === null) {
+            this.rootIds.push(id)
+        } else {
+            const newParent = this.nodes[newParentId]
+            if (newParent && newParent.type === "folder") {
+                newParent.childrenIds.push(id)
+                newParent.updatedAt = now
+            }
+        }
+    }
+
     selectNode(id: string | null) {
         this.selectedId = id
         if (id && this.nodes[id]?.type === "file") {

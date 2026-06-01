@@ -102,5 +102,12 @@
     "keymap_reset_scale": "Reset scale",
     "keymap_import_book": "Import book",
     "unknown_author": "Unknown Author",
-    "more_options": "More options"
+    "more_options": "More options",
+    "move": "Move",
+    "move_to": "Move to...",
+    "folder_name": "FOLDER NAME",
+    "folder_name_placeholder": "e.g. My Favorite Books",
+    "folder_name_required": "Folder name is required",
+    "create": "CREATE",
+    "cancel": "CANCEL"
 }

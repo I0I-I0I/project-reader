@@ -5,7 +5,7 @@
         checked = $bindable(false),
         label = "",
         disabled = false,
-        id = `toggle-${Math.random().toString(36).substring(2, 9)}`,
+        id = `toggle-${Math.random().toString(36).slice(2, 9)}`,
         onchange,
     } = $props<{
         checked?: boolean

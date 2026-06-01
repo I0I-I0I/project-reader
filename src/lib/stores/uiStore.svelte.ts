@@ -4,8 +4,10 @@ import { MEDIA_QUERIES } from "$lib/breakpoints"
 class UIStore {
     #isToolbarsVisible = $state(true)
     #isPromptOpen = $state(false)
+    #isNewFolderModalOpen = $state(false)
     #isCompact = $state(false)
-    #promptMode = $state<"global" | "files" | "page">("global")
+    #promptMode = $state<"global" | "files" | "page" | "move">("global")
+    #nodeToMoveId = $state<string | null>(null)
 
     constructor() {
         if (browser) {
@@ -50,12 +52,28 @@ class UIStore {
         this.#isPromptOpen = value
     }
 
-    get promptMode(): "global" | "files" | "page" {
+    get isNewFolderModalOpen(): boolean {
+        return this.#isNewFolderModalOpen
+    }
+
+    set isNewFolderModalOpen(value: boolean) {
+        this.#isNewFolderModalOpen = value
+    }
+
+    get promptMode(): "global" | "files" | "page" | "move" {
         return this.#promptMode
     }
 
-    set promptMode(value: "global" | "files" | "page") {
+    set promptMode(value: "global" | "files" | "page" | "move") {
         this.#promptMode = value
+    }
+
+    get nodeToMoveId(): string | null {
+        return this.#nodeToMoveId
+    }
+
+    set nodeToMoveId(value: string | null) {
+        this.#nodeToMoveId = value
     }
 
     get isCompact(): boolean {

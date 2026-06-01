@@ -102,5 +102,12 @@
     "keymap_reset_scale": "Сбросить масштаб",
     "keymap_import_book": "Импортировать книгу",
     "unknown_author": "Неизвестный автор",
-    "more_options": "Больше опций"
+    "more_options": "Больше опций",
+    "move": "Переместить",
+    "move_to": "Переместить в...",
+    "folder_name": "ИМЯ ПАПКИ",
+    "folder_name_placeholder": "например, Мои любимые книги",
+    "folder_name_required": "Имя папки обязательно",
+    "create": "СОЗДАТЬ",
+    "cancel": "ОТМЕНА"
 }

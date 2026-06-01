@@ -10,6 +10,8 @@
     import Card from "$lib/components/Card.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Folder from "$lib/components/Folder.svelte"
+    import NewFolderModal from "$lib/components/NewFolderModal.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
     const currentNodes = $derived(
         [...vfsStore.currentNodes].sort((a, b) => {
@@ -39,18 +41,28 @@
         }
         return segments
     })
+
+    useKeymap([
+        {
+            id: "open-new-folder-modal",
+            keys: "shift+a",
+            action: () => (uiStore.isNewFolderModalOpen = true),
+            description: m.new_folder(),
+            category: "commands",
+            subtitle: () => m.new_folder(),
+        },
+    ])
 </script>
 
 <div class="container">
     <Header />
     <Breadcrumbs {breadcrumbs} />
 
+    <NewFolderModal onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)} />
+
     <main class="grid">
         {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null}
-            <Folder
-                type="new-folder"
-                onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)}
-            />
+            <Folder type="new-folder" />
             {#each currentNodes as node (node.id)}
                 <Card {node} Icon={BookIcon} />
             {/each}

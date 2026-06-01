@@ -7,6 +7,7 @@
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
+    import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
     import LockIcon from "$lib/components/icons/LockIcon.svelte"
@@ -14,6 +15,7 @@
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     interface Props extends HTMLButtonAttributes {
         node: VFSNode
@@ -121,6 +123,14 @@
         await vfsStore.deleteNode(node.id)
     }
 
+    const onMove = (e: MouseEvent) => {
+        e.stopPropagation()
+        uiStore.nodeToMoveId = node.id
+        uiStore.promptMode = "move"
+        uiStore.isPromptOpen = true
+        showMenu = false
+    }
+
     const toggleMenu = (e: MouseEvent) => {
         e.stopPropagation()
         showMenu = !showMenu
@@ -224,6 +234,10 @@
 
             {#if showMenu}
                 <div class="dropdown-menu" onpointerdown={(e) => e.stopPropagation()}>
+                    <button class="dropdown-item" onclick={onMove}>
+                        <NavigationIcon class="dropdown-icon" />
+                        <span>{m.move ? m.move() : "Move"}</span>
+                    </button>
                     <button class="dropdown-item" onclick={onRemove}>
                         <TrashIcon class="dropdown-icon" />
                         <span>
