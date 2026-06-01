@@ -627,14 +627,14 @@
         color: transparent;
     }
 
-    @media (max-width: 1024px) {
+    @media (--large-desktop) {
         .pages-container.split-mode {
             flex-direction: column;
             align-items: center;
         }
     }
 
-    @media (max-width: 900px) {
+    @media (--desktop) {
         .canvas-frame {
             padding: 16px;
         }

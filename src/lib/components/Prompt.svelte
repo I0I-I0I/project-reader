@@ -720,7 +720,7 @@
         background: rgba(225, 112, 85, 0.4);
     }
 
-    @media (max-width: 640px), (max-height: 800px) {
+    @media (--prompt) {
         .prompt-container > div {
             flex-direction: column-reverse;
         }
@@ -756,7 +756,7 @@
         }
     }
 
-    @media (max-width: 640px), (max-height: 800px) {
+    @media (--prompt) {
         .prompt-container {
             height: 100% !important;
         }

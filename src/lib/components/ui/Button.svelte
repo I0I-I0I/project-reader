@@ -218,7 +218,7 @@
         box-shadow: 2px 2px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
     }
 
-    @media (max-width: 800px), (max-height: 500px) {
+    @media (--mobile) {
         .fab-btn {
             border-width: 2px;
             box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
@@ -459,7 +459,7 @@
             height: 24px;
         }
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-height: 34px;
             min-height: 34px;
 
@@ -479,7 +479,7 @@
             height: 24px;
         }
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-width: 34px;
             min-width: 34px;
 
@@ -499,7 +499,7 @@
             height: 32px;
         }
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-height: 40px;
             min-height: 40px;
 
@@ -514,7 +514,7 @@
         max-width: 48px;
         min-width: 48px;
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-width: 40px;
             min-width: 40px;
 
@@ -534,7 +534,7 @@
             height: 18px;
         }
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-height: 22px;
             min-height: 22px;
 
@@ -554,7 +554,7 @@
             height: 18px;
         }
 
-        @media (max-width: 800px), (max-height: 500px) {
+        @media (--mobile) {
             max-width: 22px;
             min-width: 22px;
 

@@ -235,7 +235,7 @@
         background: rgba(0, 0, 0, 0.05);
     }
 
-    @media (max-width: 900px) {
+    @media (--desktop) {
         .scroll-page {
             padding: 8px 0px;
         }

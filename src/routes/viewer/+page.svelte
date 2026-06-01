@@ -951,7 +951,7 @@
         right: 24px;
     }
 
-    @media (max-width: 800px), (max-height: 500px) {
+    @media (--mobile) {
         :global(.fab-prompt) {
             bottom: calc(16px + 44px + 12px);
             right: 16px;

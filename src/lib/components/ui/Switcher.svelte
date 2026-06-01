@@ -208,7 +208,7 @@
         color: var(--bg-color);
     }
 
-    @media (max-width: 480px) {
+    @media (--tiny-mobile) {
         :global(.switcher-trigger .current-label) {
             display: none;
         }

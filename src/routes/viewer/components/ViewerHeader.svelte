@@ -187,7 +187,7 @@
         line-height: 1;
     }
 
-    @media (max-width: 800px), (max-height: 500px) {
+    @media (--mobile) {
         .viewer-header {
             padding: 8px 12px;
             padding-top: calc(8px + env(safe-area-inset-top));
@@ -229,7 +229,7 @@
         }
     }
 
-    @media (max-width: 480px) {
+    @media (--tiny-mobile) {
         .file-badge {
             display: none;
         }

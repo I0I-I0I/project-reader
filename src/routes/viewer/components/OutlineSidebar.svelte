@@ -566,7 +566,7 @@
         font-weight: 900 !important;
     }
 
-    @media (max-width: 480px) {
+    @media (--tiny-mobile) {
         .outline-sidebar {
             width: 100%;
             border-right: none;

@@ -86,7 +86,7 @@
         gap: 20px;
     }
 
-    @media (max-width: 800px) {
+    @media (--mobile-width) {
         .grid {
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 12px;

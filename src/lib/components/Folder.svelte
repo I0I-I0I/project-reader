@@ -222,7 +222,7 @@
         line-height: 1.2;
     }
 
-    @media (max-width: 800px) {
+    @media (--mobile-width) {
         .card-metadata {
             padding: 8px;
             gap: 2px;

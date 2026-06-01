@@ -452,7 +452,7 @@
         box-sizing: border-box;
     }
 
-    @media (max-width: 850px) {
+    @media (--tablet) {
         .app {
             padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
                 calc(20px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));

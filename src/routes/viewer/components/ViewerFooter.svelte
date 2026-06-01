@@ -234,7 +234,7 @@
         display: none;
     }
 
-    @media (max-width: 800px), (max-height: 500px) {
+    @media (--mobile) {
         .viewer-footer {
             padding: 6px 12px;
             padding-bottom: calc(6px + env(safe-area-inset-bottom));
@@ -279,7 +279,7 @@
         }
     }
 
-    @media (max-width: 800px), (max-height: 500px) {
+    @media (--mobile) {
         .page-label {
             display: none;
         }

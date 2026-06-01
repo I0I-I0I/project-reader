@@ -491,7 +491,7 @@
         pointer-events: none;
     }
 
-    @media (max-width: 800px) {
+    @media (--mobile-width) {
         .card-metadata {
             padding: 8px;
             gap: 2px;

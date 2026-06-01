@@ -746,7 +746,7 @@
         border: 1px solid var(--border-color);
     }
 
-    @media (max-width: 800px) {
+    @media (--mobile-width) {
         .viewer-layout {
             height: 600px;
         }

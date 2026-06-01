@@ -132,7 +132,7 @@
         }
     }
 
-    @media (max-width: 640px), (max-height: 800px) {
+    @media (--prompt) {
         .backdrop.align-top {
             align-items: flex-end;
             padding: 0;

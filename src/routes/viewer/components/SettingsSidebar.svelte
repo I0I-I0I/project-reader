@@ -483,7 +483,7 @@
         justify-content: center !important;
     }
 
-    @media (max-width: 480px) {
+    @media (--tiny-mobile) {
         .settings-sidebar {
             width: 100%;
             border-left: none;

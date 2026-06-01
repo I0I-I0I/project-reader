@@ -171,7 +171,7 @@
         letter-spacing: 0.5px;
     }
 
-    @media (max-width: 850px) {
+    @media (--tablet) {
         header {
             flex-direction: column;
             align-items: flex-start;
