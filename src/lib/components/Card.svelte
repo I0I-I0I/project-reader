@@ -408,7 +408,6 @@
         height: 20px;
     }
 
-
     .card-icon {
         display: flex;
         align-items: center;

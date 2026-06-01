@@ -19,10 +19,12 @@
         if (uiStore.isNewFolderModalOpen) {
             folderName = ""
             errors = []
-            
+
             // Focus the input when modal opens
             setTimeout(() => {
-                const input = document.getElementById("folder-name-input") as HTMLInputElement | null
+                const input = document.getElementById(
+                    "folder-name-input",
+                ) as HTMLInputElement | null
                 if (input) {
                     input.focus()
                     input.select()
@@ -79,7 +81,9 @@
             />
             <div class="modal-actions">
                 <Button variant="brutalist" onclick={handleCreate}>{m.create()}</Button>
-                <Button variant="ghost" onclick={() => (uiStore.isNewFolderModalOpen = false)}>{m.cancel()}</Button>
+                <Button variant="ghost" onclick={() => (uiStore.isNewFolderModalOpen = false)}
+                    >{m.cancel()}</Button
+                >
             </div>
         </div>
     </Modal>

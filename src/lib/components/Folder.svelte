@@ -21,12 +21,7 @@
     }
 </script>
 
-<button
-    type="button"
-    class="card"
-    class:card-action={type === "new-folder"}
-    onclick={handleClick}
->
+<button type="button" class="card" class:card-action={type === "new-folder"} onclick={handleClick}>
     <div class="card-cover-container">
         <div class="card-icon" aria-hidden="true">
             {#if type === "new-folder"}

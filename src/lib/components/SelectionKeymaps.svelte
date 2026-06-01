@@ -71,7 +71,7 @@
                 }
             },
             description: m.select_all(),
-            subtitle: () => allSelected ? m.deselect_all() : m.select_all(),
+            subtitle: () => (allSelected ? m.deselect_all() : m.select_all()),
             category: "commands",
         },
     ])

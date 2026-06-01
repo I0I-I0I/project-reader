@@ -43,6 +43,9 @@ class UIStore {
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
+        if (!value && this.#promptMode === "move") {
+            this.#promptMode = "global"
+        }
     }
 
     get isToolbarsVisible(): boolean {
