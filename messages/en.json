@@ -101,5 +101,6 @@
     "set_scale_150_subtitle": "Set scale to 150%",
     "keymap_reset_scale": "Reset scale",
     "keymap_import_book": "Import book",
-    "unknown_author": "Unknown Author"
+    "unknown_author": "Unknown Author",
+    "more_options": "More options"
 }

@@ -7,6 +7,7 @@
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
+    import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
     import LockIcon from "$lib/components/icons/LockIcon.svelte"
     import PDFDocument from "$lib/pdf"
@@ -21,6 +22,7 @@
 
     let { node, Icon, ...props }: Props = $props()
     let isRestoring = $state(false)
+    let showMenu = $state(false)
 
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
@@ -115,11 +117,29 @@
 
     const onRemove = async (e: MouseEvent) => {
         e.stopPropagation()
+        showMenu = false
         await vfsStore.deleteNode(node.id)
+    }
+
+    const toggleMenu = (e: MouseEvent) => {
+        e.stopPropagation()
+        showMenu = !showMenu
+    }
+
+    const closeMenu = () => {
+        showMenu = false
+    }
+
+    const handleMouseLeave = () => {
+        if (window.matchMedia("(hover: hover)").matches) {
+            closeMenu()
+        }
     }
 </script>
 
-<div class="card">
+<svelte:window onpointerdown={closeMenu} />
+
+<div class="card" onmouseleave={handleMouseLeave}>
     <button
         type="button"
         class="card-main-button"
@@ -190,23 +210,35 @@
     </button>
 
     {#if kind === "book" || kind === "folder"}
-        <Button
-            variant="fab"
-            square={true}
-            size="large"
-            class="remove-btn"
-            aria-label={kind === "book"
-                ? m.remove_book
-                    ? m.remove_book()
-                    : "Remove book"
-                : m.remove_folder
-                  ? m.remove_folder()
-                  : "Remove folder"}
-            tooltip={`${kind === "book" ? m.remove_book() : m.remove_folder()}`}
-            onclick={onRemove}
-        >
-            <TrashIcon />
-        </Button>
+        <div class="card-menu">
+            <Button
+                variant="fab"
+                square={true}
+                size="large"
+                class="menu-btn"
+                aria-label={m.more_options ? m.more_options() : "More options"}
+                onclick={toggleMenu}
+            >
+                <MoreVerticalIcon />
+            </Button>
+
+            {#if showMenu}
+                <div class="dropdown-menu" onpointerdown={(e) => e.stopPropagation()}>
+                    <button class="dropdown-item" onclick={onRemove}>
+                        <TrashIcon class="dropdown-icon" />
+                        <span>
+                            {kind === "book"
+                                ? m.remove_book
+                                    ? m.remove_book()
+                                    : "Remove book"
+                                : m.remove_folder
+                                  ? m.remove_folder()
+                                  : "Remove folder"}
+                        </span>
+                    </button>
+                </div>
+            {/if}
+        </div>
     {/if}
 </div>
 
@@ -355,7 +387,7 @@
     .badge {
         position: absolute;
         top: 15px;
-        right: 15px;
+        left: 15px;
         background: var(--danger-active-color);
         color: var(--danger-text-color);
         font-size: 11px;
@@ -368,24 +400,70 @@
         text-transform: uppercase;
     }
 
-    :global(.remove-btn) {
-        position: absolute !important;
+    .card-menu {
+        position: absolute;
         top: 15px;
-        left: 15px;
-        opacity: 0;
-        pointer-events: none;
+        right: 15px;
+        z-index: 20;
     }
 
-    :global(.remove-btn):focus-within {
-        opacity: 1;
-        pointer-events: auto;
+    :global(.menu-btn) {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease !important;
     }
 
     @media (hover: hover) {
-        .card:hover :global(.remove-btn) {
+        .card:hover :global(.menu-btn) {
             opacity: 1;
             pointer-events: auto;
         }
+    }
+
+    .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        min-width: 160px;
+        z-index: 100;
+        overflow: hidden;
+    }
+
+    .dropdown-item {
+        width: 100%;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        cursor: pointer;
+        text-align: left;
+        transition: background-color 0.1s ease;
+    }
+
+    @media (hover: hover) {
+        .dropdown-item:hover {
+            background-color: var(--surface-hover-color);
+            color: var(--danger-active-color);
+        }
+    }
+
+    .dropdown-item:active {
+        background-color: var(--surface-hover-color);
+    }
+
+    :global(.dropdown-icon) {
+        width: 16px;
+        height: 16px;
     }
 
     .lock-overlay {
@@ -512,23 +590,30 @@
 
         .badge {
             top: 8px;
-            right: 8px;
+            left: 8px;
             font-size: 9px;
             padding: 2px 6px;
         }
 
-        :global(.remove-btn) {
-            opacity: 1;
+        .card-menu {
             top: 8px;
-            left: 8px;
+            right: 8px;
+        }
+
+        :global(.menu-btn) {
+            opacity: 1;
             pointer-events: auto;
         }
 
-        /* .remove-btn :global(svg) { */
-        /*     width: 14px; */
-        /*     height: 14px; */
-        /*     stroke-width: 2.5; */
-        /* } */
+        .dropdown-menu {
+            min-width: 140px;
+            box-shadow: 2px 2px 0 var(--shadow-color);
+        }
+
+        .dropdown-item {
+            padding: 8px 10px;
+            font-size: 11px;
+        }
 
         .lock-icon {
             width: 20px;

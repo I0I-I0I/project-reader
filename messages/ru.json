@@ -101,5 +101,6 @@
     "set_scale_150_subtitle": "Установить масштаб на 150%",
     "keymap_reset_scale": "Сбросить масштаб",
     "keymap_import_book": "Импортировать книгу",
-    "unknown_author": "Неизвестный автор"
+    "unknown_author": "Неизвестный автор",
+    "more_options": "Больше опций"
 }
