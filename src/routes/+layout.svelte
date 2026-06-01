@@ -1,5 +1,4 @@
 <script lang="ts">
-    import favicon from "$lib/assets/favicon.svg"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { onMount, setContext, untrack } from "svelte"
     import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
@@ -440,10 +439,6 @@
         })
     })
 </script>
-
-<svelte:head>
-    <link rel="icon" href={favicon} />
-</svelte:head>
 
 <div class="app">
     {@render children()}

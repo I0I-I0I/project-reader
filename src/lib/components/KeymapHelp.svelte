@@ -2,6 +2,7 @@
     import { getContext } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { useKeymap, type KeymapNode } from "$lib/stores/keymapStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
 
