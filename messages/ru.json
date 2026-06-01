@@ -109,5 +109,11 @@
     "folder_name_placeholder": "например, Мои любимые книги",
     "folder_name_required": "Имя папки обязательно",
     "create": "СОЗДАТЬ",
-    "cancel": "ОТМЕНА"
+    "cancel": "ОТМЕНА",
+    "select": "ВЫБРАТЬ",
+    "select_all": "ВЫБРАТЬ ВСЕ",
+    "deselect_all": "СНЯТЬ ВЫДЕЛЕНИЕ",
+    "delete_selected": "УДАЛИТЬ ВЫБРАННОЕ",
+    "items_selected": "ВЫБРАНО: {count}",
+    "keymap_exit_selection_mode": "Выйти из режима выделения"
 }

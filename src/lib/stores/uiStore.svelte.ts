@@ -3,6 +3,7 @@ import { MEDIA_QUERIES } from "$lib/breakpoints"
 
 class UIStore {
     #isToolbarsVisible = $state(true)
+    #isSelectionMode = $state(false)
     #isPromptOpen = $state(false)
     #isNewFolderModalOpen = $state(false)
     #isCompact = $state(false)
@@ -34,6 +35,14 @@ class UIStore {
                 ;(mediaQueryList as any).addListener(checkCompact)
             }
         }
+    }
+
+    get isSelectionMode(): boolean {
+        return this.#isSelectionMode
+    }
+
+    set isSelectionMode(value: boolean) {
+        this.#isSelectionMode = value
     }
 
     get isToolbarsVisible(): boolean {

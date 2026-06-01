@@ -1,4 +1,5 @@
 import { browser } from "$app/environment"
+import { SvelteSet } from "svelte/reactivity"
 import type {
     FolderNode,
     FileNode,
@@ -15,6 +16,7 @@ class VFSStore {
     nodes = $state<VFSNodes>({})
     rootIds = $state<string[]>([])
     selectedId = $state<string | null>(null)
+    selectedIds = new SvelteSet<string>()
     activeFileId = $state<string | null>(null)
     currentFolderId = $state<string | null>(null)
     initialized = $state<boolean>(false)
@@ -32,6 +34,24 @@ class VFSStore {
 
     get currentNodes() {
         return Object.values(this.nodes).filter((node) => node.parentId === this.currentFolderId)
+    }
+
+    toggleSelection(id: string) {
+        if (this.selectedIds.has(id)) {
+            this.selectedIds.delete(id)
+        } else {
+            this.selectedIds.add(id)
+        }
+    }
+
+    clearSelection() {
+        this.selectedIds.clear()
+    }
+
+    selectAll(ids: string[]) {
+        for (const id of ids) {
+            this.selectedIds.add(id)
+        }
     }
 
     async init() {
@@ -383,6 +403,7 @@ class VFSStore {
             }
             if (this.selectedId === node.id) this.selectedId = null
             if (this.activeFileId === node.id) this.activeFileId = null
+            this.selectedIds.delete(node.id)
 
             delete this.nodes[node.id]
         }
@@ -582,7 +603,7 @@ class VFSStore {
                 if (currentId === id) {
                     throw new Error("Cannot move a folder into itself or its descendants")
                 }
-                const current = this.nodes[currentId]
+                const current: VFSNode | undefined = this.nodes[currentId]
                 currentId = current ? current.parentId : null
             }
         }
@@ -656,6 +677,26 @@ class VFSStore {
         if (id && this.nodes[id]?.type === "file") {
             this.activeFileId = id
         }
+    }
+
+    getNodePath(id: string): string {
+        const node = this.nodes[id]
+        if (!node) return ""
+
+        const path: string[] = [node.name]
+        let currentParentId = node.parentId
+
+        while (currentParentId) {
+            const parent = this.nodes[currentParentId]
+            if (parent) {
+                path.unshift(parent.name)
+                currentParentId = parent.parentId
+            } else {
+                break
+            }
+        }
+
+        return path.join(" / ")
     }
 }
 

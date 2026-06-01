@@ -259,49 +259,86 @@
     const globalPromptProvider: PromptProvider = ({ mode }) => {
         const list: SearchItem[] = []
 
-        if (mode === "move" && uiStore.nodeToMoveId) {
-            const nodeToMove = vfsStore.nodes[uiStore.nodeToMoveId]
-            if (nodeToMove) {
-                // Add Root option if not already at root
-                if (nodeToMove.parentId !== null) {
+        if (mode === "move") {
+            const nodeIdsToMove = uiStore.nodeToMoveId
+                ? [uiStore.nodeToMoveId]
+                : [...vfsStore.selectedIds]
+
+            if (nodeIdsToMove.length > 0) {
+                // Add Root option if any node is not already at root
+                const anyNotAtRoot = nodeIdsToMove.some(
+                    (id) => vfsStore.nodes[id]?.parentId !== null,
+                )
+                if (anyNotAtRoot) {
                     list.push({
                         id: "folder-root",
                         title: m.root ? m.root() : "ROOT",
                         category: "navigation",
                         action: async () => {
-                            await vfsStore.moveNode(nodeToMove.id, null)
+                            for (const id of nodeIdsToMove) {
+                                try {
+                                    await vfsStore.moveNode(id, null)
+                                } catch (e) {
+                                    console.error(`Failed to move node ${id} to root:`, e)
+                                }
+                            }
                             uiStore.isPromptOpen = false
                             uiStore.nodeToMoveId = null
+                            uiStore.isSelectionMode = false
+                            vfsStore.clearSelection()
                         },
                     })
                 }
 
-                // Add all folders except itself and its descendants
+                // Add all folders except the nodes themselves and their descendants
                 const allFolders = Object.values(vfsStore.nodes).filter(
                     (n) => n.type === "folder",
                 ) as FolderNode[]
                 const invalidParents = new Set<string>()
-                if (nodeToMove.type === "folder") {
-                    const collectDescendants = (id: string) => {
-                        invalidParents.add(id)
-                        const node = vfsStore.nodes[id]
-                        if (node && node.type === "folder") {
-                            node.childrenIds.forEach(collectDescendants)
+
+                for (const id of nodeIdsToMove) {
+                    const node = vfsStore.nodes[id]
+                    if (node) {
+                        invalidParents.add(node.id)
+                        if (node.type === "folder") {
+                            const collectDescendants = (folderId: string) => {
+                                const n = vfsStore.nodes[folderId]
+                                if (n && n.type === "folder") {
+                                    for (const cid of n.childrenIds) {
+                                        invalidParents.add(cid)
+                                        collectDescendants(cid)
+                                    }
+                                }
+                            }
+                            collectDescendants(node.id)
                         }
                     }
-                    collectDescendants(nodeToMove.id)
                 }
 
                 for (const folder of allFolders) {
-                    if (folder.id !== nodeToMove.parentId && !invalidParents.has(folder.id)) {
+                    const allAlreadyThere = nodeIdsToMove.every(
+                        (id) => vfsStore.nodes[id]?.parentId === folder.id,
+                    )
+                    if (!allAlreadyThere && !invalidParents.has(folder.id)) {
                         list.push({
                             id: `folder-${folder.id}`,
-                            title: folder.name,
+                            title: vfsStore.getNodePath(folder.id),
                             category: "navigation",
                             action: async () => {
-                                await vfsStore.moveNode(nodeToMove.id, folder.id)
+                                for (const id of nodeIdsToMove) {
+                                    try {
+                                        await vfsStore.moveNode(id, folder.id)
+                                    } catch (e) {
+                                        console.error(
+                                            `Failed to move node ${id} to ${folder.id}:`,
+                                            e,
+                                        )
+                                    }
+                                }
                                 uiStore.isPromptOpen = false
                                 uiStore.nodeToMoveId = null
+                                uiStore.isSelectionMode = false
+                                vfsStore.clearSelection()
                             },
                         })
                     }
@@ -317,10 +354,19 @@
 
             for (const fileNode of files) {
                 const book = fileNodeToBook(fileNode)
+                const parentPath = fileNode.parentId
+                    ? vfsStore.getNodePath(fileNode.parentId)
+                    : m.root
+                      ? m.root()
+                      : "ROOT"
+                const pageInfo = book.pageNumber
+                    ? `${m.page()} ${book.pageNumber}`
+                    : m.not_read_yet()
+
                 list.push({
                     id: `book-${book.id}`,
                     title: book.name,
-                    subtitle: book.pageNumber ? `${m.page()} ${book.pageNumber}` : m.not_read_yet(),
+                    subtitle: `${parentPath} / ${pageInfo}`,
                     category: "books",
                     action: async () => {
                         let activeNode = fileNode

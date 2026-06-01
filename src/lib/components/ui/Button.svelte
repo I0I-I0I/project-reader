@@ -146,11 +146,13 @@
             transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
             box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
             background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        line-height: 1.2;
+        text-align: center;
     }
 
     .action-btn.square {
         width: 36px !important;
-        height: 36px !important;
+        min-height: 36px !important;
         padding: 0 !important;
         flex-shrink: 0 !important;
     }
@@ -202,7 +204,7 @@
         color: var(--btn-text, var(--text-color, #1a1a1a));
         padding: 0;
         width: 50px;
-        height: 50px;
+        min-height: 50px;
     }
 
     @media (hover: hover) {
@@ -244,6 +246,8 @@
         user-select: none;
         box-sizing: border-box;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        line-height: 1.2;
+        text-align: center;
     }
 
     @media (hover: hover) {
@@ -277,6 +281,8 @@
         user-select: none;
         box-sizing: border-box;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        line-height: 1.2;
+        text-align: center;
     }
 
     @media (hover: hover) {
@@ -301,6 +307,8 @@
         position: relative;
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 8px 16px;
+        line-height: 1.2;
+        text-align: center;
     }
 
     .close-btn.square {
@@ -451,7 +459,6 @@
     }
 
     .default-size {
-        max-height: 36px;
         min-height: 36px;
 
         :global(svg) {
@@ -460,7 +467,6 @@
         }
 
         @media (--mobile) {
-            max-height: 34px;
             min-height: 34px;
 
             :global(svg) {
@@ -491,7 +497,6 @@
     }
 
     .large-size {
-        max-height: 48px;
         min-height: 48px;
 
         :global(svg) {
@@ -500,7 +505,6 @@
         }
 
         @media (--mobile) {
-            max-height: 40px;
             min-height: 40px;
 
             :global(svg) {
@@ -526,7 +530,6 @@
     }
 
     .small-size {
-        max-height: 26px;
         min-height: 26px;
 
         :global(svg) {
@@ -535,7 +538,6 @@
         }
 
         @media (--mobile) {
-            max-height: 22px;
             min-height: 22px;
 
             :global(svg) {

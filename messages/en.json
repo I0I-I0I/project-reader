@@ -109,5 +109,11 @@
     "folder_name_placeholder": "e.g. My Favorite Books",
     "folder_name_required": "Folder name is required",
     "create": "CREATE",
-    "cancel": "CANCEL"
+    "cancel": "CANCEL",
+    "select": "SELECT",
+    "select_all": "SELECT ALL",
+    "deselect_all": "DESELECT ALL",
+    "delete_selected": "DELETE SELECTED",
+    "items_selected": "{count} SELECTED",
+    "keymap_exit_selection_mode": "Exit selection mode"
 }

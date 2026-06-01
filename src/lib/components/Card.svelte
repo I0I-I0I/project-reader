@@ -11,6 +11,7 @@
     import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
     import LockIcon from "$lib/components/icons/LockIcon.svelte"
+    import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
@@ -25,7 +26,9 @@
     let { node, Icon, ...props }: Props = $props()
     let isRestoring = $state(false)
     let showMenu = $state(false)
+    let longPressTimeout: ReturnType<typeof setTimeout> | undefined
 
+    const isSelected = $derived(vfsStore.selectedIds.has(node.id))
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
 
@@ -88,7 +91,13 @@
         }
     })
 
-    const onClick = async () => {
+    const onClick = async (e: MouseEvent) => {
+        if (uiStore.isSelectionMode || e.metaKey || e.ctrlKey) {
+            uiStore.isSelectionMode = true
+            vfsStore.toggleSelection(node.id)
+            return
+        }
+
         if (node.type === "folder") {
             vfsStore.currentFolderId = node.id
         } else {
@@ -108,6 +117,19 @@
                 isRestoring = false
             }
         }
+    }
+
+    const onPointerDown = (e: PointerEvent) => {
+        if (uiStore.isSelectionMode) return
+        longPressTimeout = setTimeout(() => {
+            uiStore.isSelectionMode = true
+            vfsStore.toggleSelection(node.id)
+            if (navigator.vibrate) navigator.vibrate(50)
+        }, 500)
+    }
+
+    const onPointerUp = () => {
+        clearTimeout(longPressTimeout)
     }
 
     const handleImageError = async () => {
@@ -131,6 +153,13 @@
         showMenu = false
     }
 
+    const onSelect = (e: MouseEvent) => {
+        e.stopPropagation()
+        uiStore.isSelectionMode = true
+        vfsStore.toggleSelection(node.id)
+        showMenu = false
+    }
+
     const toggleMenu = (e: MouseEvent) => {
         e.stopPropagation()
         showMenu = !showMenu
@@ -149,7 +178,14 @@
 
 <svelte:window onpointerdown={closeMenu} />
 
-<div class="card" onmouseleave={handleMouseLeave}>
+<div
+    class="card"
+    class:is-selected={isSelected}
+    onmouseleave={handleMouseLeave}
+    onpointerdown={onPointerDown}
+    onpointerup={onPointerUp}
+    onpointercancel={onPointerUp}
+>
     <button
         type="button"
         class="card-main-button"
@@ -161,6 +197,12 @@
             {#if kind === "book" && extension}
                 <div class="badge" aria-label="{m.file_format()}: {extension}">
                     {extension}
+                </div>
+            {/if}
+
+            {#if isSelected}
+                <div class="selection-badge">
+                    <CheckIcon />
                 </div>
             {/if}
 
@@ -234,6 +276,10 @@
 
             {#if showMenu}
                 <div class="dropdown-menu" onpointerdown={(e) => e.stopPropagation()}>
+                    <button class="dropdown-item" onclick={onSelect}>
+                        <CheckIcon class="dropdown-icon" />
+                        <span>{m.select ? m.select() : "Select"}</span>
+                    </button>
                     <button class="dropdown-item" onclick={onMove}>
                         <NavigationIcon class="dropdown-icon" />
                         <span>{m.move ? m.move() : "Move"}</span>
@@ -266,6 +312,18 @@
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+
+    .card.is-selected {
+        border-color: var(--danger-active-color);
+        box-shadow: 4px 4px 0 var(--danger-active-color);
+        background-color: var(--faded-color);
+    }
+
+    .card.is-selected .card-cover-container {
+        border-bottom-color: var(--danger-active-color);
     }
 
     @media (hover: hover) {
@@ -274,11 +332,19 @@
             box-shadow: 8px 8px 0 var(--shadow-color);
             background-color: var(--surface-hover-color);
         }
+
+        .card.is-selected:hover {
+            box-shadow: 8px 8px 0 var(--danger-active-color);
+        }
     }
 
     .card:active {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+
+    .card.is-selected:active {
+        box-shadow: 2px 2px 0 var(--danger-active-color);
     }
 
     .card-main-button {
@@ -310,6 +376,38 @@
         justify-content: center;
         box-sizing: border-box;
     }
+
+    .selection-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: var(--danger-active-color);
+        color: var(--danger-text-color);
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: badge-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes badge-pop {
+        0% {
+            transform: scale(0.5);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .selection-badge :global(svg) {
+        width: 20px;
+        height: 20px;
+    }
+
 
     .card-icon {
         display: flex;
