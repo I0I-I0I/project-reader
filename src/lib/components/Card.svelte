@@ -118,7 +118,7 @@
         }
 
         if (node.type === "folder") {
-            vfsStore.currentFolderId = node.id
+            goto(`?folder=${node.id}`)
         } else {
             if (isRestoring) return
             try {

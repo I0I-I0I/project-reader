@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import { goto } from "$app/navigation"
 
     interface Props {
         breadcrumbs: {
@@ -21,7 +22,7 @@
                         type="button"
                         class="breadcrumb-text-btn"
                         class:active={idx === breadcrumbs.length - 1}
-                        onclick={() => (vfsStore.currentFolderId = segment.id)}
+                        onclick={() => goto(segment.id ? `?folder=${segment.id}` : "?")}
                         disabled={idx === breadcrumbs.length - 1}
                     >
                         {segment.name}

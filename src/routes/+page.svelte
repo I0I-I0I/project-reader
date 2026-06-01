@@ -19,6 +19,7 @@
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { page } from "$app/stores"
 
     const currentNodes = $derived(
         [...vfsStore.currentNodes].sort((a, b) => {
@@ -27,6 +28,13 @@
             return b.updatedAt - a.updatedAt
         }),
     )
+
+    $effect(() => {
+        const folderId = $page.url.searchParams.get("folder")
+        if (vfsStore.currentFolderId !== folderId) {
+            vfsStore.currentFolderId = folderId
+        }
+    })
 
     let breadcrumbs = $derived.by(() => {
         const segments: Array<{ name: string; id: string | null }> = [
