@@ -19,6 +19,7 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
     import { useKeymap, getShortcutHint } from "$lib/stores/keymapStore.svelte"
+    import { usePrompt, type PromptProvider, type SearchItem } from "$lib/stores/promptStore.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
@@ -26,6 +27,79 @@
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
     }
+
+    const viewerPromptProvider: PromptProvider = ({ value, mode }) => {
+        const list: SearchItem[] = []
+        const activeTotalPages = viewerStore.activeTotalPages
+
+        if (mode === "page") {
+            const num = parseInt(value.trim(), 10)
+            const targetPage =
+                !isNaN(num) && num >= 1 ? (num > activeTotalPages ? activeTotalPages : num) : null
+
+            if (targetPage !== null) {
+                list.push({
+                    id: `nav-page-single`,
+                    title: `${m.keymap_goto_page()} ${targetPage}`,
+                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${targetPage}`,
+                    subtitle: m.jump_page_desc({ page: targetPage, total: activeTotalPages }),
+                    englishSubtitle: m.jump_page_desc(
+                        { page: targetPage, total: activeTotalPages },
+                        { locale: "en" },
+                    ),
+                    category: "navigation",
+                    action: () => {
+                        if (viewerStore.goToPage) {
+                            viewerStore.goToPage(targetPage)
+                        }
+                        uiStore.isPromptOpen = false
+                    },
+                })
+            } else {
+                const currentBook = viewerStore.getCurrentBook()
+                const currentPageNum = currentBook?.pageNumber || 1
+                list.push({
+                    id: `nav-page-placeholder`,
+                    title: `${m.keymap_goto_page()}...`,
+                    englishTitle: `Go to page...`,
+                    subtitle: m.jump_page_desc({ page: currentPageNum, total: activeTotalPages }),
+                    englishSubtitle: `Jump to a page (1-${activeTotalPages})`,
+                    category: "navigation",
+                    action: () => {
+                        if (viewerStore.goToPage) {
+                            viewerStore.goToPage(currentPageNum)
+                        }
+                        uiStore.isPromptOpen = false
+                    },
+                })
+            }
+        } else if (mode === "global") {
+            const num = parseInt(value.trim(), 10)
+            if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
+                list.push({
+                    id: `nav-page-${num}`,
+                    title: `${m.keymap_goto_page()} ${num}`,
+                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${num}`,
+                    subtitle: m.jump_page_desc({ page: num, total: activeTotalPages }),
+                    englishSubtitle: m.jump_page_desc(
+                        { page: num, total: activeTotalPages },
+                        { locale: "en" },
+                    ),
+                    category: "navigation",
+                    action: () => {
+                        if (viewerStore.goToPage) {
+                            viewerStore.goToPage(num)
+                        }
+                        uiStore.isPromptOpen = false
+                    },
+                })
+            }
+        }
+
+        return list
+    }
+
+    usePrompt(viewerPromptProvider)
 
     const keymapNode = useKeymap([
         {
@@ -240,7 +314,7 @@
             id: "goto-page",
             keys: "g",
             description: m.keymap_goto_page(),
-            category: "navigation",
+            category: "menu",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
                 uiStore.promptMode = "page"

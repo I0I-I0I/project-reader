@@ -8,24 +8,14 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
     import CommandIcon from "./icons/CommandIcon.svelte"
     import SettingsItemIcon from "./icons/SettingsItemIcon.svelte"
     import NavigationIcon from "./icons/NavigationIcon.svelte"
+    import MenuIcon from "./icons/MenuIcon.svelte"
     import SearchNoResultsIcon from "./icons/SearchNoResultsIcon.svelte"
-
-    export interface SearchItem {
-        id: string
-        title: string
-        subtitle?: string
-        category: "books" | "commands" | "settings" | "navigation" | string
-        keys?: string
-        action: () => void
-        pageNumber?: number
-        englishTitle?: string
-        englishSubtitle?: string
-    }
 
     interface Props {
         onClose: () => void
@@ -225,7 +215,6 @@
                             class="result-item"
                             class:selected={selectedIndex === i}
                             onclick={item.action}
-                            onmouseenter={() => (selectedIndex = i)}
                             in:fly={{ y: 6, duration: settingsStore.animations ? 120 : 0 }}
                             out:fade={{ duration: settingsStore.animations ? 80 : 0 }}
                             animate:flip={{ duration: settingsStore.animations ? 200 : 0 }}
@@ -237,6 +226,8 @@
                                     <CommandIcon class="item-icon command" />
                                 {:else if item.category === "settings"}
                                     <SettingsItemIcon class="item-icon settings" />
+                                {:else if item.category === "menu"}
+                                    <MenuIcon class="item-icon menu" />
                                 {:else}
                                     <NavigationIcon class="item-icon navigation" />
                                 {/if}
@@ -509,9 +500,6 @@
     @media (hover: hover) {
         .result-item:hover {
             background: var(--surface-hover-color);
-            border-color: var(--border-color);
-            box-shadow: 2px 2px 0 var(--shadow-color);
-            transform: translate(-1px, -1px);
         }
     }
 
@@ -526,13 +514,6 @@
     .prompt-container.enable-animations .result-item.selected {
         transform: translate(-2px, -2px);
         box-shadow: 3px 3px 0 var(--shadow-color);
-    }
-
-    @media (hover: hover) {
-        .prompt-container.enable-animations .result-item:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
-        }
     }
 
     .icon-container {
@@ -656,6 +637,17 @@
     :global(html.dark) .category-badge.navigation {
         border-color: #ffeaa7;
         color: #ffeaa7;
+    }
+
+    .category-badge.menu {
+        border-color: #6c5ce7;
+        background: rgba(108, 92, 231, 0.08);
+        color: #6c5ce7;
+    }
+
+    :global(html.dark) .category-badge.menu {
+        border-color: #a29bfe;
+        color: #a29bfe;
     }
 
     .shortcut-keys {

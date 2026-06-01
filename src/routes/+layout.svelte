@@ -9,6 +9,12 @@
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import {
+        type PromptNode,
+        usePrompt,
+        type SearchItem,
+        type PromptProvider,
+    } from "$lib/stores/promptStore.svelte"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import type { FileNode } from "$lib/stores/vfsStore.types"
@@ -16,16 +22,24 @@
     let { children } = $props()
 
     let currentActiveNode = $state<KeymapNode | null>(null)
+    let currentActivePromptNode = $state<PromptNode | null>(null)
     let isHelpOpen = $state(false)
     let promptValue = $state("")
 
     let rootNode: KeymapNode
+    let rootPromptNode: PromptNode
 
     setContext("set_active_keymap_node", (node: KeymapNode | null) => {
         currentActiveNode = node
     })
 
     setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
+
+    setContext("set_active_prompt_node", (node: PromptNode | null) => {
+        currentActivePromptNode = node
+    })
+
+    setContext("get_active_prompt_node", () => currentActivePromptNode || rootPromptNode)
 
     rootNode = useKeymap([
         {
@@ -51,7 +65,7 @@
                 uiStore.isPromptOpen = true
             },
             description: settingsStore.language === "ru" ? "Открыть книгу" : "Open book",
-            category: "commands",
+            category: "menu",
         },
         {
             keys: "shift+t",
@@ -238,10 +252,10 @@
         return m.prompt_placeholder()
     })
 
-    let promptItems = $derived.by(() => {
-        const list: any[] = []
+    const globalPromptProvider: PromptProvider = ({ mode }) => {
+        const list: SearchItem[] = []
 
-        if (uiStore.promptMode === "files") {
+        if (mode === "files" || mode === "global") {
             const files = Object.values(vfsStore.nodes).filter(
                 (node) => node.type === "file",
             ) as FileNode[]
@@ -271,79 +285,9 @@
                     },
                 })
             }
-        } else if (uiStore.promptMode === "page") {
-            const activeTotalPages = viewerStore.activeTotalPages
-            const num = parseInt(promptValue.trim(), 10)
-            const targetPage =
-                !isNaN(num) && num >= 1 ? (num > activeTotalPages ? activeTotalPages : num) : null
+        }
 
-            if (targetPage !== null) {
-                list.push({
-                    id: `nav-page-single`,
-                    title: `${m.keymap_goto_page()} ${targetPage}`,
-                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${targetPage}`,
-                    subtitle: m.jump_page_desc({ page: targetPage, total: activeTotalPages }),
-                    englishSubtitle: m.jump_page_desc(
-                        { page: targetPage, total: activeTotalPages },
-                        { locale: "en" },
-                    ),
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(targetPage)
-                        }
-                        uiStore.isPromptOpen = false
-                    },
-                })
-            } else {
-                const currentBook = viewerStore.getCurrentBook()
-                const currentPageNum = currentBook?.pageNumber || 1
-                list.push({
-                    id: `nav-page-placeholder`,
-                    title: `${m.keymap_goto_page()}...`,
-                    englishTitle: `Go to page...`,
-                    subtitle: m.jump_page_desc({ page: currentPageNum, total: activeTotalPages }),
-                    englishSubtitle: `Jump to a page (1-${activeTotalPages})`,
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(currentPageNum)
-                        }
-                        uiStore.isPromptOpen = false
-                    },
-                })
-            }
-        } else {
-            const files = Object.values(vfsStore.nodes).filter(
-                (node) => node.type === "file",
-            ) as FileNode[]
-            files.sort((a, b) => b.updatedAt - a.updatedAt)
-
-            for (const fileNode of files) {
-                const book = fileNodeToBook(fileNode)
-                list.push({
-                    id: `book-${book.id}`,
-                    title: book.name,
-                    subtitle: book.pageNumber ? `${m.page()} ${book.pageNumber}` : m.not_read_yet(),
-                    category: "books",
-                    action: async () => {
-                        let activeNode = fileNode
-                        if (activeNode.isLocked) {
-                            try {
-                                await vfsStore.restoreFileAccess(activeNode.id)
-                                activeNode = vfsStore.nodes[activeNode.id] as FileNode
-                            } catch (e) {
-                                alert(e instanceof Error ? e.message : String(e))
-                                return
-                            }
-                        }
-                        viewerStore.setCurrentBook(fileNodeToBook(activeNode))
-                        goto(resolve("/viewer"))
-                        uiStore.isPromptOpen = false
-                    },
-                })
-            }
-
+        if (mode === "global") {
             const activeNode = currentActiveNode || rootNode
             if (activeNode) {
                 const keymaps = activeNode.getAllKeymaps()
@@ -381,31 +325,19 @@
                     }
                 }
             }
-
-            const num = parseInt(promptValue.trim(), 10)
-            const activeTotalPages = viewerStore.activeTotalPages
-            if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
-                list.unshift({
-                    id: `nav-page-${num}`,
-                    title: `${m.keymap_goto_page()} ${num}`,
-                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${num}`,
-                    subtitle: m.jump_page_desc({ page: num, total: activeTotalPages }),
-                    englishSubtitle: m.jump_page_desc(
-                        { page: num, total: activeTotalPages },
-                        { locale: "en" },
-                    ),
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(num)
-                        }
-                        uiStore.isPromptOpen = false
-                    },
-                })
-            }
         }
 
-        return list
+        return list.sort((a, b) => (a.category === "menu" ? -1 : b.category === "menu" ? 1 : 0))
+    }
+
+    rootPromptNode = usePrompt(globalPromptProvider)
+
+    let promptItems = $derived.by(() => {
+        const activeNode = currentActivePromptNode || rootPromptNode
+        return activeNode.getAllItems({
+            value: promptValue,
+            mode: uiStore.promptMode,
+        })
     })
 </script>
 

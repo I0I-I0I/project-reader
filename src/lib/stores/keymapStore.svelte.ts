@@ -7,7 +7,7 @@ export type ShortcutAction = {
     action: (event: KeyboardEvent) => void
     description: string
     allowInInputs?: boolean
-    category?: "commands" | "settings" | "navigation"
+    category?: "commands" | "settings" | "navigation" | "menu"
     subtitle?: () => string
 }
 
