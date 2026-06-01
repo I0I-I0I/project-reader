@@ -25,7 +25,7 @@
                 keys: "escape",
                 action: (event) => {
                     event.preventDefault()
-                    uiStore.isNewFolderModalOpen = false
+                    handleClose()
                 },
                 description: m.cancel(),
                 allowInInputs: true,
@@ -40,12 +40,12 @@
 
         // Focus the input when modal opens
         setTimeout(() => {
-            const input = document.getElementById(
-                "folder-name-input",
-            ) as HTMLInputElement | null
+            const input = document.getElementById("folder-name-input") as HTMLInputElement | null
             if (input) {
                 input.focus()
-                input.select()
+                if (!uiStore.isCompact) {
+                    input.select()
+                }
             }
         }, 0)
     })
@@ -66,6 +66,10 @@
             return
         }
 
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+        }
+
         errors = []
         uiStore.isNewFolderModalOpen = false
 
@@ -73,13 +77,15 @@
             onCreate(folderName)
         }
     }
+    function handleClose() {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+        }
+        uiStore.isNewFolderModalOpen = false
+    }
 </script>
 
-<Modal
-    onClose={() => (uiStore.isNewFolderModalOpen = false)}
-    title={m.new_folder()}
-    autofocusClose={false}
->
+<Modal onClose={handleClose} title={m.new_folder()} autofocusClose={false}>
     <div class="modal-form">
         <Input
             id="folder-name-input"
@@ -97,9 +103,7 @@
         />
         <div class="modal-actions">
             <Button variant="brutalist" onclick={handleCreate}>{m.create()}</Button>
-            <Button variant="ghost" onclick={() => (uiStore.isNewFolderModalOpen = false)}
-                >{m.cancel()}</Button
-            >
+            <Button variant="ghost" onclick={handleClose}>{m.cancel()}</Button>
         </div>
     </div>
 </Modal>

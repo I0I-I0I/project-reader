@@ -36,7 +36,7 @@
     }
 </script>
 
-<div class="viewer-footer">
+<div class="viewer-footer" role="toolbar" aria-label={m.viewer_footer()}>
     {#if uiStore.isCompact}
         <div class="mobile-scrub-bar">
             <input
@@ -273,7 +273,7 @@
         .page-input {
             width: 44px;
             height: 28px;
-            font-size: 12px;
+            font-size: 16px;
             border-width: 1.5px;
             box-shadow: 1.5px 1.5px 0 var(--shadow-color);
         }

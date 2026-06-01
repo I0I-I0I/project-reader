@@ -145,7 +145,7 @@
     <div class="sidebar-content">
         <section class="settings-section">
             <h4 class="section-title">{m.layout()}</h4>
-            <div class="layout-options">
+            <div class="layout-options" role="group" aria-label={m.layout()}>
                 <Button
                     class={"option-btn" + (settingsStore.layout === "single" ? " active" : "")}
                     variant="action"
@@ -179,7 +179,7 @@
         {#if !uiStore.isCompact || isShortHeight}
             <section class="settings-section">
                 <h4 class="section-title">{m.page()}</h4>
-                <div class="zoom-controls">
+                <div class="zoom-controls" role="group" aria-label={m.page()}>
                     <Button
                         variant="action"
                         size="default"
@@ -236,7 +236,7 @@
 
         <section class="settings-section">
             <h4 class="section-title">{m.quality()}</h4>
-            <div class="zoom-controls">
+            <div class="zoom-controls" role="group" aria-label={m.quality()}>
                 <Button
                     variant="action"
                     size="default"
@@ -282,7 +282,7 @@
 
         <section class="settings-section">
             <h4 class="section-title">{m.theme()}</h4>
-            <div class="theme-options">
+            <div class="theme-options" role="group" aria-label={m.theme()}>
                 {#each THEMES as { value, label, Icon }}
                     <Button
                         class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
@@ -311,7 +311,7 @@
 
         <section class="settings-section">
             <h4 class="section-title">{m.language_switcher()}</h4>
-            <div class="language-options">
+            <div class="language-options" role="group" aria-label={m.language_switcher()}>
                 {#each locales as locale (locale)}
                     <Button
                         data-sveltekit-reload

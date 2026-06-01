@@ -93,7 +93,7 @@
                 keys: "escape",
                 action: (event) => {
                     event.preventDefault()
-                    onClose()
+                    handleClose()
                 },
                 description: "",
                 allowInInputs: true,
@@ -151,6 +151,9 @@
                     event.preventDefault()
                     const selected = searchResults[selectedIndex]
                     if (selected) {
+                        if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur()
+                        }
                         selected.item.action()
                     }
                 },
@@ -183,12 +186,20 @@
         const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
         if (promptInput) {
             promptInput.focus()
-            promptInput.select()
+            if (!uiStore.isCompact) {
+                promptInput.select()
+            }
         }
     })
+    function handleClose() {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+        }
+        onClose()
+    }
 </script>
 
-<Float {onClose} align="top">
+<Float onClose={handleClose} align="top">
     <div
         class="prompt-container"
         class:enable-animations={settingsStore.animations}
@@ -204,7 +215,7 @@
                     {placeholder}
                     aria-label={m.prompt_search_aria()}
                 />
-                <button class="close-btn" onclick={onClose} aria-label={m.prompt_close_aria()}
+                <button class="close-btn" onclick={handleClose} aria-label={m.prompt_close_aria()}
                     >✕</button
                 >
             </div>
@@ -215,7 +226,12 @@
                         <button
                             class="result-item"
                             class:selected={selectedIndex === i}
-                            onclick={item.action}
+                            onclick={() => {
+                                if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur()
+                                }
+                                item.action()
+                            }}
                             in:fly={{ y: 6, duration: settingsStore.animations ? 120 : 0 }}
                             out:fade={{ duration: settingsStore.animations ? 80 : 0 }}
                             animate:flip={{ duration: settingsStore.animations ? 200 : 0 }}
@@ -722,6 +738,10 @@
     }
 
     @media (--prompt) {
+        .prompt-input {
+            font-size: 16px;
+        }
+
         .prompt-container > div {
             flex-direction: column-reverse;
         }

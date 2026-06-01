@@ -50,6 +50,12 @@
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    @media (max-width: 640px) {
+        .input-field {
+            font-size: 16px;
+        }
+    }
+
     .input-field:focus {
         transform: translate(-1px, -1px);
         box-shadow: 4px 4px 0 var(--shadow-color);

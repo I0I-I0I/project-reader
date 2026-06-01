@@ -91,7 +91,9 @@
     <Breadcrumbs {breadcrumbs} />
 
     {#if uiStore.isNewFolderModalOpen}
-        <NewFolderModal onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)} />
+        <NewFolderModal
+            onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)}
+        />
     {/if}
     {#if uiStore.isDeleteModalOpen}
         <DeleteConfirmModal />

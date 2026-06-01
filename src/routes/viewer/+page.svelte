@@ -298,10 +298,7 @@
             description: m.keymap_close_viewer(),
             category: "commands",
             action: () => {
-                const backUrl = vfsStore.currentFolderId
-                    ? `/?folder=${vfsStore.currentFolderId}`
-                    : "/"
-                goto(resolve(backUrl))
+                handleClose()
             },
         },
         {
@@ -610,6 +607,9 @@
     })
 
     function handleClose() {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+        }
         viewerStore.setCurrentBook(null)
         const backUrl = vfsStore.currentFolderId ? `/?folder=${vfsStore.currentFolderId}` : "/"
         goto(resolve(backUrl))
