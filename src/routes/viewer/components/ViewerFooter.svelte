@@ -62,6 +62,7 @@
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
         onclick={prevPage}
+        square={uiStore.isCompact}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
         tooltip={m.prev_page() + getShortcutHint(keymapNode, "prev-page")}
@@ -111,6 +112,7 @@
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
         onclick={nextPage}
+        square={uiStore.isCompact}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
         tooltip={m.next_page() + getShortcutHint(keymapNode, "next-page")}
@@ -243,8 +245,11 @@
 
         .viewer-footer :global(.action-btn) {
             min-width: 40px !important;
-            width: 40px;
-            height: 40px;
+            max-width: 40px !important;
+            width: 40px !important;
+            min-height: 40px !important;
+            max-height: 40px !important;
+            height: 40px !important;
             padding: 0 !important;
             box-shadow: 2px 2px 0 var(--shadow-color);
             flex: 0 0 40px;

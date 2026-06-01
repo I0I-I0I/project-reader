@@ -138,20 +138,19 @@
             padding: 0;
         }
 
-        .float-card {
-            max-width: 100%;
+        .backdrop.align-top .float-card {
             border-radius: 0;
             max-height: 100%;
+            height: 100%;
             box-shadow: none;
             border-left: none;
             border-right: none;
             border-bottom: none;
         }
-    }
 
-    @media (max-height: 800px) {
         .float-card {
-            height: 100%;
+            max-width: 100%;
+            height: auto;
         }
     }
 </style>

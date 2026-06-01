@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { flushSync } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import FolderIcon from "./icons/FolderIcon.svelte"
     import Modal from "./ui/Modal.svelte"
@@ -18,8 +19,16 @@
     let errors = $state<string[]>([])
 
     function onCreateFolder() {
-        isCreatingFolder = true
-        folderName = ""
+        flushSync(() => {
+            isCreatingFolder = true
+            folderName = ""
+        })
+
+        const input = document.getElementById("folder-name-input") as HTMLInputElement | null
+        if (input) {
+            input.focus()
+            input.select()
+        }
     }
 
     function validateInput() {
@@ -76,13 +85,21 @@
     <Modal
         onClose={() => (isCreatingFolder = false)}
         title={m.new_folder ? m.new_folder() : "New Folder"}
+        autofocusClose={false}
     >
         <div class="modal-form">
             <Input
+                id="folder-name-input"
                 placeholder="e.g. My Favorite Books"
                 label="Folder Name"
                 bind:value={folderName}
                 onfocusout={validateInput}
+                onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleCreate()
+                    }
+                }}
                 {errors}
             />
             <div class="modal-actions">
@@ -232,6 +249,7 @@
         width: 100%;
         margin-top: 10px;
         box-sizing: border-box;
+        padding: 0 24px 24px 24px;
     }
 
     .modal-actions {

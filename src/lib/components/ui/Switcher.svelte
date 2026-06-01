@@ -1,5 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte"
+    import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
+    import { createFloatingState } from "$lib/floating.svelte"
 
     interface Props {
         trigger: Snippet
@@ -13,6 +15,11 @@
     let isOpen = $state(false)
     let containerEl = $state<HTMLElement | null>(null)
 
+    const floating = createFloatingState(() => containerEl, {
+        defaultHorizontal: () => align,
+        defaultVertical: "bottom",
+    })
+
     function toggleDropdown() {
         isOpen = !isOpen
     }
@@ -20,6 +27,12 @@
     function close() {
         isOpen = false
     }
+
+    $effect(() => {
+        if (isOpen) {
+            floating.update()
+        }
+    })
 
     $effect(() => {
         if (!isOpen) return
@@ -51,28 +64,18 @@
         aria-label={label}
     >
         {@render trigger()}
-        <svg
-            class="chevron"
-            class:open={isOpen}
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-        >
-            <path d="m6 9 6 6 6-6" />
-        </svg>
+        <ChevronIcon class="chevron {isOpen ? 'open' : ''}" />
     </button>
 
     {#if isOpen}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <ul
             class="switcher-dropdown"
-            class:align-left={align === "left"}
-            class:align-right={align === "right"}
+            class:pos-top={floating.vertical === "top"}
+            class:pos-bottom={floating.vertical === "bottom"}
+            class:align-left={floating.horizontal === "left"}
+            class:align-center={floating.horizontal === "center"}
+            class:align-right={floating.horizontal === "right"}
             onkeydown={(e) => {
                 if (e.key === "Escape") {
                     isOpen = false
@@ -122,17 +125,16 @@
         box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
-    .chevron {
+    :global(.chevron) {
         transition: transform 0.2s ease;
     }
 
-    .chevron.open {
+    :global(.chevron.open) {
         transform: rotate(180deg);
     }
 
     .switcher-dropdown {
         position: absolute;
-        top: calc(100% + 8px);
         z-index: 1000;
         list-style: none;
         margin: 0;
@@ -146,12 +148,30 @@
         gap: 2px;
     }
 
+    .pos-bottom {
+        top: calc(100% + 8px);
+        bottom: auto;
+    }
+
+    .pos-top {
+        bottom: calc(100% + 8px);
+        top: auto;
+    }
+
     .align-right {
         right: 0;
+        left: auto;
     }
 
     .align-left {
         left: 0;
+        right: auto;
+    }
+
+    .align-center {
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
     }
 
     :global(.switcher-dropdown li) {

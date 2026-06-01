@@ -13,6 +13,12 @@ class VFSStore {
     initialized = $state<boolean>(false)
     db = new Database()
 
+    // Non-reactive storage for native File and FileSystemFileHandle objects
+    // to prevent Svelte 5 from proxying them, which causes DataCloneError
+    // and storage corruption on mobile Safari / iOS.
+    private nativeFiles = new Map<string, File>()
+    private nativeHandles = new Map<string, FileSystemFileHandle>()
+
     constructor(initialNodes: VFSNodes = {}) {
         this.nodes = initialNodes
         this.rootIds = Object.values(initialNodes)
@@ -37,6 +43,16 @@ class VFSStore {
             }
 
             for (const fileNode of allFiles) {
+                // Populate native non-reactive maps and delete from the node to avoid Svelte proxying
+                if (fileNode.file) {
+                    this.nativeFiles.set(fileNode.id, fileNode.file)
+                    delete fileNode.file
+                }
+                if (fileNode.handle) {
+                    this.nativeHandles.set(fileNode.id, fileNode.handle)
+                    delete fileNode.handle
+                }
+
                 // Initialize runtime fields
                 fileNode.url = ""
                 fileNode.isLocked = true
@@ -51,10 +67,13 @@ class VFSStore {
                     console.error(`Failed to load preview for file ${fileNode.name}:`, e)
                 }
 
-                // Verify file access / recreate URL
-                if (fileNode.file) {
+                // Verify file access / recreate URL using non-reactive maps
+                const nativeFile = this.nativeFiles.get(fileNode.id)
+                const nativeHandle = this.nativeHandles.get(fileNode.id)
+
+                if (nativeFile) {
                     try {
-                        fileNode.url = URL.createObjectURL(fileNode.file)
+                        fileNode.url = URL.createObjectURL(nativeFile)
                         fileNode.isLocked = false
                     } catch (e) {
                         console.error(
@@ -62,11 +81,11 @@ class VFSStore {
                             e,
                         )
                     }
-                } else if (fileNode.handle) {
+                } else if (nativeHandle) {
                     try {
-                        const status = await fileNode.handle.queryPermission({ mode: "read" })
+                        const status = await nativeHandle.queryPermission({ mode: "read" })
                         if (status === "granted") {
-                            const fileObj = await fileNode.handle.getFile()
+                            const fileObj = await nativeHandle.getFile()
                             fileNode.url = URL.createObjectURL(fileObj)
                             fileNode.isLocked = false
                         } else {
@@ -115,6 +134,22 @@ class VFSStore {
             console.error("Failed to retrieve file object during VFS file creation:", e)
         }
 
+        // On mobile/iOS Safari, File objects from file inputs are temporary file references.
+        // Reading them into an ArrayBuffer and reconstructing a clean File object
+        // forces the browser to serialize the actual bytes into IndexedDB,
+        // preventing the file from becoming an "empty shell" or losing access on reload/close.
+        if (fileObj && isFile) {
+            try {
+                const arrayBuffer = await fileObj.arrayBuffer()
+                fileObj = new File([arrayBuffer], fileObj.name, {
+                    type: fileObj.type || "application/pdf",
+                    lastModified: fileObj.lastModified,
+                })
+            } catch (e) {
+                console.error("Failed to serialize file to ArrayBuffer:", e)
+            }
+        }
+
         let previewDataUrl: string | undefined = undefined
         let previewBlob: Blob | null = null
         let totalPages: number | undefined = undefined
@@ -160,7 +195,7 @@ class VFSStore {
             name,
             type: "file",
             parentId,
-            size: isFile ? (fileSource as File).size : 0,
+            size: isFile && fileObj ? fileObj.size : isFile ? (fileSource as File).size : 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
             metadata: {
@@ -169,13 +204,18 @@ class VFSStore {
                 author,
                 ...metadata,
             },
-            url: isFile ? URL.createObjectURL(fileSource as File) : "",
+            url:
+                isFile && fileObj
+                    ? URL.createObjectURL(fileObj)
+                    : isFile
+                      ? URL.createObjectURL(fileSource as File)
+                      : "",
             isLocked: !isFile,
             previewDataUrl,
         }
 
         if (isFile) {
-            newFile.file = fileSource as File
+            newFile.file = fileObj || (fileSource as File)
         } else {
             newFile.handle = fileSource as FileSystemFileHandle
         }
@@ -197,6 +237,15 @@ class VFSStore {
                 }
             }
         })
+
+        // Store native references in non-reactive maps and delete from the node to avoid Svelte proxying
+        if (isFile) {
+            this.nativeFiles.set(id, newFile.file!)
+            delete newFile.file
+        } else {
+            this.nativeHandles.set(id, newFile.handle!)
+            delete newFile.handle
+        }
 
         // Sync with reactive memory store on success
         this.nodes[id] = newFile
@@ -303,6 +352,8 @@ class VFSStore {
         // 3. On success, revoke URLs and update in-memory state
         for (const node of nodesToDelete) {
             if (node.type === "file") {
+                this.nativeFiles.delete(node.id)
+                this.nativeHandles.delete(node.id)
                 if (node.url && node.url.startsWith("blob:")) {
                     try {
                         URL.revokeObjectURL(node.url)
@@ -370,7 +421,7 @@ class VFSStore {
             if (updates.isLocked !== undefined) node.isLocked = updates.isLocked
 
             node.updatedAt = Date.now()
-            await this.db.files.put($state.snapshot(node))
+            await this.saveFileToDb(node)
         }
     }
 
@@ -424,7 +475,7 @@ class VFSStore {
             }
             node.previewDataUrl = previewDataUrl
             node.updatedAt = Date.now()
-            await this.db.files.put($state.snapshot(node))
+            await this.saveFileToDb(node)
         }
     }
 
@@ -435,14 +486,17 @@ class VFSStore {
         }
 
         let fileObj: File
-        if (node.file) {
-            fileObj = node.file
-        } else if (node.handle) {
-            const allowed = await this.verifyFileSystemPermission(node.handle)
+        const nativeFile = this.nativeFiles.get(id)
+        const nativeHandle = this.nativeHandles.get(id)
+
+        if (nativeFile) {
+            fileObj = nativeFile
+        } else if (nativeHandle) {
+            const allowed = await this.verifyFileSystemPermission(nativeHandle)
             if (!allowed) {
                 throw new Error("Permission to read local file was denied")
             }
-            fileObj = await node.handle.getFile()
+            fileObj = await nativeHandle.getFile()
         } else {
             throw new Error("No file content or handle available in database")
         }
@@ -459,7 +513,7 @@ class VFSStore {
         node.url = freshUrl
         node.isLocked = false
         node.updatedAt = Date.now()
-        await this.db.files.put($state.snapshot(node))
+        await this.saveFileToDb(node)
 
         return freshUrl
     }
@@ -482,6 +536,35 @@ class VFSStore {
             console.error("Error verifying/requesting permission:", e)
         }
         return false
+    }
+
+    private async saveFileToDb(node: FileNode): Promise<void> {
+        // Construct a clean, non-proxied object to save to IndexedDB.
+        // This is crucial because passing Svelte 5 state proxies directly to Dexie/IndexedDB
+        // can cause DataCloneError in some browsers (e.g. Safari on iOS),
+        // and using $state.snapshot on the entire node recursively clones native
+        // File/Blob/Handle objects which can fail or corrupt them on iOS.
+        const plainNode: FileNode = {
+            id: node.id,
+            name: node.name,
+            type: "file",
+            parentId: node.parentId,
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt,
+            size: node.size,
+            metadata: {
+                pageNumber: node.metadata.pageNumber || 1,
+                pdfDest: node.metadata.pdfDest,
+                totalPages: node.metadata.totalPages,
+                author: node.metadata.author,
+            },
+            previewDataUrl: node.previewDataUrl,
+            url: node.url,
+            isLocked: node.isLocked,
+            file: this.nativeFiles.get(node.id),
+            handle: this.nativeHandles.get(node.id),
+        }
+        await this.db.files.put(plainNode)
     }
 
     selectNode(id: string | null) {

@@ -19,6 +19,9 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
     import { useKeymap, getShortcutHint } from "$lib/stores/keymapStore.svelte"
+    import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
+    import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
+    import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
 
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
@@ -731,6 +734,7 @@
                             <Button
                                 size="large"
                                 variant="fab"
+                                square={true}
                                 class="viewer-fab-btn fab-prompt {!uiStore.isToolbarsVisible
                                     ? 'hidden-toolbars'
                                     : ''}"
@@ -743,21 +747,13 @@
                                     : "Open Command Prompt"}
                                 tooltip={`${m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}${getShortcutHint(keymapNode, "open-prompt")}`}
                             >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                    stroke-linecap="square"
-                                    stroke-linejoin="miter"
-                                >
-                                    <path d="M5 7l5 5-5 5M12 17h7" />
-                                </svg>
+                                <TerminalIcon />
                             </Button>
 
                             <Button
                                 variant="fab"
                                 size="large"
+                                square={true}
                                 class="viewer-fab-btn fab-toggle"
                                 onclick={(e) => {
                                     e.stopPropagation()
@@ -769,27 +765,9 @@
                                 tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(keymapNode, "hide-toolbars")}`}
                             >
                                 {#if uiStore.isToolbarsVisible}
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="3"
-                                        stroke-linecap="square"
-                                        stroke-linejoin="miter"
-                                    >
-                                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                                    </svg>
+                                    <MinimizeIcon />
                                 {:else}
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="3"
-                                        stroke-linecap="square"
-                                        stroke-linejoin="miter"
-                                    >
-                                        <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />
-                                    </svg>
+                                    <MaximizeIcon />
                                 {/if}
                             </Button>
                         {/if}

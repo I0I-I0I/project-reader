@@ -96,7 +96,7 @@
         align-items: flex-end;
         border-bottom: 3px solid var(--border-color);
         padding-bottom: 24px;
-        margin-bottom: 40px;
+        margin-bottom: 20px;
         gap: 20px;
     }
 

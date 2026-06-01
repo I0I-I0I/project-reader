@@ -864,7 +864,7 @@
         }
     }
 
-    @media (max-height: 800px) {
+    @media (max-width: 640px), (max-height: 800px) {
         .prompt-container {
             height: 100% !important;
         }

@@ -8,6 +8,7 @@
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
+    import LockIcon from "$lib/components/icons/LockIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
@@ -182,18 +183,7 @@
 
         {#if kind === "book" && book && book.isLocked}
             <div class="lock-overlay" aria-hidden="true">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    class="lock-icon"
-                >
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
+                <LockIcon class="lock-icon" />
                 <span class="lock-text">{m.restore_access()}</span>
             </div>
         {/if}
@@ -206,8 +196,12 @@
             size="large"
             class="remove-btn"
             aria-label={kind === "book"
-                ? (m.remove_book ? m.remove_book() : "Remove book")
-                : (m.remove_folder ? m.remove_folder() : "Remove folder")}
+                ? m.remove_book
+                    ? m.remove_book()
+                    : "Remove book"
+                : m.remove_folder
+                  ? m.remove_folder()
+                  : "Remove folder"}
             tooltip={`${kind === "book" ? m.remove_book() : m.remove_folder()}`}
             onclick={onRemove}
         >
@@ -419,7 +413,7 @@
         }
     }
 
-    .lock-icon {
+    :global(.lock-icon) {
         width: 28px;
         height: 28px;
         stroke: #ffde4d;
@@ -428,7 +422,7 @@
     }
 
     @media (hover: hover) {
-        .card:hover .lock-overlay .lock-icon {
+        .card:hover .lock-overlay :global(.lock-icon) {
             transform: scale(1.15) rotate(-5deg);
         }
     }
@@ -527,6 +521,7 @@
             opacity: 1;
             top: 8px;
             left: 8px;
+            pointer-events: auto;
         }
 
         /* .remove-btn :global(svg) { */

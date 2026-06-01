@@ -3,6 +3,7 @@
     import Header from "$lib/components/Header.svelte"
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
+    import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
 
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
@@ -66,16 +67,7 @@
             aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
             title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
         >
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
-                stroke-linecap="square"
-                stroke-linejoin="miter"
-            >
-                <path d="M5 7l5 5-5 5M12 17h7" />
-            </svg>
+            <TerminalIcon />
         </button>
     {/if}
 </div>
@@ -131,7 +123,7 @@
         background: var(--surface-hover-color);
     }
 
-    .mobile-prompt-btn svg {
+    .mobile-prompt-btn :global(svg) {
         width: 18px;
         height: 18px;
     }

@@ -11,15 +11,26 @@
         header?: Snippet
         children?: Snippet
         footer?: Snippet
+        autofocusClose?: boolean
     }
 
-    let { onClose, title = "", closeLabel = "Close", header, children, footer }: Props = $props()
+    let {
+        onClose,
+        title = "",
+        closeLabel = "Close",
+        header,
+        children,
+        footer,
+        autofocusClose = true,
+    }: Props = $props()
 
     onMount(() => {
         const previouslyFocused = document.activeElement as HTMLElement | null
 
-        const closeBtn = document.querySelector(".close-btn") as HTMLElement | null
-        closeBtn?.focus()
+        if (autofocusClose) {
+            const closeBtn = document.querySelector(".close-btn") as HTMLElement | null
+            closeBtn?.focus()
+        }
 
         return () => {
             previouslyFocused?.focus()
@@ -41,7 +52,9 @@
         </div>
     {/if}
 
-    {@render children?.()}
+    <div class="modal-body">
+        {@render children?.()}
+    </div>
 
     {#if footer}
         <div class="modal-footer">
@@ -51,6 +64,14 @@
 </Float>
 
 <style>
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
     .modal-header {
         display: flex;
         align-items: center;

@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Component, Snippet } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
+    import { createFloatingState } from "$lib/floating.svelte"
 
     interface Props extends HTMLButtonAttributes {
         children?: Snippet
@@ -32,39 +33,21 @@
     const displayTooltip = $derived(tooltip || title)
 
     let buttonNode = $state<HTMLElement | null>(null)
-    let tooltipClass = $state("tooltip-top tooltip-align-center")
-
-    function updateTooltipPosition() {
-        if (!buttonNode) return
-        const rect = buttonNode.getBoundingClientRect()
-        const viewportWidth = window.innerWidth
-
-        let tClass = ""
-
-        if (rect.top < 120) {
-            tClass += "tooltip-bottom "
-        } else {
-            tClass += "tooltip-top "
-        }
-
-        if (rect.left < 250) {
-            tClass += "tooltip-align-left"
-        } else if (viewportWidth - rect.right < 250) {
-            tClass += "tooltip-align-right"
-        } else {
-            tClass += "tooltip-align-center"
-        }
-
-        tooltipClass = tClass
-    }
+    const floating = createFloatingState(() => buttonNode, {
+        defaultVertical: "top",
+        defaultHorizontal: "center",
+    })
+    const tooltipClass = $derived(
+        `tooltip-${floating.vertical} tooltip-align-${floating.horizontal}`,
+    )
 
     function handleMouseEnter(e: any) {
-        if (displayTooltip) updateTooltipPosition()
+        if (displayTooltip) floating.update()
         onmouseenter?.(e)
     }
 
     function handleFocus(e: any) {
-        if (displayTooltip) updateTooltipPosition()
+        if (displayTooltip) floating.update()
         onfocus?.(e)
     }
 </script>
@@ -471,18 +454,18 @@
         max-height: 36px;
         min-height: 36px;
 
-        * > :global(svg) {
+        :global(svg) {
             width: 24px;
             height: 24px;
         }
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-height: 24px;
-            min-height: 24px;
+            max-height: 34px;
+            min-height: 34px;
 
-            * > :global(svg) {
-                width: 16px;
-                height: 16px;
+            :global(svg) {
+                width: 22px;
+                height: 22px;
             }
         }
     }
@@ -491,18 +474,18 @@
         max-width: 36px;
         min-width: 36px;
 
-        * > :global(svg) {
+        :global(svg) {
             width: 24px;
             height: 24px;
         }
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-width: 24px;
-            min-width: 24px;
+            max-width: 34px;
+            min-width: 34px;
 
-            * > :global(svg) {
-                width: 16px;
-                height: 16px;
+            :global(svg) {
+                width: 22px;
+                height: 22px;
             }
         }
     }
@@ -511,18 +494,18 @@
         max-height: 48px;
         min-height: 48px;
 
-        * > :global(svg) {
+        :global(svg) {
             width: 32px;
             height: 32px;
         }
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-height: 32px;
-            min-height: 32px;
+            max-height: 40px;
+            min-height: 40px;
 
-            * > :global(svg) {
-                width: 24px;
-                height: 24px;
+            :global(svg) {
+                width: 28px;
+                height: 28px;
             }
         }
     }
@@ -532,12 +515,12 @@
         min-width: 48px;
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-width: 32px;
-            min-width: 32px;
+            max-width: 40px;
+            min-width: 40px;
 
-            * > :global(svg) {
-                width: 24px;
-                height: 24px;
+            :global(svg) {
+                width: 28px;
+                height: 28px;
             }
         }
     }
@@ -546,18 +529,18 @@
         max-height: 26px;
         min-height: 26px;
 
-        * > :global(svg) {
+        :global(svg) {
             width: 18px;
             height: 18px;
         }
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-height: 18px;
-            min-height: 18px;
+            max-height: 22px;
+            min-height: 22px;
 
-            * > :global(svg) {
-                width: 12px;
-                height: 12px;
+            :global(svg) {
+                width: 15px;
+                height: 15px;
             }
         }
     }
@@ -566,18 +549,18 @@
         max-width: 26px;
         min-width: 26px;
 
-        * > :global(svg) {
+        :global(svg) {
             width: 18px;
             height: 18px;
         }
 
         @media (max-width: 800px), (max-height: 500px) {
-            max-width: 18px;
-            min-width: 18px;
+            max-width: 22px;
+            min-width: 22px;
 
-            * > :global(svg) {
-                width: 12px;
-                height: 12px;
+            :global(svg) {
+                width: 15px;
+                height: 15px;
             }
         }
     }
