@@ -11,6 +11,65 @@ export type ShortcutAction = {
     subtitle?: () => string
 }
 
+const CODE_TO_KEY: Record<string, string> = {
+    Digit1: "1",
+    Digit2: "2",
+    Digit3: "3",
+    Digit4: "4",
+    Digit5: "5",
+    Digit6: "6",
+    Digit7: "7",
+    Digit8: "8",
+    Digit9: "9",
+    Digit0: "0",
+    KeyA: "a",
+    KeyB: "b",
+    KeyC: "c",
+    KeyD: "d",
+    KeyE: "e",
+    KeyF: "f",
+    KeyG: "g",
+    KeyH: "h",
+    KeyI: "i",
+    KeyJ: "j",
+    KeyK: "k",
+    KeyL: "l",
+    KeyM: "m",
+    KeyN: "n",
+    KeyO: "o",
+    KeyP: "p",
+    KeyQ: "q",
+    KeyR: "r",
+    KeyS: "s",
+    KeyT: "t",
+    KeyU: "u",
+    KeyV: "v",
+    KeyW: "w",
+    KeyX: "x",
+    KeyY: "y",
+    KeyZ: "z",
+    Minus: "-",
+    Equal: "=",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Semicolon: ";",
+    Quote: "'",
+    Backquote: "`",
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Backslash: "\\",
+    Enter: "enter",
+    Escape: "escape",
+    Space: "space",
+    ArrowUp: "arrowup",
+    ArrowDown: "arrowdown",
+    ArrowLeft: "arrowleft",
+    ArrowRight: "arrowright",
+    PageUp: "pageup",
+    PageDown: "pagedown",
+}
+
 export class KeymapNode {
     parent = $state<KeymapNode | null>(null)
     bindings = new SvelteMap<string, ShortcutAction>()
@@ -90,25 +149,41 @@ export class KeymapNode {
             .join("+")
     }
 
-    public getEventString(event: KeyboardEvent): string {
+    public getEventString(event: KeyboardEvent, useCode: boolean = false): string {
         const parts: string[] = []
         if (event.ctrlKey) parts.push("ctrl")
         if (event.metaKey) parts.push("meta")
         if (event.altKey) parts.push("alt")
         if (event.shiftKey) parts.push("shift")
-        const key =
-            event.key === " " || event.key === "Spacebar" ? "space" : event.key.toLowerCase()
+
+        let key: string
+        if (useCode) {
+            key = CODE_TO_KEY[event.code] || event.key.toLowerCase()
+        } else {
+            key = event.key === " " || event.key === "Spacebar" ? "space" : event.key.toLowerCase()
+        }
+
         parts.push(key)
         return parts.sort().join("+")
     }
 
     public handleKeydown(event: KeyboardEvent) {
-        const pressedString = this.getEventString(event)
-        let match = this.findAction(pressedString)
+        // 1. Try physical mapping (event.code) - for layout independence (e.g. Russian)
+        const pressedPhysical = this.getEventString(event, true)
+        let match = this.findAction(pressedPhysical)
 
+        // 2. Try character mapping (event.key) - for literal shortcuts like '?' or '/'
+        if (!match) {
+            const pressedCharacter = this.getEventString(event, false)
+            if (pressedCharacter !== pressedPhysical) {
+                match = this.findAction(pressedCharacter)
+            }
+        }
+
+        // 3. Fallback to just the key character
         if (!match) {
             const keyLower = event.key.toLowerCase()
-            if (keyLower !== pressedString) {
+            if (keyLower !== event.code.toLowerCase()) {
                 match = this.findAction(keyLower)
             }
         }
