@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { flushSync } from "svelte"
+    import { onMount, getContext } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
     import Input from "./ui/Input.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
     interface Props {
         onCreate?: (name: string) => void
@@ -15,22 +16,38 @@
     let folderName = $state("")
     let errors = $state<string[]>([])
 
-    $effect(() => {
-        if (uiStore.isNewFolderModalOpen) {
-            folderName = ""
-            errors = []
+    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-            // Focus the input when modal opens
-            setTimeout(() => {
-                const input = document.getElementById(
-                    "folder-name-input",
-                ) as HTMLInputElement | null
-                if (input) {
-                    input.focus()
-                    input.select()
-                }
-            }, 0)
-        }
+    useKeymap(
+        [
+            {
+                keys: "escape",
+                action: (event) => {
+                    event.preventDefault()
+                    uiStore.isNewFolderModalOpen = false
+                },
+                description: m.cancel(),
+                allowInInputs: true,
+            },
+        ],
+        activeNodeBeforeOpen,
+    )
+
+    onMount(() => {
+        folderName = ""
+        errors = []
+
+        // Focus the input when modal opens
+        setTimeout(() => {
+            const input = document.getElementById(
+                "folder-name-input",
+            ) as HTMLInputElement | null
+            if (input) {
+                input.focus()
+                input.select()
+            }
+        }, 0)
     })
 
     function validateInput() {
@@ -58,36 +75,34 @@
     }
 </script>
 
-{#if uiStore.isNewFolderModalOpen}
-    <Modal
-        onClose={() => (uiStore.isNewFolderModalOpen = false)}
-        title={m.new_folder()}
-        autofocusClose={false}
-    >
-        <div class="modal-form">
-            <Input
-                id="folder-name-input"
-                placeholder={m.folder_name_placeholder()}
-                label={m.folder_name()}
-                bind:value={folderName}
-                onfocusout={validateInput}
-                onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                        e.preventDefault()
-                        handleCreate()
-                    }
-                }}
-                {errors}
-            />
-            <div class="modal-actions">
-                <Button variant="brutalist" onclick={handleCreate}>{m.create()}</Button>
-                <Button variant="ghost" onclick={() => (uiStore.isNewFolderModalOpen = false)}
-                    >{m.cancel()}</Button
-                >
-            </div>
+<Modal
+    onClose={() => (uiStore.isNewFolderModalOpen = false)}
+    title={m.new_folder()}
+    autofocusClose={false}
+>
+    <div class="modal-form">
+        <Input
+            id="folder-name-input"
+            placeholder={m.folder_name_placeholder()}
+            label={m.folder_name()}
+            bind:value={folderName}
+            onfocusout={validateInput}
+            onkeydown={(e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreate()
+                }
+            }}
+            {errors}
+        />
+        <div class="modal-actions">
+            <Button variant="brutalist" onclick={handleCreate}>{m.create()}</Button>
+            <Button variant="ghost" onclick={() => (uiStore.isNewFolderModalOpen = false)}
+                >{m.cancel()}</Button
+            >
         </div>
-    </Modal>
-{/if}
+    </div>
+</Modal>
 
 <style>
     .modal-form {

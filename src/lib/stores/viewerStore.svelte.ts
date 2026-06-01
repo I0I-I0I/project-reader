@@ -90,7 +90,7 @@ class ViewerStore {
                     ...fileNodeToBook(matchingNode),
                     url: oldUrl,
                     previewDataUrl: oldPreview,
-                    isLocked: vfsStore.isLockedMap[matchingNode.id]
+                    isLocked: vfsStore.isLockedMap[matchingNode.id],
                 }
             }
         }

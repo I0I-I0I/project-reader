@@ -16,6 +16,7 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Folder from "$lib/components/Folder.svelte"
     import NewFolderModal from "$lib/components/NewFolderModal.svelte"
+    import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
 
@@ -55,11 +56,8 @@
     async function handleBulkDelete() {
         const ids = [...vfsStore.selectedIds]
         if (ids.length === 0) return
-        for (const id of ids) {
-            await vfsStore.deleteNode(id)
-        }
-        uiStore.isSelectionMode = false
-        vfsStore.clearSelection()
+        uiStore.nodesToDeleteIds = ids
+        uiStore.isDeleteModalOpen = true
     }
 
     useKeymap([
@@ -84,7 +82,12 @@
     <Header />
     <Breadcrumbs {breadcrumbs} />
 
-    <NewFolderModal onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)} />
+    {#if uiStore.isNewFolderModalOpen}
+        <NewFolderModal onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)} />
+    {/if}
+    {#if uiStore.isDeleteModalOpen}
+        <DeleteConfirmModal />
+    {/if}
 
     <main class="grid" class:selection-mode={uiStore.isSelectionMode}>
         {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null}

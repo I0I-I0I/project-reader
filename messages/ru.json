@@ -115,5 +115,9 @@
     "deselect_all": "СНЯТЬ ВЫДЕЛЕНИЕ",
     "delete_selected": "УДАЛИТЬ ВЫБРАННОЕ",
     "items_selected": "ВЫБРАНО: {count}",
-    "keymap_exit_selection_mode": "Выйти из режима выделения"
+    "keymap_exit_selection_mode": "Выйти из режима выделения",
+    "delete_confirmation_title": "ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ",
+    "delete_confirmation_single": "Вы уверены, что хотите удалить этот элемент? Это действие нельзя отменить.",
+    "delete_confirmation_multiple": "Вы уверены, что хотите удалить {count} эл.? Это действие нельзя отменить.",
+    "delete": "УДАЛИТЬ"
 }

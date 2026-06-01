@@ -155,7 +155,7 @@ class VFSStore {
         } catch (e) {
             console.error(`Failed to create file URL for node ${id}:`, e)
         }
-        
+
         this.isLockedMap[id] = true
         return ""
     }

@@ -30,6 +30,8 @@
         if (autofocusClose) {
             const closeBtn = document.querySelector(".close-btn") as HTMLElement | null
             closeBtn?.focus()
+        } else if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
         }
 
         return () => {

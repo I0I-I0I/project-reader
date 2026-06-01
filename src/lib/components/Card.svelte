@@ -32,10 +32,10 @@
     const isSelected = $derived(vfsStore.selectedIds.has(node.id))
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
-    
+
     // PHASE 2: Fetch preview URL lazily when the card is visible/rendered
     let previewUrl = $state("")
-    
+
     onMount(async () => {
         if (node.type === "file") {
             previewUrl = await vfsStore.getPreviewUrl(node.id)
@@ -83,7 +83,7 @@
                     await doc.load(settingsStore.scale)
                     const totalPages = await doc.getPageNumber()
                     const author = await doc.getAuthor()
-                    
+
                     if (!isCancelled) {
                         await vfsStore.updateFile(node.id, {
                             metadata: {
@@ -124,12 +124,12 @@
             try {
                 let fileNode = node as FileNode
                 const isLocked = vfsStore.isLockedMap[fileNode.id]
-                
+
                 if (isLocked) {
                     isRestoring = true
                     await vfsStore.restoreFileAccess(fileNode.id)
                 }
-                
+
                 // setCurrentBook will handle fetching the full URL lazily
                 await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
                 goto(resolve("/viewer"))
@@ -167,7 +167,8 @@
     const onRemove = async (e: MouseEvent) => {
         e.stopPropagation()
         showMenu = false
-        await vfsStore.deleteNode(node.id)
+        uiStore.nodesToDeleteIds = [node.id]
+        uiStore.isDeleteModalOpen = true
     }
 
     const onMove = (e: MouseEvent) => {

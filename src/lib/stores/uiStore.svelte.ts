@@ -6,6 +6,8 @@ class UIStore {
     #isSelectionMode = $state(false)
     #isPromptOpen = $state(false)
     #isNewFolderModalOpen = $state(false)
+    #isDeleteModalOpen = $state(false)
+    #nodesToDeleteIds = $state<string[]>([])
     #isCompact = $state(false)
     #promptMode = $state<"global" | "files" | "page" | "move">("global")
     #nodeToMoveId = $state<string | null>(null)
@@ -70,6 +72,22 @@ class UIStore {
 
     set isNewFolderModalOpen(value: boolean) {
         this.#isNewFolderModalOpen = value
+    }
+
+    get isDeleteModalOpen(): boolean {
+        return this.#isDeleteModalOpen
+    }
+
+    set isDeleteModalOpen(value: boolean) {
+        this.#isDeleteModalOpen = value
+    }
+
+    get nodesToDeleteIds(): string[] {
+        return this.#nodesToDeleteIds
+    }
+
+    set nodesToDeleteIds(value: string[]) {
+        this.#nodesToDeleteIds = value
     }
 
     get promptMode(): "global" | "files" | "page" | "move" {
