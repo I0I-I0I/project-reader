@@ -1,5 +1,5 @@
 import { Dexie, type EntityTable } from "dexie"
-import type { FolderNode, FileNode, BookPreview } from "./vfsStore.types"
+import type { FolderNode, FileNode, BookPreview, FileContent } from "./vfsStore.types"
 
 interface IDBBooks {
     get(id: string): Promise<FileNode | undefined>
@@ -14,6 +14,13 @@ interface IDBBookPreviews {
     delete(id: string): Promise<void>
 }
 
+interface IDBFileContents {
+    get(id: string): Promise<FileContent | undefined>
+    put(content: FileContent): Promise<string>
+    delete(id: string): Promise<void>
+    getAll(): Promise<FileContent[]>
+}
+
 interface IDBFolders {
     get(id: string): Promise<FolderNode | undefined>
     put(folder: FolderNode): Promise<string>
@@ -25,6 +32,7 @@ export interface IDatabase {
     files: IDBBooks
     previews: IDBBookPreviews
     folders: IDBFolders
+    fileContents: IDBFileContents
     transaction<T>(mode: "r" | "rw", tables: string[], callback: () => Promise<T>): Promise<T>
 }
 
@@ -32,6 +40,7 @@ const db = new Dexie("Database") as Dexie & {
     books: EntityTable<FileNode, "id">
     previews: EntityTable<BookPreview, "id">
     folders: EntityTable<FolderNode, "id">
+    fileContents: EntityTable<FileContent, "id">
 }
 
 db.version(1).stores({
@@ -39,6 +48,33 @@ db.version(1).stores({
     previews: "id",
     folders: "id",
 })
+
+db.version(2)
+    .stores({
+        books: "id",
+        previews: "id",
+        folders: "id",
+        fileContents: "id",
+    })
+    .upgrade(async (tx) => {
+        const books = await tx.table("books").toArray()
+        for (const book of books) {
+            if (book.file || book.handle) {
+                try {
+                    await tx.table("fileContents").put({
+                        id: book.id,
+                        file: book.file,
+                        handle: book.handle,
+                    })
+                    delete book.file
+                    delete book.handle
+                    await tx.table("books").put(book)
+                } catch (e) {
+                    console.error(`Failed to migrate file content during database upgrade for book ${book.id}:`, e)
+                }
+            }
+        }
+    })
 
 class DBBooks implements IDBBooks {
     get(id: string): Promise<FileNode | undefined> {
@@ -67,6 +103,21 @@ class DBBookPreviews implements IDBBookPreviews {
     }
 }
 
+class DBFileContents implements IDBFileContents {
+    get(id: string): Promise<FileContent | undefined> {
+        return db.fileContents.get(id)
+    }
+    put(content: FileContent): Promise<string> {
+        return db.fileContents.put(content)
+    }
+    delete(id: string): Promise<void> {
+        return db.fileContents.delete(id)
+    }
+    getAll(): Promise<FileContent[]> {
+        return db.fileContents.toArray()
+    }
+}
+
 class DBFolders implements IDBFolders {
     get(id: string): Promise<FolderNode | undefined> {
         return db.folders.get(id)
@@ -86,6 +137,7 @@ export class Database implements IDatabase {
     files = new DBBooks()
     previews = new DBBookPreviews()
     folders = new DBFolders()
+    fileContents = new DBFileContents()
 
     transaction<T>(mode: "r" | "rw", tables: string[], callback: () => Promise<T>): Promise<T> {
         return db.transaction(mode, tables, callback)

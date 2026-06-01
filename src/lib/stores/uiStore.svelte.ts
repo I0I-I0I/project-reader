@@ -22,7 +22,6 @@ class UIStore {
                 this.#isCompact = isUAPhone || (isTouch && isSmallScreen)
             }
 
-            // Defer initial check to avoid hydration mismatch
             setTimeout(checkCompact, 0)
 
             const mediaQueryList = window.matchMedia(MEDIA_QUERIES.TABLET)

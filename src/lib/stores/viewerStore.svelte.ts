@@ -138,7 +138,6 @@ class ViewerStore {
     }
 
     async updateBook(book: Book) {
-        // Persist metadata & url changes to vfsStore
         await vfsStore.updateFile(book.id, {
             name: book.name,
             previewDataUrl: book.previewDataUrl,

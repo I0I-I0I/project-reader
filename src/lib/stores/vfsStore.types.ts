@@ -14,6 +14,12 @@ export interface BookPreview {
     data: Blob
 }
 
+export interface FileContent {
+    id: string
+    file?: File
+    handle?: FileSystemFileHandle
+}
+
 export interface FolderNode extends BaseNode {
     type: "folder"
     childrenIds: string[]
@@ -34,8 +40,6 @@ export interface FileNode extends BaseNode {
     metadata: BookMetadata
     previewDataUrl?: string
     url?: string
-    file?: File
-    handle?: FileSystemFileHandle
 }
 
 export type VFSNode = FolderNode | FileNode

@@ -1,5 +1,12 @@
 import { browser } from "$app/environment"
-import type { FolderNode, FileNode, VFSNodes, VFSNode, BookMetadata } from "./vfsStore.types"
+import type {
+    FolderNode,
+    FileNode,
+    VFSNodes,
+    VFSNode,
+    BookMetadata,
+    FileContent,
+} from "./vfsStore.types"
 import { Database } from "$lib/stores/db"
 import PDFDocument from "$lib/pdf"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
@@ -13,9 +20,6 @@ class VFSStore {
     initialized = $state<boolean>(false)
     db = new Database()
 
-    // Non-reactive storage for native File and FileSystemFileHandle objects
-    // to prevent Svelte 5 from proxying them, which causes DataCloneError
-    // and storage corruption on mobile Safari / iOS.
     private nativeFiles = new Map<string, File>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
 
@@ -36,6 +40,11 @@ class VFSStore {
         try {
             const allFolders = await this.db.folders.getAll()
             const allFiles = await this.db.files.getAll()
+            const allContents = await this.db.fileContents.getAll()
+            const contentMap = new Map<string, FileContent>()
+            for (const c of allContents) {
+                contentMap.set(c.id, c)
+            }
 
             const newNodes: VFSNodes = {}
             for (const f of allFolders) {
@@ -43,21 +52,19 @@ class VFSStore {
             }
 
             for (const fileNode of allFiles) {
-                // Populate native non-reactive maps and delete from the node to avoid Svelte proxying
-                if (fileNode.file) {
-                    this.nativeFiles.set(fileNode.id, fileNode.file)
-                    delete fileNode.file
-                }
-                if (fileNode.handle) {
-                    this.nativeHandles.set(fileNode.id, fileNode.handle)
-                    delete fileNode.handle
+                const content = contentMap.get(fileNode.id)
+                if (content) {
+                    if (content.file) {
+                        this.nativeFiles.set(fileNode.id, content.file)
+                    }
+                    if (content.handle) {
+                        this.nativeHandles.set(fileNode.id, content.handle)
+                    }
                 }
 
-                // Initialize runtime fields
                 fileNode.url = ""
                 fileNode.isLocked = true
 
-                // Try to load cached preview
                 try {
                     const cachedPreview = await this.db.previews.get(fileNode.id)
                     if (cachedPreview) {
@@ -67,7 +74,6 @@ class VFSStore {
                     console.error(`Failed to load preview for file ${fileNode.name}:`, e)
                 }
 
-                // Verify file access / recreate URL using non-reactive maps
                 const nativeFile = this.nativeFiles.get(fileNode.id)
                 const nativeHandle = this.nativeHandles.get(fileNode.id)
 
@@ -190,14 +196,16 @@ class VFSStore {
             }
         }
 
+        const now = Date.now()
+
         const newFile: FileNode = {
             id,
             name,
             type: "file",
             parentId,
             size: isFile && fileObj ? fileObj.size : isFile ? (fileSource as File).size : 0,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: now,
+            updatedAt: now,
             metadata: {
                 pageNumber: 1,
                 totalPages,
@@ -214,40 +222,43 @@ class VFSStore {
             previewDataUrl,
         }
 
+        const fileContent: FileContent = { id }
         if (isFile) {
-            newFile.file = fileObj || (fileSource as File)
+            fileContent.file = fileObj || (fileSource as File)
         } else {
-            newFile.handle = fileSource as FileSystemFileHandle
+            fileContent.handle = fileSource as FileSystemFileHandle
         }
 
-        await this.db.transaction("rw", ["books", "folders", "previews"], async () => {
-            await this.db.files.put(newFile)
-            if (previewBlob) {
-                await this.db.previews.put({ id, data: previewBlob })
-            }
-            if (parentId !== null) {
-                const parent = this.nodes[parentId]
-                if (parent && parent.type === "folder") {
-                    const updatedParent = {
-                        ...parent,
-                        childrenIds: [...parent.childrenIds, id],
-                        updatedAt: Date.now(),
-                    }
-                    await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
+        await this.db.transaction(
+            "rw",
+            ["books", "folders", "previews", "fileContents"],
+            async () => {
+                await this.db.files.put(newFile)
+                await this.db.fileContents.put(fileContent)
+                if (previewBlob) {
+                    await this.db.previews.put({ id, data: previewBlob })
                 }
-            }
-        })
+                if (parentId !== null) {
+                    const parent = this.nodes[parentId]
+                    if (parent && parent.type === "folder") {
+                        const updatedParent = {
+                            ...parent,
+                            childrenIds: [...parent.childrenIds, id],
+                            updatedAt: now,
+                        }
+                        await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
+                    }
+                }
+            },
+        )
 
         // Store native references in non-reactive maps and delete from the node to avoid Svelte proxying
         if (isFile) {
-            this.nativeFiles.set(id, newFile.file!)
-            delete newFile.file
+            this.nativeFiles.set(id, fileContent.file!)
         } else {
-            this.nativeHandles.set(id, newFile.handle!)
-            delete newFile.handle
+            this.nativeHandles.set(id, fileContent.handle!)
         }
 
-        // Sync with reactive memory store on success
         this.nodes[id] = newFile
         if (parentId === null) {
             this.rootIds.push(id)
@@ -255,7 +266,7 @@ class VFSStore {
             const parent = this.nodes[parentId]
             if (parent && parent.type === "folder") {
                 parent.childrenIds.push(id)
-                parent.updatedAt = Date.now()
+                parent.updatedAt = now
             }
         }
 
@@ -264,14 +275,15 @@ class VFSStore {
 
     async createFolder(name: string, parentId: string | null): Promise<string> {
         const id = crypto.randomUUID()
+        const now = Date.now()
         const newFolder: FolderNode = {
             id,
             name,
             type: "folder",
             parentId,
             childrenIds: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: now,
+            updatedAt: now,
         }
 
         await this.db.transaction("rw", ["folders"], async () => {
@@ -282,14 +294,13 @@ class VFSStore {
                     const updatedParent = {
                         ...parent,
                         childrenIds: [...parent.childrenIds, id],
-                        updatedAt: Date.now(),
+                        updatedAt: now,
                     }
                     await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
                 }
             }
         })
 
-        // On success, update in-memory state
         this.nodes[id] = newFolder
         if (parentId === null) {
             this.rootIds.push(id)
@@ -297,7 +308,7 @@ class VFSStore {
             const parent = this.nodes[parentId]
             if (parent && parent.type === "folder") {
                 parent.childrenIds.push(id)
-                parent.updatedAt = Date.now()
+                parent.updatedAt = now
             }
         }
 
@@ -308,14 +319,12 @@ class VFSStore {
         const rootNode = this.nodes[id]
         if (!rootNode) return
 
-        // 1. Gather all nodes to be deleted recursively
         const nodesToDelete: VFSNode[] = []
         const collect = (nodeId: string) => {
             const node = this.nodes[nodeId]
             if (!node) return
             nodesToDelete.push(node)
             if (node.type === "folder") {
-                // Defensive copy or simple read-only loop is perfectly safe
                 for (const cid of node.childrenIds) {
                     collect(cid)
                 }
@@ -323,33 +332,36 @@ class VFSStore {
         }
         collect(id)
 
-        // 2. Perform database transaction
-        await this.db.transaction("rw", ["books", "folders", "previews"], async () => {
-            // Delete all collected nodes from DB
-            for (const node of nodesToDelete) {
-                if (node.type === "file") {
-                    await this.db.files.delete(node.id)
-                    await this.db.previews.delete(node.id)
-                } else {
-                    await this.db.folders.delete(node.id)
-                }
-            }
+        const now = Date.now()
 
-            // Update parent in DB
-            if (rootNode.parentId !== null) {
-                const parent = this.nodes[rootNode.parentId]
-                if (parent && parent.type === "folder") {
-                    const updatedParent = {
-                        ...parent,
-                        childrenIds: parent.childrenIds.filter((cid) => cid !== id),
-                        updatedAt: Date.now(),
+        await this.db.transaction(
+            "rw",
+            ["books", "folders", "previews", "fileContents"],
+            async () => {
+                for (const node of nodesToDelete) {
+                    if (node.type === "file") {
+                        await this.db.files.delete(node.id)
+                        await this.db.previews.delete(node.id)
+                        await this.db.fileContents.delete(node.id)
+                    } else {
+                        await this.db.folders.delete(node.id)
                     }
-                    await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
                 }
-            }
-        })
 
-        // 3. On success, revoke URLs and update in-memory state
+                if (rootNode.parentId !== null) {
+                    const parent = this.nodes[rootNode.parentId]
+                    if (parent && parent.type === "folder") {
+                        const updatedParent = {
+                            ...parent,
+                            childrenIds: parent.childrenIds.filter((cid) => cid !== id),
+                            updatedAt: now,
+                        }
+                        await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
+                    }
+                }
+            },
+        )
+
         for (const node of nodesToDelete) {
             if (node.type === "file") {
                 this.nativeFiles.delete(node.id)
@@ -375,14 +387,13 @@ class VFSStore {
             delete this.nodes[node.id]
         }
 
-        // Update rootIds or parent childrenIds in memory
         if (rootNode.parentId === null) {
             this.rootIds = this.rootIds.filter((rid) => rid !== id)
         } else {
             const parent = this.nodes[rootNode.parentId]
             if (parent && parent.type === "folder") {
                 parent.childrenIds = parent.childrenIds.filter((cid) => cid !== id)
-                parent.updatedAt = Date.now()
+                parent.updatedAt = now
             }
         }
     }
@@ -539,11 +550,6 @@ class VFSStore {
     }
 
     private async saveFileToDb(node: FileNode): Promise<void> {
-        // Construct a clean, non-proxied object to save to IndexedDB.
-        // This is crucial because passing Svelte 5 state proxies directly to Dexie/IndexedDB
-        // can cause DataCloneError in some browsers (e.g. Safari on iOS),
-        // and using $state.snapshot on the entire node recursively clones native
-        // File/Blob/Handle objects which can fail or corrupt them on iOS.
         const plainNode: FileNode = {
             id: node.id,
             name: node.name,
@@ -561,8 +567,6 @@ class VFSStore {
             previewDataUrl: node.previewDataUrl,
             url: node.url,
             isLocked: node.isLocked,
-            file: this.nativeFiles.get(node.id),
-            handle: this.nativeHandles.get(node.id),
         }
         await this.db.files.put(plainNode)
     }
