@@ -2,8 +2,7 @@
     import type { Component } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
-    import { goto } from "$app/navigation"
-    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { fileNodeToBook } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
@@ -13,7 +12,6 @@
     import LockIcon from "$lib/components/icons/LockIcon.svelte"
     import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
     import PDFDocument from "$lib/pdf"
-    import { resolve } from "$app/paths"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -22,9 +20,11 @@
     interface Props extends HTMLButtonAttributes {
         node: VFSNode
         Icon?: Component
+        class?: string
+        onclick?: (e: MouseEvent) => void | Promise<void>
     }
 
-    let { node, Icon, ...props }: Props = $props()
+    let { node, Icon, class: className, onclick, ...props }: Props = $props()
     let isRestoring = $state(false)
     let showMenu = $state(false)
     let longPressTimeout: ReturnType<typeof setTimeout> | undefined
@@ -110,31 +110,11 @@
         }
     })
 
-    const onClick = async (e: MouseEvent) => {
-        if (uiStore.isSelectionMode || e.metaKey || e.ctrlKey) {
-            uiStore.isSelectionMode = true
-            vfsStore.toggleSelection(node.id)
-            return
-        }
-
-        if (node.type === "folder") {
-            goto(`?folder=${node.id}`)
-        } else {
-            if (isRestoring) return
+    const handleClick = async (e: MouseEvent) => {
+        if (onclick) {
+            isRestoring = true
             try {
-                let fileNode = node as FileNode
-                const isLocked = vfsStore.isLockedMap[fileNode.id]
-
-                if (isLocked) {
-                    isRestoring = true
-                    await vfsStore.restoreFileAccess(fileNode.id)
-                }
-
-                // setCurrentBook will handle fetching the full URL lazily
-                await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                goto(resolve("/viewer"))
-            } catch (err) {
-                console.error("[Card] Failed to open book:", err)
+                await onclick(e)
             } finally {
                 isRestoring = false
             }
@@ -174,8 +154,7 @@
     const onMove = (e: MouseEvent) => {
         e.stopPropagation()
         uiStore.nodeToMoveId = node.id
-        uiStore.promptMode = "move"
-        uiStore.isPromptOpen = true
+        uiStore.isPromptOpen = { value: true, mode: "move" }
         showMenu = false
     }
 
@@ -204,8 +183,9 @@
 
 <svelte:window onpointerdown={closeMenu} />
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-    class="card"
+    class={`card ${className}`}
     class:is-selected={isSelected}
     onmouseleave={handleMouseLeave}
     onpointerdown={onPointerDown}
@@ -215,7 +195,7 @@
     <button
         type="button"
         class="card-main-button"
-        onclick={onClick}
+        onclick={handleClick}
         disabled={isRestoring}
         {...props}
     >

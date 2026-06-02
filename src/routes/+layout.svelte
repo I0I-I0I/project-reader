@@ -14,7 +14,7 @@
         type SearchItem,
         type PromptProvider,
     } from "$lib/stores/promptStore.svelte"
-    import { goto } from "$app/navigation"
+    import { afterNavigate, goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import type { FileNode, FolderNode } from "$lib/stores/vfsStore.types"
 
@@ -24,6 +24,26 @@
     let currentActivePromptNode = $state<PromptNode | null>(null)
     let isHelpOpen = $state(false)
     let promptValue = $state("")
+
+    let historyIndex = $state(0)
+
+    afterNavigate(({ from, type }) => {
+        if (!from) {
+            if (!window.history.state?.index) {
+                window.history.replaceState({ ...window.history.state, index: 0 }, "")
+            }
+            historyIndex = 0
+            return
+        }
+
+        if (type === "goto" || type === "link") {
+            const nextIndex = (window.history.state?.index ?? historyIndex) + 1
+            window.history.replaceState({ ...window.history.state, index: nextIndex }, "")
+            historyIndex = nextIndex
+        } else if (type === "popstate") {
+            historyIndex = window.history.state?.index ?? 0
+        }
+    })
 
     let rootNode: KeymapNode
     let rootPromptNode: PromptNode
@@ -46,10 +66,7 @@
             keys: "ctrl+k",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.isPromptOpen = !uiStore.isPromptOpen
-                if (uiStore.isPromptOpen) {
-                    uiStore.promptMode = "global"
-                }
+                uiStore.isPromptOpen = { value: !uiStore.isPromptOpen.value, mode: "global" }
             },
             description: m.keymap_prompt(),
             allowInInputs: true,
@@ -57,11 +74,10 @@
         },
         {
             id: "open-file",
-            keys: "o",
+            keys: "shift+o",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.promptMode = "files"
-                uiStore.isPromptOpen = true
+                uiStore.isPromptOpen = { value: true, mode: "files" }
             },
             description: settingsStore.language === "ru" ? "Открыть книгу" : "Open book",
             category: "menu",
@@ -198,6 +214,24 @@
             description: m.keymap_toggle_help(),
             category: "commands",
         },
+        {
+            keys: "h",
+            action: () => {
+                if (historyIndex > 0) {
+                    window.history.back()
+                }
+            },
+            description: m.keymap_history_back(),
+            category: "navigation",
+        },
+        {
+            keys: "l",
+            action: () => {
+                window.history.forward()
+            },
+            description: m.keymap_history_forward(),
+            category: "navigation",
+        },
     ])
 
     $effect(() => {
@@ -206,7 +240,7 @@
 
     $effect(() => {
         // Clear search input whenever the prompt mode changes
-        const _mode = uiStore.promptMode
+        const _mode = uiStore.isPromptOpen.mode
         untrack(() => {
             promptValue = ""
         })
@@ -242,14 +276,14 @@
     }
 
     let promptPlaceholder = $derived.by(() => {
-        if (uiStore.promptMode === "files") {
+        if (uiStore.isPromptOpen.mode === "files") {
             const base = m.prompt_placeholder()
             return base.split(",")[0].trim() + "..."
         }
-        if (uiStore.promptMode === "page") {
+        if (uiStore.isPromptOpen.mode === "page") {
             return m.enter_page_number()
         }
-        if (uiStore.promptMode === "move") {
+        if (uiStore.isPromptOpen.mode === "move") {
             return m.move_to ? m.move_to() : "Move to..."
         }
         return m.prompt_placeholder()
@@ -281,7 +315,7 @@
                                     console.error(`Failed to move node ${id} to root:`, e)
                                 }
                             }
-                            uiStore.isPromptOpen = false
+                            uiStore.isPromptOpen = { value: false, mode: "global" }
                             uiStore.nodeToMoveId = null
                             uiStore.isSelectionMode = false
                             vfsStore.clearSelection()
@@ -334,7 +368,7 @@
                                         )
                                     }
                                 }
-                                uiStore.isPromptOpen = false
+                                uiStore.isPromptOpen = { value: false, mode: "global" }
                                 uiStore.nodeToMoveId = null
                                 uiStore.isSelectionMode = false
                                 vfsStore.clearSelection()
@@ -380,7 +414,7 @@
                         }
                         viewerStore.setCurrentBook(fileNodeToBook(activeNode))
                         goto(resolve("/viewer"))
-                        uiStore.isPromptOpen = false
+                        uiStore.isPromptOpen = { value: false, mode: "global" }
                     },
                 })
             }
@@ -417,7 +451,7 @@
                                     bubbles: true,
                                     cancelable: true,
                                 })
-                                uiStore.isPromptOpen = false
+                                uiStore.isPromptOpen = { value: false, mode: "global" }
                                 keymap.action(event)
                             },
                         })
@@ -435,7 +469,7 @@
         const activeNode = currentActivePromptNode || rootPromptNode
         return activeNode.getAllItems({
             value: promptValue,
-            mode: uiStore.promptMode,
+            mode: uiStore.isPromptOpen.mode,
         })
     })
 </script>
@@ -445,13 +479,13 @@
     {#if isHelpOpen}
         <KeymapHelp onClose={() => (isHelpOpen = false)} />
     {/if}
-    {#if uiStore.isPromptOpen}
+    {#if uiStore.isPromptOpen.value}
         <Prompt
             bind:value={promptValue}
             items={promptItems}
             placeholder={promptPlaceholder}
             onClose={() => {
-                uiStore.isPromptOpen = false
+                uiStore.isPromptOpen = { value: false, mode: "global" }
                 promptValue = ""
                 uiStore.nodeToMoveId = null
             }}

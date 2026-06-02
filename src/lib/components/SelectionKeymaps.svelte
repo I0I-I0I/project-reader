@@ -18,6 +18,10 @@
             keys: "escape",
             action: (event) => {
                 event.preventDefault()
+                if (uiStore.isPickingMode) {
+                    uiStore.isPickingMode = false
+                    return
+                }
                 uiStore.isSelectionMode = false
                 vfsStore.clearSelection()
             },
@@ -29,6 +33,10 @@
             keys: "q",
             action: (event) => {
                 event.preventDefault()
+                if (uiStore.isPickingMode) {
+                    uiStore.isPickingMode = false
+                    return
+                }
                 uiStore.isSelectionMode = false
                 vfsStore.clearSelection()
             },
@@ -37,13 +45,12 @@
         },
         {
             id: "move-selected",
-            keys: "m",
+            keys: "shift+m",
             action: (event) => {
                 event.preventDefault()
                 if (vfsStore.selectedIds.size > 0) {
                     uiStore.nodeToMoveId = null
-                    uiStore.promptMode = "move"
-                    uiStore.isPromptOpen = true
+                    uiStore.isPromptOpen = { value: true, mode: "move" }
                 }
             },
             description: m.move(),
@@ -51,7 +58,7 @@
         },
         {
             id: "delete-selected-shortcut",
-            keys: "d",
+            keys: "shift+d",
             action: (event) => {
                 event.preventDefault()
                 handleBulkDelete()
@@ -61,7 +68,7 @@
         },
         {
             id: "toggle-select-all",
-            keys: "a",
+            keys: "shift+a",
             action: (event) => {
                 event.preventDefault()
                 if (allSelected) {

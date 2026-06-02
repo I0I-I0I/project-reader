@@ -4,12 +4,15 @@ import { MEDIA_QUERIES } from "$lib/breakpoints"
 class UIStore {
     #isToolbarsVisible = $state(true)
     #isSelectionMode = $state(false)
-    #isPromptOpen = $state(false)
+    #isPickingMode = $state(false)
+    #isPromptOpen = $state<{ value: boolean; mode: "global" | "files" | "page" | "move" }>({
+        value: false,
+        mode: "global",
+    })
     #isNewFolderModalOpen = $state(false)
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])
     #isCompact = $state(false)
-    #promptMode = $state<"global" | "files" | "page" | "move">("global")
     #nodeToMoveId = $state<string | null>(null)
 
     constructor() {
@@ -39,14 +42,24 @@ class UIStore {
         }
     }
 
+    clearStates() {
+        this.#isToolbarsVisible = false
+        this.#isSelectionMode = false
+        this.#isPickingMode = false
+        this.#isNewFolderModalOpen = false
+        this.#isDeleteModalOpen = false
+        this.#nodesToDeleteIds = []
+        this.#nodeToMoveId = null
+    }
+
     get isSelectionMode(): boolean {
         return this.#isSelectionMode
     }
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
-        if (!value && this.#promptMode === "move") {
-            this.#promptMode = "global"
+        if (!value && this.#isPromptOpen.mode === "move") {
+            this.#isPromptOpen = { value: false, mode: "global" }
         }
     }
 
@@ -58,12 +71,26 @@ class UIStore {
         this.#isToolbarsVisible = value
     }
 
-    get isPromptOpen(): boolean {
+    get isPickingMode(): boolean {
+        return this.#isPickingMode
+    }
+
+    set isPickingMode(value: boolean) {
+        this.#isPickingMode = value
+    }
+
+    get isPromptOpen(): { value: boolean; mode: "global" | "files" | "page" | "move" } {
         return this.#isPromptOpen
     }
 
-    set isPromptOpen(value: boolean) {
-        this.#isPromptOpen = value
+    set isPromptOpen({
+        value,
+        mode,
+    }: {
+        value: boolean
+        mode: "global" | "files" | "page" | "move"
+    }) {
+        this.#isPromptOpen = { value, mode }
     }
 
     get isNewFolderModalOpen(): boolean {
@@ -88,14 +115,6 @@ class UIStore {
 
     set nodesToDeleteIds(value: string[]) {
         this.#nodesToDeleteIds = value
-    }
-
-    get promptMode(): "global" | "files" | "page" | "move" {
-        return this.#promptMode
-    }
-
-    set promptMode(value: "global" | "files" | "page" | "move") {
-        this.#promptMode = value
     }
 
     get nodeToMoveId(): string | null {

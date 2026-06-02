@@ -20,6 +20,14 @@
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useKeymap } from "$lib/stores/keymapStore.svelte"
     import { page } from "$app/stores"
+    import { goto } from "$app/navigation"
+    import { resolve } from "$app/paths"
+    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
+    import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
+    import PickerKey from "$lib/components/PickerKey.svelte"
+
+    let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
 
     const currentNodes = $derived(
         [...vfsStore.currentNodes].sort((a, b) => {
@@ -68,6 +76,33 @@
         uiStore.isDeleteModalOpen = true
     }
 
+    async function handleNodeClick(e: MouseEvent | null, node: VFSNode) {
+        if (uiStore.isSelectionMode || e?.metaKey || e?.ctrlKey) {
+            uiStore.isSelectionMode = true
+            vfsStore.toggleSelection(node.id)
+            return
+        }
+
+        if (node.type === "folder") {
+            goto(`?folder=${node.id}`)
+        } else {
+            try {
+                let fileNode = node as FileNode
+                const isLocked = vfsStore.isLockedMap[fileNode.id]
+
+                if (isLocked) {
+                    await vfsStore.restoreFileAccess(fileNode.id)
+                }
+
+                // setCurrentBook will handle fetching the full URL lazily
+                await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
+                goto(resolve("/viewer"))
+            } catch (err) {
+                console.error("[+page] Failed to open book:", err)
+            }
+        }
+    }
+
     useKeymap([
         {
             id: "open-new-folder-modal",
@@ -76,6 +111,26 @@
             description: m.new_folder(),
             category: "commands",
             subtitle: () => m.new_folder(),
+        },
+        {
+            keys: "f",
+            action: () => {
+                if (!uiStore.isSelectionMode) {
+                    pickingMode = "openFileFolder"
+                }
+                uiStore.isPickingMode = true
+            },
+            description: m.pick_file_to_open(),
+            category: "commands",
+        },
+        {
+            keys: "s",
+            action: () => {
+                pickingMode = "startSelection"
+                uiStore.isPickingMode = true
+            },
+            description: m.pick_file_to_open(),
+            category: "commands",
         },
     ])
 
@@ -99,13 +154,44 @@
         <DeleteConfirmModal />
     {/if}
 
-    <main class="grid" class:selection-mode={uiStore.isSelectionMode}>
+    {#if uiStore.isPickingMode}
+        <PickerModeKeymaps />
+    {/if}
+
+    <main class:selection-mode={uiStore.isSelectionMode}>
         {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null}
-            <Folder type="new-folder" />
-            {#each currentNodes as node (node.id)}
-                <Card {node} Icon={BookIcon} />
-            {/each}
-            <BookImporter variant="card" />
+            <ul class="card_list grid">
+                <li class="card_item">
+                    <Folder class="card_inner" type="new-folder" />
+                </li>
+                {#each currentNodes as node, idx (node.id)}
+                    <li class="card_item">
+                        <Card
+                            class="card_inner"
+                            {node}
+                            Icon={BookIcon}
+                            onclick={(e) => handleNodeClick(e, node)}
+                        />
+                        {#if uiStore.isPickingMode}
+                            <PickerKey
+                                onSelect={() => {
+                                    if (pickingMode === "startSelection") {
+                                        uiStore.isSelectionMode = true
+                                        vfsStore.toggleSelection(node.id)
+                                    } else if (pickingMode === "openFileFolder") {
+                                        handleNodeClick(null as any, node)
+                                        uiStore.isPickingMode = false
+                                    }
+                                }}
+                                {idx}
+                            />
+                        {/if}
+                    </li>
+                {/each}
+                <li class="card_item">
+                    <BookImporter class="card_inner" variant="card" />
+                </li>
+            </ul>
         {:else}
             <BookImporter />
         {/if}
@@ -139,8 +225,7 @@
                     size="small"
                     onclick={() => {
                         uiStore.nodeToMoveId = null
-                        uiStore.promptMode = "move"
-                        uiStore.isPromptOpen = true
+                        uiStore.isPromptOpen = { value: true, mode: "move" }
                     }}
                     disabled={vfsStore.selectedIds.size === 0}
                 >
@@ -164,7 +249,7 @@
     {#if uiStore.isCompact && !uiStore.isSelectionMode}
         <button
             class="mobile-prompt-btn"
-            onclick={() => (uiStore.isPromptOpen = true)}
+            onclick={() => (uiStore.isPromptOpen = { value: true, mode: "global" })}
             aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
             title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
         >
@@ -180,6 +265,21 @@
         display: flex;
         flex-direction: column;
         padding-bottom: 100px;
+    }
+
+    .card_list {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    .card_item {
+        position: relative;
+    }
+
+    :global(.card_inner) {
+        min-width: 100%;
+        min-height: 100%;
     }
 
     .grid {

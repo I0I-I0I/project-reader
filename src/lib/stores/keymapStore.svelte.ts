@@ -9,6 +9,7 @@ export type ShortcutAction = {
     allowInInputs?: boolean
     category?: "commands" | "settings" | "navigation" | "menu"
     subtitle?: () => string
+    preventDefault?: boolean
 }
 
 const CODE_TO_KEY: Record<string, string> = {
@@ -199,6 +200,10 @@ export class KeymapNode {
                 return
             }
 
+            if (match.preventDefault === true || match.preventDefault === undefined) {
+                event.preventDefault()
+            }
+
             match.action(event)
         }
     }
@@ -222,6 +227,22 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
             if (getActiveNode) {
                 const currentActive = getActiveNode()
                 if (!currentActive || !node.isAncestorOf(currentActive)) {
+                    // To support sibling components calling useKeymap concurrently (e.g. in #each loops),
+                    // we chain our node onto the current active node if it shares our context parent.
+                    let isSiblingDescendant = false
+                    let curr: KeymapNode | null = currentActive
+                    while (curr) {
+                        if (curr === parentNode) {
+                            isSiblingDescendant = true
+                            break
+                        }
+                        curr = curr.parent
+                    }
+
+                    if (isSiblingDescendant) {
+                        node.parent = currentActive
+                    }
+
                     setActiveNode(node)
                 }
             } else {
@@ -235,10 +256,10 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
                 if (getActiveNode) {
                     const currentActive = getActiveNode()
                     if (currentActive === node) {
-                        setActiveNode(parentNode)
+                        setActiveNode(node.parent)
                     }
                 } else {
-                    setActiveNode(parentNode)
+                    setActiveNode(node.parent)
                 }
             }
         }

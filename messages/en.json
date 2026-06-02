@@ -120,5 +120,8 @@
     "delete_confirmation_single": "Are you sure you want to delete this item? This action cannot be undone.",
     "delete_confirmation_multiple": "Are you sure you want to delete {count} items? This action cannot be undone.",
     "delete": "DELETE",
-    "viewer_footer": "Viewer controls"
+    "viewer_footer": "Viewer controls",
+    "pick_file_to_open": "Select file to open",
+    "keymap_history_back": "Go back in history",
+    "keymap_history_forward": "Go forward in history"
 }

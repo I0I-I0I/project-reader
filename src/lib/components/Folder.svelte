@@ -7,9 +7,10 @@
     interface Props {
         type?: "new-folder" | "folder"
         onclick?: () => void
+        class?: string
     }
 
-    const { type = "folder", onclick }: Props = $props()
+    const { type = "folder", onclick, class: className }: Props = $props()
 
     function handleClick() {
         if (type === "new-folder") {
@@ -21,7 +22,12 @@
     }
 </script>
 
-<button type="button" class="card" class:card-action={type === "new-folder"} onclick={handleClick}>
+<button
+    type="button"
+    class={`card ${className}`}
+    class:card-action={type === "new-folder"}
+    onclick={handleClick}
+>
     <div class="card-cover-container">
         <div class="card-icon" aria-hidden="true">
             {#if type === "new-folder"}

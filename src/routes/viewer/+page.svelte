@@ -52,7 +52,7 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(targetPage)
                         }
-                        uiStore.isPromptOpen = false
+                        uiStore.isPromptOpen = { value: false, mode: "global" }
                     },
                 })
             } else {
@@ -69,7 +69,7 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(currentPageNum)
                         }
-                        uiStore.isPromptOpen = false
+                        uiStore.isPromptOpen = { value: false, mode: "global" }
                     },
                 })
             }
@@ -90,7 +90,7 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(num)
                         }
-                        uiStore.isPromptOpen = false
+                        uiStore.isPromptOpen = { value: false, mode: "global" }
                     },
                 })
             }
@@ -317,8 +317,7 @@
             category: "menu",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.promptMode = "page"
-                uiStore.isPromptOpen = true
+                uiStore.isPromptOpen = { value: true, mode: "page" }
             },
         },
     ])
@@ -816,7 +815,7 @@
                                     : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    uiStore.isPromptOpen = true
+                                    uiStore.isPromptOpen = { value: true, mode: "global" }
                                 }}
                                 aria-label={m.keymap_prompt
                                     ? m.keymap_prompt()

@@ -72,7 +72,7 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
-        if (uiStore.promptMode === "page") {
+        if (uiStore.isPromptOpen.mode === "page") {
             return allItems.map((item) => ({ item, matches: [] }))
         }
         if (query === "") {
@@ -186,9 +186,7 @@
         const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
         if (promptInput) {
             promptInput.focus()
-            if (!uiStore.isCompact) {
-                promptInput.select()
-            }
+            promptInput.select()
         }
     })
     function handleClose() {

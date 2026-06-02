@@ -7,9 +7,10 @@
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
         variant?: "full" | "card"
+        class?: string
     }
 
-    let { onimport, variant = "full" }: Props = $props()
+    let { onimport, variant = "full", class: className }: Props = $props()
 
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
@@ -108,7 +109,7 @@
 
     useKeymap([
         {
-            keys: "shift+i",
+            keys: "a",
             action: (e) => {
                 e.preventDefault()
                 handleImportClick(null as any)
@@ -121,7 +122,7 @@
 {#if variant === "card"}
     <button
         type="button"
-        class="card card-importer"
+        class={`card card-importer ${className}`}
         class:drag-active={isDragging}
         onclick={handleImportClick}
         ondragenter={handleDragEnter}
