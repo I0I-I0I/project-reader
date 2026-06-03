@@ -8,9 +8,10 @@
         children: Snippet<[{ close: () => void }]>
         label?: string
         align?: "left" | "right"
+        class?: string
     }
 
-    let { trigger, children, label, align = "right" }: Props = $props()
+    let { trigger, children, label, align = "right", class: className = "" }: Props = $props()
 
     let isOpen = $state(false)
     let containerEl = $state<HTMLElement | null>(null)
@@ -50,7 +51,7 @@
     })
 </script>
 
-<div class="switcher-wrapper" bind:this={containerEl}>
+<div class={`switcher-wrapper ${className}`} bind:this={containerEl}>
     <button
         class="switcher-trigger"
         onclick={toggleDropdown}

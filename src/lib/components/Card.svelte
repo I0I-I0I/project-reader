@@ -154,7 +154,8 @@
     const onMove = (e: MouseEvent) => {
         e.stopPropagation()
         uiStore.nodeToMoveId = node.id
-        uiStore.isPromptOpen = { value: true, mode: "move" }
+        uiStore.prompt.mode("move")
+        uiStore.prompt.isOpen(true)
         showMenu = false
     }
 

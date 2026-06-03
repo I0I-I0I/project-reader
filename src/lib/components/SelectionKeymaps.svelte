@@ -50,7 +50,8 @@
                 event.preventDefault()
                 if (vfsStore.selectedIds.size > 0) {
                     uiStore.nodeToMoveId = null
-                    uiStore.isPromptOpen = { value: true, mode: "move" }
+                    uiStore.prompt.mode("move")
+                    uiStore.prompt.isOpen(true)
                 }
             },
             description: m.move(),

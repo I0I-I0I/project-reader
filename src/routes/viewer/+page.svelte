@@ -52,7 +52,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(targetPage)
                         }
-                        uiStore.isPromptOpen = { value: false, mode: "global" }
+                        uiStore.prompt.mode("global")
+                        uiStore.prompt.isOpen(false)
                     },
                 })
             } else {
@@ -69,7 +70,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(currentPageNum)
                         }
-                        uiStore.isPromptOpen = { value: false, mode: "global" }
+                        uiStore.prompt.mode("global")
+                        uiStore.prompt.isOpen(false)
                     },
                 })
             }
@@ -90,7 +92,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(num)
                         }
-                        uiStore.isPromptOpen = { value: false, mode: "global" }
+                        uiStore.prompt.mode("global")
+                        uiStore.prompt.isOpen(false)
                     },
                 })
             }
@@ -317,7 +320,8 @@
             category: "menu",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.isPromptOpen = { value: true, mode: "page" }
+                uiStore.prompt.mode("page")
+                uiStore.prompt.isOpen(true)
             },
         },
     ])
@@ -815,7 +819,8 @@
                                     : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    uiStore.isPromptOpen = { value: true, mode: "global" }
+                                    uiStore.prompt.mode("global")
+                                    uiStore.prompt.isOpen(true)
                                 }}
                                 aria-label={m.keymap_prompt
                                     ? m.keymap_prompt()

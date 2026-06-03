@@ -5,16 +5,29 @@
         label?: string
         value?: string
         errors?: string[]
+        classInput?: string
     }
 
-    let { label, value = $bindable(""), errors = [], class: className, ...props }: Props = $props()
+    let {
+        label,
+        value = $bindable(""),
+        errors = [],
+        class: className = "",
+        classInput,
+        ...props
+    }: Props = $props()
 </script>
 
 <div class="input-group {className || ''}">
     {#if label}
         <label class="input-label" for={props.id}>{label}</label>
     {/if}
-    <input class="input-field" class:has-error={errors.length > 0} bind:value {...props} />
+    <input
+        class={`input-field ${classInput}`}
+        class:has-error={errors.length > 0}
+        bind:value
+        {...props}
+    />
     {#if errors.length > 0}
         {#each errors as error}
             <span class="error-text">{error}</span>

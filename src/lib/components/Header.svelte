@@ -1,6 +1,4 @@
 <script lang="ts">
-    import NewFolderIcon from "$lib/components/icons/NewFolderIcon.svelte"
-    import Button from "$lib/components/ui/Button.svelte"
     import Switcher from "$lib/components/ui/Switcher.svelte"
     import SunIcon from "$lib/components/icons/SunIcon.svelte"
     import MoonIcon from "$lib/components/icons/MoonIcon.svelte"
@@ -13,13 +11,18 @@
     import type { Pathname } from "$app/types"
     import * as m from "$lib/paraglide/messages"
 
+    import { getLanguageName } from "$lib/locale"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
+    import Input from "./ui/Input.svelte"
+    import SearchIcon from "./icons/SearchIcon.svelte"
+
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
         { value: "dark", label: () => m.dark(), Icon: MoonIcon },
         { value: "system", label: () => m.system(), Icon: SystemIcon },
     ] as const
 
-    import { getLanguageName } from "$lib/locale"
+    let inputValue = $state("")
 
     function selectTheme(theme: Theme) {
         settingsStore.theme = theme
@@ -36,7 +39,24 @@
     </div>
     <div class="actions-wrapper" role="toolbar" aria-label={m.action_controls()}>
         <div class="header-btn-wrapper">
-            <Switcher label={m.select_theme()}>
+            {#if !uiStore.isCompact}
+                <div class="search-btn">
+                    <SearchIcon class="search-icon" />
+                    <Input
+                        class="search-input-wrapper"
+                        classInput="search-input"
+                        placeholder={m.header_prompt_placeholder()}
+                        oninput={() => {
+                            uiStore.prompt.mode("global")
+                            uiStore.prompt.isOpen(true)
+                            uiStore.prompt.initialValue(inputValue)
+                            inputValue = ""
+                        }}
+                        bind:value={inputValue}
+                    />
+                </div>
+            {/if}
+            <Switcher class="switcher-first" label={m.select_theme()}>
                 {#snippet trigger()}
                     <currentThemeInfo.Icon class="switcher-icon" />
                     <span class="current-label">{currentThemeInfo.label()}</span>
@@ -98,6 +118,7 @@
         padding-bottom: 24px;
         margin-bottom: 20px;
         gap: 20px;
+        flex-wrap: wrap;
     }
 
     .title-wrapper {
@@ -122,16 +143,11 @@
         gap: 24px;
     }
 
-    .action-nav {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
     .header-btn-wrapper {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
     }
 
     .header-btn-wrapper :global(.action-btn) {
@@ -153,6 +169,38 @@
     .header-btn-wrapper :global(.action-btn:active) {
         transform: translate(2px, 2px);
         box-shadow: 0px 0px 0 var(--shadow-color);
+    }
+
+    .search-btn {
+        position: relative;
+        height: 100%;
+
+        :global(.search-input-wrapper) {
+            height: 32px;
+
+            :global(.search-input) {
+                padding: 0 !important;
+                height: 100%;
+                padding-left: 32px !important;
+            }
+        }
+
+        :global(.search-icon) {
+            max-height: 100%;
+            position: absolute;
+            top: 50%;
+            left: 18px;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            color: var(--text-color);
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+    }
+
+    :global(.switcher-first) {
+        margin-left: auto;
     }
 
     :global(.switcher-icon) {
@@ -181,9 +229,22 @@
 
         .actions-wrapper {
             width: 100%;
-            justify-content: space-between;
+        }
+
+        .header-btn-wrapper {
+            width: 100%;
             flex-wrap: wrap;
             gap: 16px;
+        }
+
+        .search-btn {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .search-btn {
+            flex: 1 1 100%;
         }
     }
 </style>

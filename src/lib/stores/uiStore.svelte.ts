@@ -5,8 +5,13 @@ class UIStore {
     #isToolbarsVisible = $state(true)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
-    #isPromptOpen = $state<{ value: boolean; mode: "global" | "files" | "page" | "move" }>({
-        value: false,
+    #_prompt = $state<{
+        initialValue?: string
+        isOpen: boolean
+        mode: "global" | "files" | "page" | "move"
+    }>({
+        initialValue: "",
+        isOpen: false,
         mode: "global",
     })
     #isNewFolderModalOpen = $state(false)
@@ -58,8 +63,8 @@ class UIStore {
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
-        if (!value && this.#isPromptOpen.mode === "move") {
-            this.#isPromptOpen = { value: false, mode: "global" }
+        if (!value && this.#_prompt.mode === "move") {
+            this.#_prompt = { isOpen: false, mode: "global" }
         }
     }
 
@@ -79,18 +84,41 @@ class UIStore {
         this.#isPickingMode = value
     }
 
-    get isPromptOpen(): { value: boolean; mode: "global" | "files" | "page" | "move" } {
-        return this.#isPromptOpen
-    }
-
-    set isPromptOpen({
-        value,
-        mode,
-    }: {
-        value: boolean
+    set prompt(value: {
+        initialValue?: string
+        isOpen: boolean
         mode: "global" | "files" | "page" | "move"
     }) {
-        this.#isPromptOpen = { value, mode }
+        this.#_prompt = value
+    }
+
+    get prompt(): {
+        initialValue: (value?: string) => string
+        isOpen: (value?: boolean) => boolean
+        mode: (value?: "global" | "files" | "page" | "move") => "global" | "files" | "page" | "move"
+    } {
+        return {
+            initialValue: (value?: string): string => {
+                if (value !== undefined) {
+                    this.#_prompt.initialValue = value
+                }
+                return this.#_prompt.initialValue || ""
+            },
+            isOpen: (value?: boolean): boolean => {
+                if (value !== undefined) {
+                    this.#_prompt.isOpen = value
+                }
+                return this.#_prompt.isOpen
+            },
+            mode: (
+                value?: "global" | "files" | "page" | "move",
+            ): "global" | "files" | "page" | "move" => {
+                if (value !== undefined && value !== this.#_prompt.mode) {
+                    this.#_prompt.mode = value
+                }
+                return this.#_prompt.mode
+            },
+        }
     }
 
     get isNewFolderModalOpen(): boolean {

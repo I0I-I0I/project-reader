@@ -123,5 +123,6 @@
     "viewer_footer": "Управление просмотрщиком",
     "pick_file_to_open": "Выберите файл для открытия",
     "keymap_history_back": "Вернуться в историю",
-    "keymap_history_forward": "Перейти вперед в историю"
+    "keymap_history_forward": "Перейти вперед в историю",
+    "header_prompt_placeholder": "Ctrl+K для открытия командной строки"
 }

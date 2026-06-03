@@ -225,7 +225,8 @@
                     size="small"
                     onclick={() => {
                         uiStore.nodeToMoveId = null
-                        uiStore.isPromptOpen = { value: true, mode: "move" }
+                        uiStore.prompt.mode("move")
+                        uiStore.prompt.isOpen(true)
                     }}
                     disabled={vfsStore.selectedIds.size === 0}
                 >
@@ -249,7 +250,10 @@
     {#if uiStore.isCompact && !uiStore.isSelectionMode}
         <button
             class="mobile-prompt-btn"
-            onclick={() => (uiStore.isPromptOpen = { value: true, mode: "global" })}
+            onclick={() => {
+                uiStore.prompt.mode("global")
+                uiStore.prompt.isOpen(true)
+            }}
             aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
             title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
         >
