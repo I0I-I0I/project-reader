@@ -1,16 +1,18 @@
-FROM node:22 AS build
+FROM node:24 AS build
 
 WORKDIR /app
 
 RUN corepack enable
+RUN pnpm config set store-dir /pnpm/store
 
 COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm build && pnpm prune --prod
+RUN pnpm build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm prune --prod --ignore-scripts
 
-FROM node:22-slim AS runtime
+FROM node:24-slim AS runtime
 
 WORKDIR /app
 
