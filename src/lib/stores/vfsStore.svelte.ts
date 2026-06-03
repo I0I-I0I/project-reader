@@ -19,6 +19,7 @@ class VFSStore {
     selectedIds = new SvelteSet<string>()
     activeFileId = $state<string | null>(null)
     currentFolderId = $state<string | null>(null)
+    forwardHistory = $state<string[]>([])
     initialized = $state<boolean>(false)
     db = new Database()
 
@@ -35,6 +36,20 @@ class VFSStore {
         this.rootIds = Object.values(initialNodes)
             .filter((node) => node.parentId === null)
             .map((node) => node.id)
+    }
+
+    pushForwardHistory(id: string | null) {
+        if (id) {
+            this.forwardHistory.push(id)
+        }
+    }
+
+    popForwardHistory(): string | undefined {
+        return this.forwardHistory.pop()
+    }
+
+    clearForwardHistory() {
+        this.forwardHistory = []
     }
 
     get currentNodes() {

@@ -83,6 +83,7 @@
             return
         }
 
+        vfsStore.clearForwardHistory()
         if (node.type === "folder") {
             goto(`?folder=${node.id}`)
         } else {
@@ -131,6 +132,37 @@
             },
             description: m.pick_file_to_open(),
             category: "commands",
+        },
+        {
+            keys: "h",
+            action: () => {
+                if (vfsStore.currentFolderId) {
+                    const node = vfsStore.nodes[vfsStore.currentFolderId]
+                    if (node && node.type === "folder") {
+                        vfsStore.pushForwardHistory(vfsStore.currentFolderId)
+                        if (node.parentId) {
+                            goto(`?folder=${node.parentId}`)
+                        } else {
+                            goto("/")
+                        }
+                    }
+                }
+            },
+            description: m.keymap_up_folder(),
+            category: "navigation",
+        },
+        {
+            keys: "l",
+            action: () => {
+                const forwardId = vfsStore.popForwardHistory()
+                if (forwardId) {
+                    goto(`?folder=${forwardId}`)
+                } else {
+                    window.history.forward()
+                }
+            },
+            description: m.keymap_history_forward(),
+            category: "navigation",
         },
     ])
 

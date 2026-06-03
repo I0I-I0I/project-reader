@@ -14,7 +14,7 @@
         type SearchItem,
         type PromptProvider,
     } from "$lib/stores/promptStore.svelte"
-    import { afterNavigate, goto } from "$app/navigation"
+    import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import type { FileNode, FolderNode } from "$lib/stores/vfsStore.types"
 
@@ -24,26 +24,6 @@
     let currentActivePromptNode = $state<PromptNode | null>(null)
     let isHelpOpen = $state(false)
     let promptValue = $state("")
-
-    let historyIndex = $state(0)
-
-    afterNavigate(({ from, type }) => {
-        if (!from) {
-            if (!window.history.state?.index) {
-                window.history.replaceState({ ...window.history.state, index: 0 }, "")
-            }
-            historyIndex = 0
-            return
-        }
-
-        if (type === "goto" || type === "link") {
-            const nextIndex = (window.history.state?.index ?? historyIndex) + 1
-            window.history.replaceState({ ...window.history.state, index: nextIndex }, "")
-            historyIndex = nextIndex
-        } else if (type === "popstate") {
-            historyIndex = window.history.state?.index ?? 0
-        }
-    })
 
     let rootNode: KeymapNode
     let rootPromptNode: PromptNode
@@ -215,24 +195,6 @@
             },
             description: m.keymap_toggle_help(),
             category: "commands",
-        },
-        {
-            keys: "h",
-            action: () => {
-                if (historyIndex > 0) {
-                    window.history.back()
-                }
-            },
-            description: m.keymap_history_back(),
-            category: "navigation",
-        },
-        {
-            keys: "l",
-            action: () => {
-                window.history.forward()
-            },
-            description: m.keymap_history_forward(),
-            category: "navigation",
         },
     ])
 
@@ -419,6 +381,7 @@
                             }
                         }
                         viewerStore.setCurrentBook(fileNodeToBook(activeNode))
+                        vfsStore.clearForwardHistory()
                         goto(resolve("/viewer"))
                         uiStore.prompt.mode("global")
                         uiStore.prompt.isOpen(false)

@@ -95,9 +95,7 @@
                 action: (e) => {
                     e.preventDefault()
                     searchInputRef?.focus()
-                    if (!uiStore.isCompact) {
-                        searchInputRef?.select()
-                    }
+                    searchInputRef?.select()
                 },
             },
             {

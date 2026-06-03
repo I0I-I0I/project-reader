@@ -43,9 +43,7 @@
             const input = document.getElementById("folder-name-input") as HTMLInputElement | null
             if (input) {
                 input.focus()
-                if (!uiStore.isCompact) {
-                    input.select()
-                }
+                input.select()
             }
         }, 0)
     })

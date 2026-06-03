@@ -348,6 +348,7 @@
     }
 
     onMount(() => {
+        vfsStore.clearForwardHistory()
         if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
             goto(resolve("/"))
             return

@@ -22,7 +22,10 @@
                         type="button"
                         class="breadcrumb-text-btn"
                         class:active={idx === breadcrumbs.length - 1}
-                        onclick={() => goto(segment.id ? `?folder=${segment.id}` : "?")}
+                        onclick={() => {
+                            vfsStore.clearForwardHistory()
+                            goto(segment.id ? `?folder=${segment.id}` : "?")
+                        }}
                         disabled={idx === breadcrumbs.length - 1}
                     >
                         {segment.name}
