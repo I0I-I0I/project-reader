@@ -33,7 +33,6 @@
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
 
-    // PHASE 2: Fetch preview URL lazily when the card is visible/rendered
     let previewUrl = $state("")
 
     onMount(async () => {
@@ -268,7 +267,7 @@
         {/if}
     </button>
 
-    {#if kind === "book" || kind === "folder"}
+    {#if !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
             <Button
                 variant="fab"

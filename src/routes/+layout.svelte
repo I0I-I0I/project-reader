@@ -17,11 +17,15 @@
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import type { FileNode, FolderNode } from "$lib/stores/vfsStore.types"
+    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { getLanguageName } from "$lib/locale"
+    import { page } from "$app/state"
+    import type { Pathname } from "$app/types"
 
     let { children } = $props()
 
-    let currentActiveNode = $state<CommandNode | null>(null)
-    let currentActivePromptNode = $state<PromptNode | null>(null)
+    let currentActiveNode = $state.raw<CommandNode | null>(null)
+    let currentActivePromptNode = $state.raw<PromptNode | null>(null)
     let isHelpOpen = $state(false)
     let promptValue = $state("")
 
@@ -70,8 +74,10 @@
             category: "settings",
             subtitle: () =>
                 `${m.theme()}: ${settingsStore.theme === "dark" ? m.dark() : settingsStore.theme === "light" ? m.light() : m.system()}`,
-            action: () => {
-                settingsStore.theme = settingsStore.theme === "light" ? "dark" : "light"
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("theme")
+                uiStore.prompt.isOpen(true)
             },
         },
         {
@@ -96,8 +102,20 @@
                 }
                 return `${m.layout()}: ${layoutNames[settingsStore.layout]}`
             },
-            action: () => {
-                settingsStore.layout_next()
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("layout")
+                uiStore.prompt.isOpen(true)
+            },
+        },
+        {
+            description: m.keymap_change_language(),
+            category: "settings",
+            subtitle: () => `${getLanguageName(getLocale())}`,
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("language")
+                uiStore.prompt.isOpen(true)
             },
         },
         {
@@ -203,6 +221,17 @@
     })
 
     $effect(() => {
+        const locale = getLocale()
+        if (locale === "en" || locale === "ru") {
+            untrack(() => {
+                if (settingsStore.language !== locale) {
+                    settingsStore.language = locale
+                }
+            })
+        }
+    })
+
+    $effect(() => {
         // Clear search input whenever the prompt mode changes
         const _mode = uiStore.prompt.mode()
         untrack(() => {
@@ -249,6 +278,15 @@
         }
         if (uiStore.prompt.mode() === "move") {
             return m.move_to ? m.move_to() : "Move to..."
+        }
+        if (uiStore.prompt.mode() === "theme") {
+            return m.select_theme ? m.select_theme() : "SELECT THEME"
+        }
+        if (uiStore.prompt.mode() === "layout") {
+            return m.select_layout ? m.select_layout() : "SELECT LAYOUT"
+        }
+        if (uiStore.prompt.mode() === "language") {
+            return m.select_language ? m.select_language() : "SELECT LANGUAGE"
         }
         return m.prompt_placeholder()
     })
@@ -347,6 +385,104 @@
             }
         }
 
+        if (mode === "theme") {
+            list.push({
+                id: "theme-light",
+                title: m.light(),
+                englishTitle: m.light({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.theme === "light" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.theme = "light"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+            list.push({
+                id: "theme-dark",
+                title: m.dark(),
+                englishTitle: m.dark({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.theme === "dark" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.theme = "dark"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+            list.push({
+                id: "theme-system",
+                title: m.system(),
+                englishTitle: m.system({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.theme === "system" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.theme = "system"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+        }
+
+        if (mode === "layout") {
+            list.push({
+                id: "layout-single",
+                title: m.single_page(),
+                englishTitle: m.single_page({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.layout === "single" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.layout = "single"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+            list.push({
+                id: "layout-split",
+                title: m.split_pages(),
+                englishTitle: m.split_pages({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.layout === "split" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.layout = "split"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+            list.push({
+                id: "layout-scroll",
+                title: m.scroll_pages(),
+                englishTitle: m.scroll_pages({}, { locale: "en" }),
+                category: "settings",
+                subtitle: settingsStore.layout === "scroll" ? "✓" : undefined,
+                action: () => {
+                    settingsStore.layout = "scroll"
+                    uiStore.prompt.isOpen(false)
+                    uiStore.prompt.mode("global")
+                },
+            })
+        }
+
+        if (mode === "language") {
+            for (const locale of locales) {
+                list.push({
+                    id: `language-${locale}`,
+                    title: getLanguageName(locale),
+                    category: "settings",
+                    subtitle: getLocale() === locale ? "✓" : undefined,
+                    action: () => {
+                        settingsStore.language = locale as "en" | "ru"
+                        uiStore.prompt.isOpen(false)
+                        uiStore.prompt.mode("global")
+                        const resolvedHref = resolve(
+                            localizeHref(page.url.pathname, { locale }) as Pathname,
+                        )
+                        window.location.href = resolvedHref
+                    },
+                })
+            }
+        }
+
         if (mode === "files" || mode === "global") {
             const files = Object.values(vfsStore.nodes).filter(
                 (node) => node.type === "file",
@@ -394,44 +530,57 @@
             const activeNode = currentActiveNode || rootNode
             if (activeNode) {
                 const commands = activeNode.getAllCommands()
-                const seen = new Set<string>()
+                const commandGroups = new Map<string, typeof commands>()
                 for (const cmd of commands) {
-                    const uniqueKey = cmd.keys ? cmd.keys : cmd.id || cmd.description
-                    if (cmd.description && !seen.has(uniqueKey)) {
-                        seen.add(uniqueKey)
-                        const engTitle = getEnglishTranslation(cmd.description)
-                        list.push({
-                            id: cmd.id ? `command-${cmd.id}` : `command-${uniqueKey}`,
-                            title: cmd.description,
-                            englishTitle: engTitle,
-                            subtitle: cmd.subtitle
-                                ? cmd.subtitle()
-                                : cmd.keys
-                                  ? m.shortcut_hint({ keys: cmd.keys.toUpperCase() })
-                                  : undefined,
-                            englishSubtitle: cmd.subtitle
-                                ? undefined
-                                : cmd.keys
-                                  ? m.shortcut_hint
-                                      ? m.shortcut_hint(
-                                            { keys: cmd.keys.toUpperCase() },
-                                            { locale: "en" },
-                                        )
-                                      : undefined
-                                  : undefined,
-                            category: cmd.category || "commands",
-                            keys: cmd.keys,
-                            action: () => {
-                                const event = new KeyboardEvent("keydown", {
-                                    bubbles: true,
-                                    cancelable: true,
-                                })
-                                uiStore.prompt.isOpen(false)
-                                uiStore.prompt.mode("global")
-                                cmd.action(event)
-                            },
-                        })
+                    const uniqueId = cmd.id || cmd.description
+                    if (cmd.description) {
+                        if (!commandGroups.has(uniqueId)) {
+                            commandGroups.set(uniqueId, [])
+                        }
+                        commandGroups.get(uniqueId)!.push(cmd)
                     }
+                }
+
+                for (const [uniqueId, group] of commandGroups) {
+                    const primaryCmd = group.reduce((best, current) => {
+                        if (!current.keys) return best
+                        if (!best.keys) return current
+                        if (current.keys.includes("arrow")) return current
+                        return best.keys.length <= current.keys.length ? best : current
+                    }, group[0])
+
+                    const engTitle = getEnglishTranslation(primaryCmd.description)
+                    list.push({
+                        id: primaryCmd.id ? `command-${primaryCmd.id}` : `command-${uniqueId}`,
+                        title: primaryCmd.description,
+                        englishTitle: engTitle,
+                        subtitle: primaryCmd.subtitle
+                            ? primaryCmd.subtitle()
+                            : primaryCmd.keys
+                              ? m.shortcut_hint({ keys: primaryCmd.keys.toUpperCase() })
+                              : undefined,
+                        englishSubtitle: primaryCmd.subtitle
+                            ? undefined
+                            : primaryCmd.keys
+                              ? m.shortcut_hint
+                                  ? m.shortcut_hint(
+                                        { keys: primaryCmd.keys.toUpperCase() },
+                                        { locale: "en" },
+                                    )
+                                  : undefined
+                              : undefined,
+                        category: primaryCmd.category || "commands",
+                        keys: primaryCmd.keys,
+                        action: () => {
+                            const event = new KeyboardEvent("keydown", {
+                                bubbles: true,
+                                cancelable: true,
+                            })
+                            uiStore.prompt.isOpen(false)
+                            uiStore.prompt.mode("global")
+                            primaryCmd.action(event)
+                        },
+                    })
                 }
             }
         }

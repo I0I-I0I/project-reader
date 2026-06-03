@@ -15,15 +15,15 @@ export interface SearchItem {
 export type PromptProvider = (context: { value: string; mode: string }) => SearchItem[]
 
 export class PromptNode {
-    parent = $state<PromptNode | null>(null)
-    providers = $state<PromptProvider[]>([])
+    parent = $state.raw<PromptNode | null>(null)
+    providers = $state.raw<PromptProvider[]>([])
 
     constructor(parent: PromptNode | null = null) {
         this.parent = parent
     }
 
     register(provider: PromptProvider) {
-        this.providers.push(provider)
+        this.providers = [...this.providers, provider]
         return () => {
             this.providers = this.providers.filter((p) => p !== provider)
         }

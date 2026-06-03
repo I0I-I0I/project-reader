@@ -71,8 +71,8 @@ const CODE_TO_KEY: Record<string, string> = {
 }
 
 export class CommandNode {
-    parent = $state<CommandNode | null>(null)
-    commands = $state<Command[]>([])
+    parent = $state.raw<CommandNode | null>(null)
+    commands = $state.raw<Command[]>([])
 
     constructor(parent: CommandNode | null = null) {
         this.parent = parent
@@ -88,7 +88,7 @@ export class CommandNode {
                 throw new Error(`Key ${command.keys} is already registered`)
             }
         }
-        this.commands.push(command)
+        this.commands = [...this.commands, command]
         return () => {
             this.commands = this.commands.filter((c) => c !== command)
         }
