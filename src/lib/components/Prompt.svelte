@@ -87,6 +87,20 @@
     const getActiveNode = getContext<() => any>("get_active_keymap_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
+    function handleSelection(item: SearchItem) {
+        item.action()
+        if (uiStore.prompt.isOpen()) {
+            const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
+            if (promptInput) {
+                promptInput.focus()
+            }
+        } else {
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur()
+            }
+        }
+    }
+
     useKeymap(
         [
             {
@@ -151,10 +165,7 @@
                     event.preventDefault()
                     const selected = searchResults[selectedIndex]
                     if (selected) {
-                        if (document.activeElement instanceof HTMLElement) {
-                            document.activeElement.blur()
-                        }
-                        selected.item.action()
+                        handleSelection(selected.item)
                     }
                 },
                 description: "",
@@ -205,19 +216,34 @@
         style="height: {innerHeight ? `${innerHeight}px` : 'auto'}"
     >
         <div bind:clientHeight={innerHeight}>
-            <div class="input-wrapper" class:searching={value !== ""}>
+            <form
+                class="input-wrapper"
+                class:searching={value !== ""}
+                onsubmit={(e) => {
+                    e.preventDefault()
+                    if (searchResults.length === 0) return
+                    const selected = searchResults[selectedIndex]
+                    if (selected) {
+                        handleSelection(selected.item)
+                    }
+                }}
+            >
                 <SearchIcon class="search-icon {value ? 'active-search' : ''}" />
                 <input
                     class="prompt-input"
-                    type="text"
+                    type="search"
+                    enterkeyhint="go"
                     bind:value
                     {placeholder}
                     aria-label={m.prompt_search_aria()}
                 />
-                <button class="close-btn" onclick={handleClose} aria-label={m.prompt_close_aria()}
-                    >✕</button
+                <button
+                    type="button"
+                    class="close-btn"
+                    onclick={handleClose}
+                    aria-label={m.prompt_close_aria()}>✕</button
                 >
-            </div>
+            </form>
 
             <div class="results-list" bind:this={resultsContainerRef}>
                 {#if searchResults.length > 0}
@@ -225,12 +251,7 @@
                         <button
                             class="result-item"
                             class:selected={selectedIndex === i}
-                            onclick={() => {
-                                if (document.activeElement instanceof HTMLElement) {
-                                    document.activeElement.blur()
-                                }
-                                item.action()
-                            }}
+                            onclick={() => handleSelection(item)}
                             in:fly={{ y: 6, duration: settingsStore.animations ? 120 : 0 }}
                             out:fade={{ duration: settingsStore.animations ? 80 : 0 }}
                             animate:flip={{ duration: settingsStore.animations ? 200 : 0 }}

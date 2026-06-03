@@ -1,6 +1,8 @@
 import { browser } from "$app/environment"
 import { MEDIA_QUERIES } from "$lib/breakpoints"
 
+type PromptMode = "global" | "files" | "page" | "move"
+
 class UIStore {
     #isToolbarsVisible = $state(true)
     #isSelectionMode = $state(false)
@@ -8,7 +10,7 @@ class UIStore {
     #_prompt = $state<{
         initialValue?: string
         isOpen: boolean
-        mode: "global" | "files" | "page" | "move"
+        mode: PromptMode
     }>({
         initialValue: "",
         isOpen: false,
@@ -84,18 +86,14 @@ class UIStore {
         this.#isPickingMode = value
     }
 
-    set prompt(value: {
-        initialValue?: string
-        isOpen: boolean
-        mode: "global" | "files" | "page" | "move"
-    }) {
+    set prompt(value: { initialValue?: string; isOpen: boolean; mode: PromptMode }) {
         this.#_prompt = value
     }
 
     get prompt(): {
         initialValue: (value?: string) => string
         isOpen: (value?: boolean) => boolean
-        mode: (value?: "global" | "files" | "page" | "move") => "global" | "files" | "page" | "move"
+        mode: (value?: PromptMode) => PromptMode
     } {
         return {
             initialValue: (value?: string): string => {
@@ -110,9 +108,7 @@ class UIStore {
                 }
                 return this.#_prompt.isOpen
             },
-            mode: (
-                value?: "global" | "files" | "page" | "move",
-            ): "global" | "files" | "page" | "move" => {
+            mode: (value?: PromptMode): PromptMode => {
                 if (value !== undefined && value !== this.#_prompt.mode) {
                     this.#_prompt.mode = value
                 }
