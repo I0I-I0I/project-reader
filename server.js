@@ -13,6 +13,7 @@ const MIME_TYPES = {
     ".html": "text/html",
     ".css": "text/css",
     ".js": "application/javascript",
+    ".mjs": "application/javascript",
     ".json": "application/json",
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -53,6 +54,7 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(finalPath, (err, content) => {
         if (err) {
+            console.error(`Error reading file ${finalPath}:`, err)
             res.writeHead(500, { "Content-Type": "text/plain" })
             res.end(`Internal Server Error: ${err.code}`)
         } else {

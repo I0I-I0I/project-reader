@@ -21,6 +21,7 @@ const CACHE = `cache-${version}`
 const ASSETS = [
     ...build, // the app itself
     ...files, // everything in `static`
+    "/200.html", // SPA fallback
 ]
 
 self.addEventListener("install", (event) => {
@@ -85,6 +86,14 @@ self.addEventListener("fetch", (event) => {
 
             if (response) {
                 return response
+            }
+
+            // For SPA navigation requests, fallback to the 200.html shell
+            if (event.request.mode === "navigate") {
+                const fallback = await cache.match("/200.html")
+                if (fallback) {
+                    return fallback
+                }
             }
 
             // if there's no cache, then just error out
