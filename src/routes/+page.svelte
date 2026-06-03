@@ -102,7 +102,7 @@
         vfsStore.clearForwardHistory()
         if (node.type === "folder") {
             const path = vfsStore.getFolderPath(node.id)
-            goto(`?folder=${encodeURI(path)}`)
+            goto(`?folder=${encodeURIComponent(path)}`)
         } else {
             try {
                 let fileNode = node as FileNode
@@ -159,7 +159,7 @@
                         vfsStore.pushForwardHistory(vfsStore.currentFolderId)
                         if (node.parentId) {
                             const parentPath = vfsStore.getFolderPath(node.parentId)
-                            goto(`?folder=${encodeURI(parentPath)}`)
+                            goto(`?folder=${encodeURIComponent(parentPath)}`)
                         } else {
                             goto("/")
                         }
@@ -175,7 +175,7 @@
                 const forwardId = vfsStore.popForwardHistory()
                 if (forwardId) {
                     const forwardPath = vfsStore.getFolderPath(forwardId)
-                    goto(`?folder=${encodeURI(forwardPath)}`)
+                    goto(`?folder=${encodeURIComponent(forwardPath)}`)
                 } else {
                     window.history.forward()
                 }

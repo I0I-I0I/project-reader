@@ -182,7 +182,7 @@ export class KeymapNode {
         }
 
         // 3. Fallback to just the key character
-        if (!match) {
+        if (!match && !event.ctrlKey && !event.metaKey && !event.altKey) {
             const keyLower = event.key.toLowerCase()
             if (keyLower !== event.code.toLowerCase()) {
                 match = this.findAction(keyLower)

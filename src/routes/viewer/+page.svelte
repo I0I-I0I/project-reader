@@ -614,11 +614,17 @@
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
         }
-        const backUrl: "/" | `/?${string}` = vfsStore.currentFolderId
-            ? `/?folder=${encodeURI(vfsStore.getFolderPath(vfsStore.currentFolderId))}`
-            : "/"
-        viewerStore.setCurrentBook(null)
-        goto(resolve(backUrl))
+        const book = viewerStore.getCurrentBook()
+        const node = book ? vfsStore.nodes[book.id] : null
+        const parentId = node ? node.parentId : null
+
+        if (parentId) {
+            const folderPath = vfsStore.getFolderPath(parentId)
+            console.log("goto", resolve("/") + `?folder=${encodeURIComponent(folderPath)}`)
+            goto(resolve("/") + `?folder=${encodeURIComponent(folderPath)}`)
+        } else {
+            goto(resolve("/"))
+        }
     }
 
     function nextPage() {

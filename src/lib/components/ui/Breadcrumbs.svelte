@@ -26,7 +26,7 @@
                             vfsStore.clearForwardHistory()
                             goto(
                                 segment.id
-                                    ? `?folder=${encodeURI(vfsStore.getFolderPath(segment.id))}`
+                                    ? `?folder=${encodeURIComponent(vfsStore.getFolderPath(segment.id))}`
                                     : "?",
                             )
                         }}
