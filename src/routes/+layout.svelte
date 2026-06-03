@@ -168,6 +168,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-page-down-layout",
             keys: "d",
             action: () => {
                 window.scrollBy({
@@ -190,6 +191,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-page-up-layout",
             keys: "u",
             action: () => {
                 window.scrollBy({

@@ -1,8 +1,9 @@
 <script lang="ts">
     import { useCommands } from "$lib/stores/commandsStore.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
-    import * as m from "$lib/paraglide/messages"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { getContext, onMount } from "svelte"
+    import { fade, scale } from "svelte/transition"
+    import { backOut } from "svelte/easing"
 
     interface Props {
         onSelect: () => void
@@ -63,41 +64,66 @@
     })
 </script>
 
-<div class="picker-key">
-    <span>{KEYS[idx]}</span>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+    class="picker-key"
+    onclick={onSelect}
+    transition:fade={{ duration: settingsStore.animations ? 120 : 0 }}
+>
+    <kbd
+        transition:scale={{
+            duration: settingsStore.animations ? 200 : 0,
+            start: 0.7,
+            easing: backOut,
+        }}
+    >
+        {KEYS[idx]}
+    </kbd>
 </div>
 
 <style>
     .picker-key {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(3px);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        color: #ffffff;
-        font-weight: 800;
         z-index: 10;
-        opacity: 0.9;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    kbd {
+        font-family: var(--font-mono, Menlo, Monaco, Consolas, "Courier New", monospace);
+        font-size: 24px;
+        font-weight: 900;
+        text-transform: uppercase;
+        background: var(--accent-active-color);
+        color: var(--text-color);
+        border: 3px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--border-color);
+        border-radius: 8px;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition:
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     @media (hover: hover) {
-        .picker-key:hover {
-            background: rgba(0, 0, 0, 0.7);
-            opacity: 1;
-            backdrop-filter: blur(5px);
+        .picker-key:hover kbd {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--border-color);
         }
     }
 
-    .picker-key :global(span) {
-        font-size: 20px;
-        font-weight: 900;
-        text-transform: uppercase;
-        color: var(--text-color);
-        pointer-events: none;
+    .picker-key:active kbd {
+        transform: translate(2px, 2px);
+        box-shadow: 2px 2px 0 var(--border-color);
     }
 </style>

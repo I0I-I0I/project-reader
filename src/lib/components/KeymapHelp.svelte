@@ -143,6 +143,7 @@
                 },
             },
             {
+                id: "scroll-page-down-help",
                 keys: "d",
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
@@ -165,6 +166,7 @@
                 },
             },
             {
+                id: "scroll-page-up-help",
                 keys: "u",
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {

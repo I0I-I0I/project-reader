@@ -131,6 +131,7 @@
             subtitle: () => m.new_folder(),
         },
         {
+            id: "pick-file-to-open",
             keys: "f",
             action: () => {
                 if (!uiStore.isSelectionMode) {
@@ -142,6 +143,7 @@
             category: "commands",
         },
         {
+            id: "pick-file-to-open-start-selection",
             keys: "s",
             action: () => {
                 pickingMode = "startSelection"
@@ -151,6 +153,7 @@
             category: "commands",
         },
         {
+            id: "one-level-up",
             keys: "h",
             action: () => {
                 if (vfsStore.currentFolderId) {
@@ -170,6 +173,7 @@
             category: "navigation",
         },
         {
+            id: "open-history-forward",
             keys: "l",
             action: () => {
                 const forwardId = vfsStore.popForwardHistory()
@@ -201,6 +205,7 @@
             onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)}
         />
     {/if}
+
     {#if uiStore.isDeleteModalOpen}
         <DeleteConfirmModal />
     {/if}

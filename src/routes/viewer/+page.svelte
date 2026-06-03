@@ -182,7 +182,7 @@
             },
         },
         {
-            id: "scroll-page-down",
+            id: "scroll-page-down-main",
             keys: "d",
             description: m.keymap_scroll_page_down(),
             category: "navigation",
@@ -212,7 +212,7 @@
             },
         },
         {
-            id: "scroll-page-up",
+            id: "scroll-page-up-main",
             keys: "u",
             description: m.keymap_scroll_page_up(),
             category: "navigation",

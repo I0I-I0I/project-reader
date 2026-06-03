@@ -10,7 +10,7 @@
     useCommands(
         [
             {
-                id: "exit-picking-mode",
+                id: "exit-picking-mode-esc",
                 keys: "escape",
                 action: () => {
                     uiStore.isPickingMode = false
@@ -19,7 +19,7 @@
                 category: "commands",
             },
             {
-                id: "exit-selection-mode-q",
+                id: "exit-picking-mode-q",
                 keys: "q",
                 action: () => {
                     uiStore.isPickingMode = false
