@@ -117,6 +117,7 @@
     useCommands(
         [
             {
+                id: "prompt-escape",
                 keys: "escape",
                 action: (event) => {
                     event.preventDefault()
@@ -126,6 +127,7 @@
                 allowInInputs: true,
             },
             {
+                id: "prompt-next-down",
                 keys: "arrowdown",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -137,6 +139,7 @@
                 allowInInputs: true,
             },
             {
+                id: "prompt-next-n",
                 keys: "ctrl+n",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -148,6 +151,7 @@
                 allowInInputs: true,
             },
             {
+                id: "prompt-next-up",
                 keys: "arrowup",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -160,6 +164,7 @@
                 allowInInputs: true,
             },
             {
+                id: "prompt-prev-p",
                 keys: "ctrl+p",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -172,6 +177,7 @@
                 allowInInputs: true,
             },
             {
+                id: "prompt-enter",
                 keys: "enter",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -365,7 +371,8 @@
                 </div>
                 <div class="shortcuts-help">
                     <div class="shortcut-help-item">
-                        <kbd>↑↓</kbd> <span>{m.prompt_help_navigate()}</span>
+                        <kbd>↑</kbd><kbd>C-n</kbd>/<kbd>↓</kbd><kbd>C-p</kbd>
+                        <span>{m.prompt_help_navigate()}</span>
                     </div>
                     <div class="shortcut-help-item">
                         <kbd>↵</kbd> <span>{m.prompt_help_select()}</span>

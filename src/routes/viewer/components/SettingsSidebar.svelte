@@ -101,6 +101,7 @@
     useCommands(
         [
             {
+                id: "close-settings-escape",
                 keys: "escape",
                 action: () => {
                     onClose()
@@ -109,6 +110,7 @@
                 allowInInputs: true,
             },
             {
+                id: "close-settings-q",
                 keys: "q",
                 action: () => {
                     onClose()

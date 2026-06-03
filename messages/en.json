@@ -127,5 +127,6 @@
     "pick_file_to_open": "Select file to open",
     "keymap_up_folder": "Up one folder",
     "keymap_history_forward": "Go forward in history",
-    "header_prompt_placeholder": "Ctrl+K to open command prompt"
+    "header_prompt_placeholder": "Ctrl+K to open command prompt",
+    "keymap_open_book": "Open book"
 }

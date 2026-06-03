@@ -6,7 +6,6 @@
     import {
         useCommands,
         getShortcutHint,
-        getRawShortcutHint,
         type CommandNode,
     } from "$lib/stores/commandsStore.svelte"
     import { getContext, untrack } from "svelte"
@@ -132,7 +131,7 @@
     const sidebarCommandsNode = useCommands(
         [
             {
-                id: "close-outline",
+                id: "close-outline-escape",
                 keys: "escape",
                 action: () => {
                     onCloseOutline()
@@ -141,7 +140,7 @@
                 allowInInputs: true,
             },
             {
-                id: "close-outline",
+                id: "close-outline-q",
                 keys: "q",
                 action: () => {
                     onCloseOutline()
@@ -150,7 +149,7 @@
                 allowInInputs: true,
             },
             {
-                id: "next-heading",
+                id: "next-heading-j",
                 keys: "j",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -159,7 +158,7 @@
                 },
             },
             {
-                id: "next-heading",
+                id: "next-heading-arrowdown",
                 keys: "arrowdown",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -168,7 +167,7 @@
                 },
             },
             {
-                id: "prev-heading",
+                id: "prev-heading-k",
                 keys: "k",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -177,7 +176,7 @@
                 },
             },
             {
-                id: "prev-heading",
+                id: "prev-heading-arrowup",
                 keys: "arrowup",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -186,7 +185,7 @@
                 },
             },
             {
-                id: "next-heading",
+                id: "next-heading-ctrl-n",
                 keys: "ctrl+n",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -195,7 +194,7 @@
                 },
             },
             {
-                id: "prev-heading",
+                id: "prev-heading-ctrl-p",
                 keys: "ctrl+p",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -229,6 +228,80 @@
         ],
         activeNodeBeforeOpen,
     )
+
+    function formatKey(keys: string): string {
+        return keys
+            .split("+")
+            .map((part) => {
+                const lower = part.toLowerCase().trim()
+                if (lower === "arrowup") return "↑"
+                if (lower === "arrowdown") return "↓"
+                if (lower === "ctrl") return "C"
+                if (lower === "meta") return "M"
+                if (lower === "alt") return "A"
+                if (lower === "shift") return "S"
+                if (lower === "escape") return "Esc"
+                if (lower === "enter") return "Enter"
+                if (lower.length === 1) return lower
+                return part
+            })
+            .join("-")
+    }
+
+    let navigateShortcuts = $derived.by(() => {
+        if (!sidebarCommandsNode) return []
+        const cmds = sidebarCommandsNode.getAllCommands()
+
+        const nextCmds = cmds.filter((c) => c.id?.startsWith("next-heading-") && c.keys)
+        const prevCmds = cmds.filter((c) => c.id?.startsWith("prev-heading-") && c.keys)
+
+        const pairs: { next: string; prev: string; display: string }[] = []
+
+        const nextToPrevSuffix: Record<string, string> = {
+            j: "k",
+            arrowdown: "arrowup",
+            "ctrl-n": "ctrl-p",
+        }
+
+        for (const nextCmd of nextCmds) {
+            const suffix = nextCmd.id?.replace("next-heading-", "") || ""
+            const expectedPrevSuffix = nextToPrevSuffix[suffix]
+            if (expectedPrevSuffix) {
+                const prevCmd = prevCmds.find((c) => c.id === `prev-heading-${expectedPrevSuffix}`)
+                if (prevCmd && prevCmd.keys && nextCmd.keys) {
+                    pairs.push({
+                        next: nextCmd.keys,
+                        prev: prevCmd.keys,
+                        display: `${formatKey(nextCmd.keys)}/${formatKey(prevCmd.keys)}`,
+                    })
+                }
+            }
+        }
+        return pairs
+    })
+
+    let closeShortcuts = $derived.by(() => {
+        if (!sidebarCommandsNode) return []
+        const cmds = sidebarCommandsNode.getAllCommands()
+        const closeCmds = cmds.filter((c) => c.id?.startsWith("close-outline-") && c.keys)
+        return closeCmds.map((c) => formatKey(c.keys!))
+    })
+
+    let selectShortcut = $derived.by(() => {
+        if (!sidebarCommandsNode) return ""
+        const cmd = sidebarCommandsNode
+            .getAllCommands()
+            .find((c) => c.id === "select-heading" && c.keys)
+        return cmd ? formatKey(cmd.keys!) : ""
+    })
+
+    let searchShortcut = $derived.by(() => {
+        if (!sidebarCommandsNode) return ""
+        const cmd = sidebarCommandsNode
+            .getAllCommands()
+            .find((c) => c.id === "search-headings" && c.keys)
+        return cmd ? formatKey(cmd.keys!) : ""
+    })
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
@@ -352,26 +425,36 @@
 
     {#if !uiStore.isCompact}
         <div class="sidebar-footer-hint">
-            <span class="hint-item"
-                ><kbd
-                    >{getRawShortcutHint(sidebarCommandsNode, "next-heading")}/{getRawShortcutHint(
-                        sidebarCommandsNode,
-                        "prev-heading",
-                    )}</kbd
-                > Navigate</span
-            >
-            <span class="hint-divider">•</span>
-            <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "select-heading")}</kbd> Go</span
-            >
-            <span class="hint-divider">•</span>
-            <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "search-headings")}</kbd> Search</span
-            >
-            <span class="hint-divider">•</span>
-            <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "close-outline")}</kbd> Close</span
-            >
+            {#if navigateShortcuts.length > 0}
+                <span class="hint-item">
+                    {#each navigateShortcuts as pair, i}
+                        {#if i > 0},
+                        {/if}<kbd>{pair.display}</kbd>
+                    {/each}
+                    Navigate
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if selectShortcut}
+                <span class="hint-item">
+                    <kbd>{selectShortcut}</kbd> Go
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if searchShortcut}
+                <span class="hint-item">
+                    <kbd>{searchShortcut}</kbd> Search
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if closeShortcuts.length > 0}
+                <span class="hint-item">
+                    {#each closeShortcuts as shortcut, i}
+                        {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
+                    {/each}
+                    Close
+                </span>
+            {/if}
         </div>
     {/if}
 </div>
@@ -588,6 +671,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-wrap: wrap;
         gap: 6px;
         padding: 10px 8px;
         background: var(--accent-active-color);

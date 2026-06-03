@@ -6,9 +6,10 @@ export type Command = {
     action: (event: KeyboardEvent) => void
     description: string
     allowInInputs?: boolean
-    category?: "commands" | "settings" | "navigation" | "menu"
+    category?: "commands" | "settings" | "navigation" | "menu" | "books"
     subtitle?: () => string
     preventDefault?: boolean
+    disabled?: boolean | (() => boolean)
 }
 
 const CODE_TO_KEY: Record<string, string> = {
@@ -70,81 +71,16 @@ const CODE_TO_KEY: Record<string, string> = {
     PageDown: "pagedown",
 }
 
-export class CommandNode {
-    parent = $state.raw<CommandNode | null>(null)
-    commands = $state.raw<Command[]>([])
-
-    constructor(parent: CommandNode | null = null) {
-        this.parent = parent
-    }
-
-    register(command: Command) {
-        if (command.keys) {
-            const normalizedKey = this.normalizeKeyString(command.keys)
-            const existing = this.commands.find(
-                (c) => c.keys && this.normalizeKeyString(c.keys) === normalizedKey,
-            )
-            if (existing) {
-                throw new Error(`Key ${command.keys} is already registered`)
-            }
-        }
-        this.commands = [...this.commands, command]
-        return () => {
-            this.commands = this.commands.filter((c) => c !== command)
-        }
-    }
-
-    registerAll(commands: Command[]) {
-        const registered: (() => void)[] = []
-        for (const command of commands) {
-            registered.push(this.register(command))
-        }
-        return () => {
-            for (const unregister of registered) {
-                unregister()
-            }
-        }
-    }
-
-    findAction(keyString: string): Command | null {
-        const localMatch = this.commands.find(
-            (c) => c.keys && this.normalizeKeyString(c.keys) === keyString,
+export class KeyboardHandler {
+    static isMac(): boolean {
+        return (
+            typeof window !== "undefined" &&
+            (/Mac|iPod|iPhone|iPad/i.test(navigator.platform) ||
+                /Macintosh/i.test(navigator.userAgent))
         )
-        if (localMatch) return localMatch
-        if (this.parent) return this.parent.findAction(keyString)
-        return null
     }
 
-    getAllCommands(): Command[] {
-        const commandsMap = new Map<string, Command>()
-        this.collectCommands(commandsMap)
-        return Array.from(commandsMap.values())
-    }
-
-    private collectCommands(commandsMap: Map<string, Command>) {
-        for (const command of this.commands) {
-            const key = command.keys
-                ? this.normalizeKeyString(command.keys)
-                : command.id || command.description
-            if (!commandsMap.has(key)) {
-                commandsMap.set(key, command)
-            }
-        }
-        if (this.parent) {
-            this.parent.collectCommands(commandsMap)
-        }
-    }
-
-    public isAncestorOf(other: CommandNode | null): boolean {
-        let current = other
-        while (current) {
-            if (current === this) return true
-            current = current.parent
-        }
-        return false
-    }
-
-    public normalizeKeyString(keys: string): string {
+    static normalize(keys: string): string {
         const lowerKeys = keys.toLowerCase()
         let parts: string[]
         if (lowerKeys === "+") {
@@ -155,13 +91,24 @@ export class CommandNode {
         } else {
             parts = lowerKeys.split("+")
         }
+
+        const isMacPlatform = KeyboardHandler.isMac()
         return parts
-            .map((k) => (k === " " || k === "spacebar" ? "space" : k))
+            .map((k) => {
+                const trimmed = k.trim()
+                if (trimmed === "mod") {
+                    return isMacPlatform ? "meta" : "ctrl"
+                }
+                if (trimmed === " " || trimmed === "spacebar") {
+                    return "space"
+                }
+                return trimmed
+            })
             .sort()
             .join("+")
     }
 
-    public getEventString(event: KeyboardEvent, useCode: boolean = false): string {
+    static fromEvent(event: KeyboardEvent, useCode: boolean): string {
         const parts: string[] = []
         if (event.ctrlKey) parts.push("ctrl")
         if (event.metaKey) parts.push("meta")
@@ -179,26 +126,175 @@ export class CommandNode {
         return parts.sort().join("+")
     }
 
-    public handleKeydown(event: KeyboardEvent) {
+    static matches(event: KeyboardEvent, keys: string): boolean {
+        const normalizedTarget = KeyboardHandler.normalize(keys)
+
         // 1. Try physical mapping (event.code) - for layout independence (e.g. Russian)
-        const pressedPhysical = this.getEventString(event, true)
-        let match = this.findAction(pressedPhysical)
+        const pressedPhysical = KeyboardHandler.fromEvent(event, true)
+        if (pressedPhysical === normalizedTarget) {
+            return true
+        }
 
         // 2. Try character mapping (event.key) - for literal shortcuts like '?' or '/'
-        if (!match) {
-            const pressedCharacter = this.getEventString(event, false)
-            if (pressedCharacter !== pressedPhysical) {
-                match = this.findAction(pressedCharacter)
+        const pressedCharacter = KeyboardHandler.fromEvent(event, false)
+        if (pressedCharacter === normalizedTarget) {
+            return true
+        }
+
+        // 3. Fallback to just the key character if no modifiers are pressed
+        if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+            const keyLower = event.key.toLowerCase()
+            const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
+            if (singleKey === normalizedTarget) {
+                return true
             }
         }
 
-        // 3. Fallback to just the key character
-        if (!match && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            const keyLower = event.key.toLowerCase()
-            if (keyLower !== event.code.toLowerCase()) {
-                match = this.findAction(keyLower)
+        return false
+    }
+
+    static format(keys: string): string {
+        const isMacPlatform = KeyboardHandler.isMac()
+        return keys
+            .split("+")
+            .map((part) => {
+                const lower = part.toLowerCase().trim()
+                if (lower === "arrowleft") return "←"
+                if (lower === "arrowright") return "→"
+                if (lower === "arrowup") return "↑"
+                if (lower === "arrowdown") return "↓"
+                if (lower === "ctrl") return "Ctrl"
+                if (lower === "meta") return isMacPlatform ? "⌘" : "Win"
+                if (lower === "mod") return isMacPlatform ? "⌘" : "Ctrl"
+                if (lower === "shift") return "Shift"
+                if (lower === "alt") return isMacPlatform ? "⌥" : "Alt"
+                if (lower === "space") return "Space"
+                if (lower === "escape") return "Esc"
+                return part.toUpperCase()
+            })
+            .join("+")
+    }
+}
+
+export class CommandRegistry {
+    parent = $state.raw<CommandRegistry | null>(null)
+    commands = $state.raw<Command[]>([])
+
+    get allCommands(): Command[] {
+        const list: Command[] = []
+        const seenIds = new Set<string>()
+        const seenKeys = new Set<string>()
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        let current: CommandRegistry | null = this
+        while (current) {
+            for (const command of current.commands) {
+                const id = command.id || command.description
+                if (seenIds.has(id)) {
+                    continue
+                }
+                seenIds.add(id)
+
+                if (command.keys) {
+                    const normalizedKey = KeyboardHandler.normalize(command.keys)
+                    if (seenKeys.has(normalizedKey)) {
+                        // Key overridden by a child registry. Retain command in menu/prompt but without the overridden shortcut.
+                        list.push({ ...command, keys: undefined })
+                    } else {
+                        seenKeys.add(normalizedKey)
+                        list.push(command)
+                    }
+                } else {
+                    list.push(command)
+                }
+            }
+            current = current.parent
+        }
+        return list
+    }
+
+    constructor(parent: CommandRegistry | null = null) {
+        this.parent = parent
+    }
+
+    register(command: Command) {
+        if (command.keys) {
+            const normalizedKey = KeyboardHandler.normalize(command.keys)
+            const existing = this.commands.find(
+                (c) => c.keys && KeyboardHandler.normalize(c.keys) === normalizedKey,
+            )
+            if (existing) {
+                throw new Error(`Key ${command.keys} is already registered on this registry node`)
             }
         }
+        this.commands = [...this.commands, command]
+        return () => {
+            this.commands = this.commands.filter((c) => c !== command)
+        }
+    }
+
+    registerAll(commands: Command[]) {
+        const newCommands: Command[] = []
+        for (const command of commands) {
+            if (command.keys) {
+                const normalizedKey = KeyboardHandler.normalize(command.keys)
+                const existing = [...this.commands, ...newCommands].find(
+                    (c) => c.keys && KeyboardHandler.normalize(c.keys) === normalizedKey,
+                )
+                if (existing) {
+                    throw new Error(
+                        `Key ${command.keys} is already registered on this registry node`,
+                    )
+                }
+            }
+            newCommands.push(command)
+        }
+        this.commands = [...this.commands, ...newCommands]
+        return () => {
+            this.commands = this.commands.filter((c) => !newCommands.includes(c))
+        }
+    }
+
+    getAllCommands(): Command[] {
+        return this.allCommands
+    }
+
+    isAncestorOf(other: CommandRegistry | null): boolean {
+        let current = other
+        while (current) {
+            if (current === this) return true
+            current = current.parent
+        }
+        return false
+    }
+
+    handleKeydown(event: KeyboardEvent) {
+        const oldActive = commandDispatcher.activeRegistry
+        commandDispatcher.activeRegistry = this
+        try {
+            commandDispatcher.handle(event)
+        } finally {
+            commandDispatcher.activeRegistry = oldActive
+        }
+    }
+}
+
+// Alias for backwards compatibility
+export { CommandRegistry as CommandNode }
+
+export class CommandDispatcher {
+    activeRegistry = $state.raw<CommandRegistry | null>(null)
+
+    handle(event: KeyboardEvent) {
+        if (!this.activeRegistry) return
+
+        const match = this.activeRegistry.allCommands.find((cmd) => {
+            if (!cmd.keys) return false
+
+            const isDisabled = typeof cmd.disabled === "function" ? cmd.disabled() : !!cmd.disabled
+            if (isDisabled) return false
+
+            return KeyboardHandler.matches(event, cmd.keys)
+        })
 
         if (match) {
             const target = event.target as HTMLElement
@@ -211,7 +307,7 @@ export class CommandNode {
                 return
             }
 
-            if (match.preventDefault === true || match.preventDefault === undefined) {
+            if (match.preventDefault !== false) {
                 event.preventDefault()
             }
 
@@ -220,68 +316,76 @@ export class CommandNode {
     }
 }
 
+export const commandDispatcher = new CommandDispatcher()
+
 export const COMMANDS_CONTEXT_KEY = Symbol("commands-context")
 
-export function useCommands(shortcuts: Command[], overrideParent?: CommandNode | null) {
+export function useCommands(shortcuts: Command[], overrideParent?: CommandRegistry | null) {
     const parentNode =
         overrideParent !== undefined
             ? overrideParent
-            : getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
-    const node = new CommandNode(parentNode)
+            : getContext<CommandRegistry>(COMMANDS_CONTEXT_KEY)
+    const node = new CommandRegistry(parentNode)
     setContext(COMMANDS_CONTEXT_KEY, node)
 
-    const setActiveNode = getContext<(node: CommandNode | null) => void>("set_active_commands_node")
-    const getActiveNode = getContext<(() => CommandNode | null) | undefined>(
+    const setActiveNode = getContext<(node: CommandRegistry | null) => void>(
+        "set_active_commands_node",
+    )
+    const getActiveNode = getContext<(() => CommandRegistry | null) | undefined>(
         "get_active_commands_node",
     )
 
     onMount(() => {
-        if (setActiveNode) {
-            if (getActiveNode) {
-                const currentActive = getActiveNode()
-                if (!currentActive || !node.isAncestorOf(currentActive)) {
-                    // To support sibling components calling useCommands concurrently (e.g. in #each loops),
-                    // we chain our node onto the current active node if it shares our context parent.
-                    let isSiblingDescendant = false
-                    let curr: CommandNode | null = currentActive
-                    while (curr) {
-                        if (curr === parentNode) {
-                            isSiblingDescendant = true
-                            break
-                        }
-                        curr = curr.parent
-                    }
+        const currentActive = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
+        const originalParent = node.parent
+        let parentWasModified = false
 
-                    if (isSiblingDescendant) {
-                        node.parent = currentActive
-                    }
-
-                    setActiveNode(node)
+        if (!currentActive || !node.isAncestorOf(currentActive)) {
+            let isSiblingDescendant = false
+            let curr: CommandRegistry | null = currentActive
+            while (curr) {
+                if (curr === parentNode) {
+                    isSiblingDescendant = true
+                    break
                 }
-            } else {
+                curr = curr.parent
+            }
+
+            if (isSiblingDescendant) {
+                node.parent = currentActive
+                parentWasModified = true
+            }
+
+            if (setActiveNode) {
                 setActiveNode(node)
+            } else {
+                commandDispatcher.activeRegistry = node
             }
         }
+
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
-            unregisterAll()
-            if (setActiveNode) {
-                if (getActiveNode) {
-                    const currentActive = getActiveNode()
-                    if (currentActive === node) {
-                        setActiveNode(node.parent)
-                    }
-                } else {
-                    setActiveNode(node.parent)
+            queueMicrotask(() => {
+                unregisterAll()
+                if (parentWasModified) {
+                    node.parent = originalParent
                 }
-            }
+                const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
+                if (activeNow === node) {
+                    if (setActiveNode) {
+                        setActiveNode(node.parent)
+                    } else {
+                        commandDispatcher.activeRegistry = node.parent
+                    }
+                }
+            })
         }
     })
 
     return node
 }
 
-export function getRawShortcutHint(commandNode: CommandNode | null, id: string): string {
+export function getRawShortcutHint(commandNode: CommandRegistry | null, id: string): string {
     if (!commandNode) return ""
     const commands = commandNode.getAllCommands()
     const actions = commands.filter((a) => a.id === id && a.keys)
@@ -297,26 +401,11 @@ export function getRawShortcutHint(commandNode: CommandNode | null, id: string):
     return formatKeyString(primaryAction.keys!)
 }
 
-export function getShortcutHint(commandNode: CommandNode | null, id: string): string {
+export function getShortcutHint(commandNode: CommandRegistry | null, id: string): string {
     const raw = getRawShortcutHint(commandNode, id)
     return raw ? ` [${raw}]` : ""
 }
 
 export function formatKeyString(keys: string): string {
-    return keys
-        .split("+")
-        .map((part) => {
-            const lower = part.toLowerCase().trim()
-            if (lower === "arrowleft") return "←"
-            if (lower === "arrowright") return "→"
-            if (lower === "arrowup") return "↑"
-            if (lower === "arrowdown") return "↓"
-            if (lower === "ctrl") return "Ctrl"
-            if (lower === "shift") return "Shift"
-            if (lower === "alt") return "Alt"
-            if (lower === "space") return "Space"
-            if (lower === "escape") return "Esc"
-            return part.toUpperCase()
-        })
-        .join("+")
+    return KeyboardHandler.format(keys)
 }

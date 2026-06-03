@@ -3,7 +3,11 @@
     import { onMount, setContext, untrack } from "svelte"
     import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import { type CommandNode, useCommands } from "$lib/stores/commandsStore.svelte"
+    import {
+        type CommandNode,
+        useCommands,
+        commandDispatcher,
+    } from "$lib/stores/commandsStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
@@ -34,9 +38,10 @@
 
     setContext("set_active_commands_node", (node: CommandNode | null) => {
         currentActiveNode = node
+        commandDispatcher.activeRegistry = node || rootNode
     })
 
-    setContext("get_active_commands_node", () => currentActiveNode || rootNode)
+    setContext("get_active_commands_node", () => commandDispatcher.activeRegistry || rootNode)
 
     setContext("set_active_prompt_node", (node: PromptNode | null) => {
         currentActivePromptNode = node
@@ -65,7 +70,7 @@
                 uiStore.prompt.mode("files")
                 uiStore.prompt.isOpen(true)
             },
-            description: settingsStore.language === "ru" ? "Открыть книгу" : "Open book",
+            description: m.keymap_open_book(),
             category: "menu",
         },
         {
@@ -252,15 +257,22 @@
         return () => window.removeEventListener("keydown", handleKeydown)
     })
 
+    const translationCache = new Map<string, string>()
+
     const getEnglishTranslation = (localizedText: string): string | undefined => {
-        if (typeof localizedText !== "string") return undefined
-        if (!localizedText) return undefined
+        if (typeof localizedText !== "string" || !localizedText) return undefined
+        if (translationCache.has(localizedText)) {
+            return translationCache.get(localizedText)
+        }
+
         for (const key of Object.keys(m)) {
             const fn = (m as any)[key]
-            if (typeof fn === "function") {
+            if (typeof fn === "function" && fn.length === 0) {
                 try {
                     if (fn() === localizedText) {
-                        return fn({}, { locale: "en" })
+                        const engText = fn({}, { locale: "en" })
+                        translationCache.set(localizedText, engText)
+                        return engText
                     }
                 } catch (e) {}
             }

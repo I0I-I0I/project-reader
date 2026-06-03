@@ -127,5 +127,6 @@
     "pick_file_to_open": "Выберите файл для открытия",
     "keymap_up_folder": "На уровень вверх",
     "keymap_history_forward": "Перейти вперед в историю",
-    "header_prompt_placeholder": "Ctrl+K для открытия командной строки"
+    "header_prompt_placeholder": "Ctrl+K для открытия командной строки",
+    "keymap_open_book": "Открыть книгу"
 }
