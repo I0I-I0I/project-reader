@@ -129,5 +129,6 @@
     "keymap_history_forward": "Перейти вперед в историю",
     "header_prompt_placeholder": "Ctrl+K для открытия командной строки",
     "keymap_open_book": "Открыть книгу",
-    "keymap_open_books_recursive": "Открыть книги из текущей папки и подпапок"
+    "keymap_open_books_recursive": "Открыть книги из текущей папки и подпапок",
+    "keymap_go_to_folder": "Перейти в папку"
 }

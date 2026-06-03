@@ -134,6 +134,17 @@
             category: "menu",
         },
         {
+            id: "go-to-folder",
+            keys: "g",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("folders")
+                uiStore.prompt.isOpen(true)
+            },
+            description: m.keymap_go_to_folder(),
+            category: "menu",
+        },
+        {
             id: "open-new-folder-modal",
             keys: "shift+a",
             action: () => (uiStore.isNewFolderModalOpen = true),

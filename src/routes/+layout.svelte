@@ -51,6 +51,17 @@
 
     rootNode = useCommands([
         {
+            id: "open-file",
+            keys: "shift+o",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("files")
+                uiStore.prompt.isOpen(true)
+            },
+            description: m.keymap_open_book(),
+            category: "menu",
+        },
+        {
             id: "open-prompt",
             keys: "ctrl+k",
             action: (event: KeyboardEvent) => {
@@ -61,17 +72,6 @@
             description: m.keymap_prompt(),
             allowInInputs: true,
             category: "commands",
-        },
-        {
-            id: "open-file",
-            keys: "shift+o",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode("files")
-                uiStore.prompt.isOpen(true)
-            },
-            description: m.keymap_open_book(),
-            category: "menu",
         },
         {
             keys: "shift+t",
@@ -308,11 +308,48 @@
         if (uiStore.prompt.mode() === "language") {
             return m.select_language ? m.select_language() : "SELECT LANGUAGE"
         }
+        if (uiStore.prompt.mode() === "folders") {
+            return m.keymap_go_to_folder ? m.keymap_go_to_folder() + "..." : "Go to folder..."
+        }
         return m.prompt_placeholder()
     })
 
     const globalPromptProvider: PromptProvider = ({ mode }) => {
         const list: SearchItem[] = []
+
+        if (mode === "folders") {
+            if (vfsStore.currentFolderId !== null) {
+                list.push({
+                    id: "folder-root",
+                    title: m.root ? m.root() : "ROOT",
+                    englishTitle: m.root ? m.root({}, { locale: "en" }) : "ROOT",
+                    category: "navigation",
+                    action: () => {
+                        goto("/")
+                        uiStore.prompt.mode("global")
+                        uiStore.prompt.isOpen(false)
+                    },
+                })
+            }
+
+            const allFolders = Object.values(vfsStore.nodes).filter(
+                (n) => n.type === "folder" && n.id !== vfsStore.currentFolderId,
+            ) as FolderNode[]
+
+            for (const folder of allFolders) {
+                const folderPath = vfsStore.getFolderPath(folder.id)
+                list.push({
+                    id: `folder-${folder.id}`,
+                    title: vfsStore.getNodePath(folder.id),
+                    category: "navigation",
+                    action: () => {
+                        goto(`?folder=${encodeURIComponent(folderPath)}`)
+                        uiStore.prompt.mode("global")
+                        uiStore.prompt.isOpen(false)
+                    },
+                })
+            }
+        }
 
         if (mode === "move") {
             const nodeIdsToMove = uiStore.nodeToMoveId

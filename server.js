@@ -29,7 +29,7 @@ const server = http.createServer((req, res) => {
     try {
         safeUrl = decodeURIComponent(req.url)
     } catch {
-        res.statusCode = 400;
+        res.statusCode = 400
         res.end("Bad Request")
         return
     }

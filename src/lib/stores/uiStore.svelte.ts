@@ -10,6 +10,7 @@ type PromptMode =
     | "layout"
     | "language"
     | "files-recursive"
+    | "folders"
 
 class UIStore {
     #isToolbarsVisible = $state(true)
