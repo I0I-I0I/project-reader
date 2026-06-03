@@ -671,8 +671,7 @@
     })
 </script>
 
-<div class="app">
-    {@render children()}
+{#snippet modals()}
     {#if isHelpOpen}
         <KeymapHelp onClose={() => (isHelpOpen = false)} />
     {/if}
@@ -689,7 +688,17 @@
             }}
         />
     {/if}
-</div>
+{/snippet}
+
+{#if page.url.pathname.includes("/viewer")}
+    {@render children()}
+    {@render modals()}
+{:else}
+    <div class="app">
+        {@render children()}
+        {@render modals()}
+    </div>
+{/if}
 
 <style>
     :global(:root) {
