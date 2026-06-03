@@ -12,7 +12,7 @@
     import Toggle from "$lib/components/ui/Toggle.svelte"
     import { CONSTANTS, settingsStore, type Theme } from "$lib/stores/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { getContext, onMount } from "svelte"
     import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
@@ -95,10 +95,10 @@
         }
     }
 
-    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const getActiveNode = getContext<() => any>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    useKeymap(
+    useCommands(
         [
             {
                 keys: "escape",

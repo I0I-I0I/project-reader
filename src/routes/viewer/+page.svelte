@@ -18,7 +18,7 @@
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
-    import { useKeymap, getShortcutHint } from "$lib/stores/keymapStore.svelte"
+    import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
     import { usePrompt, type PromptProvider, type SearchItem } from "$lib/stores/promptStore.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
@@ -104,7 +104,7 @@
 
     usePrompt(viewerPromptProvider)
 
-    const keymapNode = useKeymap([
+    const commandsNode = useCommands([
         {
             id: "zoom-in",
             keys: "shift++",
@@ -832,7 +832,7 @@
                                 aria-label={m.keymap_prompt
                                     ? m.keymap_prompt()
                                     : "Open Command Prompt"}
-                                tooltip={`${m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}${getShortcutHint(keymapNode, "open-prompt")}`}
+                                tooltip={`${m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}${getShortcutHint(commandsNode, "open-prompt")}`}
                             >
                                 <TerminalIcon />
                             </Button>
@@ -849,7 +849,7 @@
                                 aria-label={uiStore.isToolbarsVisible
                                     ? m.hide_toolbars()
                                     : m.show_toolbars()}
-                                tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(keymapNode, "hide-toolbars")}`}
+                                tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbars")}`}
                             >
                                 {#if uiStore.isToolbarsVisible}
                                     <MinimizeIcon />

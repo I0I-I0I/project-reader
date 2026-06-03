@@ -9,10 +9,10 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { onMount, getContext } from "svelte"
     import {
-        KEYMAP_CONTEXT_KEY,
-        type KeymapNode,
+        COMMANDS_CONTEXT_KEY,
+        type CommandNode,
         getShortcutHint,
-    } from "$lib/stores/keymapStore.svelte"
+    } from "$lib/stores/commandsStore.svelte"
 
     let {
         name,
@@ -29,7 +29,7 @@
     }>()
 
     let isShortHeight = $state(false)
-    const keymapNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
+    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
 
     onMount(() => {
         const heightQuery = window.matchMedia("(max-height: 500px)")
@@ -55,7 +55,7 @@
                 open={isOutlineOpen}
                 onclick={() => (isOutlineOpen = !isOutlineOpen)}
                 aria-label={m.outline()}
-                tooltip={m.outline() + getShortcutHint(keymapNode, "toggle-outline")}
+                tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
             >
                 <MenuIcon />
             </Button>
@@ -76,7 +76,7 @@
                         ))}
                     aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
                     tooltip={(m.zoom_out ? m.zoom_out() : "Zoom Out") +
-                        getShortcutHint(keymapNode, "zoom-out")}
+                        getShortcutHint(commandsNode, "zoom-out")}
                 >
                     <MinusIcon />
                 </Button>
@@ -90,7 +90,7 @@
                         ))}
                     aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
                     tooltip={(m.zoom_in ? m.zoom_in() : "Zoom In") +
-                        getShortcutHint(keymapNode, "zoom-in")}
+                        getShortcutHint(commandsNode, "zoom-in")}
                 >
                     <PlusIcon />
                 </Button>
@@ -101,7 +101,7 @@
                 open={isSettingsOpen}
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
                 aria-label={m.settings()}
-                tooltip={m.settings() + getShortcutHint(keymapNode, "toggle-settings")}
+                tooltip={m.settings() + getShortcutHint(commandsNode, "toggle-settings")}
             >
                 <SettingsIcon />
                 <span class="settings-text">{m.settings()}</span>
@@ -113,7 +113,7 @@
             square={uiStore.isCompact}
             onclick={onClose}
             aria-label={m.close_document()}
-            tooltip={m.close_document() + getShortcutHint(keymapNode, "close-viewer")}
+            tooltip={m.close_document() + getShortcutHint(commandsNode, "close-viewer")}
         >
             <span class="close-icon">×</span>
             <span class="close-text">{m.close()}</span>

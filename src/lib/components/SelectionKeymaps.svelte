@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import * as m from "$lib/paraglide/messages"
@@ -12,7 +12,7 @@
 
     let { currentNodes, allSelected, handleBulkDelete }: Props = $props()
 
-    useKeymap([
+    useCommands([
         {
             id: "exit-selection-mode",
             keys: "escape",

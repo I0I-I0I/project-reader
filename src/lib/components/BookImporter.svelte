@@ -2,7 +2,7 @@
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -107,7 +107,7 @@
         }
     }
 
-    useKeymap([
+    useCommands([
         {
             keys: "a",
             action: (e) => {

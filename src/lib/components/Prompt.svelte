@@ -7,7 +7,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
@@ -97,7 +97,7 @@
         }))
     })
 
-    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const getActiveNode = getContext<() => any>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
     function handleSelection(item: SearchItem) {
@@ -114,7 +114,7 @@
         }
     }
 
-    useKeymap(
+    useCommands(
         [
             {
                 keys: "escape",

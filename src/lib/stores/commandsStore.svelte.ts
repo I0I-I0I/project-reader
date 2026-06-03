@@ -1,9 +1,8 @@
 import { getContext, setContext, onMount } from "svelte"
-import { SvelteMap } from "svelte/reactivity"
 
-export type ShortcutAction = {
-    id?: string // Unique identifier for dynamic lookup
-    keys: string
+export type Command = {
+    id?: string
+    keys?: string
     action: (event: KeyboardEvent) => void
     description: string
     allowInInputs?: boolean
@@ -71,27 +70,34 @@ const CODE_TO_KEY: Record<string, string> = {
     PageDown: "pagedown",
 }
 
-export class KeymapNode {
-    parent = $state<KeymapNode | null>(null)
-    bindings = new SvelteMap<string, ShortcutAction>()
+export class CommandNode {
+    parent = $state<CommandNode | null>(null)
+    commands = $state<Command[]>([])
 
-    constructor(parent: KeymapNode | null = null) {
+    constructor(parent: CommandNode | null = null) {
         this.parent = parent
     }
 
-    register(shortcut: ShortcutAction) {
-        const normalizedKey = this.normalizeKeyString(shortcut.keys)
-        if (this.bindings.has(normalizedKey)) {
-            throw new Error(`Key ${shortcut.keys} is already registered`)
+    register(command: Command) {
+        if (command.keys) {
+            const normalizedKey = this.normalizeKeyString(command.keys)
+            const existing = this.commands.find(
+                (c) => c.keys && this.normalizeKeyString(c.keys) === normalizedKey,
+            )
+            if (existing) {
+                throw new Error(`Key ${command.keys} is already registered`)
+            }
         }
-        this.bindings.set(normalizedKey, shortcut)
-        return () => this.bindings.delete(normalizedKey)
+        this.commands.push(command)
+        return () => {
+            this.commands = this.commands.filter((c) => c !== command)
+        }
     }
 
-    registerAll(shortcuts: ShortcutAction[]) {
-        let registered = []
-        for (const shortcut of shortcuts) {
-            registered.push(this.register(shortcut))
+    registerAll(commands: Command[]) {
+        const registered: (() => void)[] = []
+        for (const command of commands) {
+            registered.push(this.register(command))
         }
         return () => {
             for (const unregister of registered) {
@@ -100,31 +106,36 @@ export class KeymapNode {
         }
     }
 
-    findAction(keyString: string): ShortcutAction | null {
-        const localMatch = this.bindings.get(keyString)
+    findAction(keyString: string): Command | null {
+        const localMatch = this.commands.find(
+            (c) => c.keys && this.normalizeKeyString(c.keys) === keyString,
+        )
         if (localMatch) return localMatch
         if (this.parent) return this.parent.findAction(keyString)
         return null
     }
 
-    getAllKeymaps(): ShortcutAction[] {
-        const keymapsMap = new Map<string, ShortcutAction>()
-        this.collectKeymaps(keymapsMap)
-        return Array.from(keymapsMap.values())
+    getAllCommands(): Command[] {
+        const commandsMap = new Map<string, Command>()
+        this.collectCommands(commandsMap)
+        return Array.from(commandsMap.values())
     }
 
-    private collectKeymaps(keymapsMap: Map<string, ShortcutAction>) {
-        for (const [key, shortcut] of this.bindings.entries()) {
-            if (!keymapsMap.has(key)) {
-                keymapsMap.set(key, shortcut)
+    private collectCommands(commandsMap: Map<string, Command>) {
+        for (const command of this.commands) {
+            const key = command.keys
+                ? this.normalizeKeyString(command.keys)
+                : command.id || command.description
+            if (!commandsMap.has(key)) {
+                commandsMap.set(key, command)
             }
         }
         if (this.parent) {
-            this.parent.collectKeymaps(keymapsMap)
+            this.parent.collectCommands(commandsMap)
         }
     }
 
-    public isAncestorOf(other: KeymapNode | null): boolean {
+    public isAncestorOf(other: CommandNode | null): boolean {
         let current = other
         while (current) {
             if (current === this) return true
@@ -209,17 +220,19 @@ export class KeymapNode {
     }
 }
 
-export const KEYMAP_CONTEXT_KEY = Symbol("keymap-context")
+export const COMMANDS_CONTEXT_KEY = Symbol("commands-context")
 
-export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNode | null) {
+export function useCommands(shortcuts: Command[], overrideParent?: CommandNode | null) {
     const parentNode =
-        overrideParent !== undefined ? overrideParent : getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
-    const node = new KeymapNode(parentNode)
-    setContext(KEYMAP_CONTEXT_KEY, node)
+        overrideParent !== undefined
+            ? overrideParent
+            : getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
+    const node = new CommandNode(parentNode)
+    setContext(COMMANDS_CONTEXT_KEY, node)
 
-    const setActiveNode = getContext<(node: KeymapNode | null) => void>("set_active_keymap_node")
-    const getActiveNode = getContext<(() => KeymapNode | null) | undefined>(
-        "get_active_keymap_node",
+    const setActiveNode = getContext<(node: CommandNode | null) => void>("set_active_commands_node")
+    const getActiveNode = getContext<(() => CommandNode | null) | undefined>(
+        "get_active_commands_node",
     )
 
     onMount(() => {
@@ -227,10 +240,10 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
             if (getActiveNode) {
                 const currentActive = getActiveNode()
                 if (!currentActive || !node.isAncestorOf(currentActive)) {
-                    // To support sibling components calling useKeymap concurrently (e.g. in #each loops),
+                    // To support sibling components calling useCommands concurrently (e.g. in #each loops),
                     // we chain our node onto the current active node if it shares our context parent.
                     let isSiblingDescendant = false
-                    let curr: KeymapNode | null = currentActive
+                    let curr: CommandNode | null = currentActive
                     while (curr) {
                         if (curr === parentNode) {
                             isSiblingDescendant = true
@@ -268,22 +281,24 @@ export function useKeymap(shortcuts: ShortcutAction[], overrideParent?: KeymapNo
     return node
 }
 
-export function getRawShortcutHint(keymapNode: KeymapNode | null, id: string): string {
-    if (!keymapNode) return ""
-    const keymaps = keymapNode.getAllKeymaps()
-    const actions = keymaps.filter((a) => a.id === id)
+export function getRawShortcutHint(commandNode: CommandNode | null, id: string): string {
+    if (!commandNode) return ""
+    const commands = commandNode.getAllCommands()
+    const actions = commands.filter((a) => a.id === id && a.keys)
     if (actions.length === 0) return ""
 
     const primaryAction = actions.reduce((best, current) => {
+        if (!best.keys) return current
+        if (!current.keys) return best
         if (current.keys.includes("arrow")) return current
         return best.keys.length <= current.keys.length ? best : current
     })
 
-    return formatKeyString(primaryAction.keys)
+    return formatKeyString(primaryAction.keys!)
 }
 
-export function getShortcutHint(keymapNode: KeymapNode | null, id: string): string {
-    const raw = getRawShortcutHint(keymapNode, id)
+export function getShortcutHint(commandNode: CommandNode | null, id: string): string {
+    const raw = getRawShortcutHint(commandNode, id)
     return raw ? ` [${raw}]` : ""
 }
 

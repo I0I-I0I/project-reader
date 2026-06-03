@@ -3,13 +3,13 @@
     import Button from "$lib/components/ui/Button.svelte"
     import { getContext } from "svelte"
     import {
-        KEYMAP_CONTEXT_KEY,
-        type KeymapNode,
+        COMMANDS_CONTEXT_KEY,
+        type CommandNode,
         getShortcutHint,
-    } from "$lib/stores/keymapStore.svelte"
+    } from "$lib/stores/commandsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
 
-    const keymapNode = getContext<KeymapNode>(KEYMAP_CONTEXT_KEY)
+    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
 
     let {
         currentPage = $bindable(),
@@ -65,7 +65,7 @@
         square={uiStore.isCompact}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
-        tooltip={m.prev_page() + getShortcutHint(keymapNode, "prev-page")}
+        tooltip={m.prev_page() + getShortcutHint(commandsNode, "prev-page")}
     >
         <span class="btn-text">{m.prev_page()}</span>
         <span class="btn-arrow">←</span>
@@ -115,7 +115,7 @@
         square={uiStore.isCompact}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
-        tooltip={m.next_page() + getShortcutHint(keymapNode, "next-page")}
+        tooltip={m.next_page() + getShortcutHint(commandsNode, "next-page")}
     >
         <span class="btn-text">{m.next_page()}</span>
         <span class="btn-arrow">→</span>

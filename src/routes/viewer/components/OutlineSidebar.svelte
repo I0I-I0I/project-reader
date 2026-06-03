@@ -3,7 +3,12 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
-    import { useKeymap, getShortcutHint, getRawShortcutHint } from "$lib/stores/keymapStore.svelte"
+    import {
+        useCommands,
+        getShortcutHint,
+        getRawShortcutHint,
+        type CommandNode,
+    } from "$lib/stores/commandsStore.svelte"
     import { getContext, untrack } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
@@ -121,10 +126,10 @@
         })
     })
 
-    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const getActiveNode = getContext<() => any>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    const sidebarKeymapNode = useKeymap(
+    const sidebarCommandsNode = useCommands(
         [
             {
                 id: "close-outline",
@@ -288,7 +293,7 @@
                 bind:this={searchInputRef}
                 type="text"
                 bind:value={searchQuery}
-                placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarKeymapNode, "search-headings")}`}
+                placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-headings")}`}
                 class="search-input"
                 onkeydown={handleSearchKeydown}
             />
@@ -349,23 +354,23 @@
         <div class="sidebar-footer-hint">
             <span class="hint-item"
                 ><kbd
-                    >{getRawShortcutHint(sidebarKeymapNode, "next-heading")}/{getRawShortcutHint(
-                        sidebarKeymapNode,
+                    >{getRawShortcutHint(sidebarCommandsNode, "next-heading")}/{getRawShortcutHint(
+                        sidebarCommandsNode,
                         "prev-heading",
                     )}</kbd
                 > Navigate</span
             >
             <span class="hint-divider">•</span>
             <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "select-heading")}</kbd> Go</span
+                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "select-heading")}</kbd> Go</span
             >
             <span class="hint-divider">•</span>
             <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "search-headings")}</kbd> Search</span
+                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "search-headings")}</kbd> Search</span
             >
             <span class="hint-divider">•</span>
             <span class="hint-item"
-                ><kbd>{getRawShortcutHint(sidebarKeymapNode, "close-outline")}</kbd> Close</span
+                ><kbd>{getRawShortcutHint(sidebarCommandsNode, "close-outline")}</kbd> Close</span
             >
         </div>
     {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getContext } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    import { useKeymap, type KeymapNode } from "$lib/stores/keymapStore.svelte"
+    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
@@ -12,7 +12,7 @@
 
     let { onClose }: Props = $props()
 
-    const getActiveNode = getContext<() => KeymapNode>("get_active_keymap_node")
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode()
 
     let contentElement = $state<HTMLElement | null>(null)
@@ -21,17 +21,17 @@
 
     const keymaps = (() => {
         if (!activeNodeBeforeOpen) return []
-        const allBindings = activeNodeBeforeOpen.getAllKeymaps()
+        const allBindings = activeNodeBeforeOpen.getAllCommands()
 
         const seen = new Set<string>()
         return allBindings
             .filter((b) => {
-                if (!b.description || seen.has(b.keys)) return false
+                if (!b.description || !b.keys || seen.has(b.keys)) return false
                 seen.add(b.keys)
                 return true
             })
             .map((b) => ({
-                keys: b.keys,
+                keys: b.keys!,
                 description: b.description,
             }))
     })()
@@ -63,7 +63,7 @@
         }
     }
 
-    useKeymap(
+    useCommands(
         [
             {
                 keys: "q",

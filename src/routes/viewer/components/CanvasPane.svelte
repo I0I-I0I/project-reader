@@ -8,7 +8,7 @@
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -99,7 +99,7 @@
         }
     })
 
-    useKeymap([
+    useCommands([
         {
             keys: "=",
             description: m.keymap_zoom_to_fit ? m.keymap_zoom_to_fit() : "Zoom to fit",

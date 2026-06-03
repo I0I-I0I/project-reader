@@ -5,7 +5,7 @@
     import Button from "./ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
 
     async function handleConfirm() {
         const ids = [...uiStore.nodesToDeleteIds]
@@ -29,10 +29,10 @@
         uiStore.nodesToDeleteIds = []
     }
 
-    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const getActiveNode = getContext<() => any>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    useKeymap(
+    useCommands(
         [
             {
                 keys: "enter",

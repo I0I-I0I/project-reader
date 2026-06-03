@@ -3,7 +3,7 @@
     import { onMount, setContext, untrack } from "svelte"
     import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import { type KeymapNode, useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { type CommandNode, useCommands } from "$lib/stores/commandsStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
@@ -20,19 +20,19 @@
 
     let { children } = $props()
 
-    let currentActiveNode = $state<KeymapNode | null>(null)
+    let currentActiveNode = $state<CommandNode | null>(null)
     let currentActivePromptNode = $state<PromptNode | null>(null)
     let isHelpOpen = $state(false)
     let promptValue = $state("")
 
-    let rootNode: KeymapNode
+    let rootNode: CommandNode
     let rootPromptNode: PromptNode
 
-    setContext("set_active_keymap_node", (node: KeymapNode | null) => {
+    setContext("set_active_commands_node", (node: CommandNode | null) => {
         currentActiveNode = node
     })
 
-    setContext("get_active_keymap_node", () => currentActiveNode || rootNode)
+    setContext("get_active_commands_node", () => currentActiveNode || rootNode)
 
     setContext("set_active_prompt_node", (node: PromptNode | null) => {
         currentActivePromptNode = node
@@ -40,7 +40,7 @@
 
     setContext("get_active_prompt_node", () => currentActivePromptNode || rootPromptNode)
 
-    rootNode = useKeymap([
+    rootNode = useCommands([
         {
             id: "open-prompt",
             keys: "ctrl+k",
@@ -393,29 +393,34 @@
         if (mode === "global") {
             const activeNode = currentActiveNode || rootNode
             if (activeNode) {
-                const keymaps = activeNode.getAllKeymaps()
+                const commands = activeNode.getAllCommands()
                 const seen = new Set<string>()
-                for (const keymap of keymaps) {
-                    if (keymap.description && !seen.has(keymap.keys)) {
-                        seen.add(keymap.keys)
-                        const engTitle = getEnglishTranslation(keymap.description)
+                for (const cmd of commands) {
+                    const uniqueKey = cmd.keys ? cmd.keys : cmd.id || cmd.description
+                    if (cmd.description && !seen.has(uniqueKey)) {
+                        seen.add(uniqueKey)
+                        const engTitle = getEnglishTranslation(cmd.description)
                         list.push({
-                            id: `command-${keymap.keys}`,
-                            title: keymap.description,
+                            id: cmd.id ? `command-${cmd.id}` : `command-${uniqueKey}`,
+                            title: cmd.description,
                             englishTitle: engTitle,
-                            subtitle: keymap.subtitle
-                                ? keymap.subtitle()
-                                : m.shortcut_hint({ keys: keymap.keys.toUpperCase() }),
-                            englishSubtitle: keymap.subtitle
-                                ? undefined
-                                : m.shortcut_hint
-                                  ? m.shortcut_hint(
-                                        { keys: keymap.keys.toUpperCase() },
-                                        { locale: "en" },
-                                    )
+                            subtitle: cmd.subtitle
+                                ? cmd.subtitle()
+                                : cmd.keys
+                                  ? m.shortcut_hint({ keys: cmd.keys.toUpperCase() })
                                   : undefined,
-                            category: keymap.category || "commands",
-                            keys: keymap.keys,
+                            englishSubtitle: cmd.subtitle
+                                ? undefined
+                                : cmd.keys
+                                  ? m.shortcut_hint
+                                      ? m.shortcut_hint(
+                                            { keys: cmd.keys.toUpperCase() },
+                                            { locale: "en" },
+                                        )
+                                      : undefined
+                                  : undefined,
+                            category: cmd.category || "commands",
+                            keys: cmd.keys,
                             action: () => {
                                 const event = new KeyboardEvent("keydown", {
                                     bubbles: true,
@@ -423,7 +428,7 @@
                                 })
                                 uiStore.prompt.isOpen(false)
                                 uiStore.prompt.mode("global")
-                                keymap.action(event)
+                                cmd.action(event)
                             },
                         })
                     }

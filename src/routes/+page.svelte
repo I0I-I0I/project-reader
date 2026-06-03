@@ -18,7 +18,7 @@
     import NewFolderModal from "$lib/components/NewFolderModal.svelte"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { page } from "$app/stores"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
@@ -121,7 +121,7 @@
         }
     }
 
-    useKeymap([
+    useCommands([
         {
             id: "open-new-folder-modal",
             keys: "shift+a",

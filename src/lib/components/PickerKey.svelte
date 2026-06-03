@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { getContext, onMount } from "svelte"
@@ -43,10 +43,10 @@
 
     onMount(() => {
         if (KEYS.length <= idx) return
-        const getActiveNode = getContext<() => any>("get_active_keymap_node")
+        const getActiveNode = getContext<() => any>("get_active_commands_node")
         const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-        useKeymap(
+        useCommands(
             [
                 {
                     id: `picker-key-${idx}`,

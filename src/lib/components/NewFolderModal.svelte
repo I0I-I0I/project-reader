@@ -5,7 +5,7 @@
     import Button from "./ui/Button.svelte"
     import Input from "./ui/Input.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { useKeymap } from "$lib/stores/keymapStore.svelte"
+    import { useCommands } from "$lib/stores/commandsStore.svelte"
 
     interface Props {
         onCreate?: (name: string) => void
@@ -16,10 +16,10 @@
     let folderName = $state("")
     let errors = $state<string[]>([])
 
-    const getActiveNode = getContext<() => any>("get_active_keymap_node")
+    const getActiveNode = getContext<() => any>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    useKeymap(
+    useCommands(
         [
             {
                 keys: "escape",
