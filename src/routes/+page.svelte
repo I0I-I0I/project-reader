@@ -38,9 +38,25 @@
     )
 
     $effect(() => {
-        const folderId = $page.url.searchParams.get("folder")
-        if (vfsStore.currentFolderId !== folderId) {
-            vfsStore.currentFolderId = folderId
+        if (!vfsStore.initialized) return
+
+        const folderParam = $page.url.searchParams.get("folder")
+        let resolvedId: string | null = null
+        if (folderParam) {
+            if (folderParam.startsWith("/")) {
+                resolvedId = vfsStore.getFolderIdByPath(folderParam)
+            } else {
+                const node = vfsStore.nodes[folderParam]
+                if (node && node.type === "folder") {
+                    resolvedId = folderParam
+                } else {
+                    resolvedId = vfsStore.getFolderIdByPath(folderParam)
+                }
+            }
+        }
+
+        if (vfsStore.currentFolderId !== resolvedId) {
+            vfsStore.currentFolderId = resolvedId
         }
     })
 
@@ -85,7 +101,8 @@
 
         vfsStore.clearForwardHistory()
         if (node.type === "folder") {
-            goto(`?folder=${node.id}`)
+            const path = vfsStore.getFolderPath(node.id)
+            goto(`?folder=${encodeURI(path)}`)
         } else {
             try {
                 let fileNode = node as FileNode
@@ -141,7 +158,8 @@
                     if (node && node.type === "folder") {
                         vfsStore.pushForwardHistory(vfsStore.currentFolderId)
                         if (node.parentId) {
-                            goto(`?folder=${node.parentId}`)
+                            const parentPath = vfsStore.getFolderPath(node.parentId)
+                            goto(`?folder=${encodeURI(parentPath)}`)
                         } else {
                             goto("/")
                         }
@@ -156,7 +174,8 @@
             action: () => {
                 const forwardId = vfsStore.popForwardHistory()
                 if (forwardId) {
-                    goto(`?folder=${forwardId}`)
+                    const forwardPath = vfsStore.getFolderPath(forwardId)
+                    goto(`?folder=${encodeURI(forwardPath)}`)
                 } else {
                     window.history.forward()
                 }

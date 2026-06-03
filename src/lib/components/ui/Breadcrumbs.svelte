@@ -24,7 +24,11 @@
                         class:active={idx === breadcrumbs.length - 1}
                         onclick={() => {
                             vfsStore.clearForwardHistory()
-                            goto(segment.id ? `?folder=${segment.id}` : "?")
+                            goto(
+                                segment.id
+                                    ? `?folder=${encodeURI(vfsStore.getFolderPath(segment.id))}`
+                                    : "?",
+                            )
                         }}
                         disabled={idx === breadcrumbs.length - 1}
                     >

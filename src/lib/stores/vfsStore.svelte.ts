@@ -621,6 +621,55 @@ class VFSStore {
 
         return path.join(" / ")
     }
+
+    getFolderPath(id: string | null): string {
+        if (!id) return ""
+        const node = this.nodes[id]
+        if (!node) return ""
+
+        const path: string[] = [node.name]
+        let currentParentId = node.parentId
+
+        while (currentParentId) {
+            const parent = this.nodes[currentParentId]
+            if (parent) {
+                path.unshift(parent.name)
+                currentParentId = parent.parentId
+            } else {
+                break
+            }
+        }
+
+        return "/" + path.join("/")
+    }
+
+    getFolderIdByPath(path: string | null): string | null {
+        if (!path) return null
+        const cleanPath = path.startsWith("/") ? path.slice(1) : path
+        if (!cleanPath) return null
+
+        const segments = cleanPath
+            .split("/")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        if (segments.length === 0) return null
+
+        let currentId: string | null = null
+        for (const segment of segments) {
+            const nextNode = Object.values(this.nodes).find(
+                (node) =>
+                    node.type === "folder" &&
+                    node.parentId === currentId &&
+                    node.name.toLowerCase() === segment.toLowerCase(),
+            )
+            if (!nextNode) {
+                return null
+            }
+            currentId = nextNode.id
+        }
+
+        return currentId
+    }
 }
 
 export const vfsStore = new VFSStore()

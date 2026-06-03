@@ -615,7 +615,7 @@
             document.activeElement.blur()
         }
         const backUrl: "/" | `/?${string}` = vfsStore.currentFolderId
-            ? `/?folder=${vfsStore.currentFolderId}`
+            ? `/?folder=${encodeURI(vfsStore.getFolderPath(vfsStore.currentFolderId))}`
             : "/"
         viewerStore.setCurrentBook(null)
         goto(resolve(backUrl))

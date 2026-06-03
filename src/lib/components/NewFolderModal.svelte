@@ -50,7 +50,10 @@
 
     function validateInput() {
         if (folderName.length <= 0) {
-            errors = [m.folder_name_required()]
+            errors.push(m.folder_name_required())
+        }
+
+        if (errors.length > 0) {
             return false
         }
 
