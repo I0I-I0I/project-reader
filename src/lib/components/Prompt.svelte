@@ -35,6 +35,19 @@
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
     let innerHeight = $state<number | undefined>(undefined)
 
+    let internalValue = $state(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
+
+    $effect(() => {
+        const val = value
+        untrack(() => {
+            if (val === "") {
+                internalValue = "\u200B"
+            } else {
+                internalValue = val.replace(/\u200B/g, "")
+            }
+        })
+    })
+
     $effect(() => {
         const query = value
         untrack(() => {
@@ -194,11 +207,17 @@
     }
 
     onMount(() => {
-        if (value === "") value = uiStore.prompt.initialValue() || ""
+        if (value === "") {
+            value = uiStore.prompt.initialValue() || ""
+        }
+        internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
+
         const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
         if (promptInput) {
             promptInput.focus()
-            promptInput.select()
+            if (value !== "") {
+                promptInput.select()
+            }
         }
     })
     function handleClose() {
@@ -229,13 +248,30 @@
                 }}
             >
                 <SearchIcon class="search-icon {value ? 'active-search' : ''}" />
+                {#if value === ""}
+                    <span class="custom-placeholder">{placeholder}</span>
+                {/if}
                 <input
                     class="prompt-input"
                     type="search"
                     enterkeyhint="go"
-                    bind:value
-                    {placeholder}
+                    bind:value={internalValue}
                     aria-label={m.prompt_search_aria()}
+                    oninput={(e) => {
+                        const raw = e.currentTarget.value
+                        if (raw === "") {
+                            if (value === "" && uiStore.prompt.mode() !== "global") {
+                                uiStore.prompt.mode("global")
+                            }
+                            internalValue = "\u200B"
+                            value = ""
+                        } else if (raw === "\u200B") {
+                            value = ""
+                        } else {
+                            const cleaned = raw.replace(/\u200B/g, "")
+                            value = cleaned
+                        }
+                    }}
                 />
                 <button
                     type="button"
@@ -457,6 +493,17 @@
     .prompt-input::placeholder {
         color: var(--text-color);
         opacity: 0.4;
+    }
+
+    .custom-placeholder {
+        position: absolute;
+        left: 48px;
+        pointer-events: none;
+        color: var(--text-color);
+        opacity: 0.4;
+        font-family: inherit;
+        font-size: 1.1rem;
+        user-select: none;
     }
 
     .close-btn {
@@ -759,6 +806,10 @@
 
     @media (--prompt) {
         .prompt-input {
+            font-size: 16px;
+        }
+
+        .custom-placeholder {
             font-size: 16px;
         }
 

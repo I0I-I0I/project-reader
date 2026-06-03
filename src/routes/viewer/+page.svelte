@@ -614,10 +614,10 @@
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
         }
-        viewerStore.setCurrentBook(null)
         const backUrl: "/" | `/?${string}` = vfsStore.currentFolderId
             ? `/?folder=${vfsStore.currentFolderId}`
             : "/"
+        viewerStore.setCurrentBook(null)
         goto(resolve(backUrl))
     }
 
