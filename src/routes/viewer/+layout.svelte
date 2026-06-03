@@ -4,4 +4,16 @@
     }>()
 </script>
 
-{@render children()}
+<div class="viewer-layout">
+    {@render children()}
+</div>
+
+<style>
+    .viewer-layout {
+        display: flex;
+        flex-direction: column;
+        max-height: 100dvh;
+        height: 100%;
+        width: 100%;
+    }
+</style>

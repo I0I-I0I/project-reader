@@ -128,5 +128,6 @@
     "keymap_up_folder": "Up one folder",
     "keymap_history_forward": "Go forward in history",
     "header_prompt_placeholder": "Ctrl+K to open command prompt",
-    "keymap_open_book": "Open book"
+    "keymap_open_book": "Open book",
+    "keymap_open_books_recursive": "Open books from current folder and sub-folders"
 }

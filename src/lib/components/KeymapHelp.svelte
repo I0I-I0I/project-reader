@@ -66,6 +66,7 @@
     useCommands(
         [
             {
+                id: "close-help-q",
                 keys: "q",
                 description: m.keymap_close_help(),
                 action: (e) => {
@@ -74,6 +75,7 @@
                 },
             },
             {
+                id: "close-help-escape",
                 keys: "escape",
                 description: m.keymap_close_help(),
                 action: (e) => {
@@ -82,6 +84,7 @@
                 },
             },
             {
+                id: "close-help-question",
                 keys: "?",
                 description: m.keymap_close_help(),
                 action: (e) => {
@@ -90,6 +93,7 @@
                 },
             },
             {
+                id: "search-help-slash",
                 keys: "/",
                 description: m.keymap_search_shortcuts(),
                 action: (e) => {
@@ -99,6 +103,7 @@
                 },
             },
             {
+                id: "scroll-down-help",
                 keys: "j",
                 description: m.keymap_scroll_down(),
                 action: (e) => {
@@ -110,6 +115,7 @@
                 },
             },
             {
+                id: "scroll-up-help",
                 keys: "k",
                 description: m.keymap_scroll_up(),
                 action: (e) => {
@@ -121,6 +127,7 @@
                 },
             },
             {
+                id: "scroll-down-help-alt",
                 keys: "arrowdown",
                 description: m.keymap_scroll_down(),
                 action: (e) => {
@@ -132,6 +139,7 @@
                 },
             },
             {
+                id: "scroll-up-help-alt",
                 keys: "arrowup",
                 description: m.keymap_scroll_up(),
                 action: (e) => {
@@ -155,6 +163,7 @@
                 },
             },
             {
+                id: "scroll-page-down-help-alt",
                 keys: "pagedown",
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
@@ -178,6 +187,7 @@
                 },
             },
             {
+                id: "scroll-page-up-help-alt",
                 keys: "pageup",
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {

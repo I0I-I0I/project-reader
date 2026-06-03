@@ -124,6 +124,7 @@
             },
         },
         {
+            id: "scroll-down-layout",
             keys: "j",
             action: () => {
                 window.scrollBy({
@@ -135,6 +136,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-down-layout-alt",
             keys: "arrowdown",
             action: () => {
                 window.scrollBy({
@@ -146,6 +148,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-up-layout",
             keys: "k",
             action: () => {
                 window.scrollBy({
@@ -157,6 +160,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-up-layout-alt",
             keys: "arrowup",
             action: () => {
                 window.scrollBy({
@@ -180,6 +184,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-page-down-layout-alt",
             keys: "pagedown",
             action: () => {
                 window.scrollBy({
@@ -203,6 +208,7 @@
             category: "navigation",
         },
         {
+            id: "scroll-page-up-layout-alt",
             keys: "pageup",
             action: () => {
                 window.scrollBy({
@@ -283,7 +289,7 @@
     }
 
     let promptPlaceholder = $derived.by(() => {
-        if (uiStore.prompt.mode() === "files") {
+        if (uiStore.prompt.mode() === "files" || uiStore.prompt.mode() === "files-recursive") {
             const base = m.prompt_placeholder()
             return base.split(",")[0].trim() + "..."
         }
@@ -497,11 +503,26 @@
             }
         }
 
-        if (mode === "files" || mode === "global") {
-            const files = Object.values(vfsStore.nodes).filter(
+        if (mode === "files" || mode === "global" || mode === "files-recursive") {
+            let files = Object.values(vfsStore.nodes).filter(
                 (node) => node.type === "file",
             ) as FileNode[]
             files.sort((a, b) => b.updatedAt - a.updatedAt)
+
+            if (mode === "files-recursive") {
+                const targetFolderId = vfsStore.currentFolderId
+                if (targetFolderId !== null) {
+                    files = files.filter((file) => {
+                        let currentId = file.parentId
+                        while (currentId) {
+                            if (currentId === targetFolderId) return true
+                            const current = vfsStore.nodes[currentId]
+                            currentId = current ? current.parentId : null
+                        }
+                        return false
+                    })
+                }
+            }
 
             for (const fileNode of files) {
                 const book = fileNodeToBook(fileNode)

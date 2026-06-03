@@ -1,7 +1,15 @@
 import { browser } from "$app/environment"
 import { MEDIA_QUERIES } from "$lib/breakpoints"
 
-type PromptMode = "global" | "files" | "page" | "move" | "theme" | "layout" | "language"
+type PromptMode =
+    | "global"
+    | "files"
+    | "page"
+    | "move"
+    | "theme"
+    | "layout"
+    | "language"
+    | "files-recursive"
 
 class UIStore {
     #isToolbarsVisible = $state(true)

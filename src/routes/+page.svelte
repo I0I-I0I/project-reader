@@ -123,6 +123,17 @@
 
     useCommands([
         {
+            id: "open-file-recursive",
+            keys: "o",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode("files-recursive")
+                uiStore.prompt.isOpen(true)
+            },
+            description: m.keymap_open_books_recursive(),
+            category: "menu",
+        },
+        {
             id: "open-new-folder-modal",
             keys: "shift+a",
             action: () => (uiStore.isNewFolderModalOpen = true),

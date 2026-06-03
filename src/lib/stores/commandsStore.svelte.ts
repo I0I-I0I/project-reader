@@ -81,12 +81,21 @@ export class KeyboardHandler {
     }
 
     static normalize(keys: string): string {
-        const lowerKeys = keys.toLowerCase()
+        let trimmedKeys = keys.trim()
+        if (trimmedKeys === "") {
+            if (keys === " ") return "space"
+            return ""
+        }
+
         let parts: string[]
+        const lowerKeys = trimmedKeys.toLowerCase()
         if (lowerKeys === "+") {
             parts = ["+"]
-        } else if (lowerKeys.endsWith("++")) {
-            const base = lowerKeys.slice(0, -2)
+        } else if (lowerKeys.endsWith("+")) {
+            let base = lowerKeys.slice(0, -1).trim()
+            if (base.endsWith("+")) {
+                base = base.slice(0, -1).trim()
+            }
             parts = [...base.split("+"), "+"]
         } else {
             parts = lowerKeys.split("+")
@@ -99,11 +108,12 @@ export class KeyboardHandler {
                 if (trimmed === "mod") {
                     return isMacPlatform ? "meta" : "ctrl"
                 }
-                if (trimmed === " " || trimmed === "spacebar") {
+                if (trimmed === "space" || trimmed === "spacebar") {
                     return "space"
                 }
                 return trimmed
             })
+            .filter(Boolean)
             .sort()
             .join("+")
     }
@@ -143,10 +153,14 @@ export class KeyboardHandler {
 
         // 3. Fallback to just the key character if no modifiers are pressed
         if (!event.ctrlKey && !event.metaKey && !event.altKey) {
-            const keyLower = event.key.toLowerCase()
-            const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
-            if (singleKey === normalizedTarget) {
-                return true
+            const isShiftLetter =
+                event.shiftKey && event.key.toLowerCase() !== event.key.toUpperCase()
+            if (!isShiftLetter) {
+                const keyLower = event.key.toLowerCase()
+                const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
+                if (singleKey === normalizedTarget) {
+                    return true
+                }
             }
         }
 
@@ -365,20 +379,18 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
 
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
-            queueMicrotask(() => {
-                unregisterAll()
-                if (parentWasModified) {
-                    node.parent = originalParent
+            unregisterAll()
+            if (parentWasModified) {
+                node.parent = originalParent
+            }
+            const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
+            if (activeNow === node) {
+                if (setActiveNode) {
+                    setActiveNode(node.parent)
+                } else {
+                    commandDispatcher.activeRegistry = node.parent
                 }
-                const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
-                if (activeNow === node) {
-                    if (setActiveNode) {
-                        setActiveNode(node.parent)
-                    } else {
-                        commandDispatcher.activeRegistry = node.parent
-                    }
-                }
-            })
+            }
         }
     })
 
