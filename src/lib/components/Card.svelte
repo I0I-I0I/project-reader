@@ -2,7 +2,9 @@
     import type { Component } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
-    import { fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { fileNodeToBook, viewerStore } from "$lib/stores/viewerStore.svelte"
+    import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
+    import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
@@ -170,6 +172,63 @@
         showMenu = !showMenu
     }
 
+    const isRead = $derived(
+        node.type === "file" &&
+            node.metadata.totalPages !== undefined &&
+            node.metadata.totalPages > 0 &&
+            (node.metadata.pageNumber || 1) === node.metadata.totalPages,
+    )
+
+    const toggleReadState = async (e: MouseEvent) => {
+        e.stopPropagation()
+        showMenu = false
+        if (node.type !== "file") return
+
+        let total = node.metadata.totalPages
+        if (!total) {
+            // Load metadata on the fly if it is missing
+            const url = await vfsStore.getFileUrl(node.id)
+            if (url) {
+                const doc = new PDFDocument(url)
+                try {
+                    await doc.load(settingsStore.scale)
+                    total = await doc.getPageNumber()
+                } catch (err) {
+                    console.error("[Card] Failed to get total pages for toggleReadState:", err)
+                } finally {
+                    await doc.close()
+                    if (vfsStore.isLockedMap[node.id]) {
+                        vfsStore.revokeFileUrl(node.id)
+                    }
+                }
+            }
+        }
+
+        if (!total) {
+            total = 1
+        }
+
+        const isCurrentlyRead = (node.metadata.pageNumber || 1) === total
+        const targetPage = isCurrentlyRead ? 1 : total
+
+        const currentBook = viewerStore.getCurrentBook()
+        if (currentBook && currentBook.id === node.id) {
+            await viewerStore.updateBook({
+                ...currentBook,
+                pageNumber: targetPage,
+                totalPages: total,
+            })
+        } else {
+            await vfsStore.updateFile(node.id, {
+                metadata: {
+                    ...node.metadata,
+                    pageNumber: targetPage,
+                    totalPages: total,
+                },
+            })
+        }
+    }
+
     const closeMenu = () => {
         showMenu = false
     }
@@ -290,6 +349,21 @@
                         <NavigationIcon class="dropdown-icon" />
                         <span>{m.move ? m.move() : "Move"}</span>
                     </button>
+                    {#if kind === "book"}
+                        <button class="dropdown-item" onclick={toggleReadState}>
+                            {#if isRead}
+                                <BookOpenIcon class="dropdown-icon" />
+                                <span
+                                    >{m.mark_as_unread
+                                        ? m.mark_as_unread()
+                                        : "Mark as unread"}</span
+                                >
+                            {:else}
+                                <CheckCircleIcon class="dropdown-icon" />
+                                <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
+                            {/if}
+                        </button>
+                    {/if}
                     <button class="dropdown-item" onclick={onRemove}>
                         <TrashIcon class="dropdown-icon" />
                         <span>

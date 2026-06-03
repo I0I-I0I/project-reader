@@ -22,6 +22,8 @@
     "file_format": "FILE FORMAT",
     "remove_book": "Remove book",
     "remove_folder": "Remove folder",
+    "mark_as_read": "Mark as read",
+    "mark_as_unread": "Mark as unread",
     "import_pdf": "IMPORT PDF DOCUMENT",
     "upload_p_text": "Select a local PDF document to load and extract its content in real-time.",
     "choose_pdf": "CHOOSE PDF FILE",
