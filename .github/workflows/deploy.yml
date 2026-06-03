@@ -13,7 +13,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
-              uses: actions/checkout@v5
+              uses: actions/checkout@v6
 
             - name: Copy files to Server
               uses: appleboy/scp-action@v1.0.0
@@ -25,11 +25,11 @@ jobs:
                   target: "~/apps/project-reader"
 
             - name: Execute Docker Compose on Server
-              uses: appleboy/ssh-action@v1.2.0
+              uses: appleboy/ssh-action@v1.0.0
               with:
                   host: ${{ secrets.REMOTE_HOST }}
                   username: ${{ secrets.REMOTE_USER }}
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
                   script: |
                       cd ~/apps/project-reader
-                      docker compose up --build -d
+                      docker compose up --build --remove-orphans -d
