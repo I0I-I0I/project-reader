@@ -52,6 +52,8 @@ export default class PDFDocument implements DocumentInterface {
     public defaultWidth: number | null = null
     public defaultHeight: number | null = null
     private pageCache = new Map<number, string>()
+    private pageCacheOrder: number[] = []
+    private readonly MAX_PAGE_CACHE_SIZE = 30
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyCacheOrder: number[] = []
@@ -237,6 +239,8 @@ export default class PDFDocument implements DocumentInterface {
 
         const cacheKey = page.pageNumber
         if (this.pageCache.has(cacheKey)) {
+            this.pageCacheOrder = this.pageCacheOrder.filter((k) => k !== cacheKey)
+            this.pageCacheOrder.push(cacheKey)
             return this.pageCache.get(cacheKey)!
         }
 
@@ -291,6 +295,8 @@ export default class PDFDocument implements DocumentInterface {
 
             const blobUrl = URL.createObjectURL(blob)
             this.pageCache.set(cacheKey, blobUrl)
+            this.pageCacheOrder.push(cacheKey)
+            this.enforcePageCacheLimit()
             return blobUrl
         } catch (err: any) {
             if (pdfPage) pdfPage.cleanup()
@@ -377,6 +383,24 @@ export default class PDFDocument implements DocumentInterface {
             }
         }
         this.pageCache.clear()
+        this.pageCacheOrder = []
+    }
+
+    private enforcePageCacheLimit(): void {
+        while (this.pageCacheOrder.length > this.MAX_PAGE_CACHE_SIZE) {
+            const evictedKey = this.pageCacheOrder.shift()
+            if (evictedKey !== undefined) {
+                const url = this.pageCache.get(evictedKey)
+                if (url) {
+                    try {
+                        URL.revokeObjectURL(url)
+                    } catch (err) {
+                        console.warn(`[PDFDocument] Error revoking evicted page cache URL:`, err)
+                    }
+                    this.pageCache.delete(evictedKey)
+                }
+            }
+        }
     }
 
     private clearPageProxyCache(): void {

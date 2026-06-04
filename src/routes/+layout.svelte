@@ -1,7 +1,7 @@
 <script lang="ts">
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { onMount, setContext, untrack } from "svelte"
-    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import {
         type CommandNode,
@@ -18,13 +18,9 @@
         type SearchItem,
         type PromptProvider,
     } from "$lib/stores/promptStore.svelte"
-    import { goto } from "$app/navigation"
-    import { resolve } from "$app/paths"
-    import type { FileNode, FolderNode } from "$lib/stores/vfsStore.types"
-    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { getLocale } from "$lib/paraglide/runtime"
     import { getLanguageName } from "$lib/locale"
     import { page, updated } from "$app/state"
-    import type { Pathname } from "$app/types"
     import {
         getFoldersPromptItems,
         getMovePromptItems,

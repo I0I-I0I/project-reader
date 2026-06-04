@@ -195,6 +195,7 @@
         {
             id: "one-level-up",
             keys: "h",
+            disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
             action: () => {
                 if (vfsStore.currentFolderId) {
                     const node = vfsStore.nodes[vfsStore.currentFolderId]
@@ -216,6 +217,7 @@
         {
             id: "open-history-forward",
             keys: "l",
+            disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
             action: () => {
                 const forwardId = vfsStore.popForwardHistory()
                 if (forwardId) {

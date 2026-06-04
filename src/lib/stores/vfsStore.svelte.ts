@@ -83,16 +83,10 @@ class VFSStore {
         try {
             // PHASE 2 OPTIMIZATION: Only load metadata on startup.
             // No N+1 queries for previews, no eager Object URLs.
-            const [allFolders, allFiles, allContents] = await Promise.all([
+            const [allFolders, allFiles] = await Promise.all([
                 this.db.folders.getAll(),
                 this.db.files.getAll(),
-                this.db.fileContents.getAll(),
             ])
-
-            for (const c of allContents) {
-                if (c.file) this.nativeFiles.set(c.id, c.file)
-                if (c.handle) this.nativeHandles.set(c.id, c.handle)
-            }
 
             const newNodes: VFSNodes = {}
             for (const f of allFolders) {
@@ -101,7 +95,7 @@ class VFSStore {
 
             for (const fileNode of allFiles) {
                 newNodes[fileNode.id] = fileNode
-                this.isLockedMap[fileNode.id] = !this.nativeFiles.has(fileNode.id)
+                this.isLockedMap[fileNode.id] = fileNode.isLocked ?? true
             }
 
             this.nodes = newNodes
@@ -163,8 +157,22 @@ class VFSStore {
         if (!node || node.type !== "file") return ""
 
         try {
-            const nativeFile = this.nativeFiles.get(id)
-            const nativeHandle = this.nativeHandles.get(id)
+            let nativeFile = this.nativeFiles.get(id)
+            let nativeHandle = this.nativeHandles.get(id)
+
+            if (!nativeFile && !nativeHandle) {
+                const content = await this.db.fileContents.get(id)
+                if (content) {
+                    if (content.file) {
+                        nativeFile = content.file
+                        this.nativeFiles.set(id, nativeFile)
+                    }
+                    if (content.handle) {
+                        nativeHandle = content.handle
+                        this.nativeHandles.set(id, nativeHandle)
+                    }
+                }
+            }
 
             if (nativeFile) {
                 const url = URL.createObjectURL(nativeFile)

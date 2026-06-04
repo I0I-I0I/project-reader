@@ -162,7 +162,7 @@
             },
         },
         {
-            id: "scroll-down",
+            id: "scroll-down-alt",
             keys: "arrowdown",
             description: m.keymap_scroll_down(),
             englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
@@ -192,7 +192,7 @@
             },
         },
         {
-            id: "scroll-up",
+            id: "scroll-up-alt",
             keys: "arrowup",
             description: m.keymap_scroll_up(),
             englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
@@ -223,7 +223,7 @@
             },
         },
         {
-            id: "scroll-page-down",
+            id: "scroll-page-down-alt",
             keys: "pagedown",
             description: m.keymap_scroll_page_down(),
             englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
@@ -255,7 +255,7 @@
             },
         },
         {
-            id: "scroll-page-up",
+            id: "scroll-page-up-alt",
             keys: "pageup",
             description: m.keymap_scroll_page_up(),
             englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
@@ -281,7 +281,7 @@
             },
         },
         {
-            id: "next-page",
+            id: "next-page-alt",
             keys: "arrowright",
             description: m.keymap_next_page(),
             englishDescription: m.keymap_next_page({}, { locale: "en" }),
@@ -301,7 +301,7 @@
             },
         },
         {
-            id: "prev-page",
+            id: "prev-page-alt",
             keys: "arrowleft",
             description: m.keymap_prev_page(),
             englishDescription: m.keymap_prev_page({}, { locale: "en" }),
