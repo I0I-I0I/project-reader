@@ -3,7 +3,7 @@
 
     interface Props extends HTMLInputAttributes {
         label?: string
-        value?: string
+        value?: string | number
         errors?: string[]
         classInput?: string
     }

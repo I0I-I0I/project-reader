@@ -13,6 +13,7 @@
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
     import LockIcon from "$lib/components/icons/LockIcon.svelte"
     import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
+    import EditIcon from "$lib/components/icons/EditIcon.svelte"
     import PDFDocument from "$lib/pdf"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
@@ -164,6 +165,13 @@
         e.stopPropagation()
         uiStore.isSelectionMode = true
         vfsStore.toggleSelection(node.id)
+        showMenu = false
+    }
+
+    const onEditMetadata = (e: MouseEvent) => {
+        e.stopPropagation()
+        uiStore.nodeToEditMetadataId = node.id
+        uiStore.isEditMetadataModalOpen = true
         showMenu = false
     }
 
@@ -362,6 +370,10 @@
                                 <CheckCircleIcon class="dropdown-icon" />
                                 <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
                             {/if}
+                        </button>
+                        <button class="dropdown-item" onclick={onEditMetadata}>
+                            <EditIcon class="dropdown-icon" />
+                            <span>{m.edit_metadata ? m.edit_metadata() : "Edit metadata"}</span>
                         </button>
                     {/if}
                     <button class="dropdown-item" onclick={onRemove}>

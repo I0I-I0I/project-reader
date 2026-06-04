@@ -132,5 +132,16 @@
     "header_prompt_placeholder": "Ctrl+K to open command prompt",
     "keymap_open_book": "Open book",
     "keymap_open_books_recursive": "Open books from current folder and sub-folders",
-    "keymap_go_to_folder": "Go to folder"
+    "keymap_go_to_folder": "Go to folder",
+    "edit_metadata": "Edit metadata",
+    "edit_book_metadata": "EDIT BOOK METADATA",
+    "title": "TITLE",
+    "author": "AUTHOR",
+    "current_page": "CURRENT PAGE",
+    "total_pages": "TOTAL PAGES",
+    "save": "SAVE",
+    "title_required": "Book title is required",
+    "invalid_page_number": "Page number must be at least 1",
+    "invalid_total_pages": "Total pages cannot be negative",
+    "page_exceeds_total": "Page number cannot exceed total pages"
 }

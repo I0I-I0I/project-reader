@@ -30,6 +30,8 @@ class UIStore {
     #nodesToDeleteIds = $state<string[]>([])
     #isCompact = $state(false)
     #nodeToMoveId = $state<string | null>(null)
+    #isEditMetadataModalOpen = $state(false)
+    #nodeToEditMetadataId = $state<string | null>(null)
 
     constructor() {
         if (browser) {
@@ -66,6 +68,8 @@ class UIStore {
         this.#isDeleteModalOpen = false
         this.#nodesToDeleteIds = []
         this.#nodeToMoveId = null
+        this.#isEditMetadataModalOpen = false
+        this.#nodeToEditMetadataId = null
     }
 
     get isSelectionMode(): boolean {
@@ -156,6 +160,22 @@ class UIStore {
 
     set nodeToMoveId(value: string | null) {
         this.#nodeToMoveId = value
+    }
+
+    get isEditMetadataModalOpen(): boolean {
+        return this.#isEditMetadataModalOpen
+    }
+
+    set isEditMetadataModalOpen(value: boolean) {
+        this.#isEditMetadataModalOpen = value
+    }
+
+    get nodeToEditMetadataId(): string | null {
+        return this.#nodeToEditMetadataId
+    }
+
+    set nodeToEditMetadataId(value: string | null) {
+        this.#nodeToEditMetadataId = value
     }
 
     get isCompact(): boolean {

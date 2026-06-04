@@ -17,6 +17,7 @@
     import Folder from "$lib/components/Folder.svelte"
     import NewFolderModal from "$lib/components/NewFolderModal.svelte"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
+    import EditBookMetadataModal from "$lib/components/EditBookMetadataModal.svelte"
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { page } from "$app/stores"
@@ -230,6 +231,10 @@
 
     {#if uiStore.isDeleteModalOpen}
         <DeleteConfirmModal />
+    {/if}
+
+    {#if uiStore.isEditMetadataModalOpen && uiStore.nodeToEditMetadataId}
+        <EditBookMetadataModal nodeId={uiStore.nodeToEditMetadataId} />
     {/if}
 
     {#if uiStore.isPickingMode}

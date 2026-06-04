@@ -132,5 +132,16 @@
     "header_prompt_placeholder": "Ctrl+K для открытия командной строки",
     "keymap_open_book": "Открыть книгу",
     "keymap_open_books_recursive": "Открыть книги из текущей папки и подпапок",
-    "keymap_go_to_folder": "Перейти в папку"
+    "keymap_go_to_folder": "Перейти в папку",
+    "edit_metadata": "Редактировать метаданные",
+    "edit_book_metadata": "РЕДАКТИРОВАТЬ МЕТАДАННЫЕ КНИГИ",
+    "title": "НАЗВАНИЕ",
+    "author": "АВТОР",
+    "current_page": "ТЕКУЩАЯ СТРАНИЦА",
+    "total_pages": "ВСЕГО СТРАНИЦ",
+    "save": "СОХРАНИТЬ",
+    "title_required": "Название книги обязательно",
+    "invalid_page_number": "Номер страницы должен быть не менее 1",
+    "invalid_total_pages": "Количество страниц не может быть отрицательным",
+    "page_exceeds_total": "Номер страницы не может превышать общее количество страниц"
 }
