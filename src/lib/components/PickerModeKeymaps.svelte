@@ -40,6 +40,15 @@
     const node = useCommands(baseCommands, activeNodeBeforeOpen)
 
     $effect(() => {
+        uiStore.pickerCommandsNode = node
+        return () => {
+            if (uiStore.pickerCommandsNode === node) {
+                uiStore.pickerCommandsNode = null
+            }
+        }
+    })
+
+    $effect(() => {
         // Track currentNodes changes
         const nodes = currentNodes
 

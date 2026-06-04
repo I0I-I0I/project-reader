@@ -233,14 +233,18 @@
 
     $effect(() => {
         const _ = vfsStore.currentFolderId
-        uiStore.isSelectionMode = false
-        uiStore.isPickingMode = false
-        vfsStore.clearSelection()
+        untrack(() => {
+            uiStore.isSelectionMode = false
+            uiStore.isPickingMode = false
+            vfsStore.clearSelection()
+        })
     })
 
     $effect(() => {
         if (uiStore.isSelectionMode && vfsStore.selectedIds.size === 0) {
-            uiStore.isSelectionMode = false
+            untrack(() => {
+                uiStore.isSelectionMode = false
+            })
         }
     })
 </script>

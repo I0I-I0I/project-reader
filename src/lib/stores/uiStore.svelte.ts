@@ -1,5 +1,6 @@
 import { browser } from "$app/environment"
 import { MEDIA_QUERIES } from "$lib/breakpoints"
+import type { CommandNode } from "./commandsStore.svelte"
 
 type PromptMode =
     | "global"
@@ -13,6 +14,7 @@ type PromptMode =
     | "folders"
 
 class UIStore {
+    pickerCommandsNode = $state<CommandNode | null>(null)
     #isToolbarsVisible = $state(true)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)

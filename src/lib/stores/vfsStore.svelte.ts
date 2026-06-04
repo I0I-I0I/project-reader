@@ -668,6 +668,12 @@ class VFSStore {
 
 export const vfsStore = new VFSStore()
 
+import { uiStore } from "./uiStore.svelte"
+if (typeof window !== "undefined") {
+    ;(window as any).vfsStore = vfsStore
+    ;(window as any).uiStore = uiStore
+}
+
 export function usePreviewUrl(nodeId: () => string) {
     let url = $state("")
     $effect(() => {
