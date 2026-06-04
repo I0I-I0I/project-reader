@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { onMount, getContext } from "svelte"
+    import { onMount, getContext, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
     import Input from "./ui/Input.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { useCommands } from "$lib/stores/commandsStore.svelte"
+    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
 
     interface Props {
         onCreate?: (name: string) => void
@@ -16,7 +16,7 @@
     let folderName = $state("")
     let errors = $state<string[]>([])
 
-    const getActiveNode = getContext<() => any>("get_active_commands_node")
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
     useCommands(
@@ -34,18 +34,17 @@
         activeNodeBeforeOpen,
     )
 
-    onMount(() => {
+    onMount(async () => {
         folderName = ""
         errors = []
 
         // Focus the input when modal opens
-        setTimeout(() => {
-            const input = document.getElementById("folder-name-input") as HTMLInputElement | null
-            if (input) {
-                input.focus()
-                input.select()
-            }
-        }, 0)
+        await tick()
+        const input = document.getElementById("folder-name-input") as HTMLInputElement | null
+        if (input) {
+            input.focus()
+            input.select()
+        }
     })
 
     function validateInput() {

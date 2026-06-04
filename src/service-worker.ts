@@ -25,6 +25,8 @@ const ASSETS = [
 ]
 
 self.addEventListener("install", (event) => {
+    self.skipWaiting()
+
     // Create a new cache and add all files to it
     async function addFilesToCache() {
         const cache = await caches.open(CACHE)
@@ -35,6 +37,9 @@ self.addEventListener("install", (event) => {
 })
 
 self.addEventListener("activate", (event) => {
+    // Ensure the service worker takes control of all clients immediately
+    event.waitUntil(self.clients.claim())
+
     // Remove previous cached data from disk
     async function deleteOldCaches() {
         for (const key of await caches.keys()) {
@@ -62,6 +67,15 @@ self.addEventListener("fetch", (event) => {
             }
         }
 
+        // For SPA navigation requests, fallback to the 200.html shell immediately
+        // to provide a fast "offline-first" experience.
+        if (event.request.mode === "navigate") {
+            const fallback = await cache.match("/200.html")
+            if (fallback) {
+                return fallback
+            }
+        }
+
         // for everything else, try the network first, but
         // fall back to the cache if we're offline
         try {
@@ -75,7 +89,8 @@ self.addEventListener("fetch", (event) => {
 
             if (
                 response.status === 200 &&
-                !response.headers.get("cache-control")?.includes("no-store")
+                !response.headers.get("cache-control")?.includes("no-store") &&
+                url.origin === self.location.origin
             ) {
                 cache.put(event.request, response.clone())
             }
@@ -86,14 +101,6 @@ self.addEventListener("fetch", (event) => {
 
             if (response) {
                 return response
-            }
-
-            // For SPA navigation requests, fallback to the 200.html shell
-            if (event.request.mode === "navigate") {
-                const fallback = await cache.match("/200.html")
-                if (fallback) {
-                    return fallback
-                }
             }
 
             // if there's no cache, then just error out

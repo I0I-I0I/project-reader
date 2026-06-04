@@ -5,7 +5,7 @@
     import { fileNodeToBook, viewerStore } from "$lib/stores/viewerStore.svelte"
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte"
-    import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import { vfsStore, usePreviewUrl } from "$lib/stores/vfsStore.svelte"
     import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
@@ -18,7 +18,6 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { onMount, onDestroy } from "svelte"
 
     interface Props extends HTMLButtonAttributes {
         node: VFSNode
@@ -36,19 +35,8 @@
     const kind = $derived(node.type === "file" ? "book" : "folder")
     const extension = $derived(node.type === "file" ? "pdf" : undefined)
 
-    let previewUrl = $state("")
-
-    onMount(async () => {
-        if (node.type === "file") {
-            previewUrl = await vfsStore.getPreviewUrl(node.id)
-        }
-    })
-
-    onDestroy(() => {
-        if (node.type === "file") {
-            vfsStore.revokePreviewUrl(node.id)
-        }
-    })
+    const preview = usePreviewUrl(() => (node.type === "file" ? node.id : ""))
+    const previewUrl = $derived(preview.url)
 
     const book = $derived.by(() => {
         if (node.type === "file") {
@@ -77,6 +65,7 @@
         ) {
             let isCancelled = false
             const loadMetadata = async () => {
+                if (isCancelled) return
                 const url = await vfsStore.getFileUrl(node.id)
                 if (!url || isCancelled) return
 
@@ -105,7 +94,7 @@
                     }
                 }
             }
-            loadMetadata()
+            vfsStore.metadataQueue(loadMetadata)
             return () => {
                 isCancelled = true
             }
@@ -142,8 +131,9 @@
         )
         // This will trigger the getPreviewUrl again in a bit, but we might want to force clear it in DB
         // For now, let's just clear the local cache
-        vfsStore.revokePreviewUrl(node.id)
-        previewUrl = await vfsStore.getPreviewUrl(node.id)
+        if (preview) {
+            await preview.regenerate()
+        }
     }
 
     const onRemove = async (e: MouseEvent) => {
@@ -156,8 +146,8 @@
     const onMove = (e: MouseEvent) => {
         e.stopPropagation()
         uiStore.nodeToMoveId = node.id
-        uiStore.prompt.mode("move")
-        uiStore.prompt.isOpen(true)
+        uiStore.prompt.mode = "move"
+        uiStore.prompt.isOpen = true
         showMenu = false
     }
 

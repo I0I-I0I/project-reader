@@ -1,7 +1,29 @@
-import { Dexie, type EntityTable } from "dexie"
+import { Dexie, type EntityTable, type Transaction } from "dexie"
 import type { FolderNode, FileNode, BookPreview, FileContent } from "./vfsStore.types"
 
 export type TableName = "books" | "previews" | "folders" | "fileContents"
+
+export async function migrateVersion2(tx: Transaction) {
+    await tx.table("books").each(async (book) => {
+        if (book.file || book.handle) {
+            try {
+                await tx.table("fileContents").put({
+                    id: book.id,
+                    file: book.file,
+                    handle: book.handle,
+                })
+                delete book.file
+                delete book.handle
+                await tx.table("books").put(book)
+            } catch (e) {
+                console.error(
+                    `Failed to migrate file content during database upgrade for book ${book.id}:`,
+                    e,
+                )
+            }
+        }
+    })
+}
 
 interface IDBBooks {
     get(id: string): Promise<FileNode | undefined>
@@ -66,28 +88,7 @@ db.version(2)
         folders: "id",
         fileContents: "id",
     })
-    .upgrade(async (tx) => {
-        const books = await tx.table("books").toArray()
-        for (const book of books) {
-            if (book.file || book.handle) {
-                try {
-                    await tx.table("fileContents").put({
-                        id: book.id,
-                        file: book.file,
-                        handle: book.handle,
-                    })
-                    delete book.file
-                    delete book.handle
-                    await tx.table("books").put(book)
-                } catch (e) {
-                    console.error(
-                        `Failed to migrate file content during database upgrade for book ${book.id}:`,
-                        e,
-                    )
-                }
-            }
-        }
-    })
+    .upgrade(migrateVersion2)
 
 class DBBooks implements IDBBooks {
     get(id: string): Promise<FileNode | undefined> {

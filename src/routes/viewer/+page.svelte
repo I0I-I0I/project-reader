@@ -52,8 +52,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(targetPage)
                         }
-                        uiStore.prompt.mode("global")
-                        uiStore.prompt.isOpen(false)
+                        uiStore.prompt.mode = "global"
+                        uiStore.prompt.isOpen = false
                     },
                 })
             } else {
@@ -70,8 +70,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(currentPageNum)
                         }
-                        uiStore.prompt.mode("global")
-                        uiStore.prompt.isOpen(false)
+                        uiStore.prompt.mode = "global"
+                        uiStore.prompt.isOpen = false
                     },
                 })
             }
@@ -92,8 +92,8 @@
                         if (viewerStore.goToPage) {
                             viewerStore.goToPage(num)
                         }
-                        uiStore.prompt.mode("global")
-                        uiStore.prompt.isOpen(false)
+                        uiStore.prompt.mode = "global"
+                        uiStore.prompt.isOpen = false
                     },
                 })
             }
@@ -106,9 +106,29 @@
 
     const commandsNode = useCommands([
         {
+            keys: "shift+l",
+            description: m.keymap_toggle_layouts(),
+            englishDescription: m.keymap_toggle_layouts({}, { locale: "en" }),
+            category: "settings",
+            subtitle: () => {
+                const layoutNames = {
+                    single: m.single_page(),
+                    split: m.split_pages(),
+                    scroll: m.scroll_pages(),
+                }
+                return `${m.layout()}: ${layoutNames[settingsStore.layout]}`
+            },
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode = "layout"
+                uiStore.prompt.isOpen = true
+            },
+        },
+        {
             id: "zoom-in",
             keys: "shift++",
             description: m.keymap_zoom_in(),
+            englishDescription: m.keymap_zoom_in({}, { locale: "en" }),
             category: "settings",
             subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
             action: () => {
@@ -119,6 +139,7 @@
             id: "zoom-out",
             keys: "-",
             description: m.keymap_zoom_out(),
+            englishDescription: m.keymap_zoom_out({}, { locale: "en" }),
             category: "settings",
             subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
             action: () => {
@@ -129,12 +150,13 @@
             id: "scroll-down",
             keys: "j",
             description: m.keymap_scroll_down(),
+            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
-                        top: 150,
+                        top: window.innerHeight * 0.2,
                         behavior: settingsStore.animations ? "smooth" : "auto",
                     })
             },
@@ -143,12 +165,13 @@
             id: "scroll-down",
             keys: "arrowdown",
             description: m.keymap_scroll_down(),
+            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
-                        top: 150,
+                        top: window.innerHeight * 0.2,
                         behavior: settingsStore.animations ? "smooth" : "auto",
                     })
             },
@@ -157,12 +180,13 @@
             id: "scroll-up",
             keys: "k",
             description: m.keymap_scroll_up(),
+            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
-                        top: -150,
+                        top: -window.innerHeight * 0.2,
                         behavior: settingsStore.animations ? "smooth" : "auto",
                     })
             },
@@ -171,12 +195,13 @@
             id: "scroll-up",
             keys: "arrowup",
             description: m.keymap_scroll_up(),
+            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
-                        top: -150,
+                        top: -window.innerHeight * 0.2,
                         behavior: settingsStore.animations ? "smooth" : "auto",
                     })
             },
@@ -185,6 +210,7 @@
             id: "scroll-page-down-main",
             keys: "d",
             description: m.keymap_scroll_page_down(),
+            englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const currentHeight = window.innerHeight
@@ -200,6 +226,7 @@
             id: "scroll-page-down",
             keys: "pagedown",
             description: m.keymap_scroll_page_down(),
+            englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const currentHeight = window.innerHeight
@@ -215,6 +242,7 @@
             id: "scroll-page-up-main",
             keys: "u",
             description: m.keymap_scroll_page_up(),
+            englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const currentHeight = window.innerHeight
@@ -230,6 +258,7 @@
             id: "scroll-page-up",
             keys: "pageup",
             description: m.keymap_scroll_page_up(),
+            englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 const currentHeight = window.innerHeight
@@ -245,6 +274,7 @@
             id: "next-page",
             keys: "space",
             description: m.keymap_next_page(),
+            englishDescription: m.keymap_next_page({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 nextPage()
@@ -254,6 +284,7 @@
             id: "next-page",
             keys: "arrowright",
             description: m.keymap_next_page(),
+            englishDescription: m.keymap_next_page({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 nextPage()
@@ -263,6 +294,7 @@
             id: "prev-page",
             keys: "shift+space",
             description: m.keymap_prev_page(),
+            englishDescription: m.keymap_prev_page({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 prevPage()
@@ -272,6 +304,7 @@
             id: "prev-page",
             keys: "arrowleft",
             description: m.keymap_prev_page(),
+            englishDescription: m.keymap_prev_page({}, { locale: "en" }),
             category: "navigation",
             action: () => {
                 prevPage()
@@ -281,6 +314,7 @@
             id: "toggle-outline",
             keys: "shift+o",
             description: m.keymap_toggle_outline(),
+            englishDescription: m.keymap_toggle_outline({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 isOutlineOpen = !isOutlineOpen
@@ -290,6 +324,7 @@
             id: "toggle-settings",
             keys: "shift+s",
             description: m.keymap_toggle_settings(),
+            englishDescription: m.keymap_toggle_settings({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 isSettingsOpen = !isSettingsOpen
@@ -299,6 +334,7 @@
             id: "close-viewer",
             keys: "q",
             description: m.keymap_close_viewer(),
+            englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 handleClose()
@@ -308,6 +344,7 @@
             id: "hide-toolbars",
             keys: "shift+m",
             description: m.keymap_hide_toolbars(),
+            englishDescription: m.keymap_hide_toolbars({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
@@ -317,11 +354,12 @@
             id: "goto-page",
             keys: "g",
             description: m.keymap_goto_page(),
+            englishDescription: m.keymap_goto_page({}, { locale: "en" }),
             category: "menu",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.prompt.mode("page")
-                uiStore.prompt.isOpen(true)
+                uiStore.prompt.mode = "page"
+                uiStore.prompt.isOpen = true
             },
         },
     ])
@@ -826,8 +864,8 @@
                                     : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    uiStore.prompt.mode("global")
-                                    uiStore.prompt.isOpen(true)
+                                    uiStore.prompt.mode = "global"
+                                    uiStore.prompt.isOpen = true
                                 }}
                                 aria-label={m.keymap_prompt
                                     ? m.keymap_prompt()

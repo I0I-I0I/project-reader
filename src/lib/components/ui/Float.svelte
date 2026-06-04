@@ -54,21 +54,16 @@
             onClose()
         }
     }
-
-    function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === "Escape") {
-            onClose()
-        }
-    }
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
     class="backdrop"
     class:align-top={align === "top"}
     style="height: {viewportHeight}; top: {viewportTop};"
     transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
     onclick={handleBackdropClick}
-    onkeydown={handleKeyDown}
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"

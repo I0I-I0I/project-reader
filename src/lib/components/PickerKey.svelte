@@ -1,72 +1,18 @@
 <script lang="ts">
-    import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    import { getContext, onMount } from "svelte"
     import { fade, scale } from "svelte/transition"
     import { backOut } from "svelte/easing"
 
     interface Props {
         onSelect: () => void
-        idx: number
+        keyChar: string
     }
 
-    let { idx, onSelect }: Props = $props()
-
-    const KEYS = [
-        "f",
-        "s",
-        "l",
-        "a",
-        ";",
-        "g",
-        "h",
-        "'",
-        "b",
-        "n",
-        "c",
-        "m",
-        "x",
-        ",",
-        "v",
-        ".",
-        "z",
-        "/",
-        "y",
-        "r",
-        "e",
-        "t",
-        "w",
-        "q",
-        "i",
-        "o",
-        "p",
-    ]
-
-    onMount(() => {
-        if (KEYS.length <= idx) return
-        const getActiveNode = getContext<() => any>("get_active_commands_node")
-        const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
-
-        useCommands(
-            [
-                {
-                    id: `picker-key-${idx}`,
-                    keys: KEYS[idx],
-                    action: () => {
-                        onSelect()
-                    },
-                    description: "Picker key",
-                    category: "commands",
-                },
-            ],
-            activeNodeBeforeOpen,
-        )
-    })
+    let { keyChar, onSelect }: Props = $props()
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
+<button
+    type="button"
     class="picker-key"
     onclick={onSelect}
     transition:fade={{ duration: settingsStore.animations ? 120 : 0 }}
@@ -78,9 +24,9 @@
             easing: backOut,
         }}
     >
-        {KEYS[idx]}
+        {keyChar}
     </kbd>
-</div>
+</button>
 
 <style>
     .picker-key {
@@ -92,6 +38,17 @@
         z-index: 10;
         cursor: pointer;
         transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        outline: none;
+        appearance: none;
+    }
+
+    .picker-key:focus-visible {
+        outline: 2px solid var(--accent-active-color);
+        outline-offset: -2px;
     }
 
     kbd {

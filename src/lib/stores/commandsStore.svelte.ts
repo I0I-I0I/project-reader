@@ -5,6 +5,7 @@ export type Command = {
     keys?: string
     action: (event: KeyboardEvent) => void
     description: string
+    englishDescription?: string
     allowInInputs?: boolean
     category?: "commands" | "settings" | "navigation" | "menu" | "books"
     subtitle?: () => string
@@ -73,11 +74,9 @@ const CODE_TO_KEY: Record<string, string> = {
 
 export class KeyboardHandler {
     static isMac(): boolean {
-        return (
-            typeof window !== "undefined" &&
-            (/Mac|iPod|iPhone|iPad/i.test(navigator.platform) ||
-                /Macintosh/i.test(navigator.userAgent))
-        )
+        if (typeof window === "undefined") return false
+        const platform = (navigator as any).userAgentData?.platform || navigator.platform || ""
+        return /Mac|iPod|iPhone|iPad/i.test(platform) || /Macintosh/i.test(navigator.userAgent)
     }
 
     static normalize(keys: string): string {
@@ -311,11 +310,12 @@ export class CommandDispatcher {
         })
 
         if (match) {
-            const target = event.target as HTMLElement
+            const target = event.target as HTMLElement | null
             const isInput =
-                target.tagName === "INPUT" ||
-                target.tagName === "TEXTAREA" ||
-                target.isContentEditable
+                target &&
+                (target.tagName === "INPUT" ||
+                    target.tagName === "TEXTAREA" ||
+                    target.isContentEditable)
 
             if (isInput && !match.allowInInputs) {
                 return
@@ -350,39 +350,15 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
     )
 
     onMount(() => {
-        const currentActive = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
-        const originalParent = node.parent
-        let parentWasModified = false
-
-        if (!currentActive || !node.isAncestorOf(currentActive)) {
-            let isSiblingDescendant = false
-            let curr: CommandRegistry | null = currentActive
-            while (curr) {
-                if (curr === parentNode) {
-                    isSiblingDescendant = true
-                    break
-                }
-                curr = curr.parent
-            }
-
-            if (isSiblingDescendant) {
-                node.parent = currentActive
-                parentWasModified = true
-            }
-
-            if (setActiveNode) {
-                setActiveNode(node)
-            } else {
-                commandDispatcher.activeRegistry = node
-            }
+        if (setActiveNode) {
+            setActiveNode(node)
+        } else {
+            commandDispatcher.activeRegistry = node
         }
 
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
             unregisterAll()
-            if (parentWasModified) {
-                node.parent = originalParent
-            }
             const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
             if (activeNow === node) {
                 if (setActiveNode) {

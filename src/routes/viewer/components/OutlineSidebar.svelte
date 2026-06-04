@@ -125,7 +125,7 @@
         })
     })
 
-    const getActiveNode = getContext<() => any>("get_active_commands_node")
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
     const sidebarCommandsNode = useCommands(

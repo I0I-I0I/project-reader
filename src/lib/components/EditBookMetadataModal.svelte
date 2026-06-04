@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, getContext } from "svelte"
+    import { onMount, getContext, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
@@ -7,7 +7,7 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { useCommands } from "$lib/stores/commandsStore.svelte"
+    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
 
     interface Props {
         nodeId: string
@@ -27,7 +27,7 @@
         pageNumber?: string[]
     }>({})
 
-    const getActiveNode = getContext<() => any>("get_active_commands_node")
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
     useCommands(
@@ -45,7 +45,7 @@
         activeNodeBeforeOpen,
     )
 
-    onMount(() => {
+    onMount(async () => {
         if (node && node.type === "file") {
             name = node.name
             author = node.metadata.author || ""
@@ -53,13 +53,12 @@
         }
 
         // Focus the title input when modal opens
-        setTimeout(() => {
-            const input = document.getElementById("book-title-input") as HTMLInputElement | null
-            if (input) {
-                input.focus()
-                input.select()
-            }
-        }, 0)
+        await tick()
+        const input = document.getElementById("book-title-input") as HTMLInputElement | null
+        if (input) {
+            input.focus()
+            input.select()
+        }
     })
 
     function validateForm() {

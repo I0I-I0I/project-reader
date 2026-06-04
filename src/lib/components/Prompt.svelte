@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, getContext, untrack } from "svelte"
+    import { onMount, getContext, untrack, tick } from "svelte"
     import { fade, fly } from "svelte/transition"
     import { flip } from "svelte/animate"
     import Fuse from "fuse.js"
@@ -7,7 +7,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { useCommands } from "$lib/stores/commandsStore.svelte"
+    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
@@ -55,16 +55,13 @@
         })
     })
 
-    function scrollToSelected() {
-        setTimeout(() => {
-            if (!resultsContainerRef) return
-            const selectedEl = resultsContainerRef.querySelector(
-                ".result-item.selected",
-            ) as HTMLElement
-            if (selectedEl) {
-                selectedEl.scrollIntoView({ block: "nearest" })
-            }
-        }, 0)
+    async function scrollToSelected() {
+        await tick()
+        if (!resultsContainerRef) return
+        const selectedEl = resultsContainerRef.querySelector(".result-item.selected") as HTMLElement
+        if (selectedEl) {
+            selectedEl.scrollIntoView({ block: "nearest" })
+        }
     }
 
     let allItems = $derived(items)
@@ -85,7 +82,7 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
-        if (uiStore.prompt.mode() === "page") {
+        if (uiStore.prompt.mode === "page") {
             return allItems.map((item) => ({ item, matches: [] }))
         }
         if (query === "") {
@@ -97,12 +94,12 @@
         }))
     })
 
-    const getActiveNode = getContext<() => any>("get_active_commands_node")
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
     function handleSelection(item: SearchItem) {
         item.action()
-        if (uiStore.prompt.isOpen()) {
+        if (uiStore.prompt.isOpen) {
             const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
             if (promptInput) {
                 promptInput.focus()
@@ -194,27 +191,36 @@
         activeNodeBeforeOpen,
     )
 
-    function getHighlightedText(text: string, matches: readonly any[], key: string): string {
-        if (typeof text !== "string") return String(text || "")
-        const match = matches.find((m) => m.key === key)
-        if (!match) return text
+    interface TextPart {
+        text: string
+        highlight: boolean
+    }
 
-        let result = ""
+    function getHighlightedParts(text: string, matches: readonly any[], key: string): TextPart[] {
+        if (typeof text !== "string") return [{ text: String(text || ""), highlight: false }]
+        const match = matches.find((m) => m.key === key)
+        if (!match) return [{ text, highlight: false }]
+
+        const parts: TextPart[] = []
         let lastIndex = 0
         const sortedIndices = [...match.indices].sort((a, b) => a[0] - b[0])
 
         for (const [start, end] of sortedIndices) {
-            result += text.slice(lastIndex, start)
-            result += `<mark class="highlight">${text.slice(start, end + 1)}</mark>`
+            if (start > lastIndex) {
+                parts.push({ text: text.slice(lastIndex, start), highlight: false })
+            }
+            parts.push({ text: text.slice(start, end + 1), highlight: true })
             lastIndex = end + 1
         }
-        result += text.slice(lastIndex)
-        return result
+        if (lastIndex < text.length) {
+            parts.push({ text: text.slice(lastIndex), highlight: false })
+        }
+        return parts
     }
 
     onMount(() => {
         if (value === "") {
-            value = uiStore.prompt.initialValue() || ""
+            value = uiStore.prompt.initialValue || ""
         }
         internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
 
@@ -263,11 +269,18 @@
                     enterkeyhint="go"
                     bind:value={internalValue}
                     aria-label={m.prompt_search_aria()}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-controls="prompt-results-list"
+                    aria-expanded={searchResults.length > 0}
+                    aria-activedescendant={searchResults.length > 0
+                        ? `result-item-${selectedIndex}`
+                        : undefined}
                     oninput={(e) => {
                         const raw = e.currentTarget.value
                         if (raw === "") {
-                            if (value === "" && uiStore.prompt.mode() !== "global") {
-                                uiStore.prompt.mode("global")
+                            if (value === "" && uiStore.prompt.mode !== "global") {
+                                uiStore.prompt.mode = "global"
                             }
                             internalValue = "\u200B"
                             value = ""
@@ -287,10 +300,19 @@
                 >
             </form>
 
-            <div class="results-list" bind:this={resultsContainerRef}>
+            <div
+                id="prompt-results-list"
+                class="results-list"
+                role="listbox"
+                aria-label={m.prompt_search_aria()}
+                bind:this={resultsContainerRef}
+            >
                 {#if searchResults.length > 0}
                     {#each searchResults as { item, matches }, i (item.id)}
                         <button
+                            id="result-item-{i}"
+                            role="option"
+                            aria-selected={selectedIndex === i}
                             class="result-item"
                             class:selected={selectedIndex === i}
                             onclick={() => handleSelection(item)}
@@ -313,24 +335,36 @@
                             </div>
                             <div class="meta-container">
                                 <div class="item-title">
-                                    {@html getHighlightedText(item.title, matches, "title")}
+                                    {#each getHighlightedParts(item.title, matches, "title") as part}
+                                        {#if part.highlight}
+                                            <mark class="highlight">{part.text}</mark>
+                                        {:else}
+                                            {part.text}
+                                        {/if}
+                                    {/each}
                                     {#if item.englishTitle && item.englishTitle !== item.title}
                                         <span class="english-title-hint">
-                                            ({@html getHighlightedText(
-                                                item.englishTitle,
-                                                matches,
-                                                "englishTitle",
-                                            )})
+                                            (
+                                            {#each getHighlightedParts(item.englishTitle, matches, "englishTitle") as part}
+                                                {#if part.highlight}
+                                                    <mark class="highlight">{part.text}</mark>
+                                                {:else}
+                                                    {part.text}
+                                                {/if}
+                                            {/each}
+                                            )
                                         </span>
                                     {/if}
                                 </div>
                                 {#if item.subtitle}
                                     <div class="item-subtitle">
-                                        {@html getHighlightedText(
-                                            item.subtitle,
-                                            matches,
-                                            "subtitle",
-                                        )}
+                                        {#each getHighlightedParts(item.subtitle, matches, "subtitle") as part}
+                                            {#if part.highlight}
+                                                <mark class="highlight">{part.text}</mark>
+                                            {:else}
+                                                {part.text}
+                                            {/if}
+                                        {/each}
                                     </div>
                                 {/if}
                             </div>

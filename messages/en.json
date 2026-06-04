@@ -143,5 +143,6 @@
     "title_required": "Book title is required",
     "invalid_page_number": "Page number must be at least 1",
     "invalid_total_pages": "Total pages cannot be negative",
-    "page_exceeds_total": "Page number cannot exceed total pages"
+    "page_exceeds_total": "Page number cannot exceed total pages",
+    "new_version_available": "A new version is available. Reload now?"
 }

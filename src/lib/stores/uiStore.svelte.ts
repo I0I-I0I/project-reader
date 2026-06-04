@@ -16,8 +16,8 @@ class UIStore {
     #isToolbarsVisible = $state(true)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
-    #_prompt = $state<{
-        initialValue?: string
+    prompt = $state<{
+        initialValue: string
         isOpen: boolean
         mode: PromptMode
     }>({
@@ -78,8 +78,9 @@ class UIStore {
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
-        if (!value && this.#_prompt.mode === "move") {
-            this.#_prompt = { isOpen: false, mode: "global" }
+        if (!value && this.prompt.mode === "move") {
+            this.prompt.isOpen = false
+            this.prompt.mode = "global"
         }
     }
 
@@ -97,37 +98,6 @@ class UIStore {
 
     set isPickingMode(value: boolean) {
         this.#isPickingMode = value
-    }
-
-    set prompt(value: { initialValue?: string; isOpen: boolean; mode: PromptMode }) {
-        this.#_prompt = value
-    }
-
-    get prompt(): {
-        initialValue: (value?: string) => string
-        isOpen: (value?: boolean) => boolean
-        mode: (value?: PromptMode) => PromptMode
-    } {
-        return {
-            initialValue: (value?: string): string => {
-                if (value !== undefined) {
-                    this.#_prompt.initialValue = value
-                }
-                return this.#_prompt.initialValue || ""
-            },
-            isOpen: (value?: boolean): boolean => {
-                if (value !== undefined) {
-                    this.#_prompt.isOpen = value
-                }
-                return this.#_prompt.isOpen
-            },
-            mode: (value?: PromptMode): PromptMode => {
-                if (value !== undefined && value !== this.#_prompt.mode) {
-                    this.#_prompt.mode = value
-                }
-                return this.#_prompt.mode
-            },
-        }
     }
 
     get isNewFolderModalOpen(): boolean {

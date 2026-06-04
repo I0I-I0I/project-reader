@@ -15,6 +15,7 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Input from "./ui/Input.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
+    import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
@@ -41,22 +42,23 @@
         <div class="header-btn-wrapper">
             {#if !uiStore.isCompact}
                 <div class="search-btn">
-                    <SearchIcon class="search-icon" />
+                    <TerminalIcon class="search-icon" />
                     <Input
                         class="search-input-wrapper"
                         classInput="search-input"
                         placeholder={m.header_prompt_placeholder()}
                         oninput={() => {
-                            uiStore.prompt.mode("global")
-                            uiStore.prompt.isOpen(true)
-                            uiStore.prompt.initialValue(inputValue)
+                            uiStore.prompt.mode = "global"
+                            uiStore.prompt.isOpen = true
+                            uiStore.prompt.initialValue = inputValue
                             inputValue = ""
                         }}
                         bind:value={inputValue}
                     />
                 </div>
             {/if}
-            <Switcher class="switcher-first" label={m.select_theme()}>
+
+            <Switcher label={m.select_theme()}>
                 {#snippet trigger()}
                     <currentThemeInfo.Icon class="switcher-icon" />
                     <span class="current-label">{currentThemeInfo.label()}</span>
@@ -179,9 +181,31 @@
             height: 32px;
 
             :global(.search-input) {
+                background: var(--surface-color) !important;
                 padding: 0 !important;
                 height: 100%;
                 padding-left: 32px !important;
+                padding-right: 12px !important;
+                box-shadow: 2px 2px 0 var(--shadow-color) !important;
+                transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
+            }
+
+            @media (hover: hover) {
+                :global(.search-input:hover) {
+                    background: var(--surface-hover-color) !important;
+                    transform: translate(-1px, -1px);
+                    box-shadow: 3px 3px 0 var(--shadow-color) !important;
+                }
+            }
+
+            :global(.search-input:focus) {
+                background: var(--surface-color) !important;
+                transform: translate(-1px, -1px);
+                box-shadow: 3px 3px 0 var(--shadow-color) !important;
+                border-color: var(--accent-color) !important;
             }
         }
 
@@ -196,6 +220,18 @@
             color: var(--text-color);
             margin-right: 12px;
             flex-shrink: 0;
+            z-index: 2;
+            pointer-events: none;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        &:hover :global(.search-icon) {
+            transform: translate(calc(-50% - 1px), calc(-50% - 1px));
+        }
+
+        &:focus-within :global(.search-icon) {
+            transform: translate(calc(-50% - 1px), calc(-50% - 1px));
+            color: var(--accent-color);
         }
     }
 
@@ -217,6 +253,10 @@
 
     .current-label {
         letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
     }
 
     @media (--tablet) {
@@ -246,5 +286,27 @@
         .search-btn {
             flex: 1 1 100%;
         }
+    }
+
+    .header-commands-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+
+    .kbd-hint {
+        font-family: inherit;
+        background: var(--faded-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 0.75rem;
+        margin-left: 6px;
+        font-weight: bold;
     }
 </style>

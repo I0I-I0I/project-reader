@@ -27,6 +27,8 @@
     import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
+    import { PICKER_KEYS } from "$lib/constants"
+    import { untrack } from "svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
 
@@ -122,16 +124,27 @@
         }
     }
 
+    function handlePickerSelect(node: VFSNode) {
+        if (pickingMode === "startSelection") {
+            uiStore.isSelectionMode = true
+            vfsStore.toggleSelection(node.id)
+        } else if (pickingMode === "openFileFolder") {
+            handleNodeClick(null as any, node)
+            uiStore.isPickingMode = false
+        }
+    }
+
     useCommands([
         {
             id: "open-file-recursive",
             keys: "o",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.prompt.mode("files-recursive")
-                uiStore.prompt.isOpen(true)
+                uiStore.prompt.mode = "files-recursive"
+                uiStore.prompt.isOpen = true
             },
             description: m.keymap_open_books_recursive(),
+            englishDescription: m.keymap_open_books_recursive({}, { locale: "en" }),
             category: "menu",
         },
         {
@@ -139,10 +152,11 @@
             keys: "g",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.prompt.mode("folders")
-                uiStore.prompt.isOpen(true)
+                uiStore.prompt.mode = "folders"
+                uiStore.prompt.isOpen = true
             },
             description: m.keymap_go_to_folder(),
+            englishDescription: m.keymap_go_to_folder({}, { locale: "en" }),
             category: "menu",
         },
         {
@@ -150,6 +164,7 @@
             keys: "shift+a",
             action: () => (uiStore.isNewFolderModalOpen = true),
             description: m.new_folder(),
+            englishDescription: m.new_folder({}, { locale: "en" }),
             category: "commands",
             subtitle: () => m.new_folder(),
         },
@@ -163,6 +178,7 @@
                 uiStore.isPickingMode = true
             },
             description: m.pick_file_to_open(),
+            englishDescription: m.pick_file_to_open({}, { locale: "en" }),
             category: "commands",
         },
         {
@@ -173,6 +189,7 @@
                 uiStore.isPickingMode = true
             },
             description: m.pick_file_to_open(),
+            englishDescription: m.pick_file_to_open({}, { locale: "en" }),
             category: "commands",
         },
         {
@@ -193,6 +210,7 @@
                 }
             },
             description: m.keymap_up_folder(),
+            englishDescription: m.keymap_up_folder({}, { locale: "en" }),
             category: "navigation",
         },
         {
@@ -208,9 +226,17 @@
                 }
             },
             description: m.keymap_history_forward(),
+            englishDescription: m.keymap_history_forward({}, { locale: "en" }),
             category: "navigation",
         },
     ])
+
+    $effect(() => {
+        const _ = vfsStore.currentFolderId
+        uiStore.isSelectionMode = false
+        uiStore.isPickingMode = false
+        vfsStore.clearSelection()
+    })
 
     $effect(() => {
         if (uiStore.isSelectionMode && vfsStore.selectedIds.size === 0) {
@@ -238,7 +264,7 @@
     {/if}
 
     {#if uiStore.isPickingMode}
-        <PickerModeKeymaps />
+        <PickerModeKeymaps {currentNodes} onSelect={handlePickerSelect} />
     {/if}
 
     <main class:selection-mode={uiStore.isSelectionMode}>
@@ -255,18 +281,10 @@
                             Icon={BookIcon}
                             onclick={(e) => handleNodeClick(e, node)}
                         />
-                        {#if uiStore.isPickingMode}
+                        {#if uiStore.isPickingMode && idx < PICKER_KEYS.length}
                             <PickerKey
-                                onSelect={() => {
-                                    if (pickingMode === "startSelection") {
-                                        uiStore.isSelectionMode = true
-                                        vfsStore.toggleSelection(node.id)
-                                    } else if (pickingMode === "openFileFolder") {
-                                        handleNodeClick(null as any, node)
-                                        uiStore.isPickingMode = false
-                                    }
-                                }}
-                                {idx}
+                                onSelect={() => handlePickerSelect(node)}
+                                keyChar={PICKER_KEYS[idx]}
                             />
                         {/if}
                     </li>
@@ -308,8 +326,8 @@
                     size="small"
                     onclick={() => {
                         uiStore.nodeToMoveId = null
-                        uiStore.prompt.mode("move")
-                        uiStore.prompt.isOpen(true)
+                        uiStore.prompt.mode = "move"
+                        uiStore.prompt.isOpen = true
                     }}
                     disabled={vfsStore.selectedIds.size === 0}
                 >
@@ -334,8 +352,8 @@
         <button
             class="mobile-prompt-btn"
             onclick={() => {
-                uiStore.prompt.mode("global")
-                uiStore.prompt.isOpen(true)
+                uiStore.prompt.mode = "global"
+                uiStore.prompt.isOpen = true
             }}
             aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
             title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
@@ -375,7 +393,7 @@
         gap: 20px;
     }
 
-    .grid.selection-mode {
+    main.selection-mode .grid {
         pointer-events: auto;
     }
 

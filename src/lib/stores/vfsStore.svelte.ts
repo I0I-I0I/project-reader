@@ -11,6 +11,7 @@ import type {
 import { Database } from "$lib/stores/db"
 import PDFDocument from "$lib/pdf"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
+import pLimit from "p-limit"
 
 class VFSStore {
     nodes = $state<VFSNodes>({})
@@ -30,6 +31,8 @@ class VFSStore {
 
     private nativeFiles = new Map<string, File>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
+    private previewUrlRefs: Record<string, number> = {}
+    metadataQueue = pLimit(2)
 
     constructor(initialNodes: VFSNodes = {}) {
         this.nodes = initialNodes
@@ -116,6 +119,7 @@ class VFSStore {
      * Lazily fetches and creates an Object URL for a node's preview.
      */
     async getPreviewUrl(id: string): Promise<string> {
+        this.previewUrlRefs[id] = (this.previewUrlRefs[id] || 0) + 1
         if (this.previewUrls[id]) return this.previewUrls[id]
 
         try {
@@ -131,11 +135,21 @@ class VFSStore {
         return ""
     }
 
-    revokePreviewUrl(id: string) {
-        const url = this.previewUrls[id]
-        if (url) {
-            URL.revokeObjectURL(url)
-            delete this.previewUrls[id]
+    revokePreviewUrl(id: string, force = false) {
+        if (force) {
+            delete this.previewUrlRefs[id]
+        } else {
+            if (!this.previewUrlRefs[id]) return
+            this.previewUrlRefs[id]--
+        }
+
+        if (force || !this.previewUrlRefs[id] || this.previewUrlRefs[id] <= 0) {
+            const url = this.previewUrls[id]
+            if (url) {
+                URL.revokeObjectURL(url)
+                delete this.previewUrls[id]
+            }
+            delete this.previewUrlRefs[id]
         }
     }
 
@@ -201,17 +215,8 @@ class VFSStore {
             console.error("Failed to retrieve file object during VFS file creation:", e)
         }
 
-        if (fileObj && isFile) {
-            try {
-                const arrayBuffer = await fileObj.arrayBuffer()
-                fileObj = new File([arrayBuffer], fileObj.name, {
-                    type: fileObj.type || "application/pdf",
-                    lastModified: fileObj.lastModified,
-                })
-            } catch (e) {
-                console.error("Failed to serialize file to ArrayBuffer:", e)
-            }
-        }
+        // No manual cloning to ArrayBuffer to avoid high memory pressure.
+        // Dexie can store Blob/File objects directly.
 
         let previewBlob: Blob | null = null
         let totalPages: number | undefined = undefined
@@ -410,7 +415,7 @@ class VFSStore {
                 this.nativeFiles.delete(node.id)
                 this.nativeHandles.delete(node.id)
                 this.revokeFileUrl(node.id)
-                this.revokePreviewUrl(node.id)
+                this.revokePreviewUrl(node.id, true)
                 delete this.isLockedMap[node.id]
             }
             if (this.selectedId === node.id) this.selectedId = null
@@ -480,7 +485,7 @@ class VFSStore {
 
         const node = this.nodes[id]
         if (node && node.type === "file") {
-            this.revokePreviewUrl(id)
+            this.revokePreviewUrl(id, true)
             node.updatedAt = Date.now()
             await this.saveFileToDb(node)
         }
@@ -501,21 +506,10 @@ class VFSStore {
     }
 
     private async saveFileToDb(node: FileNode): Promise<void> {
-        const plainNode: FileNode = {
-            id: node.id,
-            name: node.name,
-            type: "file",
-            parentId: node.parentId,
-            createdAt: node.createdAt,
-            updatedAt: node.updatedAt,
-            size: node.size,
-            metadata: {
-                pageNumber: node.metadata.pageNumber || 1,
-                pdfDest: node.metadata.pdfDest,
-                totalPages: node.metadata.totalPages,
-                author: node.metadata.author,
-            },
-            isLocked: this.isLockedMap[node.id],
+        const plainNode = $state.snapshot(node)
+        plainNode.isLocked = this.isLockedMap[node.id]
+        if (plainNode.metadata) {
+            plainNode.metadata.pageNumber = plainNode.metadata.pageNumber || 1
         }
         await this.db.files.put(plainNode)
     }
@@ -673,3 +667,30 @@ class VFSStore {
 }
 
 export const vfsStore = new VFSStore()
+
+export function usePreviewUrl(nodeId: () => string) {
+    let url = $state("")
+    $effect(() => {
+        const id = nodeId()
+        if (!id) return
+        let active = true
+        vfsStore.getPreviewUrl(id).then((val) => {
+            if (active) url = val
+        })
+        return () => {
+            active = false
+            vfsStore.revokePreviewUrl(id)
+        }
+    })
+    return {
+        get url() {
+            return url
+        },
+        async regenerate() {
+            const id = nodeId()
+            if (!id) return
+            vfsStore.revokePreviewUrl(id)
+            url = await vfsStore.getPreviewUrl(id)
+        },
+    }
+}
