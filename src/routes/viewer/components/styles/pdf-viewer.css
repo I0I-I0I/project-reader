@@ -66,3 +66,14 @@
     background-color: rgba(255, 255, 0, 0.1);
     transition: all 0.1s ease-in-out;
 }
+
+/* Search Highlights (CSS Custom Highlight API) */
+::highlight(search-match) {
+    background-color: rgba(255, 222, 0, 0.4);
+    color: transparent;
+}
+
+::highlight(search-match-active) {
+    background-color: rgba(255, 120, 0, 0.6);
+    color: transparent;
+}

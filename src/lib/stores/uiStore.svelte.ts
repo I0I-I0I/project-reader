@@ -16,6 +16,7 @@ type PromptMode =
 class UIStore {
     pickerCommandsNode = $state<CommandNode | null>(null)
     #isToolbarsVisible = $state(true)
+    #isSearchModeActive = $state(false)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
     prompt = $state<{
@@ -72,6 +73,7 @@ class UIStore {
         this.#nodeToMoveId = null
         this.#isEditMetadataModalOpen = false
         this.#nodeToEditMetadataId = null
+        this.#isSearchModeActive = false
     }
 
     get isSelectionMode(): boolean {
@@ -152,6 +154,14 @@ class UIStore {
 
     get isCompact(): boolean {
         return this.#isCompact
+    }
+
+    get isSearchModeActive(): boolean {
+        return this.#isSearchModeActive
+    }
+
+    set isSearchModeActive(value: boolean) {
+        this.#isSearchModeActive = value
     }
 }
 

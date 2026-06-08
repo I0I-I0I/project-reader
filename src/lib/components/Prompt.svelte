@@ -6,6 +6,7 @@
     import Float from "./ui/Float.svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
@@ -218,16 +219,19 @@
         return parts
     }
 
-    onMount(() => {
+    onMount(async () => {
         if (value === "") {
             value = uiStore.prompt.initialValue || ""
         }
         internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
 
+        await tick()
+
         const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
         if (promptInput) {
             promptInput.focus()
-            if (value !== "") {
+            const cleanVal = value.replace(/\u200B/g, "")
+            if (cleanVal !== "") {
                 promptInput.select()
             }
         }

@@ -5,6 +5,7 @@
     import type PDFDocument from "$lib/pdf"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
@@ -154,6 +155,8 @@
     let textLayer2 = $state<HTMLElement | null>(null)
     let annotationLayer1 = $state<HTMLDivElement | null>(null)
     let annotationLayer2 = $state<HTMLDivElement | null>(null)
+    let textLayer1RenderCount = $state(0)
+    let textLayer2RenderCount = $state(0)
 
     $effect(() => {
         const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
@@ -361,6 +364,12 @@
                 return
             }
 
+            if (textContainer === textLayer1) {
+                textLayer1RenderCount += 1
+            } else if (textContainer === textLayer2) {
+                textLayer2RenderCount += 1
+            }
+
             if (annotationContainer) {
                 annotationContainer.innerHTML = ""
                 const annotations = await targetPdf.getAnnotations(pageNo)
@@ -445,6 +454,85 @@
         }
         return () => {
             textLayerController2?.abort()
+        }
+    })
+
+    function highlightPage(pageNumber: number, textContainer: HTMLElement) {
+        const matches = searchStore.matches.filter((m) => m.pageNumber === pageNumber)
+        const matchRanges: Range[] = []
+        const activeRanges: Range[] = []
+
+        if (matches.length > 0) {
+            const spans = Array.from(textContainer.querySelectorAll("span"))
+            let currentOffset = 0
+            const spanRanges = spans.map((span) => {
+                const text = span.textContent || ""
+                const len = text.length
+                const entry = {
+                    span,
+                    textNode: span.firstChild || span,
+                    start: currentOffset,
+                    end: currentOffset + len,
+                }
+                currentOffset += len
+                return entry
+            })
+
+            matches.forEach((match) => {
+                const startEntry = spanRanges.find(
+                    (entry) => entry.start <= match.start && entry.end > match.start,
+                )
+                const endEntry = spanRanges.find(
+                    (entry) => entry.start <= match.end && entry.end >= match.end,
+                )
+
+                if (startEntry && endEntry) {
+                    try {
+                        const range = new Range()
+                        range.setStart(startEntry.textNode, match.start - startEntry.start)
+                        range.setEnd(endEntry.textNode, match.end - endEntry.start)
+
+                        const matchIdxInGlobal = searchStore.matches.indexOf(match)
+                        if (matchIdxInGlobal === searchStore.currentMatchIndex) {
+                            activeRanges.push(range)
+                        } else {
+                            matchRanges.push(range)
+                        }
+                    } catch (e) {
+                        console.error("[CanvasPane] Failed to create highlight range:", e)
+                    }
+                }
+            })
+        }
+
+        searchStore.registerPageRanges(pageNumber, matchRanges, activeRanges)
+    }
+
+    $effect(() => {
+        const count = textLayer1RenderCount
+        const matches = searchStore.matches
+        const activeIdx = searchStore.currentMatchIndex
+        const query = searchStore.query
+
+        if (textLayer1 && pdf && !isPageLoading) {
+            highlightPage(currentPage, textLayer1)
+        }
+        return () => {
+            searchStore.unregisterPageRanges(currentPage)
+        }
+    })
+
+    $effect(() => {
+        const count = textLayer2RenderCount
+        const matches = searchStore.matches
+        const activeIdx = searchStore.currentMatchIndex
+        const query = searchStore.query
+
+        if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
+            highlightPage(currentPage + 1, textLayer2)
+        }
+        return () => {
+            searchStore.unregisterPageRanges(currentPage + 1)
         }
     })
 </script>

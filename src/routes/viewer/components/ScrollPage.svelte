@@ -10,6 +10,7 @@
     import { onMount } from "svelte"
     import { ViewerLinkService } from "./ViewerLinkService"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
 
     let isShortHeight = $state(false)
 
@@ -113,6 +114,7 @@
                     textContainer.innerHTML = ""
                     return
                 }
+                textLayerRenderCount += 1
 
                 annotationContainer.innerHTML = ""
                 const annotations = await pdf.getAnnotations(pageNumber)
@@ -166,6 +168,73 @@
             controller.abort()
         }
     })
+
+    let textLayerRenderCount = $state(0)
+
+    $effect(() => {
+        const count = textLayerRenderCount
+        const matches = searchStore.matches
+        const activeIdx = searchStore.currentMatchIndex
+        const query = searchStore.query
+
+        if (textLayerContainer && pdf) {
+            highlightPage(pageNumber, textLayerContainer)
+        }
+        return () => {
+            searchStore.unregisterPageRanges(pageNumber)
+        }
+    })
+
+    function highlightPage(pageNo: number, textContainer: HTMLElement) {
+        const matches = searchStore.matches.filter((m) => m.pageNumber === pageNo)
+        const matchRanges: Range[] = []
+        const activeRanges: Range[] = []
+
+        if (matches.length > 0) {
+            const spans = Array.from(textContainer.querySelectorAll("span"))
+            let currentOffset = 0
+            const spanRanges = spans.map((span) => {
+                const text = span.textContent || ""
+                const len = text.length
+                const entry = {
+                    span,
+                    textNode: span.firstChild || span,
+                    start: currentOffset,
+                    end: currentOffset + len,
+                }
+                currentOffset += len
+                return entry
+            })
+
+            matches.forEach((match) => {
+                const startEntry = spanRanges.find(
+                    (entry) => entry.start <= match.start && entry.end > match.start,
+                )
+                const endEntry = spanRanges.find(
+                    (entry) => entry.start <= match.end && entry.end >= match.end,
+                )
+
+                if (startEntry && endEntry) {
+                    try {
+                        const range = new Range()
+                        range.setStart(startEntry.textNode, match.start - startEntry.start)
+                        range.setEnd(endEntry.textNode, match.end - endEntry.start)
+
+                        const matchIdxInGlobal = searchStore.matches.indexOf(match)
+                        if (matchIdxInGlobal === searchStore.currentMatchIndex) {
+                            activeRanges.push(range)
+                        } else {
+                            matchRanges.push(range)
+                        }
+                    } catch (e) {
+                        console.error("[ScrollPage] Failed to create highlight range:", e)
+                    }
+                }
+            })
+        }
+
+        searchStore.registerPageRanges(pageNo, matchRanges, activeRanges)
+    }
 </script>
 
 <div

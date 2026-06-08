@@ -157,7 +157,12 @@ export class KeyboardHandler {
             if (!isShiftLetter) {
                 const keyLower = event.key.toLowerCase()
                 const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
-                if (singleKey === normalizedTarget) {
+
+                // If Shift is pressed, we should not fall back to the unshifted version of a named key
+                // (like "space", "enter", "arrowup", etc.) since Shift acts as a distinct modifier for them.
+                const isShiftNamedKey = event.shiftKey && singleKey.length > 1
+
+                if (!isShiftNamedKey && singleKey === normalizedTarget) {
                     return true
                 }
             }

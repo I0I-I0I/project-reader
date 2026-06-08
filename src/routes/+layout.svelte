@@ -252,10 +252,11 @@
     })
 
     $effect(() => {
-        // Clear search input whenever the prompt mode changes
+        // Clear/initialize search input whenever the prompt mode changes
         const _mode = uiStore.prompt.mode
         untrack(() => {
-            promptValue = ""
+            promptValue = uiStore.prompt.initialValue || ""
+            uiStore.prompt.initialValue = ""
         })
     })
 

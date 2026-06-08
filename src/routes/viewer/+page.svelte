@@ -7,6 +7,7 @@
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
     import { goto } from "$app/navigation"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
@@ -14,6 +15,7 @@
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
+    import SearchToolbar from "./components/SearchToolbar.svelte"
     import { resolve } from "$app/paths"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -23,6 +25,7 @@
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
+    import SearchIcon from "$lib/components/icons/SearchIcon.svelte"
 
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
@@ -366,6 +369,45 @@
                 uiStore.prompt.isOpen = true
             },
         },
+        {
+            id: "open-search",
+            keys: "/",
+            description: m.keymap_search ? m.keymap_search() : "Search PDF",
+            englishDescription: m.keymap_search
+                ? m.keymap_search({}, { locale: "en" })
+                : "Search PDF",
+            category: "commands",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.isSearchModeActive = true
+            },
+        },
+        {
+            id: "next-search-match",
+            keys: "n",
+            description: m.keymap_next_match ? m.keymap_next_match() : "Next match",
+            englishDescription: m.keymap_next_match
+                ? m.keymap_next_match({}, { locale: "en" })
+                : "Next match",
+            category: "navigation",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                searchStore.next()
+            },
+        },
+        {
+            id: "prev-search-match",
+            keys: "shift+n",
+            description: m.keymap_prev_match ? m.keymap_prev_match() : "Previous match",
+            englishDescription: m.keymap_prev_match
+                ? m.keymap_prev_match({}, { locale: "en" })
+                : "Previous match",
+            category: "navigation",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                searchStore.prev()
+            },
+        },
     ])
 
     const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
@@ -487,6 +529,7 @@
                         const pagesCount = await doc.getPageNumber()
                         totalPages = pagesCount
                         isLoaded = true
+                        searchStore.indexPdf(doc)
 
                         const currentBook = viewerStore.getCurrentBook()
                         if (currentBook && currentBook.totalPages !== pagesCount) {
@@ -858,6 +901,25 @@
                             layoutMode={settingsStore.layout}
                         />
 
+                        {#if isLoaded && !uiStore.isSearchModeActive}
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
+                                class="viewer-fab-btn fab-search {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    uiStore.isSearchModeActive = true
+                                }}
+                                aria-label={m.keymap_search ? m.keymap_search() : "Search PDF"}
+                                tooltip={`${m.keymap_search ? m.keymap_search() : "Search PDF"}${getShortcutHint(commandsNode, "open-search")}`}
+                            >
+                                <SearchIcon />
+                            </Button>
+                        {/if}
+
                         {#if isLoaded}
                             <Button
                                 size="large"
@@ -902,6 +964,10 @@
                         {/if}
                     {/if}
                 </div>
+
+                {#if isLoaded && uiStore.isSearchModeActive}
+                    <SearchToolbar />
+                {/if}
 
                 {#if isLoaded && uiStore.isToolbarsVisible}
                     <div
@@ -1004,6 +1070,16 @@
         pointer-events: none;
     }
 
+    :global(.fab-search) {
+        bottom: calc(24px + 50px + 16px + 50px + 16px);
+    }
+
+    :global(.fab-search.hidden-toolbars) {
+        transform: translateX(100px);
+        opacity: 0;
+        pointer-events: none;
+    }
+
     :global(.fab-toggle) {
         position: absolute;
         bottom: 24px;
@@ -1011,6 +1087,11 @@
     }
 
     @media (--mobile) {
+        :global(.fab-search) {
+            bottom: calc(16px + 44px + 12px + 44px + 12px);
+            right: 16px;
+        }
+
         :global(.fab-prompt) {
             bottom: calc(16px + 44px + 12px);
             right: 16px;
