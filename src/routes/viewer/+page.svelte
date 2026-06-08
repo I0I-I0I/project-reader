@@ -337,6 +337,10 @@
             englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
             category: "commands",
             action: () => {
+                const book = viewerStore.getCurrentBook()
+                if (book) {
+                    vfsStore.pushForwardHistory(book.id)
+                }
                 handleClose()
             },
         },

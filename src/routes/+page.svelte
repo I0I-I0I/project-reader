@@ -197,6 +197,7 @@
             keys: "h",
             disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
             action: () => {
+                console.log("one-level-up", vfsStore.currentFolderId)
                 if (vfsStore.currentFolderId) {
                     const node = vfsStore.nodes[vfsStore.currentFolderId]
                     if (node && node.type === "folder") {
@@ -218,11 +219,28 @@
             id: "open-history-forward",
             keys: "l",
             disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
-            action: () => {
+            action: async () => {
                 const forwardId = vfsStore.popForwardHistory()
                 if (forwardId) {
-                    const forwardPath = vfsStore.getFolderPath(forwardId)
-                    goto(`?folder=${encodeURIComponent(forwardPath)}`)
+                    const node = vfsStore.nodes[forwardId]
+                    if (node && node.type === "file") {
+                        try {
+                            let fileNode = node as FileNode
+                            const isLocked = vfsStore.isLockedMap[fileNode.id]
+                            if (isLocked) {
+                                await vfsStore.restoreFileAccess(fileNode.id)
+                            }
+                            await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
+                            goto(resolve("/viewer"))
+                        } catch (err) {
+                            console.error("[+page] Failed to open book from history:", err)
+                        }
+                    } else if (node && node.type === "folder") {
+                        const forwardPath = vfsStore.getFolderPath(forwardId)
+                        goto(`?folder=${encodeURIComponent(forwardPath)}`)
+                    } else {
+                        window.history.forward()
+                    }
                 } else {
                     window.history.forward()
                 }
