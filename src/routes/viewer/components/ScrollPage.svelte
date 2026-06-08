@@ -8,6 +8,8 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as pdfjs from "pdfjs-dist"
     import { onMount } from "svelte"
+    import { ViewerLinkService } from "./ViewerLinkService"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
 
     let isShortHeight = $state(false)
 
@@ -37,6 +39,7 @@
     let imageUrl = $state<string | null>(null)
     let isLoading = $state(false)
     let textLayerContainer = $state<HTMLElement | null>(null)
+    let annotationLayerContainer = $state<HTMLDivElement | null>(null)
 
     const containerStyle = $derived(
         `width: ${width}px; height: ${height}px; --aspect-ratio: ${width} / ${height};`,
@@ -81,13 +84,14 @@
     })
 
     $effect(() => {
-        if (!imageUrl || !textLayerContainer || !pdf) return
+        if (!imageUrl || !textLayerContainer || !annotationLayerContainer || !pdf) return
         const currentScale = scale
 
         const controller = new AbortController()
-        const container = textLayerContainer
+        const textContainer = textLayerContainer
+        const annotationContainer = annotationLayerContainer
 
-        const renderText = async () => {
+        const renderLayers = async () => {
             try {
                 const { textContent, viewport } = await pdf.getTextAndViewport(
                     pageNumber,
@@ -95,29 +99,68 @@
                 )
                 if (controller.signal.aborted) return
 
-                container.innerHTML = ""
-                container.style.setProperty("--scale-factor", currentScale.toString())
+                textContainer.innerHTML = ""
+                textContainer.style.setProperty("--scale-factor", currentScale.toString())
 
                 const textLayer = new pdfjs.TextLayer({
                     textContentSource: textContent,
-                    container,
+                    container: textContainer,
                     viewport: viewport.clone({ dontFlip: true }),
                 })
 
                 await textLayer.render()
                 if (controller.signal.aborted) {
-                    container.innerHTML = ""
+                    textContainer.innerHTML = ""
+                    return
+                }
+
+                annotationContainer.innerHTML = ""
+                const annotations = await pdf.getAnnotations(pageNumber)
+                if (controller.signal.aborted) return
+
+                if (annotations.length === 0) return
+
+                const pageProxy = await pdf.getPageProxy(pageNumber)
+                if (controller.signal.aborted) return
+
+                const linkService = new ViewerLinkService(pdf, (targetPage) => {
+                    if (viewerStore.goToPage) {
+                        viewerStore.goToPage(targetPage)
+                    }
+                })
+                linkService.page = pageNumber
+
+                annotationContainer.style.setProperty("--scale-factor", currentScale.toString())
+
+                const annotationLayer = new pdfjs.AnnotationLayer({
+                    div: annotationContainer,
+                    accessibilityManager: null,
+                    annotationCanvasMap: null,
+                    annotationEditorUIManager: null,
+                    page: pageProxy,
+                    viewport: viewport.clone({ dontFlip: true }),
+                    structTreeLayer: null,
+                })
+
+                await annotationLayer.render({
+                    viewport: viewport.clone({ dontFlip: true }),
+                    div: annotationContainer,
+                    annotations,
+                    page: pageProxy,
+                    linkService,
+                    renderForms: false,
+                })
+
+                if (controller.signal.aborted) {
+                    annotationContainer.innerHTML = ""
                 }
             } catch (err) {
                 if (controller.signal.aborted) return
-                console.error(
-                    `[ScrollPage] Failed to render text layer for page ${pageNumber}`,
-                    err,
-                )
+                console.error(`[ScrollPage] Failed to render layers for page ${pageNumber}`, err)
             }
         }
 
-        renderText()
+        renderLayers()
 
         return () => {
             controller.abort()
@@ -146,6 +189,7 @@
                     class="pdf-image"
                 />
                 <div bind:this={textLayerContainer} class="textLayer"></div>
+                <div bind:this={annotationLayerContainer} class="annotationLayer"></div>
             </div>
         {:else}
             <div class="placeholder" style={containerStyle}>
@@ -188,32 +232,6 @@
 
     :global(html.dark) .pdf-image {
         filter: invert(1) hue-rotate(180deg);
-    }
-
-    /* Text Layer Styles */
-    :global(.textLayer) {
-        position: absolute;
-        text-align: initial;
-        inset: 0;
-        overflow: hidden;
-        opacity: 1;
-        line-height: 1;
-        text-wrap: nowrap;
-        pointer-events: auto;
-    }
-
-    :global(.textLayer span),
-    :global(.textLayer br) {
-        color: transparent;
-        position: absolute;
-        white-space: pre;
-        cursor: text;
-        transform-origin: 0% 0%;
-    }
-
-    :global(.textLayer ::selection) {
-        background: color-mix(in srgb, var(--accent-color) 35%, transparent);
-        color: transparent;
     }
 
     .placeholder {

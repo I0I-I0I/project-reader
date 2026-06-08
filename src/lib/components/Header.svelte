@@ -14,7 +14,6 @@
     import { getLanguageName } from "$lib/locale"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Input from "./ui/Input.svelte"
-    import SearchIcon from "./icons/SearchIcon.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
 
     const THEMES = [
@@ -58,7 +57,7 @@
                 </div>
             {/if}
 
-            <Switcher label={m.select_theme()}>
+            <Switcher class="header-switcher-first" label={m.select_theme()}>
                 {#snippet trigger()}
                     <currentThemeInfo.Icon class="switcher-icon" />
                     <span class="current-label">{currentThemeInfo.label()}</span>
@@ -150,6 +149,10 @@
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
+    }
+
+    :global(.header-switcher-first) {
+        margin-left: auto;
     }
 
     .header-btn-wrapper :global(.action-btn) {

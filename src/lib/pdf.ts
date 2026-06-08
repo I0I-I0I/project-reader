@@ -177,6 +177,40 @@ export default class PDFDocument implements DocumentInterface {
         return headingsList
     }
 
+    async resolveDestinationToPage(dest: string | any[]): Promise<number | undefined> {
+        const pdfDoc = this.getRequiredPdfDoc()
+        try {
+            let explicitDest: any[] | null = null
+            if (typeof dest === "string") {
+                explicitDest = await pdfDoc.getDestination(dest)
+            } else if (Array.isArray(dest)) {
+                explicitDest = dest
+            }
+
+            if (explicitDest && explicitDest.length > 0) {
+                const pageRef = explicitDest[0]
+                if (pageRef && typeof pageRef === "object") {
+                    const pageIndex = await pdfDoc.getPageIndex(pageRef)
+                    return pageIndex + 1
+                } else if (typeof pageRef === "number") {
+                    return pageRef + 1
+                }
+            }
+        } catch (err) {
+            console.warn("[PDFDocument] Failed to resolve page index for destination:", dest, err)
+        }
+        return undefined
+    }
+
+    async getAnnotations(pageNumber: number): Promise<any[]> {
+        const page = await this.getPageProxy(pageNumber)
+        return await page.getAnnotations()
+    }
+
+    get pagesCount(): number {
+        return this.pageCount
+    }
+
     async getOutline(): Promise<FlatHeading[] | null> {
         const pdfDoc = this.getRequiredPdfDoc()
 
@@ -193,30 +227,7 @@ export default class PDFDocument implements DocumentInterface {
                 const dest = heading.dest
 
                 if (dest) {
-                    try {
-                        let explicitDest: any[] | null = null
-                        if (typeof dest === "string") {
-                            explicitDest = await pdfDoc.getDestination(dest)
-                        } else if (Array.isArray(dest)) {
-                            explicitDest = dest
-                        }
-
-                        if (explicitDest && explicitDest.length > 0) {
-                            const pageRef = explicitDest[0]
-                            if (pageRef && typeof pageRef === "object") {
-                                const pageIndex = await pdfDoc.getPageIndex(pageRef)
-                                pageNumber = pageIndex + 1
-                            } else if (typeof pageRef === "number") {
-                                pageNumber = pageRef + 1
-                            }
-                        }
-                    } catch (err) {
-                        console.warn(
-                            "[PDFDocument] Failed to resolve page index for destination:",
-                            heading.title,
-                            err,
-                        )
-                    }
+                    pageNumber = await this.resolveDestinationToPage(dest)
                 }
 
                 return {
@@ -312,7 +323,7 @@ export default class PDFDocument implements DocumentInterface {
         }
     }
 
-    private async getPageProxy(pageNumber: number): Promise<pdfjs.PDFPageProxy> {
+    async getPageProxy(pageNumber: number): Promise<pdfjs.PDFPageProxy> {
         const pdfDoc = this.getRequiredPdfDoc()
         if (this.pageProxyCache.has(pageNumber)) {
             this.pageProxyCacheOrder = this.pageProxyCacheOrder.filter((num) => num !== pageNumber)

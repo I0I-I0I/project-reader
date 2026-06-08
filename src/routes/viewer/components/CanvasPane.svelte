@@ -9,6 +9,7 @@
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
     import { useCommands } from "$lib/stores/commandsStore.svelte"
+    import { ViewerLinkService } from "./ViewerLinkService"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -151,6 +152,8 @@
 
     let textLayer1 = $state<HTMLElement | null>(null)
     let textLayer2 = $state<HTMLElement | null>(null)
+    let annotationLayer1 = $state<HTMLDivElement | null>(null)
+    let annotationLayer2 = $state<HTMLDivElement | null>(null)
 
     $effect(() => {
         const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
@@ -329,10 +332,11 @@
         })
     })
 
-    async function renderTextLayer(
+    async function renderPageLayers(
         targetPdf: PDFDocument,
         pageNo: number,
-        targetContainer: HTMLElement,
+        textContainer: HTMLElement,
+        annotationContainer: HTMLDivElement | null,
         targetScale: number,
         signal?: AbortSignal,
     ) {
@@ -343,21 +347,63 @@
             )
             if (signal?.aborted) return
 
-            targetContainer.innerHTML = ""
-            targetContainer.style.setProperty("--scale-factor", targetScale.toString())
+            textContainer.innerHTML = ""
+            textContainer.style.setProperty("--scale-factor", targetScale.toString())
 
             const textLayer = new pdfjs.TextLayer({
                 textContentSource: textContent,
-                container: targetContainer,
+                container: textContainer,
                 viewport: viewport.clone({ dontFlip: true }),
             })
             await textLayer.render()
             if (signal?.aborted) {
-                targetContainer.innerHTML = ""
+                textContainer.innerHTML = ""
+                return
+            }
+
+            if (annotationContainer) {
+                annotationContainer.innerHTML = ""
+                const annotations = await targetPdf.getAnnotations(pageNo)
+                if (signal?.aborted) return
+
+                if (annotations.length === 0) return
+
+                const pageProxy = await targetPdf.getPageProxy(pageNo)
+                if (signal?.aborted) return
+
+                const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
+                    currentPage = targetPage
+                })
+                linkService.page = pageNo
+
+                annotationContainer.style.setProperty("--scale-factor", targetScale.toString())
+
+                const annotationLayer = new pdfjs.AnnotationLayer({
+                    div: annotationContainer,
+                    accessibilityManager: null,
+                    annotationCanvasMap: null,
+                    annotationEditorUIManager: null,
+                    page: pageProxy,
+                    viewport: viewport.clone({ dontFlip: true }),
+                    structTreeLayer: null,
+                })
+
+                await annotationLayer.render({
+                    viewport: viewport.clone({ dontFlip: true }),
+                    div: annotationContainer,
+                    annotations,
+                    page: pageProxy,
+                    linkService,
+                    renderForms: false,
+                })
+
+                if (signal?.aborted) {
+                    annotationContainer.innerHTML = ""
+                }
             }
         } catch (err) {
             if (signal?.aborted) return
-            console.error(`[CanvasPane] Failed to render text layer for page ${pageNo}`, err)
+            console.error(`[CanvasPane] Failed to render page layers for page ${pageNo}`, err)
         }
     }
 
@@ -366,13 +412,14 @@
 
     $effect(() => {
         if (!pdf || layoutMode === "scroll" || isPageLoading) return
-        if (currentPageImage && textLayer1) {
+        if (currentPageImage && textLayer1 && annotationLayer1) {
             textLayerController1?.abort()
             textLayerController1 = new AbortController()
-            renderTextLayer(
+            renderPageLayers(
                 pdf,
                 currentPage,
                 textLayer1,
+                annotationLayer1,
                 effectiveScale,
                 textLayerController1.signal,
             )
@@ -384,13 +431,14 @@
 
     $effect(() => {
         if (!pdf || layoutMode !== "split" || isPageLoading) return
-        if (currentPageImage2 && textLayer2) {
+        if (currentPageImage2 && textLayer2 && annotationLayer2) {
             textLayerController2?.abort()
             textLayerController2 = new AbortController()
-            renderTextLayer(
+            renderPageLayers(
                 pdf,
                 currentPage + 1,
                 textLayer2,
+                annotationLayer2,
                 effectiveScale,
                 textLayerController2.signal,
             )
@@ -439,6 +487,7 @@
                             class="pdf-image"
                         />
                         <div bind:this={textLayer1} class="textLayer"></div>
+                        <div bind:this={annotationLayer1} class="annotationLayer"></div>
                     </div>
                     <div class="book-spine"></div>
                     <div class="pdf-image-wrapper split-right" style={wrapperStyle}>
@@ -448,6 +497,7 @@
                             class="pdf-image"
                         />
                         <div bind:this={textLayer2} class="textLayer"></div>
+                        <div bind:this={annotationLayer2} class="annotationLayer"></div>
                     </div>
                 </div>
             {:else}
@@ -458,6 +508,7 @@
                         class="pdf-image"
                     />
                     <div bind:this={textLayer1} class="textLayer"></div>
+                    <div bind:this={annotationLayer1} class="annotationLayer"></div>
                 </div>
                 {#if layoutMode === "split" && currentPageImage2}
                     <div class="pdf-image-wrapper" style={wrapperStyle}>
@@ -467,6 +518,7 @@
                             class="pdf-image"
                         />
                         <div bind:this={textLayer2} class="textLayer"></div>
+                        <div bind:this={annotationLayer2} class="annotationLayer"></div>
                     </div>
                 {/if}
             {/if}
@@ -599,32 +651,6 @@
 
     :global(html.dark) .pdf-image {
         filter: invert(1) hue-rotate(180deg);
-    }
-
-    /* Text Layer Styles */
-    :global(.textLayer) {
-        position: absolute;
-        text-align: initial;
-        inset: 0;
-        overflow: hidden;
-        opacity: 1;
-        line-height: 1;
-        text-wrap: nowrap;
-        pointer-events: auto;
-    }
-
-    :global(.textLayer span),
-    :global(.textLayer br) {
-        color: transparent;
-        position: absolute;
-        white-space: pre;
-        cursor: text;
-        transform-origin: 0% 0%;
-    }
-
-    :global(.textLayer ::selection) {
-        background: color-mix(in srgb, var(--accent-color) 35%, transparent);
-        color: transparent;
     }
 
     @media (--large-desktop) {
