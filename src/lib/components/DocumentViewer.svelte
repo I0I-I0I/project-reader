@@ -685,6 +685,10 @@
         padding: 8px 0;
     }
 
+    .outline-nav :global(.tooltip-align-left) {
+        margin-left: 12px;
+    }
+
     .outline-item {
         display: flex;
         justify-content: space-between;

@@ -531,6 +531,10 @@
         padding: 8px 0;
     }
 
+    .outline-nav :global(.tooltip-align-left) {
+        margin-left: 12px;
+    }
+
     .outline-nav :global(.outline-item) {
         display: flex !important;
         justify-content: space-between !important;

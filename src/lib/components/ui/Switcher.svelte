@@ -54,6 +54,7 @@
 <div class={`switcher-wrapper ${className}`} bind:this={containerEl}>
     <button
         class="switcher-trigger"
+        class:open={isOpen}
         onclick={toggleDropdown}
         onkeydown={(e) => {
             if (e.key === "Escape" && isOpen) {
@@ -114,16 +115,18 @@
     }
 
     @media (hover: hover) {
-        .switcher-trigger:hover {
+        .switcher-trigger:hover:not(:active):not(.open) {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0 var(--shadow-color);
             background: var(--surface-hover-color);
         }
     }
 
-    .switcher-trigger:active {
+    .switcher-trigger:active,
+    .switcher-trigger.open {
         transform: translate(1px, 1px);
         box-shadow: 1px 1px 0 var(--shadow-color);
+        background: var(--accent-active-color);
     }
 
     :global(.chevron) {

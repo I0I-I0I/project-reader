@@ -1,61 +1,68 @@
 <script lang="ts">
-    import type { Component } from "svelte"
-    import type { HTMLButtonAttributes } from "svelte/elements"
-    import * as m from "$lib/paraglide/messages"
-    import { fileNodeToBook, viewerStore } from "$lib/stores/viewerStore.svelte"
-    import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
-    import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte"
-    import { vfsStore, usePreviewUrl } from "$lib/stores/vfsStore.svelte"
-    import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
-    import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
-    import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
-    import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
-    import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
-    import LockIcon from "$lib/components/icons/LockIcon.svelte"
-    import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
-    import EditIcon from "$lib/components/icons/EditIcon.svelte"
-    import PDFDocument from "$lib/pdf"
-    import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    import Button from "./ui/Button.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
+    import type { Component } from "svelte";
+    import type { HTMLButtonAttributes } from "svelte/elements";
+    import * as m from "$lib/paraglide/messages";
+    import {
+        fileNodeToBook,
+        viewerStore,
+    } from "$lib/stores/viewerStore.svelte";
+    import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte";
+    import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte";
+    import { vfsStore, usePreviewUrl } from "$lib/stores/vfsStore.svelte";
+    import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types";
+    import TrashIcon from "$lib/components/icons/TrashIcon.svelte";
+    import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte";
+    import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte";
+    import FolderIcon from "$lib/components/icons/FolderIcon.svelte";
+    import LockIcon from "$lib/components/icons/LockIcon.svelte";
+    import CheckIcon from "$lib/components/icons/CheckIcon.svelte";
+    import EditIcon from "$lib/components/icons/EditIcon.svelte";
+    import PDFDocument from "$lib/pdf";
+    import { settingsStore } from "$lib/stores/settingsStore.svelte";
+    import Button from "./ui/Button.svelte";
+    import { uiStore } from "$lib/stores/uiStore.svelte";
 
     interface Props extends HTMLButtonAttributes {
-        node: VFSNode
-        Icon?: Component
-        class?: string
-        onclick?: (e: MouseEvent) => void | Promise<void>
+        node: VFSNode;
+        Icon?: Component;
+        class?: string;
+        onclick?: (e: MouseEvent) => void | Promise<void>;
     }
 
-    let { node, Icon, class: className, onclick, ...props }: Props = $props()
-    let isRestoring = $state(false)
-    let showMenu = $state(false)
-    let longPressTimeout: ReturnType<typeof setTimeout> | undefined
+    let { node, Icon, class: className, onclick, ...props }: Props = $props();
+    let isRestoring = $state(false);
+    let showMenu = $state(false);
+    let longPressTimeout: ReturnType<typeof setTimeout> | undefined;
 
-    const isSelected = $derived(vfsStore.selectedIds.has(node.id))
-    const kind = $derived(node.type === "file" ? "book" : "folder")
-    const extension = $derived(node.type === "file" ? "pdf" : undefined)
+    const isSelected = $derived(vfsStore.selectedIds.has(node.id));
+    const kind = $derived(node.type === "file" ? "book" : "folder");
+    const extension = $derived(node.type === "file" ? "pdf" : undefined);
 
-    const preview = usePreviewUrl(() => (node.type === "file" ? node.id : ""))
-    const previewUrl = $derived(preview.url)
+    const preview = usePreviewUrl(() => (node.type === "file" ? node.id : ""));
+    const previewUrl = $derived(preview.url);
 
     const book = $derived.by(() => {
         if (node.type === "file") {
-            const b = fileNodeToBook(node)
-            b.previewDataUrl = previewUrl
-            b.isLocked = vfsStore.isLockedMap[node.id]
-            return b
+            const b = fileNodeToBook(node);
+            b.previewDataUrl = previewUrl;
+            b.isLocked = vfsStore.isLockedMap[node.id];
+            return b;
         }
-        return null
-    })
+        return null;
+    });
 
     let progressPercent = $derived.by(() => {
-        if (node.type === "file" && node.metadata.totalPages && node.metadata.totalPages > 0) {
-            const page = node.metadata.pageNumber || 1
-            const total = node.metadata.totalPages
-            return Math.min(100, Math.max(0, Math.round((page / total) * 100)))
+        if (
+            node.type === "file" &&
+            node.metadata.totalPages &&
+            node.metadata.totalPages > 0
+        ) {
+            const page = node.metadata.pageNumber || 1;
+            const total = node.metadata.totalPages;
+            return Math.min(100, Math.max(0, Math.round((page / total) * 100)));
         }
-        return 0
-    })
+        return 0;
+    });
 
     // Metadata regeneration logic: If metadata is missing but we have a way to get the file
     $effect(() => {
@@ -63,17 +70,17 @@
             node.type === "file" &&
             (!node.metadata.totalPages || node.metadata.author === undefined)
         ) {
-            let isCancelled = false
+            let isCancelled = false;
             const loadMetadata = async () => {
-                if (isCancelled) return
-                const url = await vfsStore.getFileUrl(node.id)
-                if (!url || isCancelled) return
+                if (isCancelled) return;
+                const url = await vfsStore.getFileUrl(node.id);
+                if (!url || isCancelled) return;
 
-                const doc = new PDFDocument(url)
+                const doc = new PDFDocument(url);
                 try {
-                    await doc.load(settingsStore.scale)
-                    const totalPages = await doc.getPageNumber()
-                    const author = await doc.getAuthor()
+                    await doc.load(settingsStore.scale);
+                    const totalPages = await doc.getPageNumber();
+                    const author = await doc.getAuthor();
 
                     if (!isCancelled) {
                         await vfsStore.updateFile(node.id, {
@@ -82,140 +89,146 @@
                                 totalPages,
                                 author,
                             },
-                        })
+                        });
                     }
                 } catch (err) {
-                    console.error("[Card] Failed to regenerate PDF metadata:", err)
+                    console.error(
+                        "[Card] Failed to regenerate PDF metadata:",
+                        err,
+                    );
                 } finally {
-                    await doc.close()
+                    await doc.close();
                     // If the node was locked before, we should probably revoke the URL we just created
                     if (vfsStore.isLockedMap[node.id]) {
-                        vfsStore.revokeFileUrl(node.id)
+                        vfsStore.revokeFileUrl(node.id);
                     }
                 }
-            }
-            vfsStore.metadataQueue(loadMetadata)
+            };
+            vfsStore.metadataQueue(loadMetadata);
             return () => {
-                isCancelled = true
-            }
+                isCancelled = true;
+            };
         }
-    })
+    });
 
     const handleClick = async (e: MouseEvent) => {
         if (onclick) {
-            isRestoring = true
+            isRestoring = true;
             try {
-                await onclick(e)
+                await onclick(e);
             } finally {
-                isRestoring = false
+                isRestoring = false;
             }
         }
-    }
+    };
 
     const onPointerDown = (e: PointerEvent) => {
-        if (uiStore.isSelectionMode) return
+        if (uiStore.isSelectionMode) return;
         longPressTimeout = setTimeout(() => {
-            uiStore.isSelectionMode = true
-            vfsStore.toggleSelection(node.id)
-            if (navigator.vibrate) navigator.vibrate(50)
-        }, 500)
-    }
+            uiStore.isSelectionMode = true;
+            vfsStore.toggleSelection(node.id);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 500);
+    };
 
     const onPointerUp = () => {
-        clearTimeout(longPressTimeout)
-    }
+        clearTimeout(longPressTimeout);
+    };
 
     const handleImageError = async () => {
         console.warn(
             `[Card] Preview image failed to load for node ${node.id}, attempting to regenerate...`,
-        )
+        );
         // This will trigger the getPreviewUrl again in a bit, but we might want to force clear it in DB
         // For now, let's just clear the local cache
         if (preview) {
-            await preview.regenerate()
+            await preview.regenerate();
         }
-    }
+    };
 
     const onRemove = async (e: MouseEvent) => {
-        e.stopPropagation()
-        showMenu = false
-        uiStore.nodesToDeleteIds = [node.id]
-        uiStore.isDeleteModalOpen = true
-    }
+        e.stopPropagation();
+        showMenu = false;
+        uiStore.nodesToDeleteIds = [node.id];
+        uiStore.isDeleteModalOpen = true;
+    };
 
     const onMove = (e: MouseEvent) => {
-        e.stopPropagation()
-        uiStore.nodeToMoveId = node.id
-        uiStore.prompt.mode = "move"
-        uiStore.prompt.isOpen = true
-        showMenu = false
-    }
+        e.stopPropagation();
+        uiStore.nodeToMoveId = node.id;
+        uiStore.prompt.mode = "move";
+        uiStore.prompt.isOpen = true;
+        showMenu = false;
+    };
 
     const onSelect = (e: MouseEvent) => {
-        e.stopPropagation()
-        uiStore.isSelectionMode = true
-        vfsStore.toggleSelection(node.id)
-        showMenu = false
-    }
+        e.stopPropagation();
+        uiStore.isSelectionMode = true;
+        vfsStore.toggleSelection(node.id);
+        showMenu = false;
+    };
 
     const onEditMetadata = (e: MouseEvent) => {
-        e.stopPropagation()
-        uiStore.nodeToEditMetadataId = node.id
-        uiStore.isEditMetadataModalOpen = true
-        showMenu = false
-    }
+        e.stopPropagation();
+        uiStore.nodeToEditMetadataId = node.id;
+        uiStore.isEditMetadataModalOpen = true;
+        showMenu = false;
+    };
 
     const toggleMenu = (e: MouseEvent) => {
-        e.stopPropagation()
-        showMenu = !showMenu
-    }
+        e.stopPropagation();
+        showMenu = !showMenu;
+    };
 
     const isRead = $derived(
         node.type === "file" &&
             node.metadata.totalPages !== undefined &&
             node.metadata.totalPages > 0 &&
             (node.metadata.pageNumber || 1) === node.metadata.totalPages,
-    )
+    );
 
     const toggleReadState = async (e: MouseEvent) => {
-        e.stopPropagation()
-        showMenu = false
-        if (node.type !== "file") return
+        e.stopPropagation();
+        showMenu = false;
+        if (node.type !== "file") return;
 
-        let total = node.metadata.totalPages
+        let total = node.metadata.totalPages;
         if (!total) {
             // Load metadata on the fly if it is missing
-            const url = await vfsStore.getFileUrl(node.id)
+            const url = await vfsStore.getFileUrl(node.id);
             if (url) {
-                const doc = new PDFDocument(url)
+                const doc = new PDFDocument(url);
                 try {
-                    await doc.load(settingsStore.scale)
-                    total = await doc.getPageNumber()
+                    await doc.load(settingsStore.scale);
+                    total = await doc.getPageNumber();
                 } catch (err) {
-                    console.error("[Card] Failed to get total pages for toggleReadState:", err)
+                    console.error(
+                        "[Card] Failed to get total pages for toggleReadState:",
+                        err,
+                    );
                 } finally {
-                    await doc.close()
+                    await doc.close();
                     if (vfsStore.isLockedMap[node.id]) {
-                        vfsStore.revokeFileUrl(node.id)
+                        vfsStore.revokeFileUrl(node.id);
                     }
                 }
             }
         }
 
         if (!total) {
-            total = 1
+            total = 1;
         }
 
-        const isCurrentlyRead = (node.metadata.pageNumber || 1) === total
-        const targetPage = isCurrentlyRead ? 1 : total
+        const isCurrentlyRead = (node.metadata.pageNumber || 1) === total;
+        const targetPage = isCurrentlyRead ? 1 : total;
 
-        const currentBook = viewerStore.getCurrentBook()
+        const currentBook = viewerStore.getCurrentBook();
         if (currentBook && currentBook.id === node.id) {
             await viewerStore.updateBook({
                 ...currentBook,
                 pageNumber: targetPage,
                 totalPages: total,
-            })
+            });
         } else {
             await vfsStore.updateFile(node.id, {
                 metadata: {
@@ -223,19 +236,19 @@
                     pageNumber: targetPage,
                     totalPages: total,
                 },
-            })
+            });
         }
-    }
+    };
 
     const closeMenu = () => {
-        showMenu = false
-    }
+        showMenu = false;
+    };
 
     const handleMouseLeave = () => {
         if (window.matchMedia("(hover: hover)").matches) {
-            closeMenu()
+            closeMenu();
         }
-    }
+    };
 </script>
 
 <svelte:window onpointerdown={closeMenu} />
@@ -249,8 +262,9 @@
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
 >
-    <button
+    <Button
         type="button"
+        variant="none"
         class="card-main-button"
         onclick={handleClick}
         disabled={isRestoring}
@@ -294,7 +308,8 @@
                     <div class="progress-bar-track">
                         <div
                             class="progress-bar-fill"
-                            class:has-border={progressPercent > 0 && progressPercent < 100}
+                            class:has-border={progressPercent > 0 &&
+                                progressPercent < 100}
                             style="width: {progressPercent}%"
                         ></div>
                     </div>
@@ -322,7 +337,7 @@
                 <span class="lock-text">{m.restore_access()}</span>
             </div>
         {/if}
-    </button>
+    </Button>
 
     {#if !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
@@ -331,24 +346,41 @@
                 square={true}
                 size="large"
                 class="menu-btn"
+                open={showMenu}
                 aria-label={m.more_options ? m.more_options() : "More options"}
+                onpointerdown={(e) => e.stopPropagation()}
                 onclick={toggleMenu}
             >
                 <MoreVerticalIcon />
             </Button>
 
             {#if showMenu}
-                <div class="dropdown-menu" onpointerdown={(e) => e.stopPropagation()}>
-                    <button class="dropdown-item" onclick={onSelect}>
+                <div
+                    class="dropdown-menu"
+                    onpointerdown={(e) => e.stopPropagation()}
+                >
+                    <Button
+                        variant="none"
+                        class="dropdown-item"
+                        onclick={onSelect}
+                    >
                         <CheckIcon class="dropdown-icon" />
                         <span>{m.select ? m.select() : "Select"}</span>
-                    </button>
-                    <button class="dropdown-item" onclick={onMove}>
+                    </Button>
+                    <Button
+                        variant="none"
+                        class="dropdown-item"
+                        onclick={onMove}
+                    >
                         <NavigationIcon class="dropdown-icon" />
                         <span>{m.move ? m.move() : "Move"}</span>
-                    </button>
+                    </Button>
                     {#if kind === "book"}
-                        <button class="dropdown-item" onclick={toggleReadState}>
+                        <Button
+                            variant="none"
+                            class="dropdown-item"
+                            onclick={toggleReadState}
+                        >
                             {#if isRead}
                                 <BookOpenIcon class="dropdown-icon" />
                                 <span
@@ -358,15 +390,31 @@
                                 >
                             {:else}
                                 <CheckCircleIcon class="dropdown-icon" />
-                                <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
+                                <span
+                                    >{m.mark_as_read
+                                        ? m.mark_as_read()
+                                        : "Mark as read"}</span
+                                >
                             {/if}
-                        </button>
-                        <button class="dropdown-item" onclick={onEditMetadata}>
+                        </Button>
+                        <Button
+                            variant="none"
+                            class="dropdown-item"
+                            onclick={onEditMetadata}
+                        >
                             <EditIcon class="dropdown-icon" />
-                            <span>{m.edit_metadata ? m.edit_metadata() : "Edit metadata"}</span>
-                        </button>
+                            <span
+                                >{m.edit_metadata
+                                    ? m.edit_metadata()
+                                    : "Edit metadata"}</span
+                            >
+                        </Button>
                     {/if}
-                    <button class="dropdown-item" onclick={onRemove}>
+                    <Button
+                        variant="none"
+                        class="dropdown-item"
+                        onclick={onRemove}
+                    >
                         <TrashIcon class="dropdown-icon" />
                         <span>
                             {kind === "book"
@@ -377,7 +425,7 @@
                                   ? m.remove_folder()
                                   : "Remove folder"}
                         </span>
-                    </button>
+                    </Button>
                 </div>
             {/if}
         </div>
@@ -429,7 +477,7 @@
         box-shadow: 2px 2px 0 var(--danger-active-color);
     }
 
-    .card-main-button {
+    .card :global(.card-main-button) {
         background: transparent;
         border: none;
         width: 100%;
@@ -604,13 +652,31 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.15s ease !important;
+        box-shadow: 2px 2px 0 var(--shadow-color) !important;
+    }
+
+    :global(.menu-btn) :global(svg) {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    :global(.menu-btn.open),
+    .card:hover :global(.menu-btn) {
+        opacity: 1;
+        pointer-events: auto;
     }
 
     @media (hover: hover) {
-        .card:hover :global(.menu-btn) {
-            opacity: 1;
-            pointer-events: auto;
+        :global(.menu-btn):hover:not(:disabled):not(.open) {
+            transform: translate(-1px, -1px) !important;
+            box-shadow: 3px 3px 0 var(--shadow-color) !important;
         }
+    }
+
+    :global(.menu-btn):active:not(:disabled),
+    :global(.menu-btn.open) {
+        transform: translate(1px, 1px) !important;
+        box-shadow: 1px 1px 0 var(--shadow-color) !important;
     }
 
     .dropdown-menu {
@@ -625,12 +691,14 @@
         overflow: hidden;
     }
 
-    .dropdown-item {
+    .dropdown-menu :global(.dropdown-item) {
         width: 100%;
         padding: 10px 12px;
-        display: flex;
+        display: grid;
+        grid-template-columns: 24px 1fr;
         align-items: center;
-        gap: 10px;
+        justify-content: flex-start;
+        gap: 12px;
         background: transparent;
         border: none;
         color: var(--text-color);
@@ -644,13 +712,13 @@
     }
 
     @media (hover: hover) {
-        .dropdown-item:hover {
+        .dropdown-menu :global(.dropdown-item):hover {
             background-color: var(--surface-hover-color);
             color: var(--danger-active-color);
         }
     }
 
-    .dropdown-item:active {
+    .dropdown-menu :global(.dropdown-item):active {
         background-color: var(--surface-hover-color);
     }
 
@@ -803,7 +871,7 @@
             box-shadow: 2px 2px 0 var(--shadow-color);
         }
 
-        .dropdown-item {
+        .dropdown-menu :global(.dropdown-item) {
             padding: 8px 10px;
             font-size: 11px;
         }
