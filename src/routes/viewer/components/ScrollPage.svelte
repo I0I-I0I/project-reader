@@ -162,9 +162,12 @@
             }
         }
 
-        renderLayers()
+        const delayTimeout = setTimeout(() => {
+            renderLayers()
+        }, 250)
 
         return () => {
+            clearTimeout(delayTimeout)
             controller.abort()
         }
     })

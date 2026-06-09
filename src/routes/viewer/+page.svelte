@@ -725,7 +725,9 @@
         untrack(() => {
             isLoaded = false
             pdf = null
-            currentPage = viewerStore.getCurrentBook()?.pageNumber || 1
+            const currentBook = viewerStore.getCurrentBook()
+            currentPage = currentBook?.pageNumber || 1
+            scrollPosition = currentBook?.scrollPosition || 0
 
             const loadPdf = async (pdfUrl: string) => {
                 try {

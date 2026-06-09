@@ -523,39 +523,51 @@
 
     $effect(() => {
         if (!pdf || layoutMode === "scroll" || isPageLoading) return
-        if (currentPageImage && textLayer1 && annotationLayer1) {
+        const tLayer1 = textLayer1
+        const aLayer1 = annotationLayer1
+        if (currentPageImage && tLayer1 && aLayer1) {
             textLayerController1?.abort()
-            textLayerController1 = new AbortController()
-            renderPageLayers(
-                pdf,
-                currentPage,
-                textLayer1,
-                annotationLayer1,
-                effectiveScale,
-                textLayerController1.signal,
-            )
-        }
-        return () => {
-            textLayerController1?.abort()
+            const controller = new AbortController()
+            textLayerController1 = controller
+            const delayTimeout = setTimeout(() => {
+                renderPageLayers(
+                    pdf,
+                    currentPage,
+                    tLayer1,
+                    aLayer1,
+                    effectiveScale,
+                    controller.signal,
+                )
+            }, 150)
+            return () => {
+                clearTimeout(delayTimeout)
+                controller.abort()
+            }
         }
     })
 
     $effect(() => {
         if (!pdf || layoutMode !== "split" || isPageLoading) return
-        if (currentPageImage2 && textLayer2 && annotationLayer2) {
+        const tLayer2 = textLayer2
+        const aLayer2 = annotationLayer2
+        if (currentPageImage2 && tLayer2 && aLayer2) {
             textLayerController2?.abort()
-            textLayerController2 = new AbortController()
-            renderPageLayers(
-                pdf,
-                currentPage + 1,
-                textLayer2,
-                annotationLayer2,
-                effectiveScale,
-                textLayerController2.signal,
-            )
-        }
-        return () => {
-            textLayerController2?.abort()
+            const controller = new AbortController()
+            textLayerController2 = controller
+            const delayTimeout = setTimeout(() => {
+                renderPageLayers(
+                    pdf,
+                    currentPage + 1,
+                    tLayer2,
+                    aLayer2,
+                    effectiveScale,
+                    controller.signal,
+                )
+            }, 150)
+            return () => {
+                clearTimeout(delayTimeout)
+                controller.abort()
+            }
         }
     })
 

@@ -20,7 +20,7 @@
     import EditBookMetadataModal from "$lib/components/EditBookMetadataModal.svelte"
     import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useCommands } from "$lib/stores/commandsStore.svelte"
-    import { page } from "$app/stores"
+    import { page } from "$app/state"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
@@ -49,7 +49,7 @@
     $effect(() => {
         if (!vfsStore.initialized) return
 
-        const folderParam = $page.url.searchParams.get("folder")
+        const folderParam = page.url.searchParams.get("folder")
         let resolvedId: string | null = null
         if (folderParam) {
             if (folderParam.startsWith("/")) {

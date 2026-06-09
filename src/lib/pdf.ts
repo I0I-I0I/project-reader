@@ -55,11 +55,15 @@ export default class PDFDocument implements DocumentInterface {
     private pageDimensionsCache = new Map<number, { width: number; height: number }>()
     private pageCache = new Map<number, string>()
     private pageCacheOrder: number[] = []
-    private readonly MAX_PAGE_CACHE_SIZE = 10
+    private get maxPageCacheSize(): number {
+        return typeof window !== "undefined" && window.innerWidth < 800 ? 4 : 10
+    }
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyCacheOrder: number[] = []
-    private readonly MAX_PAGE_PROXY_CACHE_SIZE = 10
+    private get maxPageProxyCacheSize(): number {
+        return typeof window !== "undefined" && window.innerWidth < 800 ? 4 : 10
+    }
     private outlineCache: FlatHeading[] | null = null
 
     constructor(public url: string) {}
@@ -336,7 +340,7 @@ export default class PDFDocument implements DocumentInterface {
         this.pageProxyCache.set(pageNumber, page)
         this.pageProxyCacheOrder.push(pageNumber)
 
-        if (this.pageProxyCacheOrder.length > this.MAX_PAGE_PROXY_CACHE_SIZE) {
+        if (this.pageProxyCacheOrder.length > this.maxPageProxyCacheSize) {
             const evictedPageNum = this.pageProxyCacheOrder.shift()
             if (evictedPageNum !== undefined) {
                 const evictedPage = this.pageProxyCache.get(evictedPageNum)
@@ -398,7 +402,7 @@ export default class PDFDocument implements DocumentInterface {
     }
 
     private enforcePageCacheLimit(): void {
-        while (this.pageCacheOrder.length > this.MAX_PAGE_CACHE_SIZE) {
+        while (this.pageCacheOrder.length > this.maxPageCacheSize) {
             const evictedKey = this.pageCacheOrder.shift()
             if (evictedKey !== undefined) {
                 const url = this.pageCache.get(evictedKey)

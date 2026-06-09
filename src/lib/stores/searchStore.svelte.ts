@@ -1,6 +1,8 @@
 import { SvelteMap } from "svelte/reactivity"
+import pLimit from "p-limit"
 import { viewerStore } from "./viewerStore.svelte"
 import { uiStore } from "./uiStore.svelte"
+import { vfsStore } from "./vfsStore.svelte"
 import type PDFDocument from "$lib/pdf"
 import { browser } from "$app/environment"
 import { untrack } from "svelte"
@@ -94,24 +96,60 @@ class SearchStore {
         if (!this.currentPdf || this.isIndexing || this.pageTexts.size > 0) return
 
         const pdf = this.currentPdf
+        const currentBook = viewerStore.getCurrentBook()
+        if (!currentBook) return
+
+        const bookId = currentBook.id
         this.isIndexing = true
         const totalPages = pdf.pagesCount
 
         try {
-            for (let i = 1; i <= totalPages; i++) {
-                if (this.currentPdf !== pdf) return
-
-                const textContent = await pdf.getTextContent(i)
-                const text = textContent.items.map((item: any) => item.str).join("")
-                this.pageTexts.set(i, {
-                    original: text,
-                    lower: text.toLowerCase(),
-                })
-
-                // Yield more frequently to keep UI responsive
-                if (i % 2 === 0) {
-                    await new Promise((resolve) => setTimeout(resolve, 0))
+            // 1. Try to load from IndexedDB first
+            const cachedTexts = await vfsStore.db.indexedTexts.getByBookId(bookId)
+            if (cachedTexts && cachedTexts.length > 0 && this.currentPdf === pdf) {
+                for (const record of cachedTexts) {
+                    this.pageTexts.set(record.pageNumber, {
+                        original: record.text,
+                        lower: record.text.toLowerCase(),
+                    })
                 }
+                return
+            }
+
+            // 2. If not cached, extract page text in parallel
+            const limit = pLimit(5)
+            const tasks: Promise<void>[] = []
+            const recordsToSave: { pageNumber: number; text: string }[] = []
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pageNum = i
+                tasks.push(
+                    limit(async () => {
+                        if (this.currentPdf !== pdf) return
+                        const textContent = await pdf.getTextContent(pageNum)
+                        const text = textContent.items.map((item: any) => item.str).join("")
+                        this.pageTexts.set(pageNum, {
+                            original: text,
+                            lower: text.toLowerCase(),
+                        })
+                        recordsToSave.push({ pageNumber: pageNum, text })
+                        // Yield to keep the browser responsive
+                        await new Promise((resolve) => setTimeout(resolve, 0))
+                    }),
+                )
+            }
+
+            await Promise.all(tasks)
+
+            // 3. Persist the extracted text in IndexedDB in batch
+            if (this.currentPdf === pdf && recordsToSave.length > 0) {
+                const dbRecords = recordsToSave.map((r) => ({
+                    id: `${bookId}_${r.pageNumber}`,
+                    bookId,
+                    pageNumber: r.pageNumber,
+                    text: r.text,
+                }))
+                await vfsStore.db.indexedTexts.bulkPut(dbRecords)
             }
         } catch (e) {
             console.error("[SearchStore] Failed to index PDF:", e)

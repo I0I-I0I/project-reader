@@ -48,3 +48,10 @@ export interface VFS {
     rootIds: string[]
     activeNodeId: string | null
 }
+
+export interface IndexedText {
+    id: string
+    bookId: string
+    pageNumber: number
+    text: string
+}

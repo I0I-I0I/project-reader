@@ -220,8 +220,13 @@ class ViewerStore {
                     currentPreview = await vfsStore.getPreviewUrl(this.book.id)
                 }
 
+                const localPageNumber = this.book.pageNumber
+                const localScrollPosition = this.book.scrollPosition
+
                 this.book = {
                     ...fileNodeToBook(matchingNode),
+                    pageNumber: localPageNumber,
+                    scrollPosition: localScrollPosition,
                     url: currentUrl,
                     previewDataUrl: currentPreview,
                     isLocked: vfsStore.isLockedMap[matchingNode.id],

@@ -23,6 +23,9 @@
     import { getLocale } from "$lib/paraglide/runtime"
     import { getLanguageName } from "$lib/locale"
     import { page, updated } from "$app/state"
+    import { goto } from "$app/navigation"
+    import { resolve } from "$app/paths"
+    import { browser } from "$app/environment"
     import {
         getFoldersPromptItems,
         getMovePromptItems,
@@ -263,9 +266,27 @@
         })
     })
 
+    $effect(() => {
+        const url = page.url
+        if (browser) {
+            if (url.pathname === "/" || url.pathname === "/viewer") {
+                const fullPath = url.pathname + url.search
+                localStorage.setItem("last_visited_url", fullPath)
+            }
+        }
+    })
+
     onMount(() => {
         vfsStore.init().then(async () => {
             await viewerStore.syncWithBooks()
+
+            // Restore last visited URL if landing on the root page with no search params
+            if (page.url.pathname === "/" && page.url.search === "") {
+                const lastVisitedUrl = localStorage.getItem("last_visited_url")
+                if (lastVisitedUrl && lastVisitedUrl !== "/") {
+                    goto(resolve(lastVisitedUrl as any))
+                }
+            }
         })
 
         const handleKeydown = (event: KeyboardEvent) => {

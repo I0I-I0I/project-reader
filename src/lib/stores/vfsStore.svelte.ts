@@ -102,10 +102,52 @@ class VFSStore {
             this.rootIds = Object.values(newNodes)
                 .filter((node) => node.parentId === null)
                 .map((node) => node.id)
+
+            this.repairMissingMetadata(allFiles)
         } catch (err) {
             console.error("VFS initialization failed:", err)
         } finally {
             this.initialized = true
+        }
+    }
+
+    private repairMissingMetadata(files: FileNode[]) {
+        const missing = files.filter(
+            (fileNode) => !fileNode.metadata.totalPages || fileNode.metadata.author === undefined,
+        )
+
+        for (const fileNode of missing) {
+            this.metadataQueue(async () => {
+                if (!this.nodes[fileNode.id]) return
+
+                const url = await this.getFileUrl(fileNode.id)
+                if (!url) return
+
+                const doc = new PDFDocument(url)
+                try {
+                    await doc.load(settingsStore.scale)
+                    const totalPages = await doc.getPageNumber()
+                    const author = await doc.getAuthor()
+
+                    await this.updateFile(fileNode.id, {
+                        metadata: {
+                            ...fileNode.metadata,
+                            totalPages,
+                            author,
+                        },
+                    })
+                } catch (err) {
+                    console.error(
+                        `[VFSStore] Failed to repair metadata for node ${fileNode.id}:`,
+                        err,
+                    )
+                } finally {
+                    await doc.close()
+                    if (this.isLockedMap[fileNode.id]) {
+                        this.revokeFileUrl(fileNode.id)
+                    }
+                }
+            })
         }
     }
 
@@ -424,12 +466,15 @@ class VFSStore {
         // PHASE 4 OPTIMIZATION: Use bulkDelete for efficient batch removal
         await this.db.transaction(
             "rw",
-            ["books", "folders", "previews", "fileContents"],
+            ["books", "folders", "previews", "fileContents", "indexedTexts"],
             async () => {
                 if (fileIds.length > 0) {
                     await this.db.files.bulkDelete(fileIds)
                     await this.db.previews.bulkDelete(fileIds)
                     await this.db.fileContents.bulkDelete(fileIds)
+                    await Promise.all(
+                        fileIds.map((fid) => this.db.indexedTexts.deleteByBookId(fid)),
+                    )
                 }
                 if (folderIds.length > 0) {
                     await this.db.folders.bulkDelete(folderIds)

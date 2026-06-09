@@ -57,50 +57,6 @@
         return 0
     })
 
-    // Metadata regeneration logic: If metadata is missing but we have a way to get the file
-    $effect(() => {
-        if (
-            node.type === "file" &&
-            (!node.metadata.totalPages || node.metadata.author === undefined)
-        ) {
-            let isCancelled = false
-            const loadMetadata = async () => {
-                if (isCancelled) return
-                const url = await vfsStore.getFileUrl(node.id)
-                if (!url || isCancelled) return
-
-                const doc = new PDFDocument(url)
-                try {
-                    await doc.load(settingsStore.scale)
-                    const totalPages = await doc.getPageNumber()
-                    const author = await doc.getAuthor()
-
-                    if (!isCancelled) {
-                        await vfsStore.updateFile(node.id, {
-                            metadata: {
-                                ...node.metadata,
-                                totalPages,
-                                author,
-                            },
-                        })
-                    }
-                } catch (err) {
-                    console.error("[Card] Failed to regenerate PDF metadata:", err)
-                } finally {
-                    await doc.close()
-                    // If the node was locked before, we should probably revoke the URL we just created
-                    if (vfsStore.isLockedMap[node.id]) {
-                        vfsStore.revokeFileUrl(node.id)
-                    }
-                }
-            }
-            vfsStore.metadataQueue(loadMetadata)
-            return () => {
-                isCancelled = true
-            }
-        }
-    })
-
     const handleClick = async (e: MouseEvent) => {
         if (onclick) {
             isRestoring = true
