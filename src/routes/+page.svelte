@@ -27,7 +27,7 @@
     import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
-    import { PICKER_KEYS } from "$lib/constants"
+    import { PICKER_KEYS, generateHints } from "$lib/constants"
     import { usePrompt, type SearchItem } from "$lib/stores/promptStore.svelte"
     import {
         getFilesPromptItems,
@@ -45,6 +45,9 @@
             return b.updatedAt - a.updatedAt
         }),
     )
+
+    let pickerKeyBuffer = $state("")
+    const currentHints = $derived(generateHints(currentNodes.length, PICKER_KEYS))
 
     $effect(() => {
         if (!vfsStore.initialized) return
@@ -249,6 +252,7 @@
                 if (!uiStore.isSelectionMode) {
                     pickingMode = "openFileFolder"
                 }
+                pickerKeyBuffer = ""
                 uiStore.isPickingMode = true
             },
             description: m.pick_file_to_open(),
@@ -260,6 +264,7 @@
             keys: "s",
             action: () => {
                 pickingMode = "startSelection"
+                pickerKeyBuffer = ""
                 uiStore.isPickingMode = true
             },
             description: m.pick_file_to_open(),
@@ -331,6 +336,7 @@
             uiStore.isSelectionMode = false
             uiStore.isPickingMode = false
             vfsStore.clearSelection()
+            pickerKeyBuffer = ""
         })
     })
 
@@ -362,7 +368,12 @@
     {/if}
 
     {#if uiStore.isPickingMode}
-        <PickerModeKeymaps {currentNodes} onSelect={handlePickerSelect} />
+        <PickerModeKeymaps
+            {currentNodes}
+            {currentHints}
+            bind:keyBuffer={pickerKeyBuffer}
+            onSelect={handlePickerSelect}
+        />
     {/if}
 
     <main class:selection-mode={uiStore.isSelectionMode}>
@@ -379,11 +390,14 @@
                             Icon={BookIcon}
                             onclick={(e) => handleNodeClick(e, node)}
                         />
-                        {#if uiStore.isPickingMode && idx < PICKER_KEYS.length}
-                            <PickerKey
-                                onSelect={() => handlePickerSelect(node)}
-                                keyChar={PICKER_KEYS[idx]}
-                            />
+                        {#if uiStore.isPickingMode}
+                            {@const hint = currentHints[idx]}
+                            {#if hint && hint.startsWith(pickerKeyBuffer)}
+                                <PickerKey
+                                    onSelect={() => handlePickerSelect(node)}
+                                    keyChar={hint.slice(pickerKeyBuffer.length)}
+                                />
+                            {/if}
                         {/if}
                     </li>
                 {/each}

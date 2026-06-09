@@ -61,8 +61,11 @@
         border: 3px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--border-color);
         border-radius: 8px;
-        width: 56px;
+        width: auto;
+        min-width: 56px;
         height: 56px;
+        padding: 0 12px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: center;
