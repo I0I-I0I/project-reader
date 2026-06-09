@@ -41,38 +41,66 @@
     }
 
     const viewerPromptProvider: PromptProvider = ({ value, mode }) => {
+        const cleanValue = value.replace(/\u200B/g, "")
         const list: SearchItem[] = []
         const activeTotalPages = viewerStore.activeTotalPages
 
         if (mode === "search") {
-            const matches = searchStore.matches
-            const query = searchStore.query
-            // Limit suggestions in prompt dropdown to 200 to avoid crash/lag
-            const limit = 200
-            const count = Math.min(matches.length, limit)
-            for (let i = 0; i < count; i++) {
-                const match = matches[i]
-                const pageText = searchStore.pageTexts.get(match.pageNumber)
-                const text = pageText ? pageText.original : ""
-                const context = getMatchContext(text, match.start, match.end)
+            const queryText = cleanValue.trim()
+            if (queryText === "") {
+                if (searchStore.searchHistory.length === 0) {
+                    list.push({
+                        id: "search-history-empty",
+                        title: m.search_history_empty
+                            ? m.search_history_empty()
+                            : "No search history yet",
+                        englishTitle: "No search history yet",
+                        category: "navigation",
+                        action: () => {},
+                    })
+                } else {
+                    for (let i = 0; i < searchStore.searchHistory.length; i++) {
+                        const historyQuery = searchStore.searchHistory[i]
+                        list.push({
+                            id: `search-history-${i}`,
+                            title: historyQuery,
+                            category: "navigation",
+                            action: () => {
+                                uiStore.prompt.value = historyQuery
+                            },
+                        })
+                    }
+                }
+            } else {
+                const matches = searchStore.matches
+                // Limit suggestions in prompt dropdown to 200 to avoid crash/lag
+                const limit = 200
+                const count = Math.min(matches.length, limit)
+                for (let i = 0; i < count; i++) {
+                    const match = matches[i]
+                    const pageText = searchStore.pageTexts.get(match.pageNumber)
+                    const text = pageText ? pageText.original : ""
+                    const context = getMatchContext(text, match.start, match.end)
 
-                list.push({
-                    id: `search-match-${i}`,
-                    title: `${m.page()} ${match.pageNumber}`,
-                    subtitle: context,
-                    category: "navigation",
-                    action: () => {
-                        searchStore.currentMatchIndex = i
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(match.pageNumber)
-                        }
-                        uiStore.isSearchModeActive = true
-                        uiStore.prompt.isOpen = false
-                    },
-                })
+                    list.push({
+                        id: `search-match-${i}`,
+                        title: `${m.page()} ${match.pageNumber}`,
+                        subtitle: context,
+                        category: "navigation",
+                        action: () => {
+                            searchStore.addToHistory(queryText)
+                            searchStore.currentMatchIndex = i
+                            if (viewerStore.goToPage) {
+                                viewerStore.goToPage(match.pageNumber)
+                            }
+                            uiStore.isSearchModeActive = true
+                            uiStore.prompt.isOpen = false
+                        },
+                    })
+                }
             }
         } else if (mode === "page") {
-            const num = parseInt(value.trim(), 10)
+            const num = parseInt(cleanValue.trim(), 10)
             const targetPage =
                 !isNaN(num) && num >= 1 ? (num > activeTotalPages ? activeTotalPages : num) : null
 
@@ -81,7 +109,10 @@
                     id: `nav-page-single`,
                     title: `${m.keymap_goto_page()} ${targetPage}`,
                     englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${targetPage}`,
-                    subtitle: m.jump_page_desc({ page: targetPage, total: activeTotalPages }),
+                    subtitle: m.jump_page_desc({
+                        page: targetPage,
+                        total: activeTotalPages,
+                    }),
                     englishSubtitle: m.jump_page_desc(
                         { page: targetPage, total: activeTotalPages },
                         { locale: "en" },
@@ -102,7 +133,10 @@
                     id: `nav-page-placeholder`,
                     title: `${m.keymap_goto_page()}...`,
                     englishTitle: `Go to page...`,
-                    subtitle: m.jump_page_desc({ page: currentPageNum, total: activeTotalPages }),
+                    subtitle: m.jump_page_desc({
+                        page: currentPageNum,
+                        total: activeTotalPages,
+                    }),
                     englishSubtitle: `Jump to a page (1-${activeTotalPages})`,
                     category: "navigation",
                     action: () => {
@@ -115,13 +149,16 @@
                 })
             }
         } else if (mode === "global") {
-            const num = parseInt(value.trim(), 10)
+            const num = parseInt(cleanValue.trim(), 10)
             if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
                 list.push({
                     id: `nav-page-${num}`,
                     title: `${m.keymap_goto_page()} ${num}`,
                     englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${num}`,
-                    subtitle: m.jump_page_desc({ page: num, total: activeTotalPages }),
+                    subtitle: m.jump_page_desc({
+                        page: num,
+                        total: activeTotalPages,
+                    }),
                     englishSubtitle: m.jump_page_desc(
                         { page: num, total: activeTotalPages },
                         { locale: "en" },
@@ -181,7 +218,10 @@
             description: m.keymap_zoom_in(),
             englishDescription: m.keymap_zoom_in({}, { locale: "en" }),
             category: "settings",
-            subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
+            subtitle: () =>
+                m.scale_subtitle({
+                    scale: Math.round(settingsStore.scale * 100),
+                }),
             action: () => {
                 settingsStore.scale = Math.min(settingsStore.scale + 0.1, CONSTANTS.maxScale)
             },
@@ -192,7 +232,10 @@
             description: m.keymap_zoom_out(),
             englishDescription: m.keymap_zoom_out({}, { locale: "en" }),
             category: "settings",
-            subtitle: () => m.scale_subtitle({ scale: Math.round(settingsStore.scale * 100) }),
+            subtitle: () =>
+                m.scale_subtitle({
+                    scale: Math.round(settingsStore.scale * 100),
+                }),
             action: () => {
                 settingsStore.scale = Math.max(settingsStore.scale - 0.1, CONSTANTS.minScale)
             },
@@ -918,7 +961,9 @@
                 {#if uiStore.isToolbarsVisible}
                     <div
                         style="position: relative; z-index: 250;"
-                        transition:slideHeader={{ duration: settingsStore.animations ? 250 : 0 }}
+                        transition:slideHeader={{
+                            duration: settingsStore.animations ? 250 : 0,
+                        }}
                     >
                         <ViewerHeader
                             {name}
@@ -1139,7 +1184,9 @@
                 {#if isLoaded && uiStore.isToolbarsVisible}
                     <div
                         style="position: relative; z-index: 250;"
-                        transition:slideFooter={{ duration: settingsStore.animations ? 250 : 0 }}
+                        transition:slideFooter={{
+                            duration: settingsStore.animations ? 250 : 0,
+                        }}
                     >
                         <ViewerFooter
                             bind:currentPage

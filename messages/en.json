@@ -97,6 +97,8 @@
     "prompt_help_navigate": "Navigate",
     "prompt_help_select": "Select",
     "prompt_help_close": "Close",
+    "search_history": "Search history",
+    "search_history_empty": "No search history yet",
     "enter_page_number": "Enter page number:",
     "show_toolbars": "Show toolbars",
     "hide_toolbars": "Hide toolbars",

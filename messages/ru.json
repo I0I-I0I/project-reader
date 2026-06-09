@@ -97,6 +97,8 @@
     "prompt_help_navigate": "Навигация",
     "prompt_help_select": "Выбрать",
     "prompt_help_close": "Закрыть",
+    "search_history": "История поиска",
+    "search_history_empty": "История поиска пуста",
     "enter_page_number": "Введите номер страницы:",
     "show_toolbars": "Показать панели инструментов",
     "hide_toolbars": "Скрыть панели инструментов",

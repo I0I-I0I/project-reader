@@ -284,7 +284,11 @@
                     oninput={(e) => {
                         const raw = e.currentTarget.value
                         if (raw === "") {
-                            if (value === "" && uiStore.prompt.mode !== "global") {
+                            if (
+                                value === "" &&
+                                uiStore.prompt.mode !== "global" &&
+                                uiStore.prompt.mode !== "search"
+                            ) {
                                 uiStore.prompt.mode = "global"
                             }
                             internalValue = "\u200B"
@@ -338,6 +342,11 @@
                                     <SettingsItemIcon class="item-icon settings" />
                                 {:else if item.category === "menu"}
                                     <MenuIcon class="item-icon menu" />
+                                {:else if item.id.startsWith("search-history")}
+                                    <SearchIcon
+                                        class="item-icon navigation"
+                                        style="opacity: 0.6;"
+                                    />
                                 {:else}
                                     <NavigationIcon class="item-icon navigation" />
                                 {/if}

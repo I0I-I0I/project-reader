@@ -2,6 +2,7 @@ import { SvelteMap } from "svelte/reactivity"
 import { viewerStore } from "./viewerStore.svelte"
 import { uiStore } from "./uiStore.svelte"
 import type PDFDocument from "$lib/pdf"
+import { browser } from "$app/environment"
 
 export interface SearchMatch {
     pageNumber: number
@@ -24,6 +25,39 @@ class SearchStore {
     isIndexing = $state(false)
     isSearching = $state(false)
     pageTexts = new SvelteMap<number, { original: string; lower: string }>()
+
+    searchHistory = $state<string[]>([])
+
+    constructor() {
+        if (browser) {
+            try {
+                const stored = localStorage.getItem("search_history")
+                if (stored) {
+                    this.searchHistory = JSON.parse(stored)
+                }
+            } catch (e) {
+                console.error("[SearchStore] Failed to load search history:", e)
+            }
+        }
+    }
+
+    addToHistory(q: string) {
+        const trimmed = q.trim()
+        if (!trimmed) return
+
+        const filtered = this.searchHistory.filter(
+            (item) => item.toLowerCase() !== trimmed.toLowerCase(),
+        )
+        this.searchHistory = [trimmed, ...filtered].slice(0, 10)
+
+        if (browser) {
+            try {
+                localStorage.setItem("search_history", JSON.stringify(this.searchHistory))
+            } catch (e) {
+                console.error("[SearchStore] Failed to save search history:", e)
+            }
+        }
+    }
 
     private currentPdf: PDFDocument | null = null
     private pageRanges = new Map<number, Range[]>()

@@ -3,6 +3,7 @@
     import { onMount, setContext, untrack } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
     import {
         type CommandNode,
         useCommands,
@@ -349,6 +350,9 @@
             items={promptItems}
             placeholder={promptPlaceholder}
             onClose={() => {
+                if (uiStore.prompt.mode === "search" && uiStore.prompt.value.trim() !== "") {
+                    searchStore.addToHistory(uiStore.prompt.value)
+                }
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
                 uiStore.prompt.value = ""
