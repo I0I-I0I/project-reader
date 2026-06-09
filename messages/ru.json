@@ -69,6 +69,11 @@
     "keymap_zoom_out": "Уменьшить масштаб",
     "keymap_zoom_in": "Увеличить масштаб",
     "keymap_zoom_to_fit": "Оригинальный масштаб",
+    "keymap_jump_back": "Перейти назад",
+    "keymap_jump_forward": "Перейти вперед",
+    "keymap_open_jumplist": "Открыть список переходов",
+    "jumplist": "Список переходов",
+    "jumplist_empty": "Переходов еще нет",
     "keymap_goto_page": "Перейти к странице",
     "keymap_next_heading": "Следующий заголовок",
     "keymap_prev_heading": "Предыдущий заголовок",
@@ -153,5 +158,6 @@
     "invalid_page_number": "Номер страницы должен быть не менее 1",
     "invalid_total_pages": "Количество страниц не может быть отрицательным",
     "page_exceeds_total": "Номер страницы не может превышать общее количество страниц",
+    "current_position": "Текущая позиция",
     "new_version_available": "Доступна новая версия. Обновить сейчас?"
 }

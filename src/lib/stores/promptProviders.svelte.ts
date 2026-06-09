@@ -323,6 +323,49 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
     return list
 }
 
+export function getJumplistPromptItems(): SearchItem[] {
+    const list: SearchItem[] = []
+    const jumps = viewerStore.activeJumplist
+    if (jumps.length === 0) {
+        list.push({
+            id: "jumplist-empty",
+            title: m.jumplist_empty ? m.jumplist_empty() : "No jumps yet",
+            category: "navigation",
+            action: () => {},
+        })
+    } else {
+        // Show last 20 jumps in reverse order
+        const startIndex = Math.max(0, jumps.length - 20)
+        const currentBook = viewerStore.getCurrentBook()
+        for (let i = jumps.length - 1; i >= startIndex; i--) {
+            const jump = jumps[i]
+            const isActive = i === viewerStore.activeJumplistIndex
+            const isDifferentBook = currentBook?.id !== jump.bookId
+
+            list.push({
+                id: `jump-${i}`,
+                title: isDifferentBook ? jump.bookName : `${m.page()} ${jump.pageNumber}`,
+                subtitle: isDifferentBook
+                    ? `${m.page()} ${jump.pageNumber}`
+                    : isActive
+                      ? m.current_position
+                          ? m.current_position()
+                          : "Current Position"
+                      : undefined,
+                category: "navigation",
+                action: async () => {
+                    await viewerStore.jumpToIndex(i)
+                    if (page.url.pathname !== resolve("/viewer")) {
+                        goto(resolve("/viewer"))
+                    }
+                    uiStore.prompt.isOpen = false
+                },
+            })
+        }
+    }
+    return list
+}
+
 export function getCommandsPromptItems(activeNode: CommandRegistry | null): SearchItem[] {
     const list: SearchItem[] = []
     if (activeNode) {

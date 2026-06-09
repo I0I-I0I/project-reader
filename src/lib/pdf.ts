@@ -81,7 +81,10 @@ export default class PDFDocument implements DocumentInterface {
                     const viewport = firstPage.getViewport({ scale: 1 })
                     this.defaultWidth = viewport.width
                     this.defaultHeight = viewport.height
-                    this.pageDimensionsCache.set(1, { width: viewport.width, height: viewport.height })
+                    this.pageDimensionsCache.set(1, {
+                        width: viewport.width,
+                        height: viewport.height,
+                    })
                     firstPage.cleanup()
                 } catch (pageErr) {
                     console.warn(

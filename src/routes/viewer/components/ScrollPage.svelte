@@ -127,7 +127,7 @@
 
                 const linkService = new ViewerLinkService(pdf, (targetPage) => {
                     if (viewerStore.goToPage) {
-                        viewerStore.goToPage(targetPage)
+                        viewerStore.goToPage(targetPage, { isJump: true })
                     }
                 })
                 linkService.page = pageNumber

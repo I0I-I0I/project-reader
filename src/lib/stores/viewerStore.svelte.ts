@@ -17,6 +17,13 @@ export interface Book {
     author?: string | null
 }
 
+export interface Jump {
+    bookId: string
+    bookName: string
+    pageNumber: number
+    scrollPosition: number
+}
+
 export function fileNodeToBook(node: FileNode): Book {
     return {
         id: node.id,
@@ -34,7 +41,11 @@ class ViewerStore {
     private book = $state<Book | null>(null)
     private outlineList = $state<FlatHeading[] | null>(null)
     private totalPages = $state<number>(0)
-    private goToPageCallback = $state<((page: number) => void) | null>(null)
+    private goToPageCallback = $state<
+        ((page: number, options?: { scrollPosition?: number; isJump?: boolean }) => void) | null
+    >(null)
+    private jumplist = $state<Jump[]>([])
+    private jumplistIndex = $state<number>(-1)
 
     constructor() {
         if (browser) {
@@ -51,7 +62,23 @@ class ViewerStore {
                 }
             }
 
-            const flush = () => this.persistToLocalStorage(true)
+            const savedJumplist = localStorage.getItem("jumplist")
+            if (savedJumplist) {
+                try {
+                    this.jumplist = JSON.parse(savedJumplist)
+                } catch (e) {
+                    console.error("Failed to parse jumplist from localStorage", e)
+                }
+            }
+            const savedJumplistIndex = localStorage.getItem("jumplistIndex")
+            if (savedJumplistIndex) {
+                this.jumplistIndex = parseInt(savedJumplistIndex, 10)
+            }
+
+            const flush = () => {
+                this.persistToLocalStorage(true)
+                this.persistJumplist()
+            }
             window.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "hidden") {
                     flush()
@@ -76,10 +103,105 @@ class ViewerStore {
     }
 
     get goToPage() {
-        return this.goToPageCallback
+        return (page: number, options?: { scrollPosition?: number; isJump?: boolean }) => {
+            if (options?.isJump && this.book) {
+                // Record current position before jumping
+                this.pushJump({
+                    bookId: this.book.id,
+                    bookName: this.book.name,
+                    pageNumber: this.book.pageNumber,
+                    scrollPosition: this.book.scrollPosition || 0,
+                })
+            }
+            this.goToPageCallback?.(page, options)
+            if (options?.isJump && this.book) {
+                // Record the landing position
+                this.pushJump({
+                    bookId: this.book.id,
+                    bookName: this.book.name,
+                    pageNumber: page,
+                    scrollPosition: options?.scrollPosition ?? 0,
+                })
+            }
+        }
     }
-    set goToPage(callback: ((page: number) => void) | null) {
+    set goToPage(
+        callback:
+            | ((page: number, options?: { scrollPosition?: number; isJump?: boolean }) => void)
+            | null,
+    ) {
         this.goToPageCallback = callback
+    }
+
+    get activeJumplist() {
+        return this.jumplist
+    }
+
+    get activeJumplistIndex() {
+        return this.jumplistIndex
+    }
+
+    pushJump(jump: Jump) {
+        // Truncate forward history if we're in the middle of the list
+        if (this.jumplistIndex < this.jumplist.length - 1) {
+            this.jumplist = this.jumplist.slice(0, this.jumplistIndex + 1)
+        }
+
+        // Avoid duplicate jumps
+        const lastJump = this.jumplist[this.jumplistIndex]
+        if (
+            lastJump &&
+            lastJump.bookId === jump.bookId &&
+            lastJump.pageNumber === jump.pageNumber &&
+            Math.abs(lastJump.scrollPosition - jump.scrollPosition) < 0.01
+        ) {
+            return
+        }
+
+        this.jumplist.push(jump)
+        if (this.jumplist.length > 100) {
+            this.jumplist.shift()
+        } else {
+            this.jumplistIndex++
+        }
+        this.persistJumplist()
+    }
+
+    async jumpBack() {
+        if (this.jumplistIndex > 0) {
+            await this.jumpToIndex(this.jumplistIndex - 1)
+        }
+    }
+
+    async jumpForward() {
+        if (this.jumplistIndex < this.jumplist.length - 1) {
+            await this.jumpToIndex(this.jumplistIndex + 1)
+        }
+    }
+
+    async jumpToIndex(index: number) {
+        if (index >= 0 && index < this.jumplist.length) {
+            const jump = this.jumplist[index]
+
+            if (this.book && this.book.id !== jump.bookId) {
+                const node = vfsStore.nodes[jump.bookId]
+                if (node && node.type === "file") {
+                    const book = fileNodeToBook(node as FileNode)
+                    // Update book with jump's position so it opens there
+                    book.pageNumber = jump.pageNumber
+                    book.scrollPosition = jump.scrollPosition
+                    this.jumplistIndex = index
+                    await this.setCurrentBook(book, { isJump: true })
+                }
+            } else {
+                this.jumplistIndex = index
+                this.goToPageCallback?.(jump.pageNumber, {
+                    scrollPosition: jump.scrollPosition,
+                    isJump: false,
+                })
+            }
+            this.persistJumplist()
+        }
     }
 
     async syncWithBooks() {
@@ -135,7 +257,23 @@ class ViewerStore {
         }
     }
 
-    async setCurrentBook(newBook: Book | null) {
+    private persistJumplist() {
+        if (!browser) return
+        localStorage.setItem("jumplist", JSON.stringify(this.jumplist))
+        localStorage.setItem("jumplistIndex", this.jumplistIndex.toString())
+    }
+
+    async setCurrentBook(newBook: Book | null, options?: { isJump?: boolean }) {
+        // Record current position before switching
+        if (!options?.isJump && this.book && newBook && this.book.id !== newBook.id) {
+            this.pushJump({
+                bookId: this.book.id,
+                bookName: this.book.name,
+                pageNumber: this.book.pageNumber,
+                scrollPosition: this.book.scrollPosition || 0,
+            })
+        }
+
         // Revoke old URL if it was a blob URL created by us
         if (this.book && this.book.id !== newBook?.id) {
             vfsStore.revokeFileUrl(this.book.id)
@@ -151,6 +289,16 @@ class ViewerStore {
                 newBook.previewDataUrl = await vfsStore.getPreviewUrl(newBook.id)
             }
             newBook.isLocked = vfsStore.isLockedMap[newBook.id]
+
+            // Record initial position in new book
+            if (!options?.isJump && this.book?.id !== newBook.id) {
+                this.pushJump({
+                    bookId: newBook.id,
+                    bookName: newBook.name,
+                    pageNumber: newBook.pageNumber,
+                    scrollPosition: newBook.scrollPosition || 0,
+                })
+            }
         }
 
         this.book = newBook

@@ -21,6 +21,7 @@
     import { cubicInOut } from "svelte/easing"
     import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
     import { usePrompt, type PromptProvider, type SearchItem } from "$lib/stores/promptStore.svelte"
+    import { getJumplistPromptItems } from "$lib/stores/promptProviders.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
@@ -91,7 +92,7 @@
                             searchStore.addToHistory(queryText)
                             searchStore.currentMatchIndex = i
                             if (viewerStore.goToPage) {
-                                viewerStore.goToPage(match.pageNumber)
+                                viewerStore.goToPage(match.pageNumber, { isJump: true })
                             }
                             uiStore.isSearchModeActive = true
                             uiStore.prompt.isOpen = false
@@ -120,7 +121,7 @@
                     category: "navigation",
                     action: () => {
                         if (viewerStore.goToPage) {
-                            viewerStore.goToPage(targetPage)
+                            viewerStore.goToPage(targetPage, { isJump: true })
                         }
                         uiStore.prompt.mode = "global"
                         uiStore.prompt.isOpen = false
@@ -141,14 +142,27 @@
                     category: "navigation",
                     action: () => {
                         if (viewerStore.goToPage) {
-                            viewerStore.goToPage(currentPageNum)
+                            viewerStore.goToPage(currentPageNum, { isJump: true })
                         }
                         uiStore.prompt.mode = "global"
                         uiStore.prompt.isOpen = false
                     },
                 })
             }
+        } else if (mode === "jumplist") {
+            return getJumplistPromptItems()
         } else if (mode === "global") {
+            list.push({
+                id: "open-jumplist-cmd",
+                title: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
+                englishTitle: "Open jumplist",
+                category: "commands",
+                keys: "S-J",
+                action: () => {
+                    uiStore.prompt.mode = "jumplist"
+                },
+            })
+
             const num = parseInt(cleanValue.trim(), 10)
             if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
                 list.push({
@@ -166,7 +180,7 @@
                     category: "navigation",
                     action: () => {
                         if (viewerStore.goToPage) {
-                            viewerStore.goToPage(num)
+                            viewerStore.goToPage(num, { isJump: true })
                         }
                         uiStore.prompt.mode = "global"
                         uiStore.prompt.isOpen = false
@@ -508,6 +522,49 @@
             },
         },
         {
+            id: "jump-back",
+            keys: "ctrl+o",
+            description: m.keymap_jump_back ? m.keymap_jump_back() : "Jump back",
+            englishDescription: "Jump back",
+            category: "navigation",
+            action: async (event: KeyboardEvent) => {
+                event.preventDefault()
+                await viewerStore.jumpBack()
+            },
+        },
+        {
+            id: "jump-forward",
+            keys: "ctrl+i",
+            description: m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward",
+            englishDescription: "Jump forward",
+            category: "navigation",
+            action: async (event: KeyboardEvent) => {
+                event.preventDefault()
+                await viewerStore.jumpForward()
+            },
+        },
+        {
+            id: "open-jumplist",
+            keys: "shift+j",
+            description: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
+            englishDescription: "Open jumplist",
+            category: "commands",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode = "jumplist"
+                const activeIndex = viewerStore.activeJumplistIndex
+                const jumpsCount = viewerStore.activeJumplist.length
+                if (activeIndex !== -1 && jumpsCount > 0) {
+                    // Items are shown in reverse order, limited to last 20
+                    const startIndex = Math.max(0, jumpsCount - 20)
+                    if (activeIndex >= startIndex) {
+                        uiStore.prompt.initialSelectedIndex = jumpsCount - 1 - activeIndex
+                    }
+                }
+                uiStore.prompt.isOpen = true
+            },
+        },
+        {
             id: "prev-search-match",
             keys: "shift+n",
             description: m.keymap_prev_match ? m.keymap_prev_match() : "Previous match",
@@ -839,10 +896,13 @@
     })
 
     $effect(() => {
-        viewerStore.goToPage = (page: number) => {
+        viewerStore.goToPage = (
+            page: number,
+            options?: { scrollPosition?: number; isJump?: boolean },
+        ) => {
             if (page >= 1 && page <= totalPages) {
                 currentPage = page
-                scrollPosition = 0
+                scrollPosition = options?.scrollPosition ?? 0
             }
         }
         return () => {
@@ -1183,6 +1243,45 @@
                                 size="large"
                                 variant="fab"
                                 square={true}
+                                class="viewer-fab-btn fab-jump-forward {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={async (e) => {
+                                    e.stopPropagation()
+                                    await viewerStore.jumpForward()
+                                }}
+                                aria-label={m.keymap_jump_forward
+                                    ? m.keymap_jump_forward()
+                                    : "Jump forward"}
+                                tooltip={`${m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}${getShortcutHint(commandsNode, "jump-forward")}`}
+                                disabled={viewerStore.activeJumplistIndex >=
+                                    viewerStore.activeJumplist.length - 1}
+                            >
+                                <ChevronIcon style="transform: rotate(-90deg);" />
+                            </Button>
+
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
+                                class="viewer-fab-btn fab-jump-back {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={async (e) => {
+                                    e.stopPropagation()
+                                    await viewerStore.jumpBack()
+                                }}
+                                aria-label={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
+                                tooltip={`${m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}${getShortcutHint(commandsNode, "jump-back")}`}
+                                disabled={viewerStore.activeJumplistIndex <= 0}
+                            >
+                                <ChevronIcon style="transform: rotate(90deg);" />
+                            </Button>
+
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
                                 class="viewer-fab-btn fab-prompt {!uiStore.isToolbarsVisible
                                     ? 'hidden-toolbars'
                                     : ''}"
@@ -1334,6 +1433,8 @@
         bottom: calc(24px + 50px + 16px + 50px + 16px);
     }
 
+    :global(.fab-jump-back.hidden-toolbars),
+    :global(.fab-jump-forward.hidden-toolbars),
     :global(.fab-search.hidden-toolbars),
     :global(.fab-next-search.hidden-toolbars),
     :global(.fab-prev-search.hidden-toolbars),
@@ -1341,6 +1442,14 @@
         transform: translateX(100px);
         opacity: 0;
         pointer-events: none;
+    }
+
+    :global(.fab-jump-back) {
+        bottom: calc(24px + 50px + 16px + 50px + 16px + 50px + 16px);
+    }
+
+    :global(.fab-jump-forward) {
+        bottom: calc(24px + 50px + 16px + 50px + 16px + 50px + 16px + 50px + 16px);
     }
 
     :global(.fab-prev-search) {
@@ -1385,6 +1494,16 @@
         :global(.fab-search),
         :global(.fab-next-search) {
             bottom: calc(12px + 44px + 8px);
+            right: 12px;
+        }
+
+        :global(.fab-jump-back) {
+            bottom: calc(12px + 44px + 8px + 44px + 8px);
+            right: 12px;
+        }
+
+        :global(.fab-jump-forward) {
+            bottom: calc(12px + 44px + 8px + 44px + 8px + 44px + 8px);
             right: 12px;
         }
 

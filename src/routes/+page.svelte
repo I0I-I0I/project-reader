@@ -28,6 +28,8 @@
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
     import { PICKER_KEYS } from "$lib/constants"
+    import { usePrompt, type SearchItem } from "$lib/stores/promptStore.svelte"
+    import { getFilesPromptItems, getFoldersPromptItems } from "$lib/stores/promptProviders.svelte"
     import { untrack } from "svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
@@ -134,7 +136,75 @@
         }
     }
 
+    usePrompt((options) => {
+        const { mode } = options
+        const list: SearchItem[] = []
+
+        if (mode === "files-recursive") {
+            return getFilesPromptItems(mode)
+        } else if (mode === "folders") {
+            return getFoldersPromptItems()
+        } else if (mode === "jumplist") {
+            return getJumplistPromptItems()
+        }
+
+        return list
+    })
+
     useCommands([
+        {
+            id: "jump-back",
+            keys: "ctrl+o",
+            description: m.keymap_jump_back ? m.keymap_jump_back() : "Jump back",
+            englishDescription: "Jump back",
+            category: "navigation",
+            action: async (event: KeyboardEvent) => {
+                event.preventDefault()
+                const prevBookId = viewerStore.getCurrentBook()?.id
+                await viewerStore.jumpBack()
+                const nextBookId = viewerStore.getCurrentBook()?.id
+                if (nextBookId && nextBookId !== prevBookId) {
+                    goto(resolve("/viewer"))
+                }
+            },
+        },
+        {
+            id: "jump-forward",
+            keys: "ctrl+i",
+            description: m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward",
+            englishDescription: "Jump forward",
+            category: "navigation",
+            action: async (event: KeyboardEvent) => {
+                event.preventDefault()
+                const prevBookId = viewerStore.getCurrentBook()?.id
+                await viewerStore.jumpForward()
+                const nextBookId = viewerStore.getCurrentBook()?.id
+                if (nextBookId && nextBookId !== prevBookId) {
+                    goto(resolve("/viewer"))
+                }
+            },
+        },
+        {
+            id: "open-jumplist",
+            keys: "shift+j",
+            description: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
+            englishDescription: "Open jumplist",
+            category: "commands",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode = "jumplist"
+                const activeIndex = viewerStore.activeJumplistIndex
+                const jumpsCount = viewerStore.activeJumplist.length
+                if (activeIndex !== -1 && jumpsCount > 0) {
+                    // Items are shown in reverse order, limited to last 20
+                    const startIndex = Math.max(0, jumpsCount - 20)
+                    if (activeIndex >= startIndex) {
+                        uiStore.prompt.initialSelectedIndex = jumpsCount - 1 - activeIndex
+                    }
+                }
+                uiStore.prompt.isOpen = true
+            },
+        },
         {
             id: "open-file-recursive",
             keys: "o",

@@ -50,9 +50,14 @@
         })
     })
 
+    let isInitialValue = true
     $effect(() => {
         const query = value
         untrack(() => {
+            if (isInitialValue) {
+                isInitialValue = false
+                return
+            }
             selectedIndex = 0
         })
     })
@@ -84,7 +89,11 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
-        if (uiStore.prompt.mode === "page" || uiStore.prompt.mode === "search") {
+        if (
+            uiStore.prompt.mode === "page" ||
+            uiStore.prompt.mode === "search" ||
+            uiStore.prompt.mode === "jumplist"
+        ) {
             return allItems.map((item) => ({ item, matches: [] }))
         }
         if (query === "") {
@@ -228,6 +237,12 @@
             value = uiStore.prompt.initialValue || ""
         }
         internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
+
+        if (uiStore.prompt.initialSelectedIndex !== null) {
+            selectedIndex = uiStore.prompt.initialSelectedIndex
+            await tick()
+            scrollToSelected()
+        }
 
         await tick()
 

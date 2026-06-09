@@ -13,6 +13,7 @@ type PromptMode =
     | "files-recursive"
     | "folders"
     | "search"
+    | "jumplist"
 
 class PromptState {
     #mode = $state<PromptMode>("global")
@@ -20,6 +21,7 @@ class PromptState {
     #initialValue = $state("")
     #isOpen = $state(false)
     #values = $state<Record<string, string>>({})
+    #initialSelectedIndex = $state<number | null>(null)
 
     get mode(): PromptMode {
         return this.#mode
@@ -30,7 +32,16 @@ class PromptState {
             this.#values[this.#mode] = this.#value
             this.#mode = val
             this.#value = this.#values[val] || ""
+            this.#initialSelectedIndex = null
         }
+    }
+
+    get initialSelectedIndex(): number | null {
+        return this.#initialSelectedIndex
+    }
+
+    set initialSelectedIndex(val: number | null) {
+        this.#initialSelectedIndex = val
     }
 
     get value(): string {

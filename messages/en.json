@@ -69,6 +69,11 @@
     "keymap_zoom_out": "Zoom out",
     "keymap_zoom_in": "Zoom in",
     "keymap_zoom_to_fit": "Zoom to fit",
+    "keymap_jump_back": "Jump back",
+    "keymap_jump_forward": "Jump forward",
+    "keymap_open_jumplist": "Open jumplist",
+    "jumplist": "Jumplist",
+    "jumplist_empty": "No jumps yet",
     "keymap_goto_page": "Goto page",
     "keymap_next_heading": "Next heading",
     "keymap_prev_heading": "Previous heading",
@@ -153,5 +158,6 @@
     "invalid_page_number": "Page number must be at least 1",
     "invalid_total_pages": "Total pages cannot be negative",
     "page_exceeds_total": "Page number cannot exceed total pages",
+    "current_position": "Current position",
     "new_version_available": "A new version is available. Reload now?"
 }

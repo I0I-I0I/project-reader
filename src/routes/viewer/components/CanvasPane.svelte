@@ -6,6 +6,7 @@
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
@@ -137,12 +138,20 @@
     }
 
     const wrapperStyle1 = $derived.by(() => {
-        const dim = currentPageDim1 || (pdf ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 } : { width: 612, height: 792 })
+        const dim =
+            currentPageDim1 ||
+            (pdf
+                ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
+                : { width: 612, height: 792 })
         return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
     const wrapperStyle2 = $derived.by(() => {
-        const dim = currentPageDim2 || (pdf ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 } : { width: 612, height: 792 })
+        const dim =
+            currentPageDim2 ||
+            (pdf
+                ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
+                : { width: 612, height: 792 })
         return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
@@ -470,7 +479,11 @@
                 if (signal?.aborted) return
 
                 const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
-                    currentPage = targetPage
+                    if (viewerStore.goToPage) {
+                        viewerStore.goToPage(targetPage, { isJump: true })
+                    } else {
+                        currentPage = targetPage
+                    }
                 })
                 linkService.page = pageNo
 

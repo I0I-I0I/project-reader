@@ -12,6 +12,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
 
     let {
         isOutlineLoading,
@@ -45,8 +46,12 @@
 
     function selectHeading(heading: FlatHeading) {
         if (heading.pageNumber !== undefined) {
-            currentPage = heading.pageNumber
-            scrollPosition = 0
+            if (viewerStore.goToPage) {
+                viewerStore.goToPage(heading.pageNumber, { isJump: true })
+            } else {
+                currentPage = heading.pageNumber
+                scrollPosition = 0
+            }
             if (window.innerWidth <= 480) {
                 onCloseOutline()
             }
