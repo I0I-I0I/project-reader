@@ -29,15 +29,27 @@ interface DocumentInterface {
     getTitle(): Promise<string | null>
     getPageNumber(): Promise<number>
     getPage(pageNumber: number): Promise<Page>
-    getPageDimension(pageNumber: number): Promise<{ width: number; height: number }>
+    getPageDimension(
+        pageNumber: number,
+        bypassCache?: boolean,
+    ): Promise<{ width: number; height: number }>
     getCanvasPage(page: Page, scale?: number, signal?: AbortSignal): Promise<string>
     getAllPageDimensions(): Promise<{ width: number; height: number }[]>
-    getTextContent(pageNumber: number): Promise<TextContent>
+    getTextContent(pageNumber: number, bypassCache?: boolean): Promise<TextContent>
     getViewport(pageNumber: number, scale: number): Promise<pdfjs.PageViewport>
     getTextAndViewport(
         pageNumber: number,
         scale: number,
     ): Promise<{ textContent: TextContent; viewport: pdfjs.PageViewport }>
+    getPageDataForRendering(
+        pageNumber: number,
+        scale: number,
+    ): Promise<{
+        pageProxy: pdfjs.PDFPageProxy
+        textContent: TextContent
+        annotations: any[]
+        viewport: pdfjs.PageViewport
+    }>
     close(): Promise<void>
 }
 
@@ -61,6 +73,7 @@ export default class PDFDocument implements DocumentInterface {
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyCacheOrder: number[] = []
+    private pageProxyPromises = new Map<number, Promise<pdfjs.PDFPageProxy>>()
     private get maxPageProxyCacheSize(): number {
         return typeof window !== "undefined" && window.innerWidth < 800 ? 4 : 10
     }
@@ -70,13 +83,8 @@ export default class PDFDocument implements DocumentInterface {
 
     async load(_quality: number = 1): Promise<PDFDocument> {
         try {
-            const response = await fetch(this.url)
-            if (!response.ok) {
-                throw new Error(`Failed to fetch PDF data from URL: ${this.url}`)
-            }
-            const arrayBuffer = await response.arrayBuffer()
-
-            const loadingTask = pdfjs.getDocument({ data: arrayBuffer })
+            // Allow PDF.js to stream the document using range requests
+            const loadingTask = pdfjs.getDocument({ url: this.url })
             this.pdfDoc = await loadingTask.promise
             this.pageCount = this.pdfDoc.numPages
 
@@ -130,9 +138,24 @@ export default class PDFDocument implements DocumentInterface {
         return new Page(pageNumber)
     }
 
-    async getPageDimension(pageNumber: number): Promise<{ width: number; height: number }> {
+    async getPageDimension(
+        pageNumber: number,
+        bypassCache = false,
+    ): Promise<{ width: number; height: number }> {
         if (this.pageDimensionsCache.has(pageNumber)) {
             return this.pageDimensionsCache.get(pageNumber)!
+        }
+        if (bypassCache) {
+            const pdfDoc = this.getRequiredPdfDoc()
+            const page = await pdfDoc.getPage(pageNumber)
+            try {
+                const viewport = page.getViewport({ scale: 1 })
+                const dims = { width: viewport.width, height: viewport.height }
+                this.pageDimensionsCache.set(pageNumber, dims)
+                return dims
+            } finally {
+                page.cleanup()
+            }
         }
         const page = await this.getPageProxy(pageNumber)
         const viewport = page.getViewport({ scale: 1 })
@@ -150,7 +173,7 @@ export default class PDFDocument implements DocumentInterface {
             const end = Math.min(i + chunkSize - 1, totalPages)
             const tasks = []
             for (let j = i; j <= end; j++) {
-                tasks.push(this.getPageDimension(j))
+                tasks.push(this.getPageDimension(j, true))
             }
             const chunkDims = await Promise.all(tasks)
             dimensions.push(...chunkDims)
@@ -302,7 +325,7 @@ export default class PDFDocument implements DocumentInterface {
             if (signal?.aborted) throw new Error("Rendering cancelled")
 
             const blob = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, "image/png"),
+                canvas.toBlob(resolve, "image/webp", 0.9),
             )
             if (!blob) throw new Error("Failed to create blob from canvas")
 
@@ -335,33 +358,54 @@ export default class PDFDocument implements DocumentInterface {
             return this.pageProxyCache.get(pageNumber)!
         }
 
-        const page = await pdfDoc.getPage(pageNumber)
-
-        this.pageProxyCache.set(pageNumber, page)
-        this.pageProxyCacheOrder.push(pageNumber)
-
-        if (this.pageProxyCacheOrder.length > this.maxPageProxyCacheSize) {
-            const evictedPageNum = this.pageProxyCacheOrder.shift()
-            if (evictedPageNum !== undefined) {
-                const evictedPage = this.pageProxyCache.get(evictedPageNum)
-                if (evictedPage) {
-                    try {
-                        evictedPage.cleanup()
-                    } catch (err) {
-                        console.warn(
-                            `[PDFDocument] Error cleaning up evicted page proxy ${evictedPageNum}:`,
-                            err,
-                        )
-                    }
-                    this.pageProxyCache.delete(evictedPageNum)
-                }
-            }
+        if (this.pageProxyPromises.has(pageNumber)) {
+            return this.pageProxyPromises.get(pageNumber)!
         }
 
-        return page
+        const promise = (async () => {
+            try {
+                const page = await pdfDoc.getPage(pageNumber)
+
+                this.pageProxyCache.set(pageNumber, page)
+                this.pageProxyCacheOrder.push(pageNumber)
+
+                if (this.pageProxyCacheOrder.length > this.maxPageProxyCacheSize) {
+                    const evictedPageNum = this.pageProxyCacheOrder.shift()
+                    if (evictedPageNum !== undefined) {
+                        const evictedPage = this.pageProxyCache.get(evictedPageNum)
+                        if (evictedPage) {
+                            try {
+                                evictedPage.cleanup()
+                            } catch (err) {
+                                console.warn(
+                                    `[PDFDocument] Error cleaning up evicted page proxy ${evictedPageNum}:`,
+                                    err,
+                                )
+                            }
+                            this.pageProxyCache.delete(evictedPageNum)
+                        }
+                    }
+                }
+                return page
+            } finally {
+                this.pageProxyPromises.delete(pageNumber)
+            }
+        })()
+
+        this.pageProxyPromises.set(pageNumber, promise)
+        return promise
     }
 
-    async getTextContent(pageNumber: number): Promise<TextContent> {
+    async getTextContent(pageNumber: number, bypassCache = false): Promise<TextContent> {
+        if (bypassCache) {
+            const pdfDoc = this.getRequiredPdfDoc()
+            const page = await pdfDoc.getPage(pageNumber)
+            try {
+                return await page.getTextContent()
+            } finally {
+                page.cleanup()
+            }
+        }
         const page = await this.getPageProxy(pageNumber)
         return await page.getTextContent()
     }
@@ -379,6 +423,24 @@ export default class PDFDocument implements DocumentInterface {
         const textContent = await page.getTextContent()
         const viewport = page.getViewport({ scale })
         return { textContent, viewport }
+    }
+
+    async getPageDataForRendering(
+        pageNumber: number,
+        scale: number,
+    ): Promise<{
+        pageProxy: pdfjs.PDFPageProxy
+        textContent: TextContent
+        annotations: any[]
+        viewport: pdfjs.PageViewport
+    }> {
+        const pageProxy = await this.getPageProxy(pageNumber)
+        const [textContent, annotations] = await Promise.all([
+            pageProxy.getTextContent(),
+            pageProxy.getAnnotations(),
+        ])
+        const viewport = pageProxy.getViewport({ scale })
+        return { pageProxy, textContent, annotations, viewport }
     }
 
     private getRequiredPdfDoc(): pdfjs.PDFDocumentProxy {

@@ -160,7 +160,7 @@
     let lastObservedPage = $state(-1)
     let autoScrollTimeout: ReturnType<typeof setTimeout> | undefined
 
-    let pageDimensions = $state<{ width: number; height: number }[]>([])
+    let pageDimensions = $state.raw<{ width: number; height: number }[]>([])
     let scrollTop = $state(0)
     let containerHeight = $state(0)
     let isMobile = $state(false)
@@ -175,6 +175,8 @@
     let annotationLayer2 = $state<HTMLDivElement | null>(null)
     let textLayer1RenderCount = $state(0)
     let textLayer2RenderCount = $state(0)
+    let cachedSpanRanges1: any[] | null = null
+    let cachedSpanRanges2: any[] | null = null
 
     $effect(() => {
         const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
@@ -264,42 +266,109 @@
             : 0,
     )
 
-    function handleScroll(e: Event) {
-        if (!hasRestoredScroll) return
+    let lastUpdatedScrollTop = 0
+    let scrollEndTimeout: ReturnType<typeof setTimeout> | undefined
 
-        const target = e.target as HTMLElement
-        scrollTop = target.scrollTop
-        containerHeight = target.clientHeight
+    $effect(() => {
+        return () => {
+            if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+        }
+    })
 
-        if (isAutoScrolling) return
+    function findPageAtOffset(offset: number): number {
+        if (pageOffsets.length === 0) return 1
+        let low = 0
+        let high = pageOffsets.length - 1
+        while (low <= high) {
+            const mid = (low + high) >> 1
+            const top = pageOffsets[mid]
+            const height = getPageHeight(pageDimensions[mid]) + PAGE_GAP
+            if (offset >= top && offset < top + height) {
+                return mid + 1
+            } else if (offset < top) {
+                high = mid - 1
+            } else {
+                low = mid + 1
+            }
+        }
+        if (offset < pageOffsets[0]) return 1
+        return pageOffsets.length
+    }
+
+    function syncScrollState(
+        currentScrollTop: number,
+        currentContainerHeight: number,
+        scrollHeight: number,
+    ) {
+        scrollTop = currentScrollTop
+        containerHeight = currentContainerHeight
+        lastUpdatedScrollTop = currentScrollTop
 
         if (layoutMode === "scroll") {
             if (pageOffsets.length === 0) return
-            if (lastObservedPage === -1) return
+            const viewportMiddle = currentScrollTop + currentContainerHeight / 2
 
-            const viewportMiddle = scrollTop + containerHeight / 2
-
-            let foundPage = 1
-            for (let i = 0; i < pageOffsets.length; i++) {
-                const top = pageOffsets[i]
-                const height = getPageHeight(pageDimensions[i]) + PAGE_GAP
-                if (viewportMiddle >= top && viewportMiddle < top + height) {
-                    foundPage = i + 1
-                    break
-                }
-            }
+            const foundPage = findPageAtOffset(viewportMiddle)
 
             if (foundPage !== currentPage) {
                 lastObservedPage = foundPage
                 currentPage = foundPage
             }
-
             const pageTop = pageOffsets[foundPage - 1]
             const pageHeight = getPageHeight(pageDimensions[foundPage - 1])
-            scrollPosition = (scrollTop - pageTop) / pageHeight
+            scrollPosition = (currentScrollTop - pageTop) / pageHeight
         } else {
-            const scrollHeight = target.scrollHeight - containerHeight
-            scrollPosition = scrollHeight > 0 ? scrollTop / scrollHeight : 0
+            scrollPosition = scrollHeight > 0 ? currentScrollTop / scrollHeight : 0
+        }
+    }
+
+    function handleScroll(e: Event) {
+        if (!hasRestoredScroll) return
+
+        const target = e.target as HTMLElement
+        const currentScrollTop = target.scrollTop
+        const currentContainerHeight = target.clientHeight
+
+        if (isAutoScrolling) return
+
+        let shouldUpdate = false
+        let foundPage = currentPage
+
+        if (layoutMode === "scroll") {
+            if (pageOffsets.length === 0) return
+            if (lastObservedPage === -1) return
+
+            const viewportMiddle = currentScrollTop + currentContainerHeight / 2
+
+            foundPage = findPageAtOffset(viewportMiddle)
+
+            if (
+                foundPage !== currentPage ||
+                Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30
+            ) {
+                shouldUpdate = true
+            }
+        } else {
+            if (Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30) {
+                shouldUpdate = true
+            }
+        }
+
+        if (shouldUpdate) {
+            syncScrollState(currentScrollTop, currentContainerHeight, target.scrollHeight)
+        }
+
+        if (typeof window !== "undefined" && !("onscrollend" in window)) {
+            if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+            scrollEndTimeout = setTimeout(() => {
+                if (container && hasRestoredScroll) {
+                    syncScrollState(
+                        container.scrollTop,
+                        container.clientHeight,
+                        container.scrollHeight,
+                    )
+                }
+            }, 150)
         }
     }
 
@@ -442,10 +511,8 @@
         signal?: AbortSignal,
     ) {
         try {
-            const { textContent, viewport } = await targetPdf.getTextAndViewport(
-                pageNo,
-                targetScale,
-            )
+            const { pageProxy, textContent, annotations, viewport } =
+                await targetPdf.getPageDataForRendering(pageNo, targetScale)
             if (signal?.aborted) return
 
             textContainer.innerHTML = ""
@@ -463,20 +530,16 @@
             }
 
             if (textContainer === textLayer1) {
+                cachedSpanRanges1 = null
                 textLayer1RenderCount += 1
             } else if (textContainer === textLayer2) {
+                cachedSpanRanges2 = null
                 textLayer2RenderCount += 1
             }
 
             if (annotationContainer) {
                 annotationContainer.innerHTML = ""
-                const annotations = await targetPdf.getAnnotations(pageNo)
-                if (signal?.aborted) return
-
                 if (annotations.length === 0) return
-
-                const pageProxy = await targetPdf.getPageProxy(pageNo)
-                if (signal?.aborted) return
 
                 const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
                     if (viewerStore.goToPage) {
@@ -571,31 +634,39 @@
         }
     })
 
-    function highlightPage(pageNumber: number, textContainer: HTMLElement) {
+    function highlightPage(pageNumber: number, textContainer: HTMLElement, cacheKey: 1 | 2) {
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNumber)
         const ranges: Range[] = []
 
         if (matches.length > 0) {
-            const spans = Array.from(textContainer.querySelectorAll("span"))
-            let currentOffset = 0
-            const spanRanges = spans.map((span) => {
-                const text = span.textContent || ""
-                const len = text.length
-                const entry = {
-                    span,
-                    textNode: span.firstChild || span,
-                    start: currentOffset,
-                    end: currentOffset + len,
+            let spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
+            if (!spanRanges) {
+                const spans = Array.from(textContainer.querySelectorAll("span"))
+                let currentOffset = 0
+                spanRanges = spans.map((span) => {
+                    const text = span.textContent || ""
+                    const len = text.length
+                    const entry = {
+                        span,
+                        textNode: span.firstChild || span,
+                        start: currentOffset,
+                        end: currentOffset + len,
+                    }
+                    currentOffset += len
+                    return entry
+                })
+                if (cacheKey === 1) {
+                    cachedSpanRanges1 = spanRanges
+                } else {
+                    cachedSpanRanges2 = spanRanges
                 }
-                currentOffset += len
-                return entry
-            })
+            }
 
             matches.forEach((match) => {
-                const startEntry = spanRanges.find(
+                const startEntry = spanRanges!.find(
                     (entry) => entry.start <= match.start && entry.end > match.start,
                 )
-                const endEntry = spanRanges.find(
+                const endEntry = spanRanges!.find(
                     (entry) => entry.start <= match.end && entry.end >= match.end,
                 )
 
@@ -660,7 +731,7 @@
 
         untrack(() => {
             if (textLayer1 && pdf && !isPageLoading) {
-                highlightPage(pageNo, textLayer1)
+                highlightPage(pageNo, textLayer1, 1)
             }
         })
         return () => {
@@ -677,7 +748,7 @@
 
         untrack(() => {
             if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
-                highlightPage(pageNo, textLayer2)
+                highlightPage(pageNo, textLayer2, 2)
             }
         })
         return () => {
@@ -789,6 +860,10 @@
             if (isAutoScrolling) {
                 isAutoScrolling = false
                 if (autoScrollTimeout) clearTimeout(autoScrollTimeout)
+            }
+            // Sync final exact scroll state when scroll ends
+            if (container && hasRestoredScroll) {
+                syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
             }
         }}
     >

@@ -15,7 +15,7 @@ export interface SearchMatch {
 
 class SearchStore {
     query = $state("")
-    matches = $state<SearchMatch[]>([])
+    matches = $state.raw<SearchMatch[]>([])
     private _currentMatchIndex = $state(-1)
     get currentMatchIndex() {
         return this._currentMatchIndex
@@ -126,7 +126,7 @@ class SearchStore {
                 tasks.push(
                     limit(async () => {
                         if (this.currentPdf !== pdf) return
-                        const textContent = await pdf.getTextContent(pageNum)
+                        const textContent = await pdf.getTextContent(pageNum, true)
                         const text = textContent.items.map((item: any) => item.str).join("")
                         this.pageTexts.set(pageNum, {
                             original: text,

@@ -94,10 +94,8 @@
 
         const renderLayers = async () => {
             try {
-                const { textContent, viewport } = await pdf.getTextAndViewport(
-                    pageNumber,
-                    currentScale,
-                )
+                const { pageProxy, textContent, annotations, viewport } =
+                    await pdf.getPageDataForRendering(pageNumber, currentScale)
                 if (controller.signal.aborted) return
 
                 textContainer.innerHTML = ""
@@ -114,16 +112,11 @@
                     textContainer.innerHTML = ""
                     return
                 }
+                cachedSpanRanges = null
                 textLayerRenderCount += 1
 
                 annotationContainer.innerHTML = ""
-                const annotations = await pdf.getAnnotations(pageNumber)
-                if (controller.signal.aborted) return
-
                 if (annotations.length === 0) return
-
-                const pageProxy = await pdf.getPageProxy(pageNumber)
-                if (controller.signal.aborted) return
 
                 const linkService = new ViewerLinkService(pdf, (targetPage) => {
                     if (viewerStore.goToPage) {
@@ -173,6 +166,7 @@
     })
 
     let textLayerRenderCount = $state(0)
+    let cachedSpanRanges: any[] | null = null
 
     $effect(() => {
         const count = textLayerRenderCount
@@ -196,26 +190,28 @@
         const ranges: Range[] = []
 
         if (matches.length > 0) {
-            const spans = Array.from(textContainer.querySelectorAll("span"))
-            let currentOffset = 0
-            const spanRanges = spans.map((span) => {
-                const text = span.textContent || ""
-                const len = text.length
-                const entry = {
-                    span,
-                    textNode: span.firstChild || span,
-                    start: currentOffset,
-                    end: currentOffset + len,
-                }
-                currentOffset += len
-                return entry
-            })
+            if (!cachedSpanRanges) {
+                const spans = Array.from(textContainer.querySelectorAll("span"))
+                let currentOffset = 0
+                cachedSpanRanges = spans.map((span) => {
+                    const text = span.textContent || ""
+                    const len = text.length
+                    const entry = {
+                        span,
+                        textNode: span.firstChild || span,
+                        start: currentOffset,
+                        end: currentOffset + len,
+                    }
+                    currentOffset += len
+                    return entry
+                })
+            }
 
             matches.forEach((match) => {
-                const startEntry = spanRanges.find(
+                const startEntry = cachedSpanRanges!.find(
                     (entry) => entry.start <= match.start && entry.end > match.start,
                 )
-                const endEntry = spanRanges.find(
+                const endEntry = cachedSpanRanges!.find(
                     (entry) => entry.start <= match.end && entry.end >= match.end,
                 )
 
