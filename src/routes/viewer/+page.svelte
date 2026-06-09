@@ -519,28 +519,33 @@
         if (isLoaded) {
             const cPage = currentPage
             const sPos = scrollPosition
-            untrack(() => {
-                const book = viewerStore.getCurrentBook()
-                if (book) {
-                    // Update reactive state immediately for responsiveness
-                    book.pageNumber = cPage
-                    book.scrollPosition = sPos
+            const activeBook = viewerStore.getCurrentBook()
+            if (!activeBook) return
 
-                    // Debounce the persistent DB update
-                    if (updateTimeout) clearTimeout(updateTimeout)
-                    updateTimeout = setTimeout(() => {
-                        viewerStore.updateBook({ ...book, pageNumber: cPage, scrollPosition: sPos })
-                    }, 500)
-                }
+            untrack(() => {
+                // Update reactive state immediately for responsiveness
+                activeBook.pageNumber = cPage
+                activeBook.scrollPosition = sPos
+
+                // Debounce the persistent DB update
+                if (updateTimeout) clearTimeout(updateTimeout)
+                updateTimeout = setTimeout(() => {
+                    viewerStore.updateBook({
+                        ...activeBook,
+                        pageNumber: cPage,
+                        scrollPosition: sPos,
+                    })
+                }, 500)
             })
 
             return () => {
                 if (updateTimeout) {
                     clearTimeout(updateTimeout)
-                    const book = viewerStore.getCurrentBook()
-                    if (book) {
-                        viewerStore.updateBook({ ...book, pageNumber: cPage, scrollPosition: sPos })
-                    }
+                    viewerStore.updateBook({
+                        ...activeBook,
+                        pageNumber: cPage,
+                        scrollPosition: sPos,
+                    })
                 }
             }
         }

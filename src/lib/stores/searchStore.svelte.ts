@@ -12,13 +12,21 @@ export interface SearchMatch {
 class SearchStore {
     query = $state("")
     matches = $state<SearchMatch[]>([])
-    currentMatchIndex = $state(-1)
+    private _currentMatchIndex = $state(-1)
+    get currentMatchIndex() {
+        return this._currentMatchIndex
+    }
+    set currentMatchIndex(value: number) {
+        this._currentMatchIndex = value
+        this.updateCSSHighlights()
+    }
+
     isIndexing = $state(false)
     isSearching = $state(false)
     pageTexts = new SvelteMap<number, { original: string; lower: string }>()
 
     private currentPdf: PDFDocument | null = null
-    private pageRanges = new Map<number, { matchRanges: Range[]; activeRanges: Range[] }>()
+    private pageRanges = new Map<number, Range[]>()
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
 
@@ -29,7 +37,7 @@ class SearchStore {
         this.query = ""
         uiStore.prompt.clearValue("search")
         this.matches = []
-        this.currentMatchIndex = -1
+        this._currentMatchIndex = -1
         this.isSearching = false
         this.pageTexts.clear()
         this.pageRanges.clear()
@@ -87,8 +95,9 @@ class SearchStore {
         const trimmed = newQuery.trim()
         if (!trimmed) {
             this.matches = []
-            this.currentMatchIndex = -1
+            this._currentMatchIndex = -1
             this.isSearching = false
+            this.pageRanges.clear()
             this.updateCSSHighlights()
             return
         }
@@ -106,7 +115,7 @@ class SearchStore {
 
         const matchesList: SearchMatch[] = []
         this.matches = []
-        this.currentMatchIndex = -1
+        this._currentMatchIndex = -1
         this.isSearching = true
 
         const qLower = q.toLowerCase()
@@ -138,8 +147,8 @@ class SearchStore {
                 const now = performance.now()
                 if (pageMatchesFound && now - lastUpdateTime > 100) {
                     this.matches = [...matchesList]
-                    if (this.currentMatchIndex === -1 && this.matches.length > 0) {
-                        this.currentMatchIndex = 0
+                    if (this._currentMatchIndex === -1 && this.matches.length > 0) {
+                        this._currentMatchIndex = 0
                         this.goToCurrentMatch()
                     }
                     this.updateCSSHighlights()
@@ -159,8 +168,8 @@ class SearchStore {
 
             if (!signal.aborted) {
                 this.matches = matchesList
-                if (this.currentMatchIndex === -1 && this.matches.length > 0) {
-                    this.currentMatchIndex = 0
+                if (this._currentMatchIndex === -1 && this.matches.length > 0) {
+                    this._currentMatchIndex = 0
                     this.goToCurrentMatch()
                 }
                 this.updateCSSHighlights()
@@ -197,8 +206,32 @@ class SearchStore {
         }
     }
 
-    registerPageRanges(pageNumber: number, matchRanges: Range[], activeRanges: Range[]) {
-        this.pageRanges.set(pageNumber, { matchRanges, activeRanges })
+    get activeRange(): Range | null {
+        if (this._currentMatchIndex < 0 || this._currentMatchIndex >= this.matches.length) {
+            return null
+        }
+        const activeMatch = this.matches[this._currentMatchIndex]
+        const ranges = this.pageRanges.get(activeMatch.pageNumber)
+        if (!ranges) return null
+
+        // Scan backward to count how many matches on the same page precede activeMatch
+        let indexOnPage = 0
+        for (let i = this._currentMatchIndex - 1; i >= 0; i--) {
+            if (this.matches[i].pageNumber === activeMatch.pageNumber) {
+                indexOnPage++
+            } else {
+                break
+            }
+        }
+
+        if (indexOnPage < ranges.length) {
+            return ranges[indexOnPage]
+        }
+        return null
+    }
+
+    registerPageRanges(pageNumber: number, ranges: Range[]) {
+        this.pageRanges.set(pageNumber, ranges)
         this.updateCSSHighlights()
     }
 
@@ -214,10 +247,24 @@ class SearchStore {
 
         const allMatchRanges: Range[] = []
         const allActiveRanges: Range[] = []
+        const activeRange = this.activeRange
 
-        for (const { matchRanges, activeRanges } of this.pageRanges.values()) {
-            allMatchRanges.push(...matchRanges)
-            allActiveRanges.push(...activeRanges)
+        for (const ranges of this.pageRanges.values()) {
+            for (const r of ranges) {
+                if (
+                    r &&
+                    r.startContainer &&
+                    r.startContainer.isConnected &&
+                    r.endContainer &&
+                    r.endContainer.isConnected
+                ) {
+                    if (r === activeRange) {
+                        allActiveRanges.push(r)
+                    } else {
+                        allMatchRanges.push(r)
+                    }
+                }
+            }
         }
 
         try {

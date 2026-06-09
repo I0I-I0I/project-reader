@@ -126,7 +126,7 @@
         return scale
     })
 
-    const getPageHeight = $derived((dim: { width: number; height: number }) => {
+    function getPageHeight(dim: { width: number; height: number }) {
         if (uiStore.isCompact && containerWidth > 0) {
             if (isShortHeight) {
                 return containerWidth * (dim.height / dim.width) * (scale / 1.5)
@@ -134,7 +134,7 @@
             return containerWidth * (dim.height / dim.width)
         }
         return dim.height * scale
-    })
+    }
 
     const wrapperStyle = $derived.by(() => {
         if (!pdf || !pdf.defaultWidth || !pdf.defaultHeight) {
@@ -230,6 +230,8 @@
     )
 
     function handleScroll(e: Event) {
+        if (!hasRestoredScroll) return
+
         const target = e.target as HTMLElement
         scrollTop = target.scrollTop
         containerHeight = target.clientHeight
@@ -310,6 +312,7 @@
         const offsets = pageOffsets
 
         untrack(() => {
+            if (!hasRestoredScroll) return
             if (lastScale === -1) {
                 lastScale = currentScale
             }
@@ -350,6 +353,9 @@
     $effect(() => {
         const _pdf = pdf
         const _layout = layoutMode
+        // Track currentPage only for single/split layouts.
+        // In scroll layout, the user scrolling changes currentPage, so resetting here would hijack the scroll.
+        const _page = layoutMode !== "scroll" ? currentPage : null
         untrack(() => {
             hasRestoredScroll = false
         })
@@ -364,6 +370,8 @@
 
             const targetScrollPosition = scrollPosition
             if (targetScrollPosition === 0) {
+                lastObservedPage = currentPage
+                container!.scrollTo({ top: 0, behavior: "auto" })
                 hasRestoredScroll = true
                 return
             }
@@ -385,6 +393,7 @@
                     behavior: "auto",
                 })
             }
+            lastObservedPage = currentPage
             hasRestoredScroll = true
         })
     })
@@ -513,8 +522,7 @@
 
     function highlightPage(pageNumber: number, textContainer: HTMLElement) {
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNumber)
-        const matchRanges: Range[] = []
-        const activeRanges: Range[] = []
+        const ranges: Range[] = []
 
         if (matches.length > 0) {
             const spans = Array.from(textContainer.querySelectorAll("span"))
@@ -545,25 +553,16 @@
                         const range = new Range()
                         range.setStart(startEntry.textNode, match.start - startEntry.start)
                         range.setEnd(endEntry.textNode, match.end - endEntry.start)
-
-                        const matchIdxInGlobal = searchStore.matches.indexOf(match)
-                        if (matchIdxInGlobal === searchStore.currentMatchIndex) {
-                            activeRanges.push(range)
-                        } else {
-                            matchRanges.push(range)
-                        }
+                        ranges.push(range)
                     } catch (e) {
                         console.error("[CanvasPane] Failed to create highlight range:", e)
+                        ranges.push(null as any) // Keep index aligned
                     }
                 }
             })
         }
 
-        searchStore.registerPageRanges(pageNumber, matchRanges, activeRanges)
-
-        if (activeRanges.length > 0) {
-            scrollToActiveRange(activeRanges[0])
-        }
+        searchStore.registerPageRanges(pageNumber, ranges)
     }
 
     function scrollToActiveRange(range: Range) {
@@ -590,21 +589,22 @@
         const rangeTopInContainer = rangeRect.top - containerRect.top + container.scrollTop
         const rangeLeftInContainer = rangeRect.left - containerRect.left + container.scrollLeft
 
-        const targetScrollTop = rangeTopInContainer - (container.clientHeight / 2) + (rangeRect.height / 2)
-        const targetScrollLeft = rangeLeftInContainer - (container.clientWidth / 2) + (rangeRect.width / 2)
+        const targetScrollTop =
+            rangeTopInContainer - container.clientHeight / 2 + rangeRect.height / 2
+        const targetScrollLeft =
+            rangeLeftInContainer - container.clientWidth / 2 + rangeRect.width / 2
 
         const behavior = settingsStore.animations ? "smooth" : "auto"
         container.scrollTo({
             top: targetScrollTop,
             left: targetScrollLeft,
-            behavior
+            behavior,
         })
     }
 
     $effect(() => {
         const count = textLayer1RenderCount
         const matches = searchStore.matches
-        const activeIdx = searchStore.currentMatchIndex
 
         if (textLayer1 && pdf && !isPageLoading) {
             highlightPage(currentPage, textLayer1)
@@ -617,13 +617,20 @@
     $effect(() => {
         const count = textLayer2RenderCount
         const matches = searchStore.matches
-        const activeIdx = searchStore.currentMatchIndex
 
         if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
             highlightPage(currentPage + 1, textLayer2)
         }
         return () => {
             searchStore.unregisterPageRanges(currentPage + 1)
+        }
+    })
+
+    $effect(() => {
+        if (!uiStore.isSearchModeActive) return
+        const activeRange = searchStore.activeRange
+        if (activeRange && container) {
+            scrollToActiveRange(activeRange)
         }
     })
 </script>

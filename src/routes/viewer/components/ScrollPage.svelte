@@ -174,7 +174,6 @@
     $effect(() => {
         const count = textLayerRenderCount
         const matches = searchStore.matches
-        const activeIdx = searchStore.currentMatchIndex
 
         if (textLayerContainer && pdf) {
             highlightPage(pageNumber, textLayerContainer)
@@ -186,8 +185,7 @@
 
     function highlightPage(pageNo: number, textContainer: HTMLElement) {
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNo)
-        const matchRanges: Range[] = []
-        const activeRanges: Range[] = []
+        const ranges: Range[] = []
 
         if (matches.length > 0) {
             const spans = Array.from(textContainer.querySelectorAll("span"))
@@ -218,60 +216,16 @@
                         const range = new Range()
                         range.setStart(startEntry.textNode, match.start - startEntry.start)
                         range.setEnd(endEntry.textNode, match.end - endEntry.start)
-
-                        const matchIdxInGlobal = searchStore.matches.indexOf(match)
-                        if (matchIdxInGlobal === searchStore.currentMatchIndex) {
-                            activeRanges.push(range)
-                        } else {
-                            matchRanges.push(range)
-                        }
+                        ranges.push(range)
                     } catch (e) {
                         console.error("[ScrollPage] Failed to create highlight range:", e)
+                        ranges.push(null as any) // Keep index aligned
                     }
                 }
             })
         }
 
-        searchStore.registerPageRanges(pageNo, matchRanges, activeRanges)
-
-        if (activeRanges.length > 0) {
-            scrollToActiveRange(activeRanges[0])
-        }
-    }
-
-    function scrollToActiveRange(range: Range) {
-        requestAnimationFrame(() => {
-            const container = document.querySelector(".canvas-frame")
-            if (!container) return
-
-            let rangeRect = range.getBoundingClientRect()
-            if (rangeRect.width === 0 || rangeRect.height === 0) {
-                requestAnimationFrame(() => {
-                    rangeRect = range.getBoundingClientRect()
-                    if (rangeRect.width > 0 && rangeRect.height > 0) {
-                        performScroll(container, rangeRect)
-                    }
-                })
-            } else {
-                performScroll(container, rangeRect)
-            }
-        })
-    }
-
-    function performScroll(container: Element, rangeRect: DOMRect) {
-        const containerRect = container.getBoundingClientRect()
-        const rangeTopInContainer = rangeRect.top - containerRect.top + container.scrollTop
-        const rangeLeftInContainer = rangeRect.left - containerRect.left + container.scrollLeft
-
-        const targetScrollTop = rangeTopInContainer - (container.clientHeight / 2) + (rangeRect.height / 2)
-        const targetScrollLeft = rangeLeftInContainer - (container.clientWidth / 2) + (rangeRect.width / 2)
-
-        const behavior = settingsStore.animations ? "smooth" : "auto"
-        container.scrollTo({
-            top: targetScrollTop,
-            left: targetScrollLeft,
-            behavior
-        })
+        searchStore.registerPageRanges(pageNo, ranges)
     }
 </script>
 
