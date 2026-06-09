@@ -136,11 +136,14 @@
         return dim.height * scale
     }
 
-    const wrapperStyle = $derived.by(() => {
-        if (!pdf || !pdf.defaultWidth || !pdf.defaultHeight) {
-            return `width: ${612 * effectiveScale}px; height: ${792 * effectiveScale}px; --aspect-ratio: 612 / 792;`
-        }
-        return `width: ${pdf.defaultWidth * effectiveScale}px; height: ${pdf.defaultHeight * effectiveScale}px; --aspect-ratio: ${pdf.defaultWidth} / ${pdf.defaultHeight};`
+    const wrapperStyle1 = $derived.by(() => {
+        const dim = currentPageDim1 || (pdf ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 } : { width: 612, height: 792 })
+        return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
+    })
+
+    const wrapperStyle2 = $derived.by(() => {
+        const dim = currentPageDim2 || (pdf ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 } : { width: 612, height: 792 })
+        return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
     let container = $state<HTMLElement | null>(null)
@@ -153,6 +156,9 @@
     let containerHeight = $state(0)
     let isMobile = $state(false)
     let isStackedMode = $state(false)
+
+    let currentPageDim1 = $state<{ width: number; height: number } | null>(null)
+    let currentPageDim2 = $state<{ width: number; height: number } | null>(null)
 
     let textLayer1 = $state<HTMLElement | null>(null)
     let textLayer2 = $state<HTMLElement | null>(null)
@@ -185,6 +191,26 @@
         return () => {
             mediaQuery.removeEventListener("change", handler)
         }
+    })
+
+    $effect(() => {
+        if (!pdf || layoutMode === "scroll") return
+
+        const p1 = currentPage
+        const p2 = layoutMode === "split" ? currentPage + 1 : null
+
+        untrack(() => {
+            pdf!.getPageDimension(p1).then((dim: { width: number; height: number }) => {
+                currentPageDim1 = dim
+            })
+            if (p2 && p2 <= pdf!.pagesCount) {
+                pdf!.getPageDimension(p2).then((dim: { width: number; height: number }) => {
+                    currentPageDim2 = dim
+                })
+            } else {
+                currentPageDim2 = null
+            }
+        })
     })
 
     const PAGE_GAP = $derived(uiStore.isCompact && !isShortHeight ? 2 : isMobile ? 16 : 80)
@@ -666,7 +692,7 @@
         <div class="pages-container" class:split-mode={layoutMode === "split"}>
             {#if layoutMode === "split" && currentPageImage2 && !isStackedMode}
                 <div class="book-spread">
-                    <div class="pdf-image-wrapper split-left" style={wrapperStyle}>
+                    <div class="pdf-image-wrapper split-left" style={wrapperStyle1}>
                         <img
                             src={currentPageImage}
                             alt={m.page_render_alt({ page: currentPage })}
@@ -676,7 +702,7 @@
                         <div bind:this={annotationLayer1} class="annotationLayer"></div>
                     </div>
                     <div class="book-spine"></div>
-                    <div class="pdf-image-wrapper split-right" style={wrapperStyle}>
+                    <div class="pdf-image-wrapper split-right" style={wrapperStyle2}>
                         <img
                             src={currentPageImage2}
                             alt={m.page_render_alt({ page: currentPage + 1 })}
@@ -687,7 +713,7 @@
                     </div>
                 </div>
             {:else}
-                <div class="pdf-image-wrapper" style={wrapperStyle}>
+                <div class="pdf-image-wrapper" style={wrapperStyle1}>
                     <img
                         src={currentPageImage}
                         alt={m.page_render_alt({ page: currentPage })}
@@ -697,7 +723,7 @@
                     <div bind:this={annotationLayer1} class="annotationLayer"></div>
                 </div>
                 {#if layoutMode === "split" && currentPageImage2}
-                    <div class="pdf-image-wrapper" style={wrapperStyle}>
+                    <div class="pdf-image-wrapper" style={wrapperStyle2}>
                         <img
                             src={currentPageImage2}
                             alt={m.page_render_alt({ page: currentPage + 1 })}

@@ -29,6 +29,7 @@ interface DocumentInterface {
     getTitle(): Promise<string | null>
     getPageNumber(): Promise<number>
     getPage(pageNumber: number): Promise<Page>
+    getPageDimension(pageNumber: number): Promise<{ width: number; height: number }>
     getCanvasPage(page: Page, scale?: number, signal?: AbortSignal): Promise<string>
     getAllPageDimensions(): Promise<{ width: number; height: number }[]>
     getTextContent(pageNumber: number): Promise<TextContent>
@@ -51,9 +52,10 @@ export default class PDFDocument implements DocumentInterface {
     private pageCount = 0
     public defaultWidth: number | null = null
     public defaultHeight: number | null = null
+    private pageDimensionsCache = new Map<number, { width: number; height: number }>()
     private pageCache = new Map<number, string>()
     private pageCacheOrder: number[] = []
-    private readonly MAX_PAGE_CACHE_SIZE = 30
+    private readonly MAX_PAGE_CACHE_SIZE = 10
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyCacheOrder: number[] = []
@@ -79,6 +81,7 @@ export default class PDFDocument implements DocumentInterface {
                     const viewport = firstPage.getViewport({ scale: 1 })
                     this.defaultWidth = viewport.width
                     this.defaultHeight = viewport.height
+                    this.pageDimensionsCache.set(1, { width: viewport.width, height: viewport.height })
                     firstPage.cleanup()
                 } catch (pageErr) {
                     console.warn(
@@ -119,41 +122,30 @@ export default class PDFDocument implements DocumentInterface {
         return new Page(pageNumber)
     }
 
+    async getPageDimension(pageNumber: number): Promise<{ width: number; height: number }> {
+        if (this.pageDimensionsCache.has(pageNumber)) {
+            return this.pageDimensionsCache.get(pageNumber)!
+        }
+        const page = await this.getPageProxy(pageNumber)
+        const viewport = page.getViewport({ scale: 1 })
+        const dims = { width: viewport.width, height: viewport.height }
+        this.pageDimensionsCache.set(pageNumber, dims)
+        return dims
+    }
+
     async getAllPageDimensions(): Promise<{ width: number; height: number }[]> {
-        const pdfDoc = this.getRequiredPdfDoc()
         const dimensions: { width: number; height: number }[] = []
+        const totalPages = this.pageCount
+        const chunkSize = 20
 
-        const batchSize = 10
-        for (let i = 1; i <= this.pageCount; i += batchSize) {
-            const end = Math.min(i + batchSize - 1, this.pageCount)
-            const batchPromises = []
+        for (let i = 1; i <= totalPages; i += chunkSize) {
+            const end = Math.min(i + chunkSize - 1, totalPages)
+            const tasks = []
             for (let j = i; j <= end; j++) {
-                batchPromises.push(pdfDoc.getPage(j))
+                tasks.push(this.getPageDimension(j))
             }
-
-            const pages = await Promise.all(
-                batchPromises.map((p) =>
-                    p.catch((err) => {
-                        console.warn(
-                            "[PDFDocument] Individual page fetch failed during dimension pass:",
-                            err,
-                        )
-                        return null
-                    }),
-                ),
-            )
-            for (const page of pages) {
-                if (page) {
-                    const viewport = page.getViewport({ scale: 1 })
-                    dimensions.push({ width: viewport.width, height: viewport.height })
-                    page.cleanup()
-                } else {
-                    dimensions.push({
-                        width: this.defaultWidth || 612,
-                        height: this.defaultHeight || 792,
-                    })
-                }
-            }
+            const chunkDims = await Promise.all(tasks)
+            dimensions.push(...chunkDims)
         }
 
         return dimensions

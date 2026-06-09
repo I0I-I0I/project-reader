@@ -64,7 +64,7 @@ class SearchStore {
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
 
-    async indexPdf(pdf: PDFDocument) {
+    initPdf(pdf: PDFDocument) {
         if (this.currentPdf === pdf) return
         this.currentPdf = pdf
 
@@ -86,6 +86,13 @@ class SearchStore {
             this.currentSearchAbortController = null
         }
 
+        this.isIndexing = false
+    }
+
+    async startIndexing() {
+        if (!this.currentPdf || this.isIndexing || this.pageTexts.size > 0) return
+
+        const pdf = this.currentPdf
         this.isIndexing = true
         const totalPages = pdf.pagesCount
 
@@ -100,7 +107,8 @@ class SearchStore {
                     lower: text.toLowerCase(),
                 })
 
-                if (i % 5 === 0) {
+                // Yield more frequently to keep UI responsive
+                if (i % 2 === 0) {
                     await new Promise((resolve) => setTimeout(resolve, 0))
                 }
             }

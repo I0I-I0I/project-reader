@@ -181,6 +181,12 @@
     usePrompt(viewerPromptProvider)
 
     $effect(() => {
+        if (uiStore.prompt.mode === "search" && uiStore.prompt.isOpen) {
+            searchStore.startIndexing()
+        }
+    })
+
+    $effect(() => {
         if (uiStore.prompt.mode === "search") {
             const query = uiStore.prompt.value
             untrack(() => {
@@ -584,12 +590,21 @@
             return () => {
                 if (updateTimeout) {
                     clearTimeout(updateTimeout)
-                    viewerStore.updateBook({
-                        ...activeBook,
-                        pageNumber: cPage,
-                        scrollPosition: sPos,
-                    })
                 }
+            }
+        }
+    })
+
+    // Ensure final save on unmount
+    $effect(() => {
+        return () => {
+            const activeBook = untrack(() => viewerStore.getCurrentBook())
+            if (activeBook && isLoaded) {
+                viewerStore.updateBook({
+                    ...activeBook,
+                    pageNumber: untrack(() => currentPage),
+                    scrollPosition: untrack(() => scrollPosition),
+                })
             }
         }
     })
@@ -668,7 +683,7 @@
                             currentPage = 1
                         }
                         isLoaded = true
-                        searchStore.indexPdf(doc)
+                        searchStore.initPdf(doc)
 
                         const currentBook = viewerStore.getCurrentBook()
                         if (currentBook && currentBook.totalPages !== pagesCount) {
@@ -1369,34 +1384,34 @@
     @media (--mobile) {
         :global(.fab-search),
         :global(.fab-next-search) {
-            bottom: calc(16px + 44px + 12px + 44px + 12px);
-            right: 16px;
+            bottom: calc(12px + 44px + 8px);
+            right: 12px;
         }
 
         :global(.fab-prev-search) {
-            bottom: calc(16px + 44px + 12px + 44px + 12px + 44px + 12px);
-            right: 16px;
+            bottom: calc(12px + 44px + 8px + 44px + 8px);
+            right: 12px;
         }
 
         :global(.fab-close-search) {
-            bottom: calc(16px + 44px + 12px + 44px + 12px + 44px + 12px + 44px + 12px);
-            right: 16px;
+            bottom: calc(12px + 44px + 8px + 44px + 8px + 44px + 8px);
+            right: 12px;
         }
 
         :global(.fab-prompt) {
-            bottom: calc(16px + 44px + 12px);
-            right: 16px;
+            bottom: 12px;
+            right: 12px;
         }
 
         :global(.fab-toggle) {
-            bottom: 16px;
-            right: 16px;
+            bottom: 12px;
+            right: 12px;
         }
 
         .search-fab-grid {
-            bottom: 16px;
-            right: 16px;
-            gap: 12px;
+            bottom: 12px;
+            right: 12px;
+            gap: 8px;
         }
     }
 
@@ -1437,8 +1452,8 @@
 
     @media (--mobile) {
         .search-match-badge {
-            bottom: 50px;
-            right: 124px;
+            bottom: 46px;
+            right: 116px;
             padding: 4px 8px;
             font-size: 12px;
             box-shadow: 2px 2px 0 var(--shadow-color);

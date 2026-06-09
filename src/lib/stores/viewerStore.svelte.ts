@@ -175,6 +175,19 @@ class ViewerStore {
         })
 
         if (this.book && this.book.id === book.id) {
+            // Avoid redundant state updates if data is identical
+            if (
+                this.book.pageNumber === book.pageNumber &&
+                this.book.scrollPosition === book.scrollPosition &&
+                this.book.name === book.name &&
+                this.book.isLocked === book.isLocked &&
+                this.book.pdfDest === book.pdfDest &&
+                this.book.totalPages === book.totalPages &&
+                this.book.author === book.author
+            ) {
+                return
+            }
+
             this.book = book
             this.persistToLocalStorage(false)
         }
