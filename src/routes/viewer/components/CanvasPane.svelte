@@ -318,7 +318,14 @@
             const pageHeight = getPageHeight(pageDimensions[foundPage - 1])
             scrollPosition = (currentScrollTop - pageTop) / pageHeight
         } else {
-            scrollPosition = scrollHeight > 0 ? currentScrollTop / scrollHeight : 0
+            const pageEl = container?.querySelector(".pdf-image-wrapper, .book-spread") as HTMLElement | null
+            if (pageEl) {
+                const pageHeight = pageEl.offsetHeight
+                const pageTop = pageEl.offsetTop
+                scrollPosition = pageHeight > 0 ? Math.max(0, (currentScrollTop - pageTop) / pageHeight) : 0
+            } else {
+                scrollPosition = 0
+            }
         }
     }
 
@@ -491,11 +498,20 @@
                     })
                 }
             } else {
-                const scrollHeight = container!.scrollHeight - containerHeight
-                container!.scrollTo({
-                    top: targetScrollPosition * scrollHeight,
-                    behavior: "auto",
-                })
+                const pageEl = container!.querySelector(".pdf-image-wrapper, .book-spread") as HTMLElement | null
+                if (pageEl) {
+                    const pageHeight = pageEl.offsetHeight
+                    const pageTop = pageEl.offsetTop
+                    container!.scrollTo({
+                        top: pageTop + targetScrollPosition * pageHeight,
+                        behavior: "auto",
+                    })
+                } else {
+                    container!.scrollTo({
+                        top: 0,
+                        behavior: "auto",
+                    })
+                }
             }
             lastObservedPage = currentPage
             hasRestoredScroll = true

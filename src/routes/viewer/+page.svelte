@@ -1,5 +1,5 @@
 <script lang="ts">
-    import PDFDocument from "$lib/pdf"
+    import PDFDocument, { Page } from "$lib/pdf"
     import type { FlatHeading } from "$lib/pdf"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import Button from "$lib/components/ui/Button.svelte"
@@ -818,6 +818,21 @@
                             currentPageImage2 = img2
                             isPageLoading = false
                         })
+
+                        // Silently prerender the next 2 pages
+                        const nextPages =
+                            mode === "split" ? [pageNo + 2, pageNo + 3] : [pageNo + 1, pageNo + 2]
+
+                        for (const nextPageNo of nextPages) {
+                            if (nextPageNo <= totalPages && !controller.signal.aborted) {
+                                try {
+                                    const page = new Page(nextPageNo)
+                                    await currentPdf.getCanvasPage(page, quality, controller.signal)
+                                } catch (err) {
+                                    // Silently ignore abortion/cancellation errors
+                                }
+                            }
+                        }
                     }
                 } catch (err: any) {
                     if (err.message?.startsWith("Rendering cancelled")) {
@@ -835,6 +850,39 @@
         })
 
         return () => {
+            controller.abort()
+        }
+    })
+
+    $effect(() => {
+        const currentPdf = pdf
+        const loaded = isLoaded
+        const layout = settingsStore.layout
+        const pageNo = currentPage
+        const quality = settingsStore.quality
+
+        if (!currentPdf || !loaded || layout !== "scroll") {
+            return
+        }
+
+        const controller = new AbortController()
+
+        const timeout = setTimeout(async () => {
+            const nextPages = [pageNo + 1, pageNo + 2]
+            for (const nextPageNo of nextPages) {
+                if (nextPageNo <= totalPages && !controller.signal.aborted) {
+                    try {
+                        const page = new Page(nextPageNo)
+                        await currentPdf.getCanvasPage(page, quality, controller.signal)
+                    } catch (err) {
+                        // Silently ignore abortion/cancellation errors
+                    }
+                }
+            }
+        }, 500)
+
+        return () => {
+            clearTimeout(timeout)
             controller.abort()
         }
     })
