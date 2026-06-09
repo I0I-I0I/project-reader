@@ -1,4 +1,6 @@
+import { SvelteMap } from "svelte/reactivity"
 import { viewerStore } from "./viewerStore.svelte"
+import { uiStore } from "./uiStore.svelte"
 import type PDFDocument from "$lib/pdf"
 
 export interface SearchMatch {
@@ -9,42 +11,38 @@ export interface SearchMatch {
 
 class SearchStore {
     query = $state("")
+    matches = $state<SearchMatch[]>([])
     currentMatchIndex = $state(-1)
     isIndexing = $state(false)
-    pageTexts = $state<Map<number, string>>(new Map())
+    isSearching = $state(false)
+    pageTexts = new SvelteMap<number, { original: string; lower: string }>()
 
     private currentPdf: PDFDocument | null = null
     private pageRanges = new Map<number, { matchRanges: Range[]; activeRanges: Range[] }>()
-
-    matches = $derived.by(() => {
-        const matchesList: SearchMatch[] = []
-        const q = this.query.trim().toLowerCase()
-        if (!q) return matchesList
-
-        for (const [pageNumber, text] of this.pageTexts.entries()) {
-            const lowerText = text.toLowerCase()
-            let idx = lowerText.indexOf(q)
-            while (idx !== -1) {
-                matchesList.push({
-                    pageNumber,
-                    start: idx,
-                    end: idx + q.length,
-                })
-                idx = lowerText.indexOf(q, idx + 1)
-            }
-        }
-        return matchesList
-    })
+    private searchTimeoutId: any = null
+    private currentSearchAbortController: AbortController | null = null
 
     async indexPdf(pdf: PDFDocument) {
         if (this.currentPdf === pdf) return
         this.currentPdf = pdf
 
         this.query = ""
+        uiStore.prompt.clearValue("search")
+        this.matches = []
         this.currentMatchIndex = -1
+        this.isSearching = false
         this.pageTexts.clear()
         this.pageRanges.clear()
         this.updateCSSHighlights()
+
+        if (this.searchTimeoutId) {
+            clearTimeout(this.searchTimeoutId)
+            this.searchTimeoutId = null
+        }
+        if (this.currentSearchAbortController) {
+            this.currentSearchAbortController.abort()
+            this.currentSearchAbortController = null
+        }
 
         this.isIndexing = true
         const totalPages = pdf.pagesCount
@@ -55,7 +53,10 @@ class SearchStore {
 
                 const textContent = await pdf.getTextContent(i)
                 const text = textContent.items.map((item: any) => item.str).join("")
-                this.pageTexts.set(i, text)
+                this.pageTexts.set(i, {
+                    original: text,
+                    lower: text.toLowerCase(),
+                })
 
                 if (i % 5 === 0) {
                     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -72,8 +73,106 @@ class SearchStore {
 
     setQuery(newQuery: string) {
         this.query = newQuery
-        this.currentMatchIndex = this.matches.length > 0 ? 0 : -1
-        this.goToCurrentMatch()
+
+        if (this.searchTimeoutId) {
+            clearTimeout(this.searchTimeoutId)
+            this.searchTimeoutId = null
+        }
+
+        if (this.currentSearchAbortController) {
+            this.currentSearchAbortController.abort()
+            this.currentSearchAbortController = null
+        }
+
+        const trimmed = newQuery.trim()
+        if (!trimmed) {
+            this.matches = []
+            this.currentMatchIndex = -1
+            this.isSearching = false
+            this.updateCSSHighlights()
+            return
+        }
+
+        this.isSearching = true
+        this.searchTimeoutId = setTimeout(() => {
+            this.runAsyncSearch(trimmed)
+        }, 150)
+    }
+
+    private async runAsyncSearch(q: string) {
+        const controller = new AbortController()
+        this.currentSearchAbortController = controller
+        const signal = controller.signal
+
+        const matchesList: SearchMatch[] = []
+        this.matches = []
+        this.currentMatchIndex = -1
+        this.isSearching = true
+
+        const qLower = q.toLowerCase()
+        let lastYieldTime = performance.now()
+        let lastUpdateTime = performance.now()
+
+        try {
+            for (const [pageNumber, page] of this.pageTexts.entries()) {
+                if (signal.aborted) return
+
+                const lowerText = page.lower
+                let idx = lowerText.indexOf(qLower)
+                let pageMatchesFound = false
+
+                while (idx !== -1) {
+                    matchesList.push({
+                        pageNumber,
+                        start: idx,
+                        end: idx + qLower.length,
+                    })
+                    pageMatchesFound = true
+
+                    if (matchesList.length >= 10000) {
+                        break
+                    }
+                    idx = lowerText.indexOf(qLower, idx + 1)
+                }
+
+                const now = performance.now()
+                if (pageMatchesFound && now - lastUpdateTime > 100) {
+                    this.matches = [...matchesList]
+                    if (this.currentMatchIndex === -1 && this.matches.length > 0) {
+                        this.currentMatchIndex = 0
+                        this.goToCurrentMatch()
+                    }
+                    this.updateCSSHighlights()
+                    lastUpdateTime = now
+                }
+
+                if (matchesList.length >= 10000) {
+                    break
+                }
+
+                if (performance.now() - lastYieldTime > 16) {
+                    await new Promise((resolve) => setTimeout(resolve, 0))
+                    lastYieldTime = performance.now()
+                    if (signal.aborted) return
+                }
+            }
+
+            if (!signal.aborted) {
+                this.matches = matchesList
+                if (this.currentMatchIndex === -1 && this.matches.length > 0) {
+                    this.currentMatchIndex = 0
+                    this.goToCurrentMatch()
+                }
+                this.updateCSSHighlights()
+            }
+        } catch (e) {
+            console.error("[SearchStore] Error during async search:", e)
+        } finally {
+            if (this.currentSearchAbortController === controller) {
+                this.isSearching = false
+                this.currentSearchAbortController = null
+            }
+        }
     }
 
     next() {

@@ -15,7 +15,6 @@
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
-    import SearchToolbar from "./components/SearchToolbar.svelte"
     import { resolve } from "$app/paths"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -26,16 +25,53 @@
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
     import SearchIcon from "$lib/components/icons/SearchIcon.svelte"
+    import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
 
     function getScrollContainer() {
         return document.querySelector(".canvas-frame")
+    }
+
+    function getMatchContext(text: string, start: number, end: number, contextLen = 40) {
+        const contextStart = Math.max(0, start - contextLen)
+        const contextEnd = Math.min(text.length, end + contextLen)
+        let context = text.slice(contextStart, contextEnd)
+        if (contextStart > 0) context = "..." + context
+        if (contextEnd < text.length) context = context + "..."
+        return context
     }
 
     const viewerPromptProvider: PromptProvider = ({ value, mode }) => {
         const list: SearchItem[] = []
         const activeTotalPages = viewerStore.activeTotalPages
 
-        if (mode === "page") {
+        if (mode === "search") {
+            const matches = searchStore.matches
+            const query = searchStore.query
+            // Limit suggestions in prompt dropdown to 200 to avoid crash/lag
+            const limit = 200
+            const count = Math.min(matches.length, limit)
+            for (let i = 0; i < count; i++) {
+                const match = matches[i]
+                const pageText = searchStore.pageTexts.get(match.pageNumber)
+                const text = pageText ? pageText.original : ""
+                const context = getMatchContext(text, match.start, match.end)
+
+                list.push({
+                    id: `search-match-${i}`,
+                    title: `${m.page()} ${match.pageNumber}`,
+                    subtitle: context,
+                    category: "navigation",
+                    action: () => {
+                        searchStore.currentMatchIndex = i
+                        if (viewerStore.goToPage) {
+                            viewerStore.goToPage(match.pageNumber)
+                        }
+                        uiStore.isSearchModeActive = true
+                        uiStore.prompt.isOpen = false
+                    },
+                })
+            }
+        } else if (mode === "page") {
             const num = parseInt(value.trim(), 10)
             const targetPage =
                 !isNaN(num) && num >= 1 ? (num > activeTotalPages ? activeTotalPages : num) : null
@@ -106,6 +142,18 @@
     }
 
     usePrompt(viewerPromptProvider)
+
+    $effect(() => {
+        if (uiStore.prompt.mode === "search") {
+            const query = uiStore.prompt.value
+            untrack(() => {
+                searchStore.setQuery(query)
+                if (query.trim() !== "") {
+                    uiStore.isSearchModeActive = true
+                }
+            })
+        }
+    })
 
     const commandsNode = useCommands([
         {
@@ -379,7 +427,22 @@
             category: "commands",
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                uiStore.isSearchModeActive = true
+                uiStore.prompt.mode = "search"
+                uiStore.prompt.isOpen = true
+            },
+        },
+        {
+            id: "close-search",
+            keys: "escape",
+            description: m.prompt_close_aria ? m.prompt_close_aria() : "Close search",
+            englishDescription: "Close search",
+            category: "commands",
+            action: () => {
+                if (uiStore.isSearchModeActive) {
+                    uiStore.isSearchModeActive = false
+                    searchStore.setQuery("")
+                    uiStore.prompt.clearValue("search")
+                }
             },
         },
         {
@@ -901,7 +964,74 @@
                             layoutMode={settingsStore.layout}
                         />
 
-                        {#if isLoaded && !uiStore.isSearchModeActive}
+                        {#if isLoaded && uiStore.isSearchModeActive}
+                            {#if searchStore.matches.length > 0}
+                                <div
+                                    class="search-match-badge {!uiStore.isToolbarsVisible
+                                        ? 'hidden-toolbars'
+                                        : ''}"
+                                >
+                                    {searchStore.currentMatchIndex + 1} / {searchStore.matches
+                                        .length}
+                                </div>
+                            {/if}
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
+                                class="viewer-fab-btn fab-close-search {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    uiStore.isSearchModeActive = false
+                                    searchStore.setQuery("")
+                                    uiStore.prompt.clearValue("search")
+                                }}
+                                aria-label={m.prompt_close_aria
+                                    ? m.prompt_close_aria()
+                                    : "Close search"}
+                                tooltip={`${m.prompt_close_aria ? m.prompt_close_aria() : "Close search"}${getShortcutHint(commandsNode, "close-search")}`}
+                            >
+                                ✕
+                            </Button>
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
+                                class="viewer-fab-btn fab-prev-search {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    searchStore.prev()
+                                }}
+                                aria-label={m.keymap_prev_match
+                                    ? m.keymap_prev_match()
+                                    : "Previous match"}
+                                tooltip={`${m.keymap_prev_match ? m.keymap_prev_match() : "Previous match"}${getShortcutHint(commandsNode, "prev-search-match")}`}
+                            >
+                                <ChevronIcon style="transform: rotate(180deg);" />
+                            </Button>
+                            <Button
+                                size="large"
+                                variant="fab"
+                                square={true}
+                                class="viewer-fab-btn fab-next-search {!uiStore.isToolbarsVisible
+                                    ? 'hidden-toolbars'
+                                    : ''}"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    searchStore.next()
+                                }}
+                                aria-label={m.keymap_next_match
+                                    ? m.keymap_next_match()
+                                    : "Next match"}
+                                tooltip={`${m.keymap_next_match ? m.keymap_next_match() : "Next match"}${getShortcutHint(commandsNode, "next-search-match")}`}
+                            >
+                                <ChevronIcon />
+                            </Button>
+                        {:else if isLoaded}
                             <Button
                                 size="large"
                                 variant="fab"
@@ -911,7 +1041,8 @@
                                     : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    uiStore.isSearchModeActive = true
+                                    uiStore.prompt.mode = "search"
+                                    uiStore.prompt.isOpen = true
                                 }}
                                 aria-label={m.keymap_search ? m.keymap_search() : "Search PDF"}
                                 tooltip={`${m.keymap_search ? m.keymap_search() : "Search PDF"}${getShortcutHint(commandsNode, "open-search")}`}
@@ -964,10 +1095,6 @@
                         {/if}
                     {/if}
                 </div>
-
-                {#if isLoaded && uiStore.isSearchModeActive}
-                    <SearchToolbar />
-                {/if}
 
                 {#if isLoaded && uiStore.isToolbarsVisible}
                     <div
@@ -1070,14 +1197,26 @@
         pointer-events: none;
     }
 
-    :global(.fab-search) {
+    :global(.fab-search),
+    :global(.fab-next-search) {
         bottom: calc(24px + 50px + 16px + 50px + 16px);
     }
 
-    :global(.fab-search.hidden-toolbars) {
+    :global(.fab-search.hidden-toolbars),
+    :global(.fab-next-search.hidden-toolbars),
+    :global(.fab-prev-search.hidden-toolbars),
+    :global(.fab-close-search.hidden-toolbars) {
         transform: translateX(100px);
         opacity: 0;
         pointer-events: none;
+    }
+
+    :global(.fab-prev-search) {
+        bottom: calc(24px + 50px + 16px + 50px + 16px + 50px + 16px);
+    }
+
+    :global(.fab-close-search) {
+        bottom: calc(24px + 50px + 16px + 50px + 16px + 50px + 16px + 50px + 16px);
     }
 
     :global(.fab-toggle) {
@@ -1087,8 +1226,19 @@
     }
 
     @media (--mobile) {
-        :global(.fab-search) {
+        :global(.fab-search),
+        :global(.fab-next-search) {
             bottom: calc(16px + 44px + 12px + 44px + 12px);
+            right: 16px;
+        }
+
+        :global(.fab-prev-search) {
+            bottom: calc(16px + 44px + 12px + 44px + 12px + 44px + 12px);
+            right: 16px;
+        }
+
+        :global(.fab-close-search) {
+            bottom: calc(16px + 44px + 12px + 44px + 12px + 44px + 12px + 44px + 12px);
             right: 16px;
         }
 
@@ -1109,6 +1259,43 @@
         }
         to {
             opacity: 1;
+        }
+    }
+
+    .search-match-badge {
+        position: absolute;
+        right: 90px;
+        bottom: calc(24px + 50px + 16px + 50px + 16px + 12px);
+        background: var(--surface-color);
+        color: var(--text-color);
+        border: 2.5px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        padding: 6px 12px;
+        font-family: inherit;
+        font-weight: 900;
+        font-size: 14px;
+        border-radius: 20px;
+        z-index: 200;
+        white-space: nowrap;
+        pointer-events: none;
+        transition:
+            transform 0.2s ease,
+            opacity 0.2s ease;
+    }
+
+    .search-match-badge.hidden-toolbars {
+        transform: translateX(100px);
+        opacity: 0;
+    }
+
+    @media (--mobile) {
+        .search-match-badge {
+            right: 76px;
+            bottom: calc(16px + 44px + 12px + 44px + 12px + 10px);
+            padding: 4px 8px;
+            font-size: 12px;
+            box-shadow: 2px 2px 0 var(--shadow-color);
+            border-width: 2px;
         }
     }
 </style>

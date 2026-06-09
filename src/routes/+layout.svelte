@@ -36,7 +36,6 @@
     let currentActiveNode = $state.raw<CommandNode | null>(null)
     let currentActivePromptNode = $state.raw<PromptNode | null>(null)
     let isHelpOpen = $state(false)
-    let promptValue = $state("")
 
     let rootNode: CommandNode
     let rootPromptNode: PromptNode
@@ -255,8 +254,10 @@
         // Clear/initialize search input whenever the prompt mode changes
         const _mode = uiStore.prompt.mode
         untrack(() => {
-            promptValue = uiStore.prompt.initialValue || ""
-            uiStore.prompt.initialValue = ""
+            if (uiStore.prompt.initialValue) {
+                uiStore.prompt.value = uiStore.prompt.initialValue
+                uiStore.prompt.initialValue = ""
+            }
         })
     })
 
@@ -332,7 +333,7 @@
     let promptItems = $derived.by(() => {
         const activeNode = currentActivePromptNode || rootPromptNode
         return activeNode.getAllItems({
-            value: promptValue,
+            value: uiStore.prompt.value,
             mode: uiStore.prompt.mode,
         })
     })
@@ -344,13 +345,13 @@
     {/if}
     {#if uiStore.prompt.isOpen}
         <Prompt
-            bind:value={promptValue}
+            bind:value={uiStore.prompt.value}
             items={promptItems}
             placeholder={promptPlaceholder}
             onClose={() => {
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
-                promptValue = ""
+                uiStore.prompt.value = ""
                 uiStore.nodeToMoveId = null
             }}
         />

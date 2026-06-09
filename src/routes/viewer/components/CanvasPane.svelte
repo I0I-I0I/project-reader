@@ -512,7 +512,6 @@
         const count = textLayer1RenderCount
         const matches = searchStore.matches
         const activeIdx = searchStore.currentMatchIndex
-        const query = searchStore.query
 
         if (textLayer1 && pdf && !isPageLoading) {
             highlightPage(currentPage, textLayer1)
@@ -526,7 +525,6 @@
         const count = textLayer2RenderCount
         const matches = searchStore.matches
         const activeIdx = searchStore.currentMatchIndex
-        const query = searchStore.query
 
         if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
             highlightPage(currentPage + 1, textLayer2)

@@ -12,6 +12,69 @@ type PromptMode =
     | "language"
     | "files-recursive"
     | "folders"
+    | "search"
+
+class PromptState {
+    #mode = $state<PromptMode>("global")
+    #value = $state("")
+    #initialValue = $state("")
+    #isOpen = $state(false)
+    #values = $state<Record<string, string>>({})
+
+    get mode(): PromptMode {
+        return this.#mode
+    }
+
+    set mode(val: PromptMode) {
+        if (this.#mode !== val) {
+            this.#values[this.#mode] = this.#value
+            this.#mode = val
+            this.#value = this.#values[val] || ""
+        }
+    }
+
+    get value(): string {
+        return this.#value
+    }
+
+    set value(val: string) {
+        this.#value = val
+        this.#values[this.#mode] = val
+    }
+
+    get initialValue(): string {
+        return this.#initialValue
+    }
+
+    set initialValue(val: string) {
+        this.#initialValue = val
+        if (val) {
+            this.#value = val
+            this.#values[this.#mode] = val
+        }
+    }
+
+    get isOpen(): boolean {
+        return this.#isOpen
+    }
+
+    set isOpen(val: boolean) {
+        this.#isOpen = val
+    }
+
+    clearValues() {
+        this.#values = {}
+        this.#value = ""
+        this.#initialValue = ""
+    }
+
+    clearValue(mode: string) {
+        this.#values[mode] = ""
+        if (this.#mode === mode) {
+            this.#value = ""
+        }
+    }
+}
 
 class UIStore {
     pickerCommandsNode = $state<CommandNode | null>(null)
@@ -19,15 +82,7 @@ class UIStore {
     #isSearchModeActive = $state(false)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
-    prompt = $state<{
-        initialValue: string
-        isOpen: boolean
-        mode: PromptMode
-    }>({
-        initialValue: "",
-        isOpen: false,
-        mode: "global",
-    })
+    prompt = new PromptState()
     #isNewFolderModalOpen = $state(false)
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])

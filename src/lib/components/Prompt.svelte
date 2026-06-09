@@ -83,7 +83,7 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
-        if (uiStore.prompt.mode === "page") {
+        if (uiStore.prompt.mode === "page" || uiStore.prompt.mode === "search") {
             return allItems.map((item) => ({ item, matches: [] }))
         }
         if (query === "") {
@@ -253,7 +253,7 @@
         <div bind:clientHeight={innerHeight}>
             <form
                 class="input-wrapper"
-                class:searching={value !== ""}
+                class:searching={searchStore.isSearching}
                 onsubmit={(e) => {
                     e.preventDefault()
                     if (searchResults.length === 0) return
@@ -402,9 +402,11 @@
                             >{m.prompt_suggestions()}</span
                         >
                     {:else}
-                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}
-                            >{m.prompt_found_results({ count: searchResults.length })}</span
-                        >
+                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}>
+                            {uiStore.prompt.mode === "search"
+                                ? m.prompt_found_results({ count: searchStore.matches.length })
+                                : m.prompt_found_results({ count: searchResults.length })}
+                        </span>
                     {/if}
                 </div>
                 <div class="shortcuts-help">

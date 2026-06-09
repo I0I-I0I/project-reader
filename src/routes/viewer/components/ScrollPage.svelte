@@ -175,7 +175,6 @@
         const count = textLayerRenderCount
         const matches = searchStore.matches
         const activeIdx = searchStore.currentMatchIndex
-        const query = searchStore.query
 
         if (textLayerContainer && pdf) {
             highlightPage(pageNumber, textLayerContainer)
