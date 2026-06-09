@@ -12,6 +12,7 @@
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
+    import PromptBookPreview from "./PromptBookPreview.svelte"
     import CommandIcon from "./icons/CommandIcon.svelte"
     import SettingsItemIcon from "./icons/SettingsItemIcon.svelte"
     import NavigationIcon from "./icons/NavigationIcon.svelte"
@@ -326,7 +327,11 @@
                         >
                             <div class="icon-container">
                                 {#if item.category === "books"}
-                                    <BookItemIcon class="item-icon book" />
+                                    <PromptBookPreview
+                                        bookId={item.id.startsWith("book-")
+                                            ? item.id.substring(5)
+                                            : item.id}
+                                    />
                                 {:else if item.category === "commands"}
                                     <CommandIcon class="item-icon command" />
                                 {:else if item.category === "settings"}
@@ -658,6 +663,7 @@
         background: var(--bg-color);
         color: var(--text-color);
         flex-shrink: 0;
+        overflow: hidden;
     }
 
     :global(.item-icon) {

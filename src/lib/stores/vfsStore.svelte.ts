@@ -123,6 +123,37 @@ class VFSStore {
                 this.previewUrls[id] = url
                 return url
             }
+
+            const fileUrl = await this.getFileUrl(id)
+            if (fileUrl) {
+                const doc = new PDFDocument(fileUrl)
+                try {
+                    await doc.load(settingsStore.scale)
+                    const page = await doc.getPage(1)
+                    const pageUrl = await doc.getCanvasPage(page)
+                    if (pageUrl) {
+                        await this.savePreview(id, pageUrl)
+                        URL.revokeObjectURL(pageUrl)
+
+                        const newCachedPreview = await this.db.previews.get(id)
+                        if (newCachedPreview) {
+                            const url = URL.createObjectURL(newCachedPreview.data)
+                            this.previewUrls[id] = url
+                            return url
+                        }
+                    }
+                } catch (err) {
+                    console.warn(
+                        `[VFSStore] Failed to dynamically generate preview for node ${id}:`,
+                        err,
+                    )
+                } finally {
+                    await doc.close()
+                    if (this.isLockedMap[id]) {
+                        this.revokeFileUrl(id)
+                    }
+                }
+            }
         } catch (e) {
             console.error(`Failed to load preview for node ${id}:`, e)
         }
