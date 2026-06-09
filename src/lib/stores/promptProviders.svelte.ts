@@ -50,7 +50,7 @@ export function getFoldersPromptItems(): SearchItem[] {
             englishTitle: m.root ? m.root({}, { locale: "en" }) : "ROOT",
             category: "navigation",
             action: () => {
-                goto("/")
+                goto(resolve(localizeHref("/")))
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -68,7 +68,7 @@ export function getFoldersPromptItems(): SearchItem[] {
             title: vfsStore.getNodePath(folder.id),
             category: "navigation",
             action: () => {
-                goto(`?folder=${encodeURIComponent(folderPath)}`)
+                goto(resolve(localizeHref("/")) + `?folder=${encodeURIComponent(folderPath)}`)
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -314,7 +314,7 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
                 }
                 viewerStore.setCurrentBook(fileNodeToBook(activeNode))
                 vfsStore.clearForwardHistory()
-                goto(resolve("/viewer"))
+                goto(resolve(localizeHref("/viewer")))
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -355,8 +355,8 @@ export function getJumplistPromptItems(): SearchItem[] {
                 category: "navigation",
                 action: async () => {
                     await viewerStore.jumpToIndex(i)
-                    if (page.url.pathname !== resolve("/viewer")) {
-                        goto(resolve("/viewer"))
+                    if (page.url.pathname !== resolve(localizeHref("/viewer"))) {
+                        goto(resolve(localizeHref("/viewer")))
                     }
                     uiStore.prompt.isOpen = false
                 },

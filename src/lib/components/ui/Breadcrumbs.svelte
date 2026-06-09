@@ -2,6 +2,8 @@
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { goto } from "$app/navigation"
+    import { localizeHref } from "$lib/paraglide/runtime"
+    import { resolve } from "$app/paths"
 
     interface Props {
         breadcrumbs: {
@@ -24,10 +26,11 @@
                         class:active={idx === breadcrumbs.length - 1}
                         onclick={() => {
                             vfsStore.clearForwardHistory()
+                            const base = resolve(localizeHref("/"))
                             goto(
                                 segment.id
-                                    ? `?folder=${encodeURIComponent(vfsStore.getFolderPath(segment.id))}`
-                                    : "?",
+                                    ? `${base}?folder=${encodeURIComponent(vfsStore.getFolderPath(segment.id))}`
+                                    : base,
                             )
                         }}
                         disabled={idx === breadcrumbs.length - 1}

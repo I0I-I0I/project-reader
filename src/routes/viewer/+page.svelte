@@ -16,6 +16,7 @@
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { resolve } from "$app/paths"
+    import { localizeHref } from "$lib/paraglide/runtime"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
@@ -609,7 +610,7 @@
     onMount(() => {
         vfsStore.clearForwardHistory()
         if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
-            goto(resolve("/"))
+            goto(resolve(localizeHref("/")))
             return
         }
         restoreBookPosition()
@@ -619,7 +620,7 @@
         if (vfsStore.initialized) {
             const currentBook = viewerStore.getCurrentBook()
             if (!currentBook || currentBook.isLocked) {
-                goto(resolve("/"))
+                goto(resolve(localizeHref("/")))
             }
         }
     })
@@ -763,7 +764,7 @@
                     if (!canceled) {
                         isLoaded = false
                         viewerStore.setCurrentBook(null)
-                        goto(resolve("/"))
+                        goto(resolve(localizeHref("/")))
                     }
                 }
             }
@@ -943,10 +944,9 @@
 
         if (parentId) {
             const folderPath = vfsStore.getFolderPath(parentId)
-            console.log("goto", resolve("/") + `?folder=${encodeURIComponent(folderPath)}`)
-            goto(resolve("/") + `?folder=${encodeURIComponent(folderPath)}`)
+            goto(resolve(localizeHref("/")) + `?folder=${encodeURIComponent(folderPath)}`)
         } else {
-            goto(resolve("/"))
+            goto(resolve(localizeHref("/")))
         }
     }
 

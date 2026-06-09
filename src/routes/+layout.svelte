@@ -20,7 +20,7 @@
         type SearchItem,
         type PromptProvider,
     } from "$lib/stores/promptStore.svelte"
-    import { getLocale } from "$lib/paraglide/runtime"
+    import { getLocale, localizeHref } from "$lib/paraglide/runtime"
     import { getLanguageName } from "$lib/locale"
     import { page, updated } from "$app/state"
     import { goto } from "$app/navigation"
@@ -284,7 +284,10 @@
             if (page.url.pathname === "/" && page.url.search === "") {
                 const lastVisitedUrl = localStorage.getItem("last_visited_url")
                 if (lastVisitedUrl && lastVisitedUrl !== "/") {
-                    goto(resolve(lastVisitedUrl as any))
+                    const [pathname, search] = lastVisitedUrl.split("?")
+                    const localizedPathname = localizeHref(pathname)
+                    const finalUrl = search ? `${localizedPathname}?${search}` : localizedPathname
+                    goto(resolve(finalUrl as any))
                 }
             }
         })

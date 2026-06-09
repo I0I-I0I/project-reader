@@ -65,7 +65,7 @@
             {#if currentBook}
                 <Button
                     variant="action"
-                    href={resolve("/viewer")}
+                    href={resolve(localizeHref("/viewer"))}
                     class="continue-btn"
                     aria-label={m.continue_reading()}
                 >

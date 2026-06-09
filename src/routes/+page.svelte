@@ -23,6 +23,7 @@
     import { page } from "$app/state"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
+    import { localizeHref } from "$lib/paraglide/runtime"
     import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
     import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
@@ -114,7 +115,7 @@
         vfsStore.clearForwardHistory()
         if (node.type === "folder") {
             const path = vfsStore.getFolderPath(node.id)
-            goto(`?folder=${encodeURIComponent(path)}`)
+            goto(resolve(localizeHref("/")) + `?folder=${encodeURIComponent(path)}`)
         } else {
             try {
                 let fileNode = node as FileNode
@@ -126,7 +127,7 @@
 
                 // setCurrentBook will handle fetching the full URL lazily
                 await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                goto(resolve("/viewer"))
+                goto(resolve(localizeHref("/viewer")))
             } catch (err) {
                 console.error("[+page] Failed to open book:", err)
             }
@@ -171,7 +172,7 @@
                 await viewerStore.jumpBack()
                 const nextBookId = viewerStore.getCurrentBook()?.id
                 if (nextBookId && nextBookId !== prevBookId) {
-                    goto(resolve("/viewer"))
+                    goto(resolve(localizeHref("/viewer")))
                 }
             },
         },
@@ -187,7 +188,7 @@
                 await viewerStore.jumpForward()
                 const nextBookId = viewerStore.getCurrentBook()?.id
                 if (nextBookId && nextBookId !== prevBookId) {
-                    goto(resolve("/viewer"))
+                    goto(resolve(localizeHref("/viewer")))
                 }
             },
         },
@@ -283,9 +284,12 @@
                         vfsStore.pushForwardHistory(vfsStore.currentFolderId)
                         if (node.parentId) {
                             const parentPath = vfsStore.getFolderPath(node.parentId)
-                            goto(`?folder=${encodeURIComponent(parentPath)}`)
+                            goto(
+                                resolve(localizeHref("/")) +
+                                    `?folder=${encodeURIComponent(parentPath)}`,
+                            )
                         } else {
-                            goto("/")
+                            goto(resolve(localizeHref("/")))
                         }
                     }
                 }
@@ -310,13 +314,16 @@
                                 await vfsStore.restoreFileAccess(fileNode.id)
                             }
                             await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                            goto(resolve("/viewer"))
+                            goto(resolve(localizeHref("/viewer")))
                         } catch (err) {
                             console.error("[+page] Failed to open book from history:", err)
                         }
                     } else if (node && node.type === "folder") {
                         const forwardPath = vfsStore.getFolderPath(forwardId)
-                        goto(`?folder=${encodeURIComponent(forwardPath)}`)
+                        goto(
+                            resolve(localizeHref("/")) +
+                                `?folder=${encodeURIComponent(forwardPath)}`,
+                        )
                     } else {
                         window.history.forward()
                     }
