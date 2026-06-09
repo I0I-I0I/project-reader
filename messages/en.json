@@ -161,5 +161,6 @@
     "invalid_total_pages": "Total pages cannot be negative",
     "page_exceeds_total": "Page number cannot exceed total pages",
     "current_position": "Current position",
-    "new_version_available": "A new version is available. Reload now?"
+    "new_version_available": "A new version is available. Reload now?",
+    "continue_reading": "Continue"
 }

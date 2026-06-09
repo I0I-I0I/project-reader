@@ -15,6 +15,9 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import Input from "./ui/Input.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import Button from "./ui/Button.svelte"
+    import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
@@ -31,6 +34,8 @@
     const currentThemeInfo = $derived(
         THEMES.find((t) => t.value === settingsStore.theme) || THEMES[2],
     )
+
+    const currentBook = $derived(viewerStore.getCurrentBook())
 </script>
 
 <header>
@@ -55,6 +60,18 @@
                         bind:value={inputValue}
                     />
                 </div>
+            {/if}
+
+            {#if currentBook}
+                <Button
+                    variant="action"
+                    href={resolve("/viewer")}
+                    class="continue-btn"
+                    aria-label={m.continue_reading()}
+                >
+                    <BookOpenIcon class="switcher-icon" />
+                    <span class="continue-text">{m.continue_reading()}</span>
+                </Button>
             {/if}
 
             <Switcher class="header-switcher-first" label={m.select_theme()}>
@@ -311,5 +328,35 @@
         font-size: 0.75rem;
         margin-left: 6px;
         font-weight: bold;
+    }
+
+    :global(.continue-btn) {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        height: 32px;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: unset !important;
+    }
+
+    .continue-text {
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+    }
+
+    @media (--mobile-width) {
+        .continue-text {
+            display: none;
+        }
+
+        :global(.continue-btn) {
+            width: 32px !important;
+            padding: 0 !important;
+        }
     }
 </style>
