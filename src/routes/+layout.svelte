@@ -13,6 +13,7 @@
     import KeymapHelp from "$lib/components/KeymapHelp.svelte"
     import Prompt from "$lib/components/Prompt.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import FloatingNotification from "$lib/components/FloatingNotification.svelte"
     import {
         type PromptNode,
         usePrompt,
@@ -371,6 +372,8 @@
         {@render modals()}
     </div>
 {/if}
+
+<FloatingNotification />
 
 <style>
     :global(:root) {

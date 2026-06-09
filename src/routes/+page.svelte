@@ -29,7 +29,11 @@
     import PickerKey from "$lib/components/PickerKey.svelte"
     import { PICKER_KEYS } from "$lib/constants"
     import { usePrompt, type SearchItem } from "$lib/stores/promptStore.svelte"
-    import { getFilesPromptItems, getFoldersPromptItems } from "$lib/stores/promptProviders.svelte"
+    import {
+        getFilesPromptItems,
+        getFoldersPromptItems,
+        getJumplistPromptItems,
+    } from "$lib/stores/promptProviders.svelte"
     import { untrack } from "svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")

@@ -60,6 +60,7 @@ export default class PDFDocument implements DocumentInterface {
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyCacheOrder: number[] = []
     private readonly MAX_PAGE_PROXY_CACHE_SIZE = 10
+    private outlineCache: FlatHeading[] | null = null
 
     constructor(public url: string) {}
 
@@ -207,6 +208,9 @@ export default class PDFDocument implements DocumentInterface {
     }
 
     async getOutline(): Promise<FlatHeading[] | null> {
+        if (this.outlineCache) {
+            return this.outlineCache
+        }
         const pdfDoc = this.getRequiredPdfDoc()
 
         const outline = await pdfDoc.getOutline()
@@ -232,6 +236,7 @@ export default class PDFDocument implements DocumentInterface {
             }),
         )
 
+        this.outlineCache = resolvedHeadings
         return resolvedHeadings
     }
 
@@ -432,6 +437,7 @@ export default class PDFDocument implements DocumentInterface {
             this.pdfDoc = null
         }
         this.clearPageCache()
+        this.outlineCache = null
         this.title = null
         this.author = null
         this.pageCount = 0

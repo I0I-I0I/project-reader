@@ -120,7 +120,9 @@ class ViewerStore {
                     bookId: this.book.id,
                     bookName: this.book.name,
                     pageNumber: page,
-                    scrollPosition: options?.scrollPosition ?? (page === this.book.pageNumber ? (this.book.scrollPosition || 0) : 0),
+                    scrollPosition:
+                        options?.scrollPosition ??
+                        (page === this.book.pageNumber ? this.book.scrollPosition || 0 : 0),
                 })
             }
         }

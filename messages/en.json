@@ -134,6 +134,8 @@
     "deselect_all": "DESELECT ALL",
     "delete_selected": "DELETE SELECTED",
     "items_selected": "{count} SELECTED",
+    "selected_label": "SELECTED",
+    "matched_label": "MATCHED",
     "keymap_exit_selection_mode": "Exit selection mode",
     "delete_confirmation_title": "CONFIRM DELETION",
     "delete_confirmation_single": "Are you sure you want to delete this item? This action cannot be undone.",

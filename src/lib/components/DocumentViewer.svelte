@@ -155,22 +155,33 @@
         }
     })
 
+    let lastPdf: PDFDocument | null = null
+
     $effect(() => {
         const currentPdf = pdf
         const loaded = isLoaded
+        const open = isOutlineOpen
 
-        if (!currentPdf || !loaded) {
+        if (currentPdf !== lastPdf) {
             untrack(() => {
                 outlineList = null
                 isOutlineLoading = false
+                lastPdf = currentPdf
             })
+        }
+
+        if (!currentPdf || !loaded) {
             return
         }
+
+        if (!open) return
 
         let canceled = false
 
         untrack(() => {
-            isOutlineLoading = true
+            if (!outlineList) {
+                isOutlineLoading = true
+            }
             const loadOutline = async () => {
                 try {
                     const list = await currentPdf.getOutline()
