@@ -233,6 +233,45 @@
         }
 
         searchStore.registerPageRanges(pageNo, matchRanges, activeRanges)
+
+        if (activeRanges.length > 0) {
+            scrollToActiveRange(activeRanges[0])
+        }
+    }
+
+    function scrollToActiveRange(range: Range) {
+        requestAnimationFrame(() => {
+            const container = document.querySelector(".canvas-frame")
+            if (!container) return
+
+            let rangeRect = range.getBoundingClientRect()
+            if (rangeRect.width === 0 || rangeRect.height === 0) {
+                requestAnimationFrame(() => {
+                    rangeRect = range.getBoundingClientRect()
+                    if (rangeRect.width > 0 && rangeRect.height > 0) {
+                        performScroll(container, rangeRect)
+                    }
+                })
+            } else {
+                performScroll(container, rangeRect)
+            }
+        })
+    }
+
+    function performScroll(container: Element, rangeRect: DOMRect) {
+        const containerRect = container.getBoundingClientRect()
+        const rangeTopInContainer = rangeRect.top - containerRect.top + container.scrollTop
+        const rangeLeftInContainer = rangeRect.left - containerRect.left + container.scrollLeft
+
+        const targetScrollTop = rangeTopInContainer - (container.clientHeight / 2) + (rangeRect.height / 2)
+        const targetScrollLeft = rangeLeftInContainer - (container.clientWidth / 2) + (rangeRect.width / 2)
+
+        const behavior = settingsStore.animations ? "smooth" : "auto"
+        container.scrollTo({
+            top: targetScrollTop,
+            left: targetScrollLeft,
+            behavior
+        })
     }
 </script>
 

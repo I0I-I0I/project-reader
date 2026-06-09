@@ -27,6 +27,7 @@ export interface FolderNode extends BaseNode {
 
 export type BookMetadata = {
     pageNumber: number
+    scrollPosition?: number
     pdfDest?: string
     totalPages?: number
     author?: string | null

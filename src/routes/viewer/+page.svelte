@@ -480,6 +480,7 @@
     let isLoaded = $state(false)
 
     let currentPage = $state(1)
+    let scrollPosition = $state(0)
     let currentPageImage = $state<string | null>(null)
     let currentPageImage2 = $state<string | null>(null)
     let isPageLoading = $state(false)
@@ -492,6 +493,7 @@
     function restoreBookPosition() {
         const book = viewerStore.getCurrentBook()
         currentPage = book?.pageNumber || 1
+        scrollPosition = book?.scrollPosition || 0
     }
 
     onMount(() => {
@@ -512,15 +514,35 @@
         }
     })
 
+    let updateTimeout: ReturnType<typeof setTimeout> | undefined
     $effect(() => {
         if (isLoaded) {
-            let cPage = currentPage
+            const cPage = currentPage
+            const sPos = scrollPosition
             untrack(() => {
                 const book = viewerStore.getCurrentBook()
                 if (book) {
-                    viewerStore.updateBook({ ...book, pageNumber: cPage })
+                    // Update reactive state immediately for responsiveness
+                    book.pageNumber = cPage
+                    book.scrollPosition = sPos
+
+                    // Debounce the persistent DB update
+                    if (updateTimeout) clearTimeout(updateTimeout)
+                    updateTimeout = setTimeout(() => {
+                        viewerStore.updateBook({ ...book, pageNumber: cPage, scrollPosition: sPos })
+                    }, 500)
                 }
             })
+
+            return () => {
+                if (updateTimeout) {
+                    clearTimeout(updateTimeout)
+                    const book = viewerStore.getCurrentBook()
+                    if (book) {
+                        viewerStore.updateBook({ ...book, pageNumber: cPage, scrollPosition: sPos })
+                    }
+                }
+            }
         }
     })
 
@@ -591,6 +613,12 @@
                         pdf = doc
                         const pagesCount = await doc.getPageNumber()
                         totalPages = pagesCount
+                        if (currentPage > pagesCount) {
+                            currentPage = pagesCount
+                        }
+                        if (currentPage < 1) {
+                            currentPage = 1
+                        }
                         isLoaded = true
                         searchStore.indexPdf(doc)
 
@@ -751,6 +779,7 @@
         viewerStore.goToPage = (page: number) => {
             if (page >= 1 && page <= totalPages) {
                 currentPage = page
+                scrollPosition = 0
             }
         }
         return () => {
@@ -780,8 +809,10 @@
             const step = settingsStore.layout === "split" ? 2 : 1
             if (currentPage + step <= totalPages) {
                 currentPage += step
+                scrollPosition = 0
             } else if (currentPage < totalPages) {
                 currentPage += 1
+                scrollPosition = 0
             }
         }
     }
@@ -791,8 +822,10 @@
             const step = settingsStore.layout === "split" ? 2 : 1
             if (currentPage - step >= 1) {
                 currentPage -= step
+                scrollPosition = 0
             } else if (currentPage > 1) {
                 currentPage = 1
+                scrollPosition = 0
             }
         }
     }
@@ -915,6 +948,7 @@
                                 {isOutlineLoading}
                                 {outlineList}
                                 bind:currentPage
+                                bind:scrollPosition
                                 {activeHeadings}
                                 onCloseOutline={() => {
                                     isOutlineOpen = false
@@ -958,6 +992,7 @@
                             {pdf}
                             scale={settingsStore.scale}
                             bind:currentPage
+                            bind:scrollPosition
                             {isPageLoading}
                             {currentPageImage}
                             {currentPageImage2}
@@ -1103,6 +1138,7 @@
                     >
                         <ViewerFooter
                             bind:currentPage
+                            bind:scrollPosition
                             {totalPages}
                             {isPageLoading}
                             {nextPage}

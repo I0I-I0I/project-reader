@@ -8,6 +8,7 @@ export interface Book {
     name: string
     updatedAt: number
     pageNumber: number
+    scrollPosition?: number
     url?: string
     pdfDest?: string
     isLocked?: boolean
@@ -22,6 +23,7 @@ export function fileNodeToBook(node: FileNode): Book {
         name: node.name,
         updatedAt: node.updatedAt,
         pageNumber: node.metadata.pageNumber || 1,
+        scrollPosition: node.metadata.scrollPosition || 0,
         pdfDest: node.metadata.pdfDest,
         totalPages: node.metadata.totalPages,
         author: node.metadata.author,
@@ -165,6 +167,7 @@ class ViewerStore {
             isLocked: book.isLocked,
             metadata: {
                 pageNumber: book.pageNumber,
+                scrollPosition: book.scrollPosition,
                 pdfDest: book.pdfDest,
                 totalPages: book.totalPages,
                 author: book.author,

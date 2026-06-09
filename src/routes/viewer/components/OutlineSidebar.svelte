@@ -17,6 +17,7 @@
         isOutlineLoading,
         outlineList,
         currentPage = $bindable(),
+        scrollPosition = $bindable(),
         activeHeadings,
         onCloseOutline,
         onMouseLeave,
@@ -24,6 +25,7 @@
         isOutlineLoading: boolean
         outlineList: FlatHeading[] | null
         currentPage: number
+        scrollPosition: number
         activeHeadings: Set<FlatHeading>
         onCloseOutline: () => void
         onMouseLeave?: (e: MouseEvent) => void
@@ -44,6 +46,7 @@
     function selectHeading(heading: FlatHeading) {
         if (heading.pageNumber !== undefined) {
             currentPage = heading.pageNumber
+            scrollPosition = 0
             if (window.innerWidth <= 480) {
                 onCloseOutline()
             }

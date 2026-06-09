@@ -13,12 +13,14 @@
 
     let {
         currentPage = $bindable(),
+        scrollPosition = $bindable(),
         totalPages,
         isPageLoading,
         nextPage,
         prevPage,
     } = $props<{
         currentPage: number
+        scrollPosition: number
         totalPages: number
         isPageLoading: boolean
         nextPage: () => void
@@ -30,6 +32,7 @@
         const value = parseInt(input.value, 10)
         if (!isNaN(value) && value >= 1 && value <= totalPages) {
             currentPage = value
+            scrollPosition = 0
         } else {
             input.value = currentPage.toString()
         }
@@ -48,6 +51,7 @@
                     const val = parseInt((e.target as HTMLInputElement).value, 10)
                     if (!isNaN(val) && val >= 1 && val <= totalPages) {
                         currentPage = val
+                        scrollPosition = 0
                     }
                 }}
                 class="mobile-scrubber"
@@ -99,6 +103,7 @@
                     const val = parseInt((e.target as HTMLInputElement).value, 10)
                     if (!isNaN(val) && val >= 1 && val <= totalPages) {
                         currentPage = val
+                        scrollPosition = 0
                     }
                 }}
                 class="footer-scrubber"

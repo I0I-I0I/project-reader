@@ -19,6 +19,7 @@
         currentPageImage = null,
         currentPageImage2 = null,
         currentPage = $bindable(),
+        scrollPosition = $bindable(),
         layoutMode = "single",
         scale = settingsStore.scale,
         pdf,
@@ -27,6 +28,7 @@
         currentPageImage?: string | null
         currentPageImage2?: string | null
         currentPage: number
+        scrollPosition: number
         layoutMode?: "single" | "split" | "scroll"
         scale?: number
         pdf: PDFDocument | null
@@ -35,6 +37,7 @@
     let containerWidth = $state(0)
     let isShortHeight = $state(false)
     let hasInitiallyFit = false
+    let hasRestoredScroll = false
 
     $effect(() => {
         const heightQuery = window.matchMedia("(max-height: 500px)")
@@ -227,30 +230,39 @@
     )
 
     function handleScroll(e: Event) {
-        if (pageOffsets.length === 0 || layoutMode !== "scroll") return
-        if (lastObservedPage === -1) return
-
         const target = e.target as HTMLElement
         scrollTop = target.scrollTop
         containerHeight = target.clientHeight
 
         if (isAutoScrolling) return
 
-        const viewportMiddle = scrollTop + containerHeight / 2
+        if (layoutMode === "scroll") {
+            if (pageOffsets.length === 0) return
+            if (lastObservedPage === -1) return
 
-        let foundPage = 1
-        for (let i = 0; i < pageOffsets.length; i++) {
-            const top = pageOffsets[i]
-            const height = getPageHeight(pageDimensions[i]) + PAGE_GAP
-            if (viewportMiddle >= top && viewportMiddle < top + height) {
-                foundPage = i + 1
-                break
+            const viewportMiddle = scrollTop + containerHeight / 2
+
+            let foundPage = 1
+            for (let i = 0; i < pageOffsets.length; i++) {
+                const top = pageOffsets[i]
+                const height = getPageHeight(pageDimensions[i]) + PAGE_GAP
+                if (viewportMiddle >= top && viewportMiddle < top + height) {
+                    foundPage = i + 1
+                    break
+                }
             }
-        }
 
-        if (foundPage !== currentPage) {
-            lastObservedPage = foundPage
-            currentPage = foundPage
+            if (foundPage !== currentPage) {
+                lastObservedPage = foundPage
+                currentPage = foundPage
+            }
+
+            const pageTop = pageOffsets[foundPage - 1]
+            const pageHeight = getPageHeight(pageDimensions[foundPage - 1])
+            scrollPosition = (scrollTop - pageTop) / pageHeight
+        } else {
+            const scrollHeight = target.scrollHeight - containerHeight
+            scrollPosition = scrollHeight > 0 ? scrollTop / scrollHeight : 0
         }
     }
 
@@ -332,6 +344,48 @@
                     })
                 })
             }
+        })
+    })
+
+    $effect(() => {
+        const _pdf = pdf
+        const _layout = layoutMode
+        untrack(() => {
+            hasRestoredScroll = false
+        })
+    })
+
+    $effect(() => {
+        if (!container || !pdf || isPageLoading) return
+        if (layoutMode === "scroll" && pageOffsets.length === 0) return
+
+        untrack(() => {
+            if (hasRestoredScroll) return
+
+            const targetScrollPosition = scrollPosition
+            if (targetScrollPosition === 0) {
+                hasRestoredScroll = true
+                return
+            }
+
+            if (layoutMode === "scroll") {
+                const pageIndex = Math.min(currentPage - 1, pageDimensions.length - 1)
+                if (pageIndex >= 0 && pageDimensions[pageIndex]) {
+                    const pageTop = pageOffsets[pageIndex]
+                    const pageHeight = getPageHeight(pageDimensions[pageIndex])
+                    container!.scrollTo({
+                        top: pageTop + targetScrollPosition * pageHeight,
+                        behavior: "auto",
+                    })
+                }
+            } else {
+                const scrollHeight = container!.scrollHeight - containerHeight
+                container!.scrollTo({
+                    top: targetScrollPosition * scrollHeight,
+                    behavior: "auto",
+                })
+            }
+            hasRestoredScroll = true
         })
     })
 
@@ -506,6 +560,45 @@
         }
 
         searchStore.registerPageRanges(pageNumber, matchRanges, activeRanges)
+
+        if (activeRanges.length > 0) {
+            scrollToActiveRange(activeRanges[0])
+        }
+    }
+
+    function scrollToActiveRange(range: Range) {
+        requestAnimationFrame(() => {
+            const currentContainer = container
+            if (!currentContainer) return
+
+            let rangeRect = range.getBoundingClientRect()
+            if (rangeRect.width === 0 || rangeRect.height === 0) {
+                requestAnimationFrame(() => {
+                    rangeRect = range.getBoundingClientRect()
+                    if (rangeRect.width > 0 && rangeRect.height > 0) {
+                        performScroll(currentContainer, rangeRect)
+                    }
+                })
+            } else {
+                performScroll(currentContainer, rangeRect)
+            }
+        })
+    }
+
+    function performScroll(container: HTMLElement, rangeRect: DOMRect) {
+        const containerRect = container.getBoundingClientRect()
+        const rangeTopInContainer = rangeRect.top - containerRect.top + container.scrollTop
+        const rangeLeftInContainer = rangeRect.left - containerRect.left + container.scrollLeft
+
+        const targetScrollTop = rangeTopInContainer - (container.clientHeight / 2) + (rangeRect.height / 2)
+        const targetScrollLeft = rangeLeftInContainer - (container.clientWidth / 2) + (rangeRect.width / 2)
+
+        const behavior = settingsStore.animations ? "smooth" : "auto"
+        container.scrollTo({
+            top: targetScrollTop,
+            left: targetScrollLeft,
+            behavior
+        })
     }
 
     $effect(() => {
