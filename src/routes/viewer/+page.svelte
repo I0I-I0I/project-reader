@@ -301,7 +301,7 @@
             },
         },
         {
-            id: "scroll-page-down-main",
+            id: "scroll-page-down",
             keys: "d",
             description: m.keymap_scroll_page_down(),
             englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
@@ -333,7 +333,7 @@
             },
         },
         {
-            id: "scroll-page-up-main",
+            id: "scroll-page-up",
             keys: "u",
             description: m.keymap_scroll_page_up(),
             englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
@@ -879,11 +879,23 @@
     }
 
     function handleBodyClick(e: MouseEvent) {
-        if (uiStore.isToolbarsVisible) return
         if (!uiStore.isCompact) return
+
+        // Don't trigger if user is selecting text
+        const selection = window.getSelection()
+        if (selection && selection.toString()) return
 
         const { clientX } = e
         const { innerWidth } = window
+        const isMiddle = clientX >= innerWidth * 0.3 && clientX <= innerWidth * 0.7
+
+        if (isMiddle) {
+            uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
+            return
+        }
+
+        if (uiStore.isToolbarsVisible) return
+
         if (clientX < innerWidth * 0.3) {
             prevPage()
         } else if (clientX > innerWidth * 0.7) {
@@ -1060,62 +1072,77 @@
                                         .length}
                                 </div>
                             {/if}
-                            <Button
-                                size="large"
-                                variant="fab"
-                                square={true}
-                                class="viewer-fab-btn fab-close-search {!uiStore.isToolbarsVisible
+                            <div
+                                class="search-fab-grid {!uiStore.isToolbarsVisible
                                     ? 'hidden-toolbars'
                                     : ''}"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    uiStore.isSearchModeActive = false
-                                    searchStore.setQuery("")
-                                    uiStore.prompt.clearValue("search")
-                                }}
-                                aria-label={m.prompt_close_aria
-                                    ? m.prompt_close_aria()
-                                    : "Close search"}
-                                tooltip={`${m.prompt_close_aria ? m.prompt_close_aria() : "Close search"}${getShortcutHint(commandsNode, "close-search")}`}
                             >
-                                ✕
-                            </Button>
-                            <Button
-                                size="large"
-                                variant="fab"
-                                square={true}
-                                class="viewer-fab-btn fab-prev-search {!uiStore.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    searchStore.prev()
-                                }}
-                                aria-label={m.keymap_prev_match
-                                    ? m.keymap_prev_match()
-                                    : "Previous match"}
-                                tooltip={`${m.keymap_prev_match ? m.keymap_prev_match() : "Previous match"}${getShortcutHint(commandsNode, "prev-search-match")}`}
-                            >
-                                <ChevronIcon style="transform: rotate(180deg);" />
-                            </Button>
-                            <Button
-                                size="large"
-                                variant="fab"
-                                square={true}
-                                class="viewer-fab-btn fab-next-search {!uiStore.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    searchStore.next()
-                                }}
-                                aria-label={m.keymap_next_match
-                                    ? m.keymap_next_match()
-                                    : "Next match"}
-                                tooltip={`${m.keymap_next_match ? m.keymap_next_match() : "Next match"}${getShortcutHint(commandsNode, "next-search-match")}`}
-                            >
-                                <ChevronIcon />
-                            </Button>
+                                <Button
+                                    size="large"
+                                    variant="fab"
+                                    square={true}
+                                    class="viewer-fab-btn fab-prev-search"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        searchStore.prev()
+                                    }}
+                                    aria-label={m.keymap_prev_match
+                                        ? m.keymap_prev_match()
+                                        : "Previous match"}
+                                    tooltip={`${m.keymap_prev_match ? m.keymap_prev_match() : "Previous match"}${getShortcutHint(commandsNode, "prev-search-match")}`}
+                                >
+                                    <ChevronIcon style="transform: rotate(180deg);" />
+                                </Button>
+                                <Button
+                                    size="large"
+                                    variant="fab"
+                                    square={true}
+                                    class="viewer-fab-btn fab-close-search"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        uiStore.isSearchModeActive = false
+                                        searchStore.setQuery("")
+                                        uiStore.prompt.clearValue("search")
+                                    }}
+                                    aria-label={m.prompt_close_aria
+                                        ? m.prompt_close_aria()
+                                        : "Close search"}
+                                    tooltip={`${m.prompt_close_aria ? m.prompt_close_aria() : "Close search"}${getShortcutHint(commandsNode, "close-search")}`}
+                                >
+                                    ✕
+                                </Button>
+                                <Button
+                                    size="large"
+                                    variant="fab"
+                                    square={true}
+                                    class="viewer-fab-btn fab-next-search"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        searchStore.next()
+                                    }}
+                                    aria-label={m.keymap_next_match
+                                        ? m.keymap_next_match()
+                                        : "Next match"}
+                                    tooltip={`${m.keymap_next_match ? m.keymap_next_match() : "Next match"}${getShortcutHint(commandsNode, "next-search-match")}`}
+                                >
+                                    <ChevronIcon />
+                                </Button>
+                                <Button
+                                    size="large"
+                                    variant="fab"
+                                    square={true}
+                                    class="viewer-fab-btn fab-search"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        uiStore.prompt.mode = "search"
+                                        uiStore.prompt.isOpen = true
+                                    }}
+                                    aria-label={m.keymap_search ? m.keymap_search() : "Search PDF"}
+                                    tooltip={`${m.keymap_search ? m.keymap_search() : "Search PDF"}${getShortcutHint(commandsNode, "open-search")}`}
+                                >
+                                    <SearchIcon />
+                                </Button>
+                            </div>
                         {:else if isLoaded}
                             <Button
                                 size="large"
@@ -1136,7 +1163,7 @@
                             </Button>
                         {/if}
 
-                        {#if isLoaded}
+                        {#if isLoaded && !uiStore.isSearchModeActive}
                             <Button
                                 size="large"
                                 variant="fab"
@@ -1157,26 +1184,28 @@
                                 <TerminalIcon />
                             </Button>
 
-                            <Button
-                                variant="fab"
-                                size="large"
-                                square={true}
-                                class="viewer-fab-btn fab-toggle"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
-                                }}
-                                aria-label={uiStore.isToolbarsVisible
-                                    ? m.hide_toolbars()
-                                    : m.show_toolbars()}
-                                tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbars")}`}
-                            >
-                                {#if uiStore.isToolbarsVisible}
-                                    <MinimizeIcon />
-                                {:else}
-                                    <MaximizeIcon />
-                                {/if}
-                            </Button>
+                            {#if !uiStore.isCompact}
+                                <Button
+                                    variant="fab"
+                                    size="large"
+                                    square={true}
+                                    class="viewer-fab-btn fab-toggle"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
+                                    }}
+                                    aria-label={uiStore.isToolbarsVisible
+                                        ? m.hide_toolbars()
+                                        : m.show_toolbars()}
+                                    tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbars")}`}
+                                >
+                                    {#if uiStore.isToolbarsVisible}
+                                        <MinimizeIcon />
+                                    {:else}
+                                        <MaximizeIcon />
+                                    {/if}
+                                </Button>
+                            {/if}
                         {/if}
                     {/if}
                 </div>
@@ -1313,6 +1342,30 @@
         right: 24px;
     }
 
+    .search-fab-grid {
+        position: absolute;
+        bottom: 24px;
+        right: 24px;
+        display: grid;
+        grid-template-columns: repeat(2, auto);
+        gap: 16px;
+        z-index: 100;
+        transition:
+            transform 0.2s ease,
+            opacity 0.2s ease;
+    }
+
+    .search-fab-grid.hidden-toolbars {
+        transform: translateX(100px);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .search-fab-grid :global(.viewer-fab-btn) {
+        position: static !important;
+        transform: none !important;
+    }
+
     @media (--mobile) {
         :global(.fab-search),
         :global(.fab-next-search) {
@@ -1339,6 +1392,12 @@
             bottom: 16px;
             right: 16px;
         }
+
+        .search-fab-grid {
+            bottom: 16px;
+            right: 16px;
+            gap: 12px;
+        }
     }
 
     @keyframes fade-in {
@@ -1352,8 +1411,8 @@
 
     .search-match-badge {
         position: absolute;
-        right: 90px;
-        bottom: calc(24px + 50px + 16px + 50px + 16px + 12px);
+        right: 156px;
+        bottom: 64px;
         background: var(--surface-color);
         color: var(--text-color);
         border: 2.5px solid var(--border-color);
@@ -1378,8 +1437,8 @@
 
     @media (--mobile) {
         .search-match-badge {
-            right: 76px;
-            bottom: calc(16px + 44px + 12px + 44px + 12px + 10px);
+            bottom: 50px;
+            right: 124px;
             padding: 4px 8px;
             font-size: 12px;
             box-shadow: 2px 2px 0 var(--shadow-color);

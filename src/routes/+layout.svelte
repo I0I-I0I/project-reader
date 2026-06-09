@@ -115,7 +115,7 @@
             },
         },
         {
-            id: "scroll-down-layout",
+            id: "scroll-down",
             keys: "j",
             action: () => {
                 window.scrollBy({
@@ -128,7 +128,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-down-layout-alt",
+            id: "scroll-down-alt",
             keys: "arrowdown",
             action: () => {
                 window.scrollBy({
@@ -141,7 +141,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-up-layout",
+            id: "scroll-up",
             keys: "k",
             action: () => {
                 window.scrollBy({
@@ -154,7 +154,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-up-layout-alt",
+            id: "scroll-up-alt",
             keys: "arrowup",
             action: () => {
                 window.scrollBy({
@@ -167,7 +167,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-page-down-layout",
+            id: "scroll-page-down",
             keys: "d",
             action: () => {
                 window.scrollBy({
@@ -180,7 +180,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-page-down-layout-alt",
+            id: "scroll-page-down-alt",
             keys: "pagedown",
             action: () => {
                 window.scrollBy({
@@ -193,7 +193,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-page-up-layout",
+            id: "scroll-page-up",
             keys: "u",
             action: () => {
                 window.scrollBy({
@@ -206,7 +206,7 @@
             category: "navigation",
         },
         {
-            id: "scroll-page-up-layout-alt",
+            id: "scroll-page-up-alt",
             keys: "pageup",
             action: () => {
                 window.scrollBy({

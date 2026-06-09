@@ -126,7 +126,7 @@
                 allowInInputs: true,
             },
             {
-                id: "prompt-next-down",
+                id: "scroll-down-alt",
                 keys: "arrowdown",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -150,7 +150,7 @@
                 allowInInputs: true,
             },
             {
-                id: "prompt-next-up",
+                id: "scroll-up-alt",
                 keys: "arrowup",
                 action: (event) => {
                     if (searchResults.length === 0) return
@@ -209,7 +209,10 @@
 
         for (const [start, end] of sortedIndices) {
             if (start > lastIndex) {
-                parts.push({ text: text.slice(lastIndex, start), highlight: false })
+                parts.push({
+                    text: text.slice(lastIndex, start),
+                    highlight: false,
+                })
             }
             parts.push({ text: text.slice(start, end + 1), highlight: true })
             lastIndex = end + 1
@@ -325,9 +328,16 @@
                             class="result-item"
                             class:selected={selectedIndex === i}
                             onclick={() => handleSelection(item)}
-                            in:fly={{ y: 6, duration: settingsStore.animations ? 120 : 0 }}
-                            out:fade={{ duration: settingsStore.animations ? 80 : 0 }}
-                            animate:flip={{ duration: settingsStore.animations ? 200 : 0 }}
+                            in:fly={{
+                                y: 6,
+                                duration: settingsStore.animations ? 120 : 0,
+                            }}
+                            out:fade={{
+                                duration: settingsStore.animations ? 80 : 0,
+                            }}
+                            animate:flip={{
+                                duration: settingsStore.animations ? 200 : 0,
+                            }}
                         >
                             <div class="icon-container">
                                 {#if item.category === "books"}
@@ -401,7 +411,9 @@
                 {:else}
                     <div
                         class="empty-state"
-                        transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
+                        transition:fade={{
+                            duration: settingsStore.animations ? 150 : 0,
+                        }}
                     >
                         <SearchNoResultsIcon />
                         <p>{m.prompt_no_results({ value })}</p>
@@ -412,14 +424,24 @@
             <div class="footer" class:empty-value={value === ""}>
                 <div class="suggestion-info">
                     {#if value === ""}
-                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}
-                            >{m.prompt_suggestions()}</span
+                        <span
+                            in:fade={{
+                                duration: settingsStore.animations ? 120 : 0,
+                            }}>{m.prompt_suggestions()}</span
                         >
                     {:else}
-                        <span in:fade={{ duration: settingsStore.animations ? 120 : 0 }}>
+                        <span
+                            in:fade={{
+                                duration: settingsStore.animations ? 120 : 0,
+                            }}
+                        >
                             {uiStore.prompt.mode === "search"
-                                ? m.prompt_found_results({ count: searchStore.matches.length })
-                                : m.prompt_found_results({ count: searchResults.length })}
+                                ? m.prompt_found_results({
+                                      count: searchStore.matches.length,
+                                  })
+                                : m.prompt_found_results({
+                                      count: searchResults.length,
+                                  })}
                         </span>
                     {/if}
                 </div>

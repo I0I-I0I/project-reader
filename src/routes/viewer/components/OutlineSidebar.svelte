@@ -152,7 +152,7 @@
                 allowInInputs: true,
             },
             {
-                id: "next-heading-j",
+                id: "scroll-down",
                 keys: "j",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -161,7 +161,7 @@
                 },
             },
             {
-                id: "next-heading-arrowdown",
+                id: "scroll-down-alt",
                 keys: "arrowdown",
                 description: m.keymap_next_heading(),
                 action: (event) => {
@@ -170,7 +170,7 @@
                 },
             },
             {
-                id: "prev-heading-k",
+                id: "scroll-up",
                 keys: "k",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -179,7 +179,7 @@
                 },
             },
             {
-                id: "prev-heading-arrowup",
+                id: "scroll-up-alt",
                 keys: "arrowup",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
@@ -321,7 +321,9 @@
                 if (!contentRef) return
                 const activeElements = contentRef.querySelectorAll(".outline-item.active")
                 if (activeElements.length > 0) {
-                    activeElements[activeElements.length - 1].scrollIntoView({ block: "center" })
+                    activeElements[activeElements.length - 1].scrollIntoView({
+                        block: "center",
+                    })
                 }
                 hasScrolledInitially = true
             })

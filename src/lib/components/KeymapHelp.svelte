@@ -1,78 +1,65 @@
 <script lang="ts">
-    import { getContext } from "svelte";
-    import { settingsStore } from "$lib/stores/settingsStore.svelte";
-    import {
-        useCommands,
-        type CommandNode,
-    } from "$lib/stores/commandsStore.svelte";
-    import { uiStore } from "$lib/stores/uiStore.svelte";
-    import * as m from "$lib/paraglide/messages";
-    import Modal from "./ui/Modal.svelte";
+    import { getContext } from "svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
+    import * as m from "$lib/paraglide/messages"
+    import Modal from "./ui/Modal.svelte"
 
     interface Props {
-        onClose: () => void;
+        onClose: () => void
     }
 
-    let { onClose }: Props = $props();
+    let { onClose }: Props = $props()
 
-    const getActiveNode = getContext<() => CommandNode>(
-        "get_active_commands_node",
-    );
-    const activeNodeBeforeOpen = getActiveNode();
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
+    const activeNodeBeforeOpen = getActiveNode()
 
-    let contentElement = $state<HTMLElement | null>(null);
-    let searchQuery = $state("");
-    let searchInputRef = $state<HTMLInputElement | null>(null);
+    let contentElement = $state<HTMLElement | null>(null)
+    let searchQuery = $state("")
+    let searchInputRef = $state<HTMLInputElement | null>(null)
 
     const keymaps = (() => {
-        if (!activeNodeBeforeOpen) return [];
-        const allBindings = activeNodeBeforeOpen.getAllCommands();
+        if (!activeNodeBeforeOpen) return []
+        const allBindings = activeNodeBeforeOpen.getAllCommands()
 
-        const seen = new Set<string>();
+        const seen = new Set<string>()
         return allBindings
             .filter((b) => {
-                if (!b.description || !b.keys || seen.has(b.keys)) return false;
-                seen.add(b.keys);
-                return true;
+                if (!b.description || !b.keys || seen.has(b.keys)) return false
+                seen.add(b.keys)
+                return true
             })
             .map((b) => ({
                 keys: b.keys!,
                 description: b.description,
-            }));
-    })();
+            }))
+    })()
 
     let filteredKeymaps = $derived(
         keymaps.filter(
             (k) =>
-                k.description
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase()) ||
+                k.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 k.keys.toLowerCase().includes(searchQuery.toLowerCase()),
         ),
-    );
+    )
 
     function handleSearchKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
-            event.preventDefault();
-            searchInputRef?.blur();
-        } else if (
-            event.key === "ArrowDown" ||
-            (event.ctrlKey && event.key === "n")
-        ) {
-            event.preventDefault();
+            event.preventDefault()
+            searchInputRef?.blur()
+        } else if (event.key === "ArrowDown" || (event.ctrlKey && event.key === "n")) {
+            event.preventDefault()
             contentElement?.scrollBy({
                 top: 80,
                 behavior: settingsStore.animations ? "smooth" : "auto",
-            });
-        } else if (
-            event.key === "ArrowUp" ||
-            (event.ctrlKey && event.key === "p")
-        ) {
-            event.preventDefault();
+            })
+        } else if (event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")) {
+            event.preventDefault()
             contentElement?.scrollBy({
                 top: -80,
                 behavior: settingsStore.animations ? "smooth" : "auto",
-            });
+            })
         }
     }
 
@@ -83,8 +70,8 @@
                 keys: "q",
                 description: m.keymap_close_help(),
                 action: (e) => {
-                    e.preventDefault();
-                    onClose();
+                    e.preventDefault()
+                    onClose()
                 },
             },
             {
@@ -92,8 +79,8 @@
                 keys: "escape",
                 description: m.keymap_close_help(),
                 action: (e) => {
-                    e.preventDefault();
-                    onClose();
+                    e.preventDefault()
+                    onClose()
                 },
             },
             {
@@ -101,8 +88,8 @@
                 keys: "?",
                 description: m.keymap_close_help(),
                 action: (e) => {
-                    e.preventDefault();
-                    onClose();
+                    e.preventDefault()
+                    onClose()
                 },
             },
             {
@@ -110,118 +97,118 @@
                 keys: "/",
                 description: m.keymap_search_shortcuts(),
                 action: (e) => {
-                    e.preventDefault();
-                    searchInputRef?.focus();
-                    searchInputRef?.select();
+                    e.preventDefault()
+                    searchInputRef?.focus()
+                    searchInputRef?.select()
                 },
             },
             {
-                id: "scroll-down-help",
+                id: "scroll-down",
                 keys: "j",
                 description: m.keymap_scroll_down(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: 80,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-up-help",
+                id: "scroll-up",
                 keys: "k",
                 description: m.keymap_scroll_up(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: -80,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-down-help-alt",
+                id: "scroll-down-alt",
                 keys: "arrowdown",
                 description: m.keymap_scroll_down(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: 80,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-up-help-alt",
+                id: "scroll-up-alt",
                 keys: "arrowup",
                 description: m.keymap_scroll_up(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: -80,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-page-down-help",
+                id: "scroll-page-down",
                 keys: "d",
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: 200,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-page-down-help-alt",
+                id: "scroll-page-down-alt",
                 keys: "pagedown",
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: 200,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-page-up-help",
+                id: "scroll-page-up",
                 keys: "u",
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: -200,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
             {
-                id: "scroll-page-up-help-alt",
+                id: "scroll-page-up-alt",
                 keys: "pageup",
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     contentElement?.scrollBy({
                         top: -200,
                         behavior: settingsStore.animations ? "smooth" : "auto",
-                    });
+                    })
                 },
             },
         ],
         activeNodeBeforeOpen,
-    );
+    )
 
     function formatKeys(keyStr: string): string[] {
-        if (keyStr === "+") return ["+"];
+        if (keyStr === "+") return ["+"]
         if (keyStr.endsWith("++")) {
-            const base = keyStr.slice(0, -2);
-            return [...base.split("+").map((k) => k.trim()), "+"];
+            const base = keyStr.slice(0, -2)
+            return [...base.split("+").map((k) => k.trim()), "+"]
         }
-        return keyStr.split("+").map((k) => k.trim());
+        return keyStr.split("+").map((k) => k.trim())
     }
 </script>
 
@@ -241,8 +228,8 @@
                     <button
                         class="clear-search-btn"
                         onclick={() => {
-                            searchQuery = "";
-                            searchInputRef?.focus();
+                            searchQuery = ""
+                            searchInputRef?.focus()
                         }}
                         aria-label="Clear search"
                     >
@@ -270,9 +257,7 @@
                                     <kbd class="key-badge">{key}</kbd>
                                 {/each}
                             </div>
-                            <span class="shortcut-desc"
-                                >{keymap.description}</span
-                            >
+                            <span class="shortcut-desc">{keymap.description}</span>
                         </div>
                     {/each}
                 </div>
