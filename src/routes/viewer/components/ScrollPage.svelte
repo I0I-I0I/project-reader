@@ -69,7 +69,7 @@
                             isLoading = false
                         })
                         .catch((err: any) => {
-                            if (err.message?.startsWith("Rendering cancelled")) {
+                            if (!err.message?.startsWith("Rendering cancelled")) {
                                 console.error(`[ScrollPage] Failed to load page ${pageNumber}`, err)
                             }
                             isLoading = false
@@ -174,12 +174,17 @@
     $effect(() => {
         const count = textLayerRenderCount
         const matches = searchStore.matches
+        const pageNo = pageNumber
 
-        if (textLayerContainer && pdf) {
-            highlightPage(pageNumber, textLayerContainer)
-        }
+        untrack(() => {
+            if (textLayerContainer && pdf) {
+                highlightPage(pageNo, textLayerContainer)
+            }
+        })
         return () => {
-            searchStore.unregisterPageRanges(pageNumber)
+            untrack(() => {
+                searchStore.unregisterPageRanges(pageNo)
+            })
         }
     })
 

@@ -644,29 +644,39 @@
     $effect(() => {
         const count = textLayer1RenderCount
         const matches = searchStore.matches
+        const pageNo = currentPage
 
-        if (textLayer1 && pdf && !isPageLoading) {
-            highlightPage(currentPage, textLayer1)
-        }
+        untrack(() => {
+            if (textLayer1 && pdf && !isPageLoading) {
+                highlightPage(pageNo, textLayer1)
+            }
+        })
         return () => {
-            searchStore.unregisterPageRanges(currentPage)
+            untrack(() => {
+                searchStore.unregisterPageRanges(pageNo)
+            })
         }
     })
 
     $effect(() => {
         const count = textLayer2RenderCount
         const matches = searchStore.matches
+        const pageNo = currentPage + 1
 
-        if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
-            highlightPage(currentPage + 1, textLayer2)
-        }
+        untrack(() => {
+            if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
+                highlightPage(pageNo, textLayer2)
+            }
+        })
         return () => {
-            searchStore.unregisterPageRanges(currentPage + 1)
+            untrack(() => {
+                searchStore.unregisterPageRanges(pageNo)
+            })
         }
     })
 
     $effect(() => {
-        if (!uiStore.isSearchModeActive) return
+        if (!uiStore.isSearchModeActive || uiStore.prompt.isOpen) return
         const activeRange = searchStore.activeRange
         if (activeRange && container) {
             scrollToActiveRange(activeRange)

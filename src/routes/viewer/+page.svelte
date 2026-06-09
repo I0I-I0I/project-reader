@@ -901,8 +901,13 @@
             options?: { scrollPosition?: number; isJump?: boolean },
         ) => {
             if (page >= 1 && page <= totalPages) {
+                const oldPage = currentPage
                 currentPage = page
-                scrollPosition = options?.scrollPosition ?? 0
+                if (options?.scrollPosition !== undefined) {
+                    scrollPosition = options.scrollPosition
+                } else if (page !== oldPage) {
+                    scrollPosition = 0
+                }
             }
         }
         return () => {
