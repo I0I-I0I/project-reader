@@ -92,14 +92,33 @@
                         pageNumber: match.pageNumber,
                         action: () => {
                             searchStore.addToHistory(queryText)
+
+                            const orig = searchStore.originalPosition
+                            const currentBook = viewerStore.getCurrentBook()
+                            if (orig && currentBook) {
+                                jumplistStore.pushBookPageJump(
+                                    currentBook.id,
+                                    orig.pageNumber,
+                                    orig.scrollPosition,
+                                )
+                            }
+
                             searchStore.currentMatchIndex = i
                             if (viewerStore.goToPage) {
                                 viewerStore.goToPage(match.pageNumber, {
-                                    isJump: true,
+                                    isJump: false,
                                 })
+                                if (currentBook) {
+                                    jumplistStore.pushBookPageJump(
+                                        currentBook.id,
+                                        match.pageNumber,
+                                        0,
+                                    )
+                                }
                             }
                             uiStore.isSearchModeActive = true
                             uiStore.prompt.isOpen = false
+                            searchStore.originalPosition = null
                         },
                     })
                 }

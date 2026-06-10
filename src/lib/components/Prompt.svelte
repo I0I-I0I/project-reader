@@ -37,6 +37,7 @@
     let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
     let innerHeight = $state<number | undefined>(undefined)
+    let originalPosition = $state<{ pageNumber: number; scrollPosition: number } | null>(null)
 
     let internalValue = $state(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
 
@@ -91,6 +92,31 @@
                 }
             }
         })
+    })
+
+    $effect(() => {
+        if (uiStore.prompt.mode === "search" && uiStore.prompt.isOpen) {
+            const results = searchResults
+            const index = selectedIndex
+            untrack(() => {
+                if (results && results[index]) {
+                    const selectedItem = results[index].item
+                    const matchIdx = parseInt(selectedItem.id.replace("search-match-", ""), 10)
+                    if (!isNaN(matchIdx) && searchStore.currentMatchIndex !== matchIdx) {
+                        searchStore.currentMatchIndex = matchIdx
+                        const match = searchStore.matches[matchIdx]
+                        if (match) {
+                            const currentBook = viewerStore.getCurrentBook()
+                            if (currentBook && currentBook.pageNumber !== match.pageNumber) {
+                                if (viewerStore.goToPage) {
+                                    viewerStore.goToPage(match.pageNumber)
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        }
     })
 
     async function scrollToSelected() {
@@ -275,6 +301,17 @@
     }
 
     onMount(async () => {
+        if (uiStore.prompt.mode === "search") {
+            const book = viewerStore.getCurrentBook()
+            if (book) {
+                originalPosition = {
+                    pageNumber: book.pageNumber,
+                    scrollPosition: book.scrollPosition || 0,
+                }
+                searchStore.originalPosition = originalPosition
+            }
+        }
+
         if (value === "") {
             value = uiStore.prompt.initialValue || ""
         }
@@ -298,6 +335,15 @@
         }
     })
     function handleClose() {
+        if (uiStore.prompt.mode === "search" && originalPosition) {
+            if (viewerStore.goToPage) {
+                viewerStore.goToPage(originalPosition.pageNumber, {
+                    scrollPosition: originalPosition.scrollPosition,
+                    isJump: false,
+                })
+            }
+        }
+        searchStore.originalPosition = null
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
         }

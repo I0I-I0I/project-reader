@@ -746,6 +746,8 @@
     }
 
     $effect(() => {
+        if (layoutMode === "scroll") return
+
         const count = textLayer1RenderCount
         const matches = searchStore.matches
         const pageNo = currentPage
@@ -763,12 +765,14 @@
     })
 
     $effect(() => {
+        if (layoutMode !== "split") return
+
         const count = textLayer2RenderCount
         const matches = searchStore.matches
         const pageNo = currentPage + 1
 
         untrack(() => {
-            if (textLayer2 && pdf && !isPageLoading && layoutMode === "split") {
+            if (textLayer2 && pdf && !isPageLoading) {
                 highlightPage(pageNo, textLayer2, 2)
             }
         })
@@ -780,7 +784,11 @@
     })
 
     $effect(() => {
-        if (!uiStore.isSearchModeActive || uiStore.prompt.isOpen) return
+        const isSearchActive =
+            uiStore.isSearchModeActive ||
+            (uiStore.prompt.isOpen && uiStore.prompt.mode === "search")
+        if (!isSearchActive) return
+
         const activeRange = searchStore.activeRange
         if (activeRange && container) {
             scrollToActiveRange(activeRange)
