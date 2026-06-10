@@ -168,7 +168,13 @@ class ViewerStore {
         const newBookId = newBook?.id
 
         // Record current position before switching
-        if (!options?.isJump && this.goToPageCallback && oldBook && newBook && oldBookId !== newBookId) {
+        if (
+            !options?.isJump &&
+            this.goToPageCallback &&
+            oldBook &&
+            newBook &&
+            oldBookId !== newBookId
+        ) {
             jumplistStore.pushBookPageJump(
                 oldBook.id,
                 oldBook.pageNumber,

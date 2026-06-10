@@ -203,6 +203,28 @@
             englishDescription: m.pick_file_to_open({}, { locale: "en" }),
             category: "commands",
         },
+        {
+            id: "go-up-folder",
+            keys: "-",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                if (vfsStore.currentFolderId !== null) {
+                    const currentFolder = vfsStore.nodes[vfsStore.currentFolderId]
+                    if (currentFolder) {
+                        const parentId = currentFolder.parentId
+                        if (parentId) {
+                            const path = vfsStore.getFolderPath(parentId)
+                            goto(localizedPath("/") + `?folder=${encodeURIComponent(path)}`)
+                        } else {
+                            goto(localizedPath("/"))
+                        }
+                    }
+                }
+            },
+            description: m.keymap_up_folder(),
+            englishDescription: m.keymap_up_folder({}, { locale: "en" }),
+            category: "navigation",
+        },
     ])
 
     $effect(() => {
