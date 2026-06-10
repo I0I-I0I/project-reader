@@ -6,6 +6,7 @@
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
     import { goto } from "$app/navigation"
@@ -153,15 +154,13 @@
                     },
                 })
             }
-        } else if (mode === "jumplist") {
-            return getJumplistPromptItems()
         } else if (mode === "global") {
             list.push({
                 id: "open-jumplist-cmd",
                 title: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
                 englishTitle: "Open jumplist",
                 category: "commands",
-                keys: "S-J",
+                keys: "shfit+j",
                 action: () => {
                     uiStore.prompt.mode = "jumplist"
                 },
@@ -526,49 +525,6 @@
             },
         },
         {
-            id: "jump-back",
-            keys: "ctrl+o",
-            description: m.keymap_jump_back ? m.keymap_jump_back() : "Jump back",
-            englishDescription: "Jump back",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                await viewerStore.jumpBack()
-            },
-        },
-        {
-            id: "jump-forward",
-            keys: "ctrl+i",
-            description: m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward",
-            englishDescription: "Jump forward",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                await viewerStore.jumpForward()
-            },
-        },
-        {
-            id: "open-jumplist",
-            keys: "shift+j",
-            description: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
-            englishDescription: "Open jumplist",
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "jumplist"
-                const activeIndex = viewerStore.activeJumplistIndex
-                const jumpsCount = viewerStore.activeJumplist.length
-                if (activeIndex !== -1 && jumpsCount > 0) {
-                    // Items are shown in reverse order, limited to last 20
-                    const startIndex = Math.max(0, jumpsCount - 20)
-                    if (activeIndex >= startIndex) {
-                        uiStore.prompt.initialSelectedIndex = jumpsCount - 1 - activeIndex
-                    }
-                }
-                uiStore.prompt.isOpen = true
-            },
-        },
-        {
             id: "prev-search-match",
             keys: "shift+n",
             description: m.keymap_prev_match ? m.keymap_prev_match() : "Previous match",
@@ -661,11 +617,14 @@
         return () => {
             const activeBook = untrack(() => viewerStore.getCurrentBook())
             if (activeBook && isLoaded) {
+                const finalPage = untrack(() => currentPage)
+                const finalScroll = untrack(() => scrollPosition)
                 viewerStore.updateBook({
                     ...activeBook,
-                    pageNumber: untrack(() => currentPage),
-                    scrollPosition: untrack(() => scrollPosition),
+                    pageNumber: finalPage,
+                    scrollPosition: finalScroll,
                 })
+                jumplistStore.pushBookPageJump(activeBook.id, finalPage, finalScroll)
             }
         }
     })
@@ -1318,14 +1277,14 @@
                                     : ''}"
                                 onclick={async (e) => {
                                     e.stopPropagation()
-                                    await viewerStore.jumpForward()
+                                    await jumplistStore.jumpForward()
                                 }}
                                 aria-label={m.keymap_jump_forward
                                     ? m.keymap_jump_forward()
                                     : "Jump forward"}
                                 tooltip={`${m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}${getShortcutHint(commandsNode, "jump-forward")}`}
-                                disabled={viewerStore.activeJumplistIndex >=
-                                    viewerStore.activeJumplist.length - 1}
+                                disabled={jumplistStore.currentIndex >=
+                                    jumplistStore.jumps.length - 1}
                             >
                                 <ChevronIcon style="transform: rotate(-90deg);" />
                             </Button>
@@ -1339,11 +1298,11 @@
                                     : ''}"
                                 onclick={async (e) => {
                                     e.stopPropagation()
-                                    await viewerStore.jumpBack()
+                                    await jumplistStore.jumpBack()
                                 }}
                                 aria-label={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
                                 tooltip={`${m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}${getShortcutHint(commandsNode, "jump-back")}`}
-                                disabled={viewerStore.activeJumplistIndex <= 0}
+                                disabled={jumplistStore.currentIndex <= 0}
                             >
                                 <ChevronIcon style="transform: rotate(90deg);" />
                             </Button>

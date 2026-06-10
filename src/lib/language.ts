@@ -19,7 +19,10 @@ export function switchLanguage(locale: AppLocale, url: URL): void {
     setLocale(locale, { reload: false })
 
     const href = resolve(getLocalizedCurrentHref(url, locale) as any)
-    if (browser && href !== window.location.pathname + window.location.search + window.location.hash) {
+    if (
+        browser &&
+        href !== window.location.pathname + window.location.search + window.location.hash
+    ) {
         window.location.href = href
     }
 }

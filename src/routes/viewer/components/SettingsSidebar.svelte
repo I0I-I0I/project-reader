@@ -21,11 +21,7 @@
     import { getLanguageName } from "$lib/locale"
     import { browser } from "$app/environment"
     import { uiStore } from "$lib/stores/uiStore.svelte"
-    import {
-        getLocalizedCurrentHref,
-        switchLanguage,
-        type AppLocale,
-    } from "$lib/language"
+    import { getLocalizedCurrentHref, switchLanguage, type AppLocale } from "$lib/language"
 
     let { onClose } = $props<{
         onClose: () => void

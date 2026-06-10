@@ -1,41 +1,8 @@
 import { browser } from "$app/environment"
 import type { FlatHeading } from "$lib/pdf"
 import { vfsStore } from "./vfsStore.svelte"
-import type { FileNode } from "./vfsStore.types"
-
-export interface Book {
-    id: string
-    name: string
-    updatedAt: number
-    pageNumber: number
-    scrollPosition?: number
-    url?: string
-    pdfDest?: string
-    isLocked?: boolean
-    previewDataUrl?: string
-    totalPages?: number
-    author?: string | null
-}
-
-export interface Jump {
-    bookId: string
-    bookName: string
-    pageNumber: number
-    scrollPosition: number
-}
-
-export function fileNodeToBook(node: FileNode): Book {
-    return {
-        id: node.id,
-        name: node.name,
-        updatedAt: node.updatedAt,
-        pageNumber: node.metadata.pageNumber || 1,
-        scrollPosition: node.metadata.scrollPosition || 0,
-        pdfDest: node.metadata.pdfDest,
-        totalPages: node.metadata.totalPages,
-        author: node.metadata.author,
-    }
-}
+import { jumplistStore } from "./jumplistStore.svelte"
+import { type Book, fileNodeToBook } from "./viewerStore.types"
 
 class ViewerStore {
     private book = $state<Book | null>(null)
@@ -44,10 +11,9 @@ class ViewerStore {
     private goToPageCallback = $state<
         ((page: number, options?: { scrollPosition?: number; isJump?: boolean }) => void) | null
     >(null)
-    private jumplist = $state<Jump[]>([])
-    private jumplistIndex = $state<number>(-1)
 
     constructor() {
+        jumplistStore.setViewer(this)
         if (browser) {
             const savedBook = localStorage.getItem("book")
             if (savedBook) {
@@ -62,22 +28,8 @@ class ViewerStore {
                 }
             }
 
-            const savedJumplist = localStorage.getItem("jumplist")
-            if (savedJumplist) {
-                try {
-                    this.jumplist = JSON.parse(savedJumplist)
-                } catch (e) {
-                    console.error("Failed to parse jumplist from localStorage", e)
-                }
-            }
-            const savedJumplistIndex = localStorage.getItem("jumplistIndex")
-            if (savedJumplistIndex) {
-                this.jumplistIndex = parseInt(savedJumplistIndex, 10)
-            }
-
             const flush = () => {
                 this.persistToLocalStorage(true)
-                this.persistJumplist()
             }
             window.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "hidden") {
@@ -106,24 +58,21 @@ class ViewerStore {
         return (page: number, options?: { scrollPosition?: number; isJump?: boolean }) => {
             if (options?.isJump && this.book) {
                 // Record current position before jumping
-                this.pushJump({
-                    bookId: this.book.id,
-                    bookName: this.book.name,
-                    pageNumber: this.book.pageNumber,
-                    scrollPosition: this.book.scrollPosition || 0,
-                })
+                jumplistStore.pushBookPageJump(
+                    this.book.id,
+                    this.book.pageNumber,
+                    this.book.scrollPosition || 0,
+                )
             }
             this.goToPageCallback?.(page, options)
             if (options?.isJump && this.book) {
                 // Record the landing position
-                this.pushJump({
-                    bookId: this.book.id,
-                    bookName: this.book.name,
-                    pageNumber: page,
-                    scrollPosition:
-                        options?.scrollPosition ??
+                jumplistStore.pushBookPageJump(
+                    this.book.id,
+                    page,
+                    options?.scrollPosition ??
                         (page === this.book.pageNumber ? this.book.scrollPosition || 0 : 0),
-                })
+                )
             }
         }
     }
@@ -136,74 +85,23 @@ class ViewerStore {
     }
 
     get activeJumplist() {
-        return this.jumplist
+        return jumplistStore.jumps
     }
 
     get activeJumplistIndex() {
-        return this.jumplistIndex
-    }
-
-    pushJump(jump: Jump) {
-        // Truncate forward history if we're in the middle of the list
-        if (this.jumplistIndex < this.jumplist.length - 1) {
-            this.jumplist = this.jumplist.slice(0, this.jumplistIndex + 1)
-        }
-
-        // Avoid duplicate jumps
-        const lastJump = this.jumplist[this.jumplistIndex]
-        if (
-            lastJump &&
-            lastJump.bookId === jump.bookId &&
-            lastJump.pageNumber === jump.pageNumber &&
-            Math.abs(lastJump.scrollPosition - jump.scrollPosition) < 0.01
-        ) {
-            return
-        }
-
-        this.jumplist.push(jump)
-        if (this.jumplist.length > 100) {
-            this.jumplist.shift()
-        } else {
-            this.jumplistIndex++
-        }
-        this.persistJumplist()
+        return jumplistStore.currentIndex
     }
 
     async jumpBack() {
-        if (this.jumplistIndex > 0) {
-            await this.jumpToIndex(this.jumplistIndex - 1)
-        }
+        await jumplistStore.jumpBack()
     }
 
     async jumpForward() {
-        if (this.jumplistIndex < this.jumplist.length - 1) {
-            await this.jumpToIndex(this.jumplistIndex + 1)
-        }
+        await jumplistStore.jumpForward()
     }
 
     async jumpToIndex(index: number) {
-        if (index >= 0 && index < this.jumplist.length) {
-            const jump = this.jumplist[index]
-
-            if (this.book && this.book.id !== jump.bookId) {
-                const node = vfsStore.nodes[jump.bookId]
-                if (node && node.type === "file") {
-                    const book = fileNodeToBook(node as FileNode)
-                    // Update book with jump's position so it opens there
-                    book.pageNumber = jump.pageNumber
-                    book.scrollPosition = jump.scrollPosition
-                    this.jumplistIndex = index
-                    await this.setCurrentBook(book, { isJump: true })
-                }
-            } else {
-                this.jumplistIndex = index
-                this.goToPageCallback?.(jump.pageNumber, {
-                    scrollPosition: jump.scrollPosition,
-                    isJump: false,
-                })
-            }
-            this.persistJumplist()
-        }
+        await jumplistStore.jumpToIndex(index)
     }
 
     async syncWithBooks() {
@@ -264,52 +162,66 @@ class ViewerStore {
         }
     }
 
-    private persistJumplist() {
-        if (!browser) return
-        localStorage.setItem("jumplist", JSON.stringify(this.jumplist))
-        localStorage.setItem("jumplistIndex", this.jumplistIndex.toString())
-    }
-
     async setCurrentBook(newBook: Book | null, options?: { isJump?: boolean }) {
+        const oldBook = this.book
+        const oldBookId = oldBook?.id
+        const newBookId = newBook?.id
+
         // Record current position before switching
-        if (!options?.isJump && this.book && newBook && this.book.id !== newBook.id) {
-            this.pushJump({
-                bookId: this.book.id,
-                bookName: this.book.name,
-                pageNumber: this.book.pageNumber,
-                scrollPosition: this.book.scrollPosition || 0,
-            })
+        if (!options?.isJump && this.goToPageCallback && oldBook && newBook && oldBookId !== newBookId) {
+            jumplistStore.pushBookPageJump(
+                oldBook.id,
+                oldBook.pageNumber,
+                oldBook.scrollPosition || 0,
+            )
         }
 
         // Revoke old URL if it was a blob URL created by us
-        if (this.book && this.book.id !== newBook?.id) {
-            vfsStore.revokeFileUrl(this.book.id)
-            vfsStore.revokePreviewUrl(this.book.id)
+        if (oldBook && oldBook.id !== newBookId) {
+            vfsStore.revokeFileUrl(oldBook.id)
+            vfsStore.revokePreviewUrl(oldBook.id)
         }
+
+        // Set the active book state immediately so components don't see the old book
+        this.book = newBook
+        this.persistToLocalStorage(true)
 
         if (newBook) {
             // Lazily fetch URLs if they are missing
+            let hasChanges = false
             if (!newBook.url) {
                 newBook.url = await vfsStore.getFileUrl(newBook.id)
+                hasChanges = true
             }
             if (!newBook.previewDataUrl) {
                 newBook.previewDataUrl = await vfsStore.getPreviewUrl(newBook.id)
+                hasChanges = true
             }
-            newBook.isLocked = vfsStore.isLockedMap[newBook.id]
+            const isLocked = vfsStore.isLockedMap[newBook.id]
+            if (newBook.isLocked !== isLocked) {
+                newBook.isLocked = isLocked
+                hasChanges = true
+            }
+
+            // Only update reactive state if we haven't switched to a different book in the meantime
+            if (this.book && this.book.id === newBook.id) {
+                if (hasChanges) {
+                    this.book = { ...newBook }
+                }
+                this.persistToLocalStorage(true)
+            }
 
             // Record initial position in new book
-            if (!options?.isJump && this.book?.id !== newBook.id) {
-                this.pushJump({
-                    bookId: newBook.id,
-                    bookName: newBook.name,
-                    pageNumber: newBook.pageNumber,
-                    scrollPosition: newBook.scrollPosition || 0,
-                })
+            const lastJump = jumplistStore.jumps[jumplistStore.currentIndex]
+            const isSameBookInJumplist =
+                lastJump &&
+                (lastJump.type === "book_open" || lastJump.type === "book_page") &&
+                lastJump.bookId === newBook.id
+
+            if (!options?.isJump && !isSameBookInJumplist) {
+                jumplistStore.pushBookOpenJump(newBook.id)
             }
         }
-
-        this.book = newBook
-        this.persistToLocalStorage(true)
     }
 
     getCurrentBook(): Book | null {

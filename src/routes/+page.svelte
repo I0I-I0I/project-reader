@@ -23,17 +23,13 @@
     import { page } from "$app/state"
     import { goto } from "$app/navigation"
     import { localizedPath } from "$lib/language"
-    import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { fileNodeToBook } from "$lib/stores/viewerStore.types"
+    import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
     import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
     import { PICKER_KEYS, generateHints } from "$lib/constants"
-    import { usePrompt, type SearchItem } from "$lib/stores/promptStore.svelte"
-    import {
-        getFilesPromptItems,
-        getFoldersPromptItems,
-        getJumplistPromptItems,
-    } from "$lib/stores/promptProviders.svelte"
     import { untrack } from "svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
@@ -70,6 +66,10 @@
         if (vfsStore.currentFolderId !== resolvedId) {
             vfsStore.currentFolderId = resolvedId
         }
+
+        untrack(() => {
+            jumplistStore.pushFolderJump(resolvedId)
+        })
     })
 
     let breadcrumbs = $derived.by(() => {
@@ -143,75 +143,7 @@
         }
     }
 
-    usePrompt((options) => {
-        const { mode } = options
-        const list: SearchItem[] = []
-
-        if (mode === "files-recursive") {
-            return getFilesPromptItems(mode)
-        } else if (mode === "folders") {
-            return getFoldersPromptItems()
-        } else if (mode === "jumplist") {
-            return getJumplistPromptItems()
-        }
-
-        return list
-    })
-
     useCommands([
-        {
-            id: "jump-back",
-            keys: "ctrl+o",
-            description: m.keymap_jump_back ? m.keymap_jump_back() : "Jump back",
-            englishDescription: "Jump back",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                const prevBookId = viewerStore.getCurrentBook()?.id
-                await viewerStore.jumpBack()
-                const nextBookId = viewerStore.getCurrentBook()?.id
-                if (nextBookId && nextBookId !== prevBookId) {
-                    goto(localizedPath("/viewer"))
-                }
-            },
-        },
-        {
-            id: "jump-forward",
-            keys: "ctrl+i",
-            description: m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward",
-            englishDescription: "Jump forward",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                const prevBookId = viewerStore.getCurrentBook()?.id
-                await viewerStore.jumpForward()
-                const nextBookId = viewerStore.getCurrentBook()?.id
-                if (nextBookId && nextBookId !== prevBookId) {
-                    goto(localizedPath("/viewer"))
-                }
-            },
-        },
-        {
-            id: "open-jumplist",
-            keys: "shift+j",
-            description: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
-            englishDescription: "Open jumplist",
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "jumplist"
-                const activeIndex = viewerStore.activeJumplistIndex
-                const jumpsCount = viewerStore.activeJumplist.length
-                if (activeIndex !== -1 && jumpsCount > 0) {
-                    // Items are shown in reverse order, limited to last 20
-                    const startIndex = Math.max(0, jumpsCount - 20)
-                    if (activeIndex >= startIndex) {
-                        uiStore.prompt.initialSelectedIndex = jumpsCount - 1 - activeIndex
-                    }
-                }
-                uiStore.prompt.isOpen = true
-            },
-        },
         {
             id: "open-file-recursive",
             keys: "o",
@@ -270,69 +202,6 @@
             description: m.pick_file_to_open(),
             englishDescription: m.pick_file_to_open({}, { locale: "en" }),
             category: "commands",
-        },
-        {
-            id: "one-level-up",
-            keys: "h",
-            disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
-            action: () => {
-                console.log("one-level-up", vfsStore.currentFolderId)
-                if (vfsStore.currentFolderId) {
-                    const node = vfsStore.nodes[vfsStore.currentFolderId]
-                    if (node && node.type === "folder") {
-                        vfsStore.pushForwardHistory(vfsStore.currentFolderId)
-                        if (node.parentId) {
-                            const parentPath = vfsStore.getFolderPath(node.parentId)
-                            goto(
-                                localizedPath("/") +
-                                    `?folder=${encodeURIComponent(parentPath)}`,
-                            )
-                        } else {
-                            goto(localizedPath("/"))
-                        }
-                    }
-                }
-            },
-            description: m.keymap_up_folder(),
-            englishDescription: m.keymap_up_folder({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "open-history-forward",
-            keys: "l",
-            disabled: () => uiStore.isSelectionMode || uiStore.isPickingMode,
-            action: async () => {
-                const forwardId = vfsStore.popForwardHistory()
-                if (forwardId) {
-                    const node = vfsStore.nodes[forwardId]
-                    if (node && node.type === "file") {
-                        try {
-                            let fileNode = node as FileNode
-                            const isLocked = vfsStore.isLockedMap[fileNode.id]
-                            if (isLocked) {
-                                await vfsStore.restoreFileAccess(fileNode.id)
-                            }
-                            await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                            goto(localizedPath("/viewer"))
-                        } catch (err) {
-                            console.error("[+page] Failed to open book from history:", err)
-                        }
-                    } else if (node && node.type === "folder") {
-                        const forwardPath = vfsStore.getFolderPath(forwardId)
-                        goto(
-                            localizedPath("/") +
-                                `?folder=${encodeURIComponent(forwardPath)}`,
-                        )
-                    } else {
-                        window.history.forward()
-                    }
-                } else {
-                    window.history.forward()
-                }
-            },
-            description: m.keymap_history_forward(),
-            englishDescription: m.keymap_history_forward({}, { locale: "en" }),
-            category: "navigation",
         },
     ])
 

@@ -71,7 +71,14 @@
         }
     }
 
-    let allItems = $derived(items)
+    let allItems = $derived.by(() => {
+        const seen = new Set<string>()
+        return items.filter((item) => {
+            if (seen.has(item.id)) return false
+            seen.add(item.id)
+            return true
+        })
+    })
 
     const fuseOptions = {
         keys: [

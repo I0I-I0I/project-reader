@@ -7,24 +7,19 @@
     import { fly } from "svelte/transition"
     import * as m from "$lib/paraglide/messages"
 
-    // Svelte 5 state for client width
     let width = $state(220)
 
-    // Determine if we should show the floating notification
     let show = $derived.by(() => {
-        // Show selected files/folders count on non-viewer pages when selection mode is active
         const isViewer = page.url.pathname.includes("/viewer")
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
             return true
         }
-        // Show match count on viewer page when search mode is active
         if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
             return true
         }
         return false
     })
 
-    // Content lines for the 2-line layout
     let textLine1 = $derived.by(() => {
         const isViewer = page.url.pathname.includes("/viewer")
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
@@ -47,7 +42,6 @@
         return ""
     })
 
-    // Offset top position if we are on the viewer page to avoid overlapping the header
     let isViewerPage = $derived(page.url.pathname.includes("/viewer"))
 
     // Generate path for the chevron:
@@ -102,7 +96,6 @@
         box-sizing: border-box;
     }
 
-    /* Offset below the sticky viewer header to avoid overlapping buttons */
     .floating-notification.viewer-mode {
         top: 100px;
     }
@@ -125,7 +118,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
-        padding-left: 55px; /* Offset text to the right of the left chevron */
+        padding-left: 55px;
         padding-right: 20px;
         box-sizing: border-box;
         font-family: inherit;

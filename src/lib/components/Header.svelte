@@ -17,11 +17,7 @@
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import Button from "./ui/Button.svelte"
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
-    import {
-        getLocalizedCurrentHref,
-        switchLanguage,
-        type AppLocale,
-    } from "$lib/language"
+    import { getLocalizedCurrentHref, switchLanguage, type AppLocale } from "$lib/language"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },

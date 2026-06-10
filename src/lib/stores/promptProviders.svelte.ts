@@ -2,9 +2,11 @@ import * as m from "$lib/paraglide/messages"
 import { vfsStore } from "$lib/stores/vfsStore.svelte"
 import { uiStore } from "$lib/stores/uiStore.svelte"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
-import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
+import { viewerStore } from "$lib/stores/viewerStore.svelte"
+import { fileNodeToBook } from "$lib/stores/viewerStore.types"
+import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
 import { goto } from "$app/navigation"
-import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+import { locales, getLocale } from "$lib/paraglide/runtime"
 import { getLanguageName } from "$lib/locale"
 import { page } from "$app/state"
 import { localizedPath, switchLanguage, type AppLocale } from "$lib/language"
@@ -307,7 +309,7 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
                         return
                     }
                 }
-                viewerStore.setCurrentBook(fileNodeToBook(activeNode))
+                await viewerStore.setCurrentBook(fileNodeToBook(activeNode))
                 vfsStore.clearForwardHistory()
                 goto(localizedPath("/viewer"))
                 uiStore.prompt.mode = "global"
@@ -320,7 +322,7 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
 
 export function getJumplistPromptItems(): SearchItem[] {
     const list: SearchItem[] = []
-    const jumps = viewerStore.activeJumplist
+    const jumps = jumplistStore.jumps
     if (jumps.length === 0) {
         list.push({
             id: "jumplist-empty",
@@ -329,30 +331,40 @@ export function getJumplistPromptItems(): SearchItem[] {
             action: () => {},
         })
     } else {
-        // Show last 20 jumps in reverse order
         const startIndex = Math.max(0, jumps.length - 20)
-        const currentBook = viewerStore.getCurrentBook()
         for (let i = jumps.length - 1; i >= startIndex; i--) {
             const jump = jumps[i]
-            const isActive = i === viewerStore.activeJumplistIndex
-            const isDifferentBook = currentBook?.id !== jump.bookId
+            const isActive = i === jumplistStore.currentIndex
+
+            let title = ""
+            let subtitle = ""
+
+            if (jump.type === "folder") {
+                title =
+                    jump.folderId === null ? (m.library ? m.library() : "Library") : jump.folderName
+                subtitle = jump.folderId === null ? "/" : jump.folderPath
+            } else if (jump.type === "book_open") {
+                title = jump.bookName
+                subtitle = "Opened book"
+            } else if (jump.type === "book_page") {
+                title = jump.bookName
+                subtitle = `${m.page ? m.page() : "Page"} ${jump.pageNumber}`
+            }
+
+            if (isActive) {
+                const currentPosText = m.current_position
+                    ? m.current_position()
+                    : "Current Position"
+                subtitle = subtitle ? `${subtitle} (${currentPosText})` : `(${currentPosText})`
+            }
 
             list.push({
                 id: `jump-${i}`,
-                title: isDifferentBook ? jump.bookName : `${m.page()} ${jump.pageNumber}`,
-                subtitle: isDifferentBook
-                    ? `${m.page()} ${jump.pageNumber}`
-                    : isActive
-                      ? m.current_position
-                          ? m.current_position()
-                          : "Current Position"
-                      : undefined,
+                title,
+                subtitle: subtitle || undefined,
                 category: "navigation",
                 action: async () => {
-                    await viewerStore.jumpToIndex(i)
-                    if (page.url.pathname !== localizedPath("/viewer")) {
-                        goto(localizedPath("/viewer"))
-                    }
+                    await jumplistStore.jumpToIndex(i)
                     uiStore.prompt.isOpen = false
                 },
             })
