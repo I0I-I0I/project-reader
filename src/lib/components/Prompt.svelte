@@ -7,6 +7,7 @@
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
+    import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
@@ -51,6 +52,7 @@
     })
 
     let isInitialValue = true
+    let hasManuallySelected = $state(uiStore.prompt.initialSelectedIndex !== null)
     $effect(() => {
         const query = value
         untrack(() => {
@@ -59,6 +61,35 @@
                 return
             }
             selectedIndex = 0
+            hasManuallySelected = false
+        })
+    })
+
+    $effect(() => {
+        const results = searchResults
+        const mode = uiStore.prompt.mode
+        untrack(() => {
+            if (mode === "search" && !hasManuallySelected && results.length > 0) {
+                const currentBook = viewerStore.getCurrentBook()
+                const startPage = searchStore.searchStartPage ?? currentBook?.pageNumber ?? 1
+
+                let nearestIdx = 0
+                let minDistance = Infinity
+                for (let i = 0; i < results.length; i++) {
+                    const pageNum = results[i].item.pageNumber
+                    if (pageNum !== undefined) {
+                        const dist = Math.abs(pageNum - startPage)
+                        if (dist < minDistance) {
+                            minDistance = dist
+                            nearestIdx = i
+                        }
+                    }
+                }
+                if (selectedIndex !== nearestIdx) {
+                    selectedIndex = nearestIdx
+                    scrollToSelected()
+                }
+            }
         })
     })
 
@@ -148,6 +179,7 @@
                     if (searchResults.length === 0) return
                     event.preventDefault()
                     selectedIndex = (selectedIndex + 1) % searchResults.length
+                    hasManuallySelected = true
                     scrollToSelected()
                 },
                 description: "",
@@ -160,6 +192,7 @@
                     if (searchResults.length === 0) return
                     event.preventDefault()
                     selectedIndex = (selectedIndex + 1) % searchResults.length
+                    hasManuallySelected = true
                     scrollToSelected()
                 },
                 description: "",
@@ -173,6 +206,7 @@
                     event.preventDefault()
                     selectedIndex =
                         (selectedIndex - 1 + searchResults.length) % searchResults.length
+                    hasManuallySelected = true
                     scrollToSelected()
                 },
                 description: "",
@@ -186,6 +220,7 @@
                     event.preventDefault()
                     selectedIndex =
                         (selectedIndex - 1 + searchResults.length) % searchResults.length
+                    hasManuallySelected = true
                     scrollToSelected()
                 },
                 description: "",

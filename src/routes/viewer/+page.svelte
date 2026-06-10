@@ -89,6 +89,7 @@
                         title: `${m.page()} ${match.pageNumber}`,
                         subtitle: context,
                         category: "navigation",
+                        pageNumber: match.pageNumber,
                         action: () => {
                             searchStore.addToHistory(queryText)
                             searchStore.currentMatchIndex = i
@@ -200,6 +201,8 @@
     $effect(() => {
         if (uiStore.prompt.mode === "search" && uiStore.prompt.isOpen) {
             searchStore.startIndexing()
+            const currentBook = viewerStore.getCurrentBook()
+            searchStore.searchStartPage = currentBook ? currentBook.pageNumber : 1
         }
     })
 

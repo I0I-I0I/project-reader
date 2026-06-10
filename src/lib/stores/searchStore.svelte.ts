@@ -30,6 +30,7 @@ class SearchStore {
     pageTexts = new SvelteMap<number, { original: string; lower: string }>()
 
     searchHistory = $state<string[]>([])
+    searchStartPage = $state<number | null>(null)
 
     constructor() {
         if (browser) {
@@ -75,6 +76,7 @@ class SearchStore {
         uiStore.prompt.clearValue("search")
         this.matches = []
         this._currentMatchIndex = -1
+        this.searchStartPage = null
         this.isSearching = false
         this.pageTexts.clear()
         this.pageRanges.clear()
@@ -228,8 +230,10 @@ class SearchStore {
                 const now = performance.now()
                 if (pageMatchesFound && now - lastUpdateTime > 100) {
                     this.matches = [...matchesList]
-                    if (this._currentMatchIndex === -1 && this.matches.length > 0) {
-                        this._currentMatchIndex = 0
+                    const startPage = this.searchStartPage ?? 1
+                    const nearestIdx = this.findNearestMatchIndex(this.matches, startPage)
+                    if (nearestIdx !== -1 && nearestIdx !== this._currentMatchIndex) {
+                        this._currentMatchIndex = nearestIdx
                         this.goToCurrentMatch()
                     }
                     this.updateCSSHighlights()
@@ -249,8 +253,10 @@ class SearchStore {
 
             if (!signal.aborted) {
                 this.matches = matchesList
-                if (this._currentMatchIndex === -1 && this.matches.length > 0) {
-                    this._currentMatchIndex = 0
+                const startPage = this.searchStartPage ?? 1
+                const nearestIdx = this.findNearestMatchIndex(this.matches, startPage)
+                if (nearestIdx !== -1) {
+                    this._currentMatchIndex = nearestIdx
                 }
                 this.updateCSSHighlights()
             }
@@ -290,6 +296,20 @@ class SearchStore {
                 }
             }
         }
+    }
+
+    private findNearestMatchIndex(matches: SearchMatch[], targetPage: number): number {
+        if (matches.length === 0) return -1
+        let nearestIdx = 0
+        let minDistance = Infinity
+        for (let i = 0; i < matches.length; i++) {
+            const dist = Math.abs(matches[i].pageNumber - targetPage)
+            if (dist < minDistance) {
+                minDistance = dist
+                nearestIdx = i
+            }
+        }
+        return nearestIdx
     }
 
     get activeRange(): Range | null {
@@ -368,6 +388,7 @@ class SearchStore {
         this.query = ""
         this.matches = []
         this._currentMatchIndex = -1
+        this.searchStartPage = null
         this.isSearching = false
         this.pageTexts.clear()
         this.pageRanges.clear()
