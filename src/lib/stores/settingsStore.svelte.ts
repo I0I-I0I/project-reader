@@ -46,6 +46,9 @@ class SettingsStore {
                     const parsed = JSON.parse(savedSettings)
                     const sanitized = this.sanitize(parsed)
                     this.settings = { ...this.settings, ...sanitized }
+                    if (sanitized.language) {
+                        document.cookie = `PARAGLIDE_LOCALE=${sanitized.language}; path=/; max-age=31536000; SameSite=Lax`
+                    }
                 } catch (e) {
                     console.error("Failed to parse settings from localStorage", e)
                 }
@@ -144,6 +147,9 @@ class SettingsStore {
 
     set language(value: Settings["language"]) {
         this.updateSetting("language", value)
+        if (browser) {
+            document.cookie = `PARAGLIDE_LOCALE=${value}; path=/; max-age=31536000; SameSite=Lax`
+        }
     }
 
     get animations(): Settings["animations"] {

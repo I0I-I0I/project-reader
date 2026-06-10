@@ -318,11 +318,14 @@
             const pageHeight = getPageHeight(pageDimensions[foundPage - 1])
             scrollPosition = (currentScrollTop - pageTop) / pageHeight
         } else {
-            const pageEl = container?.querySelector(".pdf-image-wrapper, .book-spread") as HTMLElement | null
+            const pageEl = container?.querySelector(
+                ".pdf-image-wrapper, .book-spread",
+            ) as HTMLElement | null
             if (pageEl) {
                 const pageHeight = pageEl.offsetHeight
                 const pageTop = pageEl.offsetTop
-                scrollPosition = pageHeight > 0 ? Math.max(0, (currentScrollTop - pageTop) / pageHeight) : 0
+                scrollPosition =
+                    pageHeight > 0 ? Math.max(0, (currentScrollTop - pageTop) / pageHeight) : 0
             } else {
                 scrollPosition = 0
             }
@@ -498,7 +501,9 @@
                     })
                 }
             } else {
-                const pageEl = container!.querySelector(".pdf-image-wrapper, .book-spread") as HTMLElement | null
+                const pageEl = container!.querySelector(
+                    ".pdf-image-wrapper, .book-spread",
+                ) as HTMLElement | null
                 if (pageEl) {
                     const pageHeight = pageEl.offsetHeight
                     const pageTop = pageEl.offsetTop

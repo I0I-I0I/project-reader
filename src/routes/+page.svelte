@@ -420,11 +420,6 @@
     {#if uiStore.isSelectionMode}
         <SelectionKeymaps {currentNodes} {allSelected} {handleBulkDelete} />
         <div class="selection-bar">
-            <div class="selection-info">
-                <span class="selection-count">
-                    {m.items_selected({ count: vfsStore.selectedIds.size })}
-                </span>
-            </div>
             <div class="selection-actions">
                 <Button
                     variant="brutalist"
