@@ -8,7 +8,6 @@
     import { settingsStore, type Theme } from "$lib/stores/settingsStore.svelte"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
-    import type { Pathname } from "$app/types"
     import * as m from "$lib/paraglide/messages"
 
     import { getLanguageName } from "$lib/locale"
@@ -18,6 +17,11 @@
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import Button from "./ui/Button.svelte"
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
+    import {
+        getLocalizedCurrentHref,
+        switchLanguage,
+        type AppLocale,
+    } from "$lib/language"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
@@ -65,7 +69,7 @@
             {#if currentBook}
                 <Button
                     variant="action"
-                    href={resolve(localizeHref("/viewer"))}
+                    href={resolve(localizeHref("/viewer") as any)}
                     class="continue-btn"
                     aria-label={m.continue_reading()}
                 >
@@ -110,12 +114,16 @@
                             <a
                                 data-sveltekit-reload
                                 href={resolve(
-                                    localizeHref(page.url.pathname, { locale }) as Pathname,
+                                    getLocalizedCurrentHref(page.url, locale as AppLocale) as any,
                                 )}
                                 class="dropdown-item"
                                 class:active={getLocale() === locale}
                                 aria-current={getLocale() === locale ? "true" : undefined}
-                                onclick={close}
+                                onclick={(event) => {
+                                    event.preventDefault()
+                                    switchLanguage(locale as AppLocale, page.url)
+                                    close()
+                                }}
                             >
                                 <span>{getLanguageName(locale)}</span>
                             </a>

@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
     scale: 1.5,
     quality: 3,
     theme: "system",
-    language: "en",
+    language: "ru",
     animations: true,
 }
 

@@ -14,14 +14,18 @@
     import { cubicOut } from "svelte/easing"
     import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import { getContext, onMount } from "svelte"
-    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
+    import { locales, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
-    import type { Pathname } from "$app/types"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/locale"
     import { browser } from "$app/environment"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import {
+        getLocalizedCurrentHref,
+        switchLanguage,
+        type AppLocale,
+    } from "$lib/language"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -285,7 +289,7 @@
         <section class="settings-section">
             <h4 class="section-title">{m.theme()}</h4>
             <div class="theme-options" role="group" aria-label={m.theme()}>
-                {#each THEMES as { value, label, Icon }}
+                {#each THEMES as { value, label, Icon } (value)}
                     <Button
                         class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
                         variant="action"
@@ -317,10 +321,16 @@
                 {#each locales as locale (locale)}
                     <Button
                         data-sveltekit-reload
-                        href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}
+                        href={resolve(
+                            getLocalizedCurrentHref(page.url, locale as AppLocale) as any,
+                        )}
                         class={"option-btn" + (getLocale() === locale ? " active" : "")}
                         variant="action"
                         size="default"
+                        onclick={(event: MouseEvent) => {
+                            event.preventDefault()
+                            switchLanguage(locale as AppLocale, page.url)
+                        }}
                     >
                         <GlobeIcon />
                         <span>{getLanguageName(locale)}</span>

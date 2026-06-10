@@ -4,11 +4,10 @@ import { uiStore } from "$lib/stores/uiStore.svelte"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
 import { viewerStore, fileNodeToBook } from "$lib/stores/viewerStore.svelte"
 import { goto } from "$app/navigation"
-import { resolve } from "$app/paths"
 import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
 import { getLanguageName } from "$lib/locale"
 import { page } from "$app/state"
-import type { Pathname } from "$app/types"
+import { localizedPath, switchLanguage, type AppLocale } from "$lib/language"
 import type { SearchItem } from "$lib/stores/promptStore.svelte"
 import type { CommandRegistry } from "$lib/stores/commandsStore.svelte"
 import type { FolderNode, FileNode } from "$lib/stores/vfsStore.types"
@@ -50,7 +49,7 @@ export function getFoldersPromptItems(): SearchItem[] {
             englishTitle: m.root ? m.root({}, { locale: "en" }) : "ROOT",
             category: "navigation",
             action: () => {
-                goto(resolve(localizeHref("/")))
+                goto(localizedPath("/"))
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -68,7 +67,7 @@ export function getFoldersPromptItems(): SearchItem[] {
             title: vfsStore.getNodePath(folder.id),
             category: "navigation",
             action: () => {
-                goto(resolve(localizeHref("/")) + `?folder=${encodeURIComponent(folderPath)}`)
+                goto(localizedPath("/") + `?folder=${encodeURIComponent(folderPath)}`)
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -254,13 +253,9 @@ export function getLanguagePromptItems(): SearchItem[] {
             category: "settings",
             subtitle: getLocale() === locale ? "✓" : undefined,
             action: () => {
-                settingsStore.language = locale as "en" | "ru"
                 uiStore.prompt.isOpen = false
                 uiStore.prompt.mode = "global"
-                const resolvedHref = resolve(
-                    localizeHref(page.url.pathname, { locale }) as Pathname,
-                )
-                window.location.href = resolvedHref
+                switchLanguage(locale as AppLocale, page.url)
             },
         })
     }
@@ -314,7 +309,7 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
                 }
                 viewerStore.setCurrentBook(fileNodeToBook(activeNode))
                 vfsStore.clearForwardHistory()
-                goto(resolve(localizeHref("/viewer")))
+                goto(localizedPath("/viewer"))
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
             },
@@ -355,8 +350,8 @@ export function getJumplistPromptItems(): SearchItem[] {
                 category: "navigation",
                 action: async () => {
                     await viewerStore.jumpToIndex(i)
-                    if (page.url.pathname !== resolve(localizeHref("/viewer"))) {
-                        goto(resolve(localizeHref("/viewer")))
+                    if (page.url.pathname !== localizedPath("/viewer")) {
+                        goto(localizedPath("/viewer"))
                     }
                     uiStore.prompt.isOpen = false
                 },

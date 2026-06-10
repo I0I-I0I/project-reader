@@ -1,7 +1,5 @@
 <script lang="ts">
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    // Save the preferred language from localStorage before any Svelte effects run and overwrite it!
-    const preferredLanguage = settingsStore.language
     import { onMount, setContext, untrack } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
@@ -246,27 +244,6 @@
         }
     })
 
-    let isInitialLocaleCheck = true
-    $effect(() => {
-        const locale = getLocale()
-        if (locale === "en" || locale === "ru") {
-            untrack(() => {
-                if (isInitialLocaleCheck) {
-                    isInitialLocaleCheck = false
-                    const pathname = page.url.pathname as string
-                    const hasExplicitEn = pathname === "/en" || pathname.startsWith("/en/")
-                    if (hasExplicitEn && settingsStore.language !== "en") {
-                        settingsStore.language = "en"
-                    }
-                    return
-                }
-                if (settingsStore.language !== locale) {
-                    settingsStore.language = locale
-                }
-            })
-        }
-    })
-
     $effect(() => {
         // Clear/initialize search input whenever the prompt mode changes
         const _mode = uiStore.prompt.mode
@@ -292,31 +269,33 @@
         const pathname = page.url.pathname as string
         const hasExplicitEn = pathname === "/en" || pathname.startsWith("/en/")
 
-        if (preferredLanguage === "en" && !hasExplicitEn) {
-            // User prefers English but is on the Russian version. Redirect to English.
+        // 1. URL locale is authoritative when landing on an explicitly localized URL
+        if (hasExplicitEn && settingsStore.language !== "en") {
+            settingsStore.language = "en"
+        }
+
+        // 2. Redirect to English if saved preference is English but URL is unprefixed (Russian base)
+        if (settingsStore.language === "en" && !hasExplicitEn) {
+            let targetHref = page.url.pathname + page.url.search + page.url.hash
+
+            // Special case for root: try to restore last visited URL first
             if (page.url.pathname === "/" && page.url.search === "") {
                 const lastVisitedUrl = localStorage.getItem("last_visited_url")
                 if (lastVisitedUrl && lastVisitedUrl !== "/") {
-                    const [pathname, search] = lastVisitedUrl.split("?")
-                    const localizedPathname = localizeHref(pathname, { locale: "en" })
-                    const finalUrl = search ? `${localizedPathname}?${search}` : localizedPathname
-                    goto(resolve(finalUrl as any), { replaceState: true })
-
-                    vfsStore.init().then(() => viewerStore.syncWithBooks())
-                    return
+                    targetHref = lastVisitedUrl
                 }
             }
 
-            const localizedPath = localizeHref(
-                page.url.pathname + page.url.search + page.url.hash,
-                { locale: "en" },
-            )
-            goto(resolve(localizedPath as any), { replaceState: true })
+            const localizedPath = localizeHref(targetHref, { locale: "en" })
 
+            // Initialize VFS even when redirecting to avoid empty state during transition
             vfsStore.init().then(() => viewerStore.syncWithBooks())
+
+            window.location.replace(resolve(localizedPath as any))
             return
         }
 
+        // 3. Normal initialization
         vfsStore.init().then(async () => {
             await viewerStore.syncWithBooks()
 
@@ -324,9 +303,11 @@
             if (page.url.pathname === "/" && page.url.search === "") {
                 const lastVisitedUrl = localStorage.getItem("last_visited_url")
                 if (lastVisitedUrl && lastVisitedUrl !== "/") {
-                    const [pathname, search] = lastVisitedUrl.split("?")
-                    const localizedPathname = localizeHref(pathname, { locale: preferredLanguage })
-                    const finalUrl = search ? `${localizedPathname}?${search}` : localizedPathname
+                    const [p, s] = lastVisitedUrl.split("?")
+                    const localizedPathname = localizeHref(p, {
+                        locale: settingsStore.language,
+                    })
+                    const finalUrl = s ? `${localizedPathname}?${s}` : localizedPathname
                     goto(resolve(finalUrl as any), { replaceState: true })
                 }
             }
