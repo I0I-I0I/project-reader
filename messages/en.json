@@ -161,5 +161,11 @@
     "page_exceeds_total": "Page number cannot exceed total pages",
     "current_position": "Current position",
     "new_version_available": "A new version is available. reload now?",
-    "continue_reading": "Continue"
+    "continue_reading": "Continue",
+    "cover_preview_alt": "Cover preview",
+    "page_number_aria": "Page number",
+    "zoom_slider_aria": "Zoom scale slider",
+    "quality_slider_aria": "Rendering quality slider",
+    "scrub_slider_aria": "Page scrub slider",
+    "mobile_scrub_slider_aria": "Mobile page scrub slider"
 }

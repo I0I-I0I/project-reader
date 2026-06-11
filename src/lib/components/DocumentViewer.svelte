@@ -348,7 +348,7 @@
                         type="number"
                         inputmode="numeric"
                         pattern="[0-9]*"
-                        aria-label="Page number"
+                        aria-label={m.page_number_aria()}
                         value={currentPage}
                         min="1"
                         max={totalPages}
@@ -457,7 +457,7 @@
         flex: 1;
         overflow: hidden;
         position: relative;
-        background: var(--surface-hover-color);
+        background: var(--canvas-bg-color);
         display: flex;
         flex-direction: row;
     }
@@ -482,7 +482,7 @@
     .canvas-frame {
         flex: 1;
         border: 2px solid var(--border-color);
-        background: var(--surface-color);
+        background: var(--canvas-bg-color);
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
         overflow: auto;
         display: flex;

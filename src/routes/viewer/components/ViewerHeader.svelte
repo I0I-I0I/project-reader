@@ -74,9 +74,8 @@
                             settingsStore.scale - 0.1,
                             CONSTANTS.minScale,
                         ))}
-                    aria-label={m.zoom_out ? m.zoom_out() : "Zoom Out"}
-                    tooltip={(m.zoom_out ? m.zoom_out() : "Zoom Out") +
-                        getShortcutHint(commandsNode, "zoom-out")}
+                    aria-label={m.zoom_out()}
+                    tooltip={m.zoom_out() + getShortcutHint(commandsNode, "zoom-out")}
                 >
                     <MinusIcon />
                 </Button>
@@ -88,9 +87,8 @@
                             settingsStore.scale + 0.1,
                             CONSTANTS.maxScale,
                         ))}
-                    aria-label={m.zoom_in ? m.zoom_in() : "Zoom In"}
-                    tooltip={(m.zoom_in ? m.zoom_in() : "Zoom In") +
-                        getShortcutHint(commandsNode, "zoom-in")}
+                    aria-label={m.zoom_in()}
+                    tooltip={m.zoom_in() + getShortcutHint(commandsNode, "zoom-in")}
                 >
                     <PlusIcon />
                 </Button>

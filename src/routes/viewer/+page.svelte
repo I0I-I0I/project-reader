@@ -22,7 +22,6 @@
     import { cubicInOut } from "svelte/easing"
     import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
     import { usePrompt, type PromptProvider, type SearchItem } from "$lib/stores/promptStore.svelte"
-    import { getJumplistPromptItems } from "$lib/stores/promptProviders.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/components/icons/MaximizeIcon.svelte"
@@ -361,7 +360,7 @@
             englishDescription: m.keymap_toggle_outline({}, { locale: "en" }),
             category: "commands",
             action: () => {
-                isOutlineOpen = !isOutlineOpen
+                sidebars.outline = !sidebars.outline
             },
         },
         {
@@ -371,7 +370,7 @@
             englishDescription: m.keymap_toggle_settings({}, { locale: "en" }),
             category: "commands",
             action: () => {
-                isSettingsOpen = !isSettingsOpen
+                sidebars.settings = !sidebars.settings
             },
         },
         {
@@ -473,22 +472,42 @@
     let pdf = $state.raw<PDFDocument | null>(null)
     let isLoaded = $state(false)
 
-    let currentPage = $state(1)
-    let scrollPosition = $state(0)
+    let lastPageNo = 1
     let currentPageImage = $state<string | null>(null)
     let currentPageImage2 = $state<string | null>(null)
+    let prevPageImage = $state<string | null>(null)
+    let prevPageImage2 = $state<string | null>(null)
+    let nextPageImage = $state<string | null>(null)
+    let nextPageImage2 = $state<string | null>(null)
+    let currentPageDim1 = $state<{ width: number; height: number } | null>(null)
+    let currentPageDim2 = $state<{ width: number; height: number } | null>(null)
+    let prevPageDim1 = $state<{ width: number; height: number } | null>(null)
+    let prevPageDim2 = $state<{ width: number; height: number } | null>(null)
+    let nextPageDim1 = $state<{ width: number; height: number } | null>(null)
+    let nextPageDim2 = $state<{ width: number; height: number } | null>(null)
     let isPageLoading = $state(false)
 
     let totalPages = $state(0)
 
-    let isOutlineOpen = $state(false)
-    let isSettingsOpen = $state(false)
-
-    function restoreBookPosition() {
-        const book = viewerStore.getCurrentBook()
-        currentPage = book?.pageNumber || 1
-        scrollPosition = book?.scrollPosition || 0
+    class SidebarState {
+        active = $state<"outline" | "settings" | null>(null)
+        get outline() {
+            return this.active === "outline"
+        }
+        set outline(v) {
+            this.active = v ? "outline" : null
+        }
+        get settings() {
+            return this.active === "settings"
+        }
+        set settings(v) {
+            this.active = v ? "settings" : null
+        }
     }
+    const sidebars = new SidebarState()
+
+    let isShortHeight = $state(false)
+    let viewportWidth = $state(0)
 
     onMount(() => {
         vfsStore.clearForwardHistory()
@@ -496,7 +515,18 @@
             goto(localizedPath("/"))
             return
         }
-        restoreBookPosition()
+
+        const heightQuery = window.matchMedia("(max-height: 500px)")
+        isShortHeight = heightQuery.matches
+
+        const heightHandler = (e: MediaQueryListEvent) => {
+            isShortHeight = e.matches
+        }
+        heightQuery.addEventListener("change", heightHandler)
+
+        return () => {
+            heightQuery.removeEventListener("change", heightHandler)
+        }
     })
 
     $effect(() => {
@@ -511,8 +541,8 @@
     let updateTimeout: ReturnType<typeof setTimeout> | undefined
     $effect(() => {
         if (isLoaded) {
-            const cPage = currentPage
-            const sPos = scrollPosition
+            const cPage = viewerStore.currentPage
+            const sPos = viewerStore.scrollPosition
             const activeBook = viewerStore.getCurrentBook()
             if (!activeBook) return
 
@@ -545,8 +575,8 @@
         return () => {
             const activeBook = untrack(() => viewerStore.getCurrentBook())
             if (activeBook && isLoaded) {
-                const finalPage = untrack(() => currentPage)
-                const finalScroll = untrack(() => scrollPosition)
+                const finalPage = untrack(() => viewerStore.currentPage)
+                const finalScroll = untrack(() => viewerStore.scrollPosition)
                 viewerStore.updateBook({
                     ...activeBook,
                     pageNumber: finalPage,
@@ -554,22 +584,6 @@
                 })
                 jumplistStore.pushBookPageJump(activeBook.id, finalPage, finalScroll)
             }
-        }
-    })
-
-    $effect(() => {
-        if (isOutlineOpen) {
-            untrack(() => {
-                isSettingsOpen = false
-            })
-        }
-    })
-
-    $effect(() => {
-        if (isSettingsOpen) {
-            untrack(() => {
-                isOutlineOpen = false
-            })
         }
     })
 
@@ -581,14 +595,14 @@
     let activeHeadings = $derived.by(() => {
         if (!outlineList || outlineList.length === 0) return new Set<FlatHeading>()
 
-        const onCurrentPage = outlineList.filter((h) => h.pageNumber === currentPage)
+        const onCurrentPage = outlineList.filter((h) => h.pageNumber === viewerStore.currentPage)
         if (onCurrentPage.length > 0) {
             return new Set<FlatHeading>(onCurrentPage)
         }
 
         let precedingCandidate: FlatHeading | null = null
         for (const heading of outlineList) {
-            if (heading.pageNumber !== undefined && heading.pageNumber < currentPage) {
+            if (heading.pageNumber !== undefined && heading.pageNumber < viewerStore.currentPage) {
                 if (!precedingCandidate || heading.pageNumber >= precedingCandidate.pageNumber!) {
                     precedingCandidate = heading
                 }
@@ -613,8 +627,8 @@
             isLoaded = false
             pdf = null
             const currentBook = viewerStore.getCurrentBook()
-            currentPage = currentBook?.pageNumber || 1
-            scrollPosition = currentBook?.scrollPosition || 0
+            viewerStore.currentPage = currentBook?.pageNumber || 1
+            viewerStore.scrollPosition = currentBook?.scrollPosition || 0
 
             const loadPdf = async (pdfUrl: string) => {
                 try {
@@ -626,11 +640,11 @@
                         pdf = doc
                         const pagesCount = await doc.getPageNumber()
                         totalPages = pagesCount
-                        if (currentPage > pagesCount) {
-                            currentPage = pagesCount
+                        if (viewerStore.currentPage > pagesCount) {
+                            viewerStore.currentPage = pagesCount
                         }
-                        if (currentPage < 1) {
-                            currentPage = 1
+                        if (viewerStore.currentPage < 1) {
+                            viewerStore.currentPage = 1
                         }
                         isLoaded = true
                         searchStore.initPdf(doc)
@@ -669,7 +683,7 @@
     $effect(() => {
         const currentPdf = pdf
         const loaded = isLoaded
-        const pageNo = currentPage
+        const pageNo = viewerStore.currentPage
         const mode = settingsStore.layout
         const quality = settingsStore.quality
 
@@ -677,6 +691,17 @@
             untrack(() => {
                 currentPageImage = null
                 currentPageImage2 = null
+                prevPageImage = null
+                prevPageImage2 = null
+                nextPageImage = null
+                nextPageImage2 = null
+                currentPageDim1 = null
+                currentPageDim2 = null
+                prevPageDim1 = null
+                prevPageDim2 = null
+                nextPageDim1 = null
+                nextPageDim2 = null
+                lastPageNo = pageNo
             })
             return
         }
@@ -684,39 +709,161 @@
         const controller = new AbortController()
 
         untrack(() => {
-            isPageLoading = true
+            const step = mode === "split" ? 2 : 1
+
+            // Reuse preloaded images and dimensions if possible to prevent flicker
+            let matched = false
+            if (pageNo === lastPageNo + step && nextPageImage) {
+                currentPageImage = nextPageImage
+                currentPageImage2 = nextPageImage2
+                currentPageDim1 = nextPageDim1
+                currentPageDim2 = nextPageDim2
+                isPageLoading = false
+                matched = true
+            } else if (pageNo === lastPageNo - step && prevPageImage) {
+                currentPageImage = prevPageImage
+                currentPageImage2 = prevPageImage2
+                currentPageDim1 = prevPageDim1
+                currentPageDim2 = prevPageDim2
+                isPageLoading = false
+                matched = true
+            }
+
+            if (!matched) {
+                currentPageImage = null
+                currentPageImage2 = null
+                currentPageDim1 = null
+                currentPageDim2 = null
+                isPageLoading = true
+            }
+
+            prevPageImage = null
+            prevPageImage2 = null
+            nextPageImage = null
+            nextPageImage2 = null
+            prevPageDim1 = null
+            prevPageDim2 = null
+            nextPageDim1 = null
+            nextPageDim2 = null
+
+            lastPageNo = pageNo
 
             const renderPages = async () => {
-                let img1: string | null = null
-                let img2: string | null = null
                 try {
-                    const page1 = await currentPdf.getPage(pageNo)
-                    img1 = await currentPdf.getCanvasPage(page1, quality, controller.signal)
+                    if (!matched) {
+                        // Current page/spread
+                        const page1 = await currentPdf.getPage(pageNo)
+                        const img1 = await currentPdf.getCanvasPage(
+                            page1,
+                            quality,
+                            controller.signal,
+                        )
+                        const dim1 = await currentPdf.getPageDimension(pageNo)
+                        let img2: string | null = null
+                        let dim2: { width: number; height: number } | null = null
 
-                    if (mode === "split" && pageNo + 1 <= totalPages) {
-                        const page2 = await currentPdf.getPage(pageNo + 1)
-                        img2 = await currentPdf.getCanvasPage(page2, quality, controller.signal)
-                    }
+                        if (mode === "split" && pageNo + 1 <= totalPages) {
+                            const page2 = await currentPdf.getPage(pageNo + 1)
+                            img2 = await currentPdf.getCanvasPage(page2, quality, controller.signal)
+                            dim2 = await currentPdf.getPageDimension(pageNo + 1)
+                        }
 
-                    if (!controller.signal.aborted) {
-                        untrack(() => {
+                        if (!controller.signal.aborted) {
                             currentPageImage = img1
                             currentPageImage2 = img2
+                            currentPageDim1 = dim1
+                            currentPageDim2 = dim2
                             isPageLoading = false
-                        })
+                        }
+                    }
 
-                        // Silently prerender the next 2 pages
-                        const nextPages =
-                            mode === "split" ? [pageNo + 2, pageNo + 3] : [pageNo + 1, pageNo + 2]
+                    // Render prev and next pages in the background
+                    const renderBackgroundPages = async () => {
+                        let pImg1: string | null = null
+                        let pImg2: string | null = null
+                        let pDim1: { width: number; height: number } | null = null
+                        let pDim2: { width: number; height: number } | null = null
 
-                        for (const nextPageNo of nextPages) {
-                            if (nextPageNo <= totalPages && !controller.signal.aborted) {
-                                try {
-                                    const page = new Page(nextPageNo)
-                                    await currentPdf.getCanvasPage(page, quality, controller.signal)
-                                } catch (err) {
-                                    // Silently ignore abortion/cancellation errors
+                        if (uiStore.isCompact && pageNo > step) {
+                            try {
+                                const prevPageNo = pageNo - step
+                                const prevPage1 = await currentPdf.getPage(prevPageNo)
+                                pImg1 = await currentPdf.getCanvasPage(
+                                    prevPage1,
+                                    quality,
+                                    controller.signal,
+                                )
+                                pDim1 = await currentPdf.getPageDimension(prevPageNo)
+                                if (mode === "split" && prevPageNo + 1 <= totalPages) {
+                                    const prevPage2 = await currentPdf.getPage(prevPageNo + 1)
+                                    pImg2 = await currentPdf.getCanvasPage(
+                                        prevPage2,
+                                        quality,
+                                        controller.signal,
+                                    )
+                                    pDim2 = await currentPdf.getPageDimension(prevPageNo + 1)
                                 }
+                            } catch (err) {
+                                // Ignore background preloading errors
+                            }
+                        }
+
+                        let nImg1: string | null = null
+                        let nImg2: string | null = null
+                        let nDim1: { width: number; height: number } | null = null
+                        let nDim2: { width: number; height: number } | null = null
+
+                        if (uiStore.isCompact && pageNo < totalPages) {
+                            try {
+                                const nextPageNo = pageNo + step
+                                if (nextPageNo <= totalPages) {
+                                    const nextPage1 = await currentPdf.getPage(nextPageNo)
+                                    nImg1 = await currentPdf.getCanvasPage(
+                                        nextPage1,
+                                        quality,
+                                        controller.signal,
+                                    )
+                                    nDim1 = await currentPdf.getPageDimension(nextPageNo)
+                                    if (mode === "split" && nextPageNo + 1 <= totalPages) {
+                                        const nextPage2 = await currentPdf.getPage(nextPageNo + 1)
+                                        nImg2 = await currentPdf.getCanvasPage(
+                                            nextPage2,
+                                            quality,
+                                            controller.signal,
+                                        )
+                                        nDim2 = await currentPdf.getPageDimension(nextPageNo + 1)
+                                    }
+                                }
+                            } catch (err) {
+                                // Ignore background preloading errors
+                            }
+                        }
+
+                        if (!controller.signal.aborted) {
+                            prevPageImage = pImg1
+                            prevPageImage2 = pImg2
+                            prevPageDim1 = pDim1
+                            prevPageDim2 = pDim2
+                            nextPageImage = nImg1
+                            nextPageImage2 = nImg2
+                            nextPageDim1 = nDim1
+                            nextPageDim2 = nDim2
+                        }
+                    }
+
+                    renderBackgroundPages()
+
+                    // Silently prerender the next 2 pages
+                    const nextPages =
+                        mode === "split" ? [pageNo + 2, pageNo + 3] : [pageNo + 1, pageNo + 2]
+
+                    for (const nextPageNo of nextPages) {
+                        if (nextPageNo <= totalPages && !controller.signal.aborted) {
+                            try {
+                                const page = new Page(nextPageNo)
+                                await currentPdf.getCanvasPage(page, quality, controller.signal)
+                            } catch (err) {
+                                // Silently ignore abortion/cancellation errors
                             }
                         }
                     }
@@ -725,9 +872,7 @@
                         console.error("Failed to render page(s):", err)
                     }
                     if (!controller.signal.aborted) {
-                        untrack(() => {
-                            isPageLoading = false
-                        })
+                        isPageLoading = false
                     }
                 }
             }
@@ -744,7 +889,7 @@
         const currentPdf = pdf
         const loaded = isLoaded
         const layout = settingsStore.layout
-        const pageNo = currentPage
+        const pageNo = viewerStore.currentPage
         const quality = settingsStore.quality
 
         if (!currentPdf || !loaded || layout !== "scroll") {
@@ -785,7 +930,7 @@
     $effect(() => {
         const currentPdf = pdf
         const loaded = isLoaded
-        const open = isOutlineOpen
+        const open = sidebars.outline
 
         if (currentPdf !== lastPdf) {
             untrack(() => {
@@ -848,26 +993,6 @@
         }
     })
 
-    $effect(() => {
-        viewerStore.goToPage = (
-            page: number,
-            options?: { scrollPosition?: number; isJump?: boolean },
-        ) => {
-            if (page >= 1 && page <= totalPages) {
-                const oldPage = currentPage
-                currentPage = page
-                if (options?.scrollPosition !== undefined) {
-                    scrollPosition = options.scrollPosition
-                } else if (page !== oldPage) {
-                    scrollPosition = 0
-                }
-            }
-        }
-        return () => {
-            viewerStore.goToPage = null
-        }
-    })
-
     function handleClose() {
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
@@ -887,12 +1012,12 @@
     function nextPage() {
         if (!isPageLoading) {
             const step = settingsStore.layout === "split" ? 2 : 1
-            if (currentPage + step <= totalPages) {
-                currentPage += step
-                scrollPosition = 0
-            } else if (currentPage < totalPages) {
-                currentPage += 1
-                scrollPosition = 0
+            if (viewerStore.currentPage + step <= totalPages) {
+                viewerStore.currentPage += step
+                viewerStore.scrollPosition = 0
+            } else if (viewerStore.currentPage < totalPages) {
+                viewerStore.currentPage += 1
+                viewerStore.scrollPosition = 0
             }
         }
     }
@@ -900,12 +1025,12 @@
     function prevPage() {
         if (!isPageLoading) {
             const step = settingsStore.layout === "split" ? 2 : 1
-            if (currentPage - step >= 1) {
-                currentPage -= step
-                scrollPosition = 0
-            } else if (currentPage > 1) {
-                currentPage = 1
-                scrollPosition = 0
+            if (viewerStore.currentPage - step >= 1) {
+                viewerStore.currentPage -= step
+                viewerStore.scrollPosition = 0
+            } else if (viewerStore.currentPage > 1) {
+                viewerStore.currentPage = 1
+                viewerStore.scrollPosition = 0
             }
         }
     }
@@ -917,22 +1042,227 @@
         const selection = window.getSelection()
         if (selection && selection.toString()) return
 
+        const left_side = window.innerWidth * 0.1
+        const right_side = window.innerWidth * 0.9
+
         const { clientX } = e
-        const { innerWidth } = window
-        const isMiddle = clientX >= innerWidth * 0.3 && clientX <= innerWidth * 0.7
+        const isMiddle = clientX >= left_side && clientX <= right_side
 
         if (isMiddle) {
             uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
             return
         }
 
-        if (uiStore.isToolbarsVisible) return
-
-        if (clientX < innerWidth * 0.3) {
-            prevPage()
-        } else if (clientX > innerWidth * 0.7) {
-            nextPage()
+        if (clientX < left_side) {
+            sidebars.outline = true
+        } else if (clientX > right_side) {
+            sidebars.settings = true
         }
+    }
+
+    let swipeOffsetX = $state("0px")
+    let swipeTransition = $state("none")
+    let isTransitioning = $state(false)
+    let swipeTimeoutId: any = null
+    let pendingPageTurnAction: (() => void) | null = null
+
+    const defaultWidth = $derived(pdf?.defaultWidth || 612)
+    const defaultHeight = $derived(pdf?.defaultHeight || 792)
+    const defaultAspectRatio = $derived(`${defaultWidth} / ${defaultHeight}`)
+
+    const effectiveScale = $derived.by(() => {
+        if (uiStore.isCompact && viewportWidth > 0 && pdf) {
+            const defWidth = pdf.defaultWidth || 612
+            if (isShortHeight) {
+                return (viewportWidth / defWidth) * (settingsStore.scale / 1.5)
+            }
+            return viewportWidth / defWidth
+        }
+        return settingsStore.scale
+    })
+
+    function getPageScale(dim: { width: number; height: number } | null) {
+        if (uiStore.isCompact && viewportWidth > 0 && pdf) {
+            const pageWidth = dim?.width || pdf.defaultWidth || 612
+            if (isShortHeight) {
+                return (viewportWidth / pageWidth) * (settingsStore.scale / 1.5)
+            }
+            return viewportWidth / pageWidth
+        }
+        return settingsStore.scale
+    }
+
+    function getSlideImageStyle(
+        dim: { width: number; height: number } | null,
+        isSplitRight = false,
+    ) {
+        const actualDim =
+            dim ||
+            (pdf
+                ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
+                : { width: 612, height: 792 })
+        const scale = getPageScale(actualDim)
+        const aspectRatio = `${actualDim.width} / ${actualDim.height}`
+
+        if (uiStore.isCompact && !isShortHeight) {
+            if (settingsStore.layout === "split") {
+                return `width: 50% !important; height: auto !important; aspect-ratio: ${aspectRatio} !important;`
+            }
+            return `width: 100% !important; height: auto !important; aspect-ratio: ${aspectRatio} !important;`
+        }
+
+        const w = actualDim.width * scale
+        const h = actualDim.height * scale
+        return `width: ${w}px !important; height: ${h}px !important; aspect-ratio: ${aspectRatio} !important;`
+    }
+
+    const prevImageStyle1 = $derived(getSlideImageStyle(prevPageDim1))
+    const prevImageStyle2 = $derived(getSlideImageStyle(prevPageDim2, true))
+    const nextImageStyle1 = $derived(getSlideImageStyle(nextPageDim1))
+    const nextImageStyle2 = $derived(getSlideImageStyle(nextPageDim2, true))
+
+    const sliderTrackStyle = $derived(
+        `transform: translate3d(calc(-33.333333% + ${swipeOffsetX}), 0, 0); transition: ${swipeTransition};`,
+    )
+
+    let touchStartX = 0
+    let touchStartY = 0
+    let touchStartTime = 0
+
+    function handleTouchStart(e: TouchEvent) {
+        if (!uiStore.isCompact) return
+
+        // If a transition is in progress, instantly complete the page turn to avoid lag/race conditions
+        if (isTransitioning && swipeTimeoutId && pendingPageTurnAction) {
+            clearTimeout(swipeTimeoutId)
+            pendingPageTurnAction()
+            swipeTransition = "none"
+            swipeOffsetX = "0px"
+            isTransitioning = false
+            swipeTimeoutId = null
+            pendingPageTurnAction = null
+        }
+
+        if (e.touches.length !== 1) return
+        if (sidebars.outline || sidebars.settings) return
+
+        // Don't trigger if touching any button, input, or open sidebar
+        const target = e.target as HTMLElement
+        if (
+            target.closest(
+                "button, input, select, textarea, a, .viewer-fab-btn, .settings-sidebar, .outline-sidebar, .viewer-header, .viewer-footer, .sidebar-backdrop",
+            )
+        ) {
+            return
+        }
+
+        touchStartX = e.touches[0].clientX
+        touchStartY = e.touches[0].clientY
+        touchStartTime = Date.now()
+
+        // Reset positions
+        swipeOffsetX = "0px"
+        swipeTransition = "none"
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+        if (!uiStore.isCompact) return
+        if (isTransitioning) return
+        if (settingsStore.layout === "scroll") return
+        if (e.touches.length !== 1) return
+        if (sidebars.outline || sidebars.settings) return
+
+        let deltaX = e.touches[0].clientX - touchStartX
+        const deltaY = e.touches[0].clientY - touchStartY
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (e.cancelable) {
+                e.preventDefault()
+            }
+
+            const step = settingsStore.layout === "split" ? 2 : 1
+            const hasPrev = viewerStore.currentPage > 1
+            const hasNext =
+                settingsStore.layout === "split"
+                    ? viewerStore.currentPage + step <= totalPages ||
+                      viewerStore.currentPage < totalPages
+                    : viewerStore.currentPage < totalPages
+
+            if (deltaX > 0 && !hasPrev) {
+                // Dragging right, but no prev page -> rubber band
+                deltaX = deltaX * 0.3
+            } else if (deltaX < 0 && !hasNext) {
+                // Dragging left, but no next page -> rubber band
+                deltaX = deltaX * 0.3
+            }
+
+            swipeOffsetX = `${deltaX}px`
+            swipeTransition = "none"
+        }
+    }
+
+    function handleTouchEnd(e: TouchEvent) {
+        if (!uiStore.isCompact) return
+        if (isTransitioning) return
+        if (settingsStore.layout === "scroll") return
+        if (e.changedTouches.length !== 1) return
+        if (sidebars.outline || sidebars.settings) return
+
+        const deltaX = e.changedTouches[0].clientX - touchStartX
+        const deltaY = e.changedTouches[0].clientY - touchStartY
+        const deltaTime = Date.now() - touchStartTime
+
+        const threshold = 50 // minimum distance in px
+        const maxDiagonal = 80 // maximum perpendicular deviation in px
+        const maxTime = 300 // maximum duration in ms
+
+        const isSwipe =
+            (deltaTime < maxTime &&
+                Math.abs(deltaX) > threshold &&
+                Math.abs(deltaY) < maxDiagonal) ||
+            Math.abs(deltaX) > window.innerWidth * 0.3
+
+        if (isSwipe) {
+            const isNext = deltaX < 0
+            const step = settingsStore.layout === "split" ? 2 : 1
+            const canTurn = isNext
+                ? viewerStore.currentPage + step <= totalPages ||
+                  viewerStore.currentPage < totalPages
+                : viewerStore.currentPage - step >= 1 || viewerStore.currentPage > 1
+
+            if (canTurn) {
+                isTransitioning = true
+                // Slide to the next/prev slide (faster 150ms transition)
+                swipeTransition = "transform 0.15s ease-out"
+                swipeOffsetX = isNext ? "-33.333333%" : "33.333333%"
+
+                const action = () => {
+                    if (isNext) {
+                        nextPage()
+                    } else {
+                        prevPage()
+                    }
+                }
+                pendingPageTurnAction = action
+
+                swipeTimeoutId = setTimeout(() => {
+                    action()
+                    // Instantly snap track back to center (0px offset)
+                    swipeTransition = "none"
+                    swipeOffsetX = "0px"
+                    isTransitioning = false
+                    swipeTimeoutId = null
+                    pendingPageTurnAction = null
+                }, 150)
+
+                e.preventDefault()
+                return
+            }
+        }
+
+        // Animate back to center
+        swipeTransition = "transform 0.2s ease-out"
+        swipeOffsetX = "0px"
     }
 
     function slideHeader(node: HTMLElement, { duration = 250 }) {
@@ -1012,8 +1342,8 @@
                         <ViewerHeader
                             {name}
                             {isLoaded}
-                            bind:isOutlineOpen
-                            bind:isSettingsOpen
+                            bind:isOutlineOpen={sidebars.outline}
+                            bind:isSettingsOpen={sidebars.settings}
                             onClose={handleClose}
                         />
                     </div>
@@ -1021,77 +1351,260 @@
 
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="viewer-body" onclick={handleBodyClick}>
+                <div
+                    class="viewer-body"
+                    onclick={(args) => {
+                        if (uiStore.isToolbarsVisible) {
+                            sidebars.outline = false
+                            sidebars.settings = false
+                        }
+                        if (!sidebars.outline && !sidebars.settings) {
+                            handleBodyClick(args)
+                        }
+                    }}
+                    ontouchstart={handleTouchStart}
+                    ontouchmove={handleTouchMove}
+                    ontouchend={handleTouchEnd}
+                >
                     {#if !isLoaded}
                         <div class="loading-state">
                             <Spinner variant="dots" label={m.loading_doc()} />
                         </div>
                     {:else}
-                        {#if isOutlineOpen}
+                        {#if sidebars.outline}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="sidebar-backdrop"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    isOutlineOpen = false
+                                    sidebars.outline = false
                                     isHoverTriggered = false
                                 }}
                             ></div>
                             <OutlineSidebar
                                 {isOutlineLoading}
                                 {outlineList}
-                                bind:currentPage
-                                bind:scrollPosition
+                                bind:currentPage={viewerStore.currentPage}
+                                bind:scrollPosition={viewerStore.scrollPosition}
                                 {activeHeadings}
                                 onCloseOutline={() => {
-                                    isOutlineOpen = false
+                                    sidebars.outline = false
                                     isHoverTriggered = false
                                 }}
                                 onMouseLeave={() => {
                                     if (!uiStore.isToolbarsVisible && isHoverTriggered) {
-                                        isOutlineOpen = false
+                                        sidebars.outline = false
                                         isHoverTriggered = false
                                     }
                                 }}
                             />
                         {/if}
 
-                        {#if isSettingsOpen}
+                        {#if sidebars.settings}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="sidebar-backdrop"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    isSettingsOpen = false
+                                    sidebars.settings = false
                                 }}
                             ></div>
-                            <SettingsSidebar onClose={() => (isSettingsOpen = false)} />
+                            <SettingsSidebar onClose={() => (sidebars.settings = false)} />
                         {/if}
 
-                        {#if !uiStore.isToolbarsVisible && !isOutlineOpen}
+                        {#if !uiStore.isToolbarsVisible && !sidebars.outline}
                             <!-- svelte-ignore a11y_mouse_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="outline-hover-trigger"
                                 onmouseenter={() => {
-                                    isOutlineOpen = true
+                                    sidebars.outline = true
                                     isHoverTriggered = true
                                 }}
                             ></div>
                         {/if}
 
-                        <CanvasPane
-                            {pdf}
-                            scale={settingsStore.scale}
-                            bind:currentPage
-                            bind:scrollPosition
-                            {isPageLoading}
-                            {currentPageImage}
-                            {currentPageImage2}
-                            layoutMode={settingsStore.layout}
-                        />
+                        {#if uiStore.isCompact && settingsStore.layout !== "scroll"}
+                            <div
+                                class="slider-viewport"
+                                class:short-height={isShortHeight}
+                                class:single-layout={settingsStore.layout === "single"}
+                                bind:clientWidth={viewportWidth}
+                            >
+                                <div class="slider-track" style={sliderTrackStyle}>
+                                    <!-- Previous Slide -->
+                                    <div class="slider-slide prev-slide">
+                                        {#if prevPageImage}
+                                            <div
+                                                class="pages-container"
+                                                class:split-mode={settingsStore.layout === "split"}
+                                            >
+                                                {#if settingsStore.layout === "split" && prevPageImage2}
+                                                    <div class="book-spread">
+                                                        <div
+                                                            class="pdf-image-wrapper split-left"
+                                                            style={prevImageStyle1}
+                                                        >
+                                                            <img
+                                                                src={prevPageImage}
+                                                                class="pdf-image"
+                                                                alt={m.page_render_alt({
+                                                                    page:
+                                                                        viewerStore.currentPage -
+                                                                        (settingsStore.layout ===
+                                                                        "split"
+                                                                            ? 2
+                                                                            : 1),
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div class="book-spine"></div>
+                                                        <div
+                                                            class="pdf-image-wrapper split-right"
+                                                            style={prevImageStyle2}
+                                                        >
+                                                            <img
+                                                                src={prevPageImage2}
+                                                                class="pdf-image"
+                                                                alt={m.page_render_alt({
+                                                                    page:
+                                                                        viewerStore.currentPage -
+                                                                        (settingsStore.layout ===
+                                                                        "split"
+                                                                            ? 2
+                                                                            : 1) +
+                                                                        1,
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                {:else}
+                                                    <div
+                                                        class="pdf-image-wrapper"
+                                                        style={prevImageStyle1}
+                                                    >
+                                                        <img
+                                                            src={prevPageImage}
+                                                            class="pdf-image"
+                                                            alt={m.page_render_alt({
+                                                                page:
+                                                                    viewerStore.currentPage -
+                                                                    (settingsStore.layout ===
+                                                                    "split"
+                                                                        ? 2
+                                                                        : 1),
+                                                            })}
+                                                        />
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                        {/if}
+                                    </div>
+
+                                    <!-- Current Slide -->
+                                    <div class="slider-slide current-slide">
+                                        <CanvasPane
+                                            {pdf}
+                                            scale={settingsStore.scale}
+                                            bind:currentPage={viewerStore.currentPage}
+                                            bind:scrollPosition={viewerStore.scrollPosition}
+                                            {isPageLoading}
+                                            {currentPageImage}
+                                            {currentPageImage2}
+                                            layoutMode={settingsStore.layout}
+                                            {currentPageDim1}
+                                            {currentPageDim2}
+                                        />
+                                    </div>
+
+                                    <!-- Next Slide -->
+                                    <div class="slider-slide next-slide">
+                                        {#if nextPageImage}
+                                            <div
+                                                class="pages-container"
+                                                class:split-mode={settingsStore.layout === "split"}
+                                            >
+                                                {#if settingsStore.layout === "split" && nextPageImage2}
+                                                    <div class="book-spread">
+                                                        <div
+                                                            class="pdf-image-wrapper split-left"
+                                                            style={nextImageStyle1}
+                                                        >
+                                                            <img
+                                                                src={nextPageImage}
+                                                                class="pdf-image"
+                                                                alt={m.page_render_alt({
+                                                                    page:
+                                                                        viewerStore.currentPage +
+                                                                        (settingsStore.layout ===
+                                                                        "split"
+                                                                            ? 2
+                                                                            : 1),
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div class="book-spine"></div>
+                                                        <div
+                                                            class="pdf-image-wrapper split-right"
+                                                            style={nextImageStyle2}
+                                                        >
+                                                            <img
+                                                                src={nextPageImage2}
+                                                                class="pdf-image"
+                                                                alt={m.page_render_alt({
+                                                                    page:
+                                                                        viewerStore.currentPage +
+                                                                        (settingsStore.layout ===
+                                                                        "split"
+                                                                            ? 2
+                                                                            : 1) +
+                                                                        1,
+                                                                })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                {:else}
+                                                    <div
+                                                        class="pdf-image-wrapper"
+                                                        style={nextImageStyle1}
+                                                    >
+                                                        <img
+                                                            src={nextPageImage}
+                                                            class="pdf-image"
+                                                            alt={m.page_render_alt({
+                                                                page:
+                                                                    viewerStore.currentPage +
+                                                                    (settingsStore.layout ===
+                                                                    "split"
+                                                                        ? 2
+                                                                        : 1),
+                                                            })}
+                                                        />
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </div>
+                            </div>
+                        {:else}
+                            <div class="canvas-pane-wrapper">
+                                <CanvasPane
+                                    {pdf}
+                                    scale={settingsStore.scale}
+                                    bind:currentPage={viewerStore.currentPage}
+                                    bind:scrollPosition={viewerStore.scrollPosition}
+                                    {isPageLoading}
+                                    {currentPageImage}
+                                    {currentPageImage2}
+                                    layoutMode={settingsStore.layout}
+                                    {currentPageDim1}
+                                    {currentPageDim2}
+                                />
+                            </div>
+                        {/if}
 
                         {#if isLoaded && uiStore.isSearchModeActive}
                             {#if searchStore.matches.length > 0}
@@ -1118,10 +1631,8 @@
                                         e.stopPropagation()
                                         searchStore.prev()
                                     }}
-                                    aria-label={m.keymap_prev_match
-                                        ? m.keymap_prev_match()
-                                        : "Previous match"}
-                                    tooltip={`${m.keymap_prev_match ? m.keymap_prev_match() : "Previous match"}${getShortcutHint(commandsNode, "prev-search-match")}`}
+                                    aria-label={m.keymap_prev_match()}
+                                    tooltip={`${m.keymap_prev_match()}${getShortcutHint(commandsNode, "prev-search-match")}`}
                                 >
                                     <ChevronIcon style="transform: rotate(180deg);" />
                                 </Button>
@@ -1136,10 +1647,8 @@
                                         searchStore.setQuery("")
                                         uiStore.prompt.clearValue("search")
                                     }}
-                                    aria-label={m.prompt_close_aria
-                                        ? m.prompt_close_aria()
-                                        : "Close search"}
-                                    tooltip={`${m.prompt_close_aria ? m.prompt_close_aria() : "Close search"}${getShortcutHint(commandsNode, "close-search")}`}
+                                    aria-label={m.prompt_close_aria()}
+                                    tooltip={`${m.prompt_close_aria()}${getShortcutHint(commandsNode, "close-search")}`}
                                 >
                                     ✕
                                 </Button>
@@ -1152,10 +1661,8 @@
                                         e.stopPropagation()
                                         searchStore.next()
                                     }}
-                                    aria-label={m.keymap_next_match
-                                        ? m.keymap_next_match()
-                                        : "Next match"}
-                                    tooltip={`${m.keymap_next_match ? m.keymap_next_match() : "Next match"}${getShortcutHint(commandsNode, "next-search-match")}`}
+                                    aria-label={m.keymap_next_match()}
+                                    tooltip={`${m.keymap_next_match()}${getShortcutHint(commandsNode, "next-search-match")}`}
                                 >
                                     <ChevronIcon />
                                 </Button>
@@ -1188,8 +1695,8 @@
                                     uiStore.prompt.mode = "search"
                                     uiStore.prompt.isOpen = true
                                 }}
-                                aria-label={m.keymap_search ? m.keymap_search() : "Search PDF"}
-                                tooltip={`${m.keymap_search ? m.keymap_search() : "Search PDF"}${getShortcutHint(commandsNode, "open-search")}`}
+                                aria-label={m.keymap_search()}
+                                tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "open-search")}`}
                             >
                                 <SearchIcon />
                             </Button>
@@ -1207,10 +1714,8 @@
                                     e.stopPropagation()
                                     await jumplistStore.jumpForward()
                                 }}
-                                aria-label={m.keymap_jump_forward
-                                    ? m.keymap_jump_forward()
-                                    : "Jump forward"}
-                                tooltip={`${m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}${getShortcutHint(commandsNode, "jump-forward")}`}
+                                aria-label={m.keymap_jump_forward()}
+                                tooltip={`${m.keymap_jump_forward()}${getShortcutHint(commandsNode, "jump-forward")}`}
                                 disabled={jumplistStore.currentIndex >=
                                     jumplistStore.jumps.length - 1}
                             >
@@ -1228,8 +1733,8 @@
                                     e.stopPropagation()
                                     await jumplistStore.jumpBack()
                                 }}
-                                aria-label={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
-                                tooltip={`${m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}${getShortcutHint(commandsNode, "jump-back")}`}
+                                aria-label={m.keymap_jump_back()}
+                                tooltip={`${m.keymap_jump_back()}${getShortcutHint(commandsNode, "jump-back")}`}
                                 disabled={jumplistStore.currentIndex <= 0}
                             >
                                 <ChevronIcon style="transform: rotate(90deg);" />
@@ -1247,10 +1752,8 @@
                                     uiStore.prompt.mode = "global"
                                     uiStore.prompt.isOpen = true
                                 }}
-                                aria-label={m.keymap_prompt
-                                    ? m.keymap_prompt()
-                                    : "Open Command Prompt"}
-                                tooltip={`${m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}${getShortcutHint(commandsNode, "open-prompt")}`}
+                                aria-label={m.keymap_prompt()}
+                                tooltip={`${m.keymap_prompt()}${getShortcutHint(commandsNode, "open-prompt")}`}
                             >
                                 <TerminalIcon />
                             </Button>
@@ -1289,8 +1792,8 @@
                         }}
                     >
                         <ViewerFooter
-                            bind:currentPage
-                            bind:scrollPosition
+                            bind:currentPage={viewerStore.currentPage}
+                            bind:scrollPosition={viewerStore.scrollPosition}
                             {totalPages}
                             {isPageLoading}
                             {nextPage}
@@ -1337,9 +1840,176 @@
         flex: 1;
         overflow: hidden;
         position: relative;
-        background: var(--surface-hover-color);
+        background: var(--canvas-bg-color);
         display: flex;
         flex-direction: row;
+    }
+
+    .canvas-pane-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .slider-viewport {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex: 1;
+        background: var(--canvas-bg-color);
+        box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    @media (min-width: 801px) and (min-height: 501px) {
+        .slider-viewport {
+            background-image: radial-gradient(var(--border-color) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+    }
+
+    .slider-track {
+        display: flex;
+        flex-direction: row;
+        width: 300%;
+        height: 100%;
+        will-change: transform;
+        flex-shrink: 0;
+    }
+
+    .slider-slide {
+        width: 33.333333%;
+        height: 100%;
+        flex-shrink: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        box-sizing: border-box;
+    }
+
+    .slider-viewport.single-layout:not(.short-height) .slider-slide {
+        justify-content: center;
+    }
+
+    .slider-slide .pages-container {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .slider-viewport.short-height .slider-slide {
+        padding: 16px;
+    }
+
+    .slider-viewport.short-height .slider-slide:not(.current-slide) {
+        overflow-y: auto;
+    }
+
+    .slider-slide .pdf-image-wrapper {
+        display: inline-flex;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    /* Book Spread joined layout */
+    .book-spread {
+        display: flex;
+        position: relative;
+        align-items: flex-start;
+        box-shadow: 12px 12px 0 var(--shadow-color);
+        border: 3px solid var(--border-color);
+        background: var(--surface-color);
+    }
+
+    .book-spread .pdf-image-wrapper {
+        border: none;
+        box-shadow: none;
+    }
+
+    .book-spread .split-left {
+        border-right: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    :global(html.dark) .book-spread .split-left {
+        border-right-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .book-spine {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 32px;
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.05) 30%,
+            rgba(0, 0, 0, 0.12) 48%,
+            rgba(0, 0, 0, 0.18) 50%,
+            rgba(0, 0, 0, 0.12) 52%,
+            rgba(0, 0, 0, 0.05) 70%,
+            rgba(0, 0, 0, 0) 100%
+        );
+    }
+
+    :global(html.dark) .book-spine {
+        background: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.15) 30%,
+            rgba(0, 0, 0, 0.35) 48%,
+            rgba(0, 0, 0, 0.5) 50%,
+            rgba(0, 0, 0, 0.35) 52%,
+            rgba(0, 0, 0, 0.15) 70%,
+            rgba(0, 0, 0, 0) 100%
+        );
+    }
+
+    /* When mobile-full-width is active (not short height) */
+    .slider-viewport:not(.short-height) .pdf-image-wrapper {
+        border-width: 0;
+        box-shadow: none;
+        border-bottom: none !important;
+    }
+
+    .slider-viewport:not(.short-height) .book-spread {
+        border-width: 0;
+        box-shadow: none;
+        width: 100% !important;
+        border-bottom: none !important;
+    }
+
+    .slider-viewport:not(.short-height) .book-spread .pdf-image-wrapper {
+        border-bottom: none !important;
+    }
+
+    /* When short height, match CanvasPane's default pdf-image-wrapper styling */
+    .slider-viewport.short-height .pdf-image-wrapper {
+        border: 3px solid var(--border-color);
+        box-shadow: 12px 12px 0 var(--shadow-color);
+        background: var(--surface-color);
+    }
+
+    .slider-slide .pdf-image {
+        display: block;
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    :global(html.dark) .slider-slide .pdf-image {
+        filter: invert(1) hue-rotate(180deg);
     }
 
     .loading-state {

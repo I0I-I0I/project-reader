@@ -56,7 +56,7 @@
                 }}
                 class="mobile-scrubber"
                 disabled={isPageLoading}
-                aria-label="Mobile page scrub slider"
+                aria-label={m.mobile_scrub_slider_aria()}
             />
             <div class="mobile-progress" style="width: {(currentPage / totalPages) * 100}%"></div>
         </div>
@@ -81,7 +81,7 @@
             type="number"
             inputmode="numeric"
             pattern="[0-9]*"
-            aria-label="Page number"
+            aria-label={m.page_number_aria()}
             value={currentPage}
             min="1"
             max={totalPages}
@@ -108,7 +108,7 @@
                 }}
                 class="footer-scrubber"
                 disabled={isPageLoading}
-                aria-label="Page scrub slider"
+                aria-label={m.scrub_slider_aria()}
             />
         </div>
     {/if}

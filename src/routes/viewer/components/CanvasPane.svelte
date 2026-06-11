@@ -24,6 +24,8 @@
         layoutMode = "single",
         scale = settingsStore.scale,
         pdf,
+        currentPageDim1: propPageDim1 = null,
+        currentPageDim2: propPageDim2 = null,
     } = $props<{
         isPageLoading?: boolean
         currentPageImage?: string | null
@@ -33,6 +35,8 @@
         layoutMode?: "single" | "split" | "scroll"
         scale?: number
         pdf: PDFDocument | null
+        currentPageDim1?: { width: number; height: number } | null
+        currentPageDim2?: { width: number; height: number } | null
     }>()
 
     let containerWidth = $state(0)
@@ -60,8 +64,7 @@
         const horizontalPadding = containerWidth < 900 ? 32 : 80
 
         let targetScale: number
-        const isSplitSideBySide =
-            layoutMode === "split" && typeof window !== "undefined" && window.innerWidth > 1024
+        const isSplitSideBySide = layoutMode === "split"
         if (isSplitSideBySide) {
             const gap = 32
             const borderShadowAllowance = 24
@@ -127,6 +130,28 @@
         return scale
     })
 
+    const pageScale1 = $derived.by(() => {
+        if (uiStore.isCompact && containerWidth > 0 && pdf) {
+            const pageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
+            if (isShortHeight) {
+                return (containerWidth / pageWidth) * (scale / 1.5)
+            }
+            return containerWidth / pageWidth
+        }
+        return scale
+    })
+
+    const pageScale2 = $derived.by(() => {
+        if (uiStore.isCompact && containerWidth > 0 && pdf) {
+            const pageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
+            if (isShortHeight) {
+                return (containerWidth / pageWidth) * (scale / 1.5)
+            }
+            return containerWidth / pageWidth
+        }
+        return scale
+    })
+
     function getPageHeight(dim: { width: number; height: number }) {
         if (uiStore.isCompact && containerWidth > 0) {
             if (isShortHeight) {
@@ -143,7 +168,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
+        return `width: ${dim.width * pageScale1}px; height: ${dim.height * pageScale1}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
     const wrapperStyle2 = $derived.by(() => {
@@ -152,7 +177,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * effectiveScale}px; height: ${dim.height * effectiveScale}px; --aspect-ratio: ${dim.width} / ${dim.height};`
+        return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
     let container = $state<HTMLElement | null>(null)
@@ -164,10 +189,12 @@
     let scrollTop = $state(0)
     let containerHeight = $state(0)
     let isMobile = $state(false)
-    let isStackedMode = $state(false)
 
-    let currentPageDim1 = $state<{ width: number; height: number } | null>(null)
-    let currentPageDim2 = $state<{ width: number; height: number } | null>(null)
+    let fallbackPageDim1 = $state<{ width: number; height: number } | null>(null)
+    let fallbackPageDim2 = $state<{ width: number; height: number } | null>(null)
+
+    let currentPageDim1 = $derived(propPageDim1 || fallbackPageDim1)
+    let currentPageDim2 = $derived(propPageDim2 || fallbackPageDim2)
 
     let textLayer1 = $state<HTMLElement | null>(null)
     let textLayer2 = $state<HTMLElement | null>(null)
@@ -192,19 +219,6 @@
     })
 
     $effect(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.LARGE_DESKTOP)
-        isStackedMode = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isStackedMode = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-        return () => {
-            mediaQuery.removeEventListener("change", handler)
-        }
-    })
-
-    $effect(() => {
         if (!pdf || layoutMode === "scroll") return
 
         const p1 = currentPage
@@ -212,14 +226,14 @@
 
         untrack(() => {
             pdf!.getPageDimension(p1).then((dim: { width: number; height: number }) => {
-                currentPageDim1 = dim
+                fallbackPageDim1 = dim
             })
             if (p2 && p2 <= pdf!.pagesCount) {
                 pdf!.getPageDimension(p2).then((dim: { width: number; height: number }) => {
-                    currentPageDim2 = dim
+                    fallbackPageDim2 = dim
                 })
             } else {
-                currentPageDim2 = null
+                fallbackPageDim2 = null
             }
         })
     })
@@ -622,19 +636,15 @@
         if (!pdf || layoutMode === "scroll" || isPageLoading) return
         const tLayer1 = textLayer1
         const aLayer1 = annotationLayer1
+        // Synchronously read reactive variables so Svelte registers them as dependencies:
+        const scale = pageScale1
+        const page = currentPage
         if (currentPageImage && tLayer1 && aLayer1) {
             textLayerController1?.abort()
             const controller = new AbortController()
             textLayerController1 = controller
             const delayTimeout = setTimeout(() => {
-                renderPageLayers(
-                    pdf,
-                    currentPage,
-                    tLayer1,
-                    aLayer1,
-                    effectiveScale,
-                    controller.signal,
-                )
+                renderPageLayers(pdf, page, tLayer1, aLayer1, scale, controller.signal)
             }, 150)
             return () => {
                 clearTimeout(delayTimeout)
@@ -647,19 +657,15 @@
         if (!pdf || layoutMode !== "split" || isPageLoading) return
         const tLayer2 = textLayer2
         const aLayer2 = annotationLayer2
+        // Synchronously read reactive variables so Svelte registers them as dependencies:
+        const scale = pageScale2
+        const page = currentPage + 1
         if (currentPageImage2 && tLayer2 && aLayer2) {
             textLayerController2?.abort()
             const controller = new AbortController()
             textLayerController2 = controller
             const delayTimeout = setTimeout(() => {
-                renderPageLayers(
-                    pdf,
-                    currentPage + 1,
-                    tLayer2,
-                    aLayer2,
-                    effectiveScale,
-                    controller.signal,
-                )
+                renderPageLayers(pdf, page, tLayer2, aLayer2, scale, controller.signal)
             }, 150)
             return () => {
                 clearTimeout(delayTimeout)
@@ -835,7 +841,7 @@
         </div>
     {:else if currentPageImage}
         <div class="pages-container" class:split-mode={layoutMode === "split"}>
-            {#if layoutMode === "split" && currentPageImage2 && !isStackedMode}
+            {#if layoutMode === "split" && currentPageImage2}
                 <div class="book-spread">
                     <div class="pdf-image-wrapper split-left" style={wrapperStyle1}>
                         <img
@@ -867,17 +873,6 @@
                     <div bind:this={textLayer1} class="textLayer"></div>
                     <div bind:this={annotationLayer1} class="annotationLayer"></div>
                 </div>
-                {#if layoutMode === "split" && currentPageImage2}
-                    <div class="pdf-image-wrapper" style={wrapperStyle2}>
-                        <img
-                            src={currentPageImage2}
-                            alt={m.page_render_alt({ page: currentPage + 1 })}
-                            class="pdf-image"
-                        />
-                        <div bind:this={textLayer2} class="textLayer"></div>
-                        <div bind:this={annotationLayer2} class="annotationLayer"></div>
-                    </div>
-                {/if}
             {/if}
         </div>
     {/if}
@@ -888,6 +883,7 @@
     class:scroll-mode={layoutMode === "scroll"}
     class:mobile-full-width={uiStore.isCompact && !isShortHeight}
     class:single-layout={layoutMode === "single"}
+    class:compact-mode={uiStore.isCompact}
 >
     <div
         class="canvas-frame"
@@ -926,11 +922,20 @@
         flex: 1;
     }
 
+    .canvas-pane.compact-mode {
+        background: transparent;
+    }
+
+    .canvas-pane.compact-mode .canvas-frame {
+        background: transparent;
+        background-image: none;
+        box-shadow: none;
+        padding: 0 !important;
+    }
+
     .canvas-frame {
         flex: 1;
-        background: var(--surface-color);
-        background-image: radial-gradient(var(--border-color) 1px, transparent 0);
-        background-size: 24px 24px;
+        background: var(--canvas-bg-color);
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
         overflow: auto;
         display: flex;
@@ -938,6 +943,13 @@
         align-items: flex-start;
         position: relative;
         padding: 40px;
+    }
+
+    @media (min-width: 801px) and (min-height: 501px) {
+        .canvas-frame {
+            background-image: radial-gradient(var(--border-color) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
     }
 
     /* Scroll Mode overrides */
@@ -1014,13 +1026,6 @@
         filter: invert(1) hue-rotate(180deg);
     }
 
-    @media (--large-desktop) {
-        .pages-container.split-mode {
-            flex-direction: column;
-            align-items: center;
-        }
-    }
-
     @media (--desktop) {
         .canvas-frame {
             padding: 16px;
@@ -1064,7 +1069,7 @@
         width: 100% !important;
         height: auto !important;
         aspect-ratio: var(--aspect-ratio) !important;
-        border-bottom: 2px solid var(--border-color) !important;
+        border-bottom: none !important;
     }
 
     .canvas-pane.mobile-full-width .pdf-image {
@@ -1072,12 +1077,31 @@
         height: auto !important;
     }
 
-    .canvas-pane.mobile-full-width .pages-container {
+    .canvas-pane.mobile-full-width .pages-container:not(.split-mode) {
         width: 100%;
         gap: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+
+    /* Mobile full width split layout (book spread) */
+    .canvas-pane.mobile-full-width .pages-container.split-mode {
+        width: 100%;
+        gap: 0;
+        padding: 0;
+    }
+
+    .canvas-pane.mobile-full-width .book-spread {
+        width: 100% !important;
+        border-width: 0;
+        border-bottom: none;
+        box-shadow: none;
+    }
+
+    .canvas-pane.mobile-full-width .book-spread .pdf-image-wrapper {
+        width: 50% !important;
+        border-bottom: none !important;
     }
 
     /* Book Spread joined layout */
@@ -1087,7 +1111,7 @@
         align-items: flex-start;
         box-shadow: 12px 12px 0 var(--shadow-color);
         border: 3px solid var(--border-color);
-        background: var(--surface-color);
+        background: var(--canvas-bg-color);
     }
 
     .book-spread .pdf-image-wrapper {

@@ -230,7 +230,7 @@
                             }
                         }}
                         class="sidebar-slider"
-                        aria-label="Zoom scale slider"
+                        aria-label={m.zoom_slider_aria()}
                     />
                 </div>
             </section>
@@ -277,7 +277,7 @@
                         }
                     }}
                     class="sidebar-slider"
-                    aria-label="Rendering quality slider"
+                    aria-label={m.quality_slider_aria()}
                 />
             </div>
         </section>

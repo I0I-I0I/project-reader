@@ -302,7 +302,7 @@
     .placeholder {
         border: 3px solid var(--border-color);
         box-shadow: 12px 12px 0 var(--shadow-color);
-        background: var(--surface-color);
+        background: var(--canvas-bg-color);
         display: flex;
         align-items: center;
         justify-content: center;

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { usePreviewUrl } from "$lib/stores/vfsStore.svelte"
+    import * as m from "$lib/paraglide/messages"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
 
     interface Props {
@@ -13,7 +14,7 @@
 </script>
 
 {#if previewUrl}
-    <img src={previewUrl} alt="Cover preview" class="prompt-book-preview-img" />
+    <img src={previewUrl} alt={m.cover_preview_alt()} class="prompt-book-preview-img" />
 {:else}
     <BookItemIcon class="item-icon book" />
 {/if}

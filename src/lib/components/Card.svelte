@@ -232,7 +232,7 @@
                     <div class="pdf-image-wrapper">
                         <img
                             src={book.previewDataUrl}
-                            alt="Cover preview"
+                            alt={m.cover_preview_alt()}
                             onerror={handleImageError}
                         />
                     </div>

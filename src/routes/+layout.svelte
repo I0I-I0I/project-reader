@@ -447,7 +447,7 @@
         --muted-bg-color: #1a1a1a;
         --muted-text-color: #f5f0e1;
 
-        --canvas-bg-color: #fcfcfc;
+        --canvas-bg-color: #ffffff;
         --disabled-bg-color: #eee;
 
         --overlay-color: rgba(250, 248, 245, 0.85);

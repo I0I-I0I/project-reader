@@ -161,5 +161,11 @@
     "page_exceeds_total": "Номер страницы не может превышать общее количество страниц",
     "current_position": "Текущая позиция",
     "new_version_available": "Доступна новая версия. обновить сейчас?",
-    "continue_reading": "Продолжить"
+    "continue_reading": "Продолжить",
+    "cover_preview_alt": "Превью обложки",
+    "page_number_aria": "Номер страницы",
+    "zoom_slider_aria": "Ползунок масштаба",
+    "quality_slider_aria": "Ползунок качества рендеринга",
+    "scrub_slider_aria": "Ползунок прокрутки страниц",
+    "mobile_scrub_slider_aria": "Мобильный ползунок прокрутки страниц"
 }

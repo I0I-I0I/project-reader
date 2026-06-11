@@ -190,7 +190,7 @@
                             searchQuery = ""
                             searchInputRef?.focus()
                         }}
-                        aria-label="Clear search"
+                        aria-label={m.clear_search_aria()}
                     >
                         &times;
                     </button>

@@ -8,9 +8,9 @@ class ViewerStore {
     private book = $state<Book | null>(null)
     private outlineList = $state<FlatHeading[] | null>(null)
     private totalPages = $state<number>(0)
-    private goToPageCallback = $state<
-        ((page: number, options?: { scrollPosition?: number; isJump?: boolean }) => void) | null
-    >(null)
+
+    currentPage = $state(1)
+    scrollPosition = $state(0)
 
     constructor() {
         jumplistStore.setViewer(this)
@@ -23,6 +23,8 @@ class ViewerStore {
                     if (parsed.url?.startsWith("blob:")) parsed.url = ""
                     if (parsed.previewDataUrl?.startsWith("blob:")) parsed.previewDataUrl = ""
                     this.book = parsed
+                    this.currentPage = parsed.pageNumber || 1
+                    this.scrollPosition = parsed.scrollPosition || 0
                 } catch (e) {
                     console.error("Failed to parse book from localStorage", e)
                 }
@@ -54,34 +56,31 @@ class ViewerStore {
         this.totalPages = pages
     }
 
-    get goToPage() {
-        return (page: number, options?: { scrollPosition?: number; isJump?: boolean }) => {
+    goToPage(page: number, options?: { scrollPosition?: number; isJump?: boolean }) {
+        if (page >= 1 && (this.totalPages === 0 || page <= this.totalPages)) {
             if (options?.isJump && this.book) {
                 // Record current position before jumping
-                jumplistStore.pushBookPageJump(
-                    this.book.id,
-                    this.book.pageNumber,
-                    this.book.scrollPosition || 0,
-                )
+                jumplistStore.pushBookPageJump(this.book.id, this.currentPage, this.scrollPosition)
             }
-            this.goToPageCallback?.(page, options)
+
+            const oldPage = this.currentPage
+            this.currentPage = page
+            if (options?.scrollPosition !== undefined) {
+                this.scrollPosition = options.scrollPosition
+            } else if (page !== oldPage) {
+                this.scrollPosition = 0
+            }
+
+            if (this.book) {
+                this.book.pageNumber = this.currentPage
+                this.book.scrollPosition = this.scrollPosition
+            }
+
             if (options?.isJump && this.book) {
                 // Record the landing position
-                jumplistStore.pushBookPageJump(
-                    this.book.id,
-                    page,
-                    options?.scrollPosition ??
-                        (page === this.book.pageNumber ? this.book.scrollPosition || 0 : 0),
-                )
+                jumplistStore.pushBookPageJump(this.book.id, page, this.scrollPosition)
             }
         }
-    }
-    set goToPage(
-        callback:
-            | ((page: number, options?: { scrollPosition?: number; isJump?: boolean }) => void)
-            | null,
-    ) {
-        this.goToPageCallback = callback
     }
 
     get activeJumplist() {
@@ -168,18 +167,8 @@ class ViewerStore {
         const newBookId = newBook?.id
 
         // Record current position before switching
-        if (
-            !options?.isJump &&
-            this.goToPageCallback &&
-            oldBook &&
-            newBook &&
-            oldBookId !== newBookId
-        ) {
-            jumplistStore.pushBookPageJump(
-                oldBook.id,
-                oldBook.pageNumber,
-                oldBook.scrollPosition || 0,
-            )
+        if (!options?.isJump && oldBook && newBook && oldBookId !== newBookId) {
+            jumplistStore.pushBookPageJump(oldBook.id, this.currentPage, this.scrollPosition)
         }
 
         // Revoke old URL if it was a blob URL created by us
@@ -193,6 +182,9 @@ class ViewerStore {
         this.persistToLocalStorage(true)
 
         if (newBook) {
+            this.currentPage = newBook.pageNumber || 1
+            this.scrollPosition = newBook.scrollPosition || 0
+            this.totalPages = newBook.totalPages || 0
             // Lazily fetch URLs if they are missing
             let hasChanges = false
             if (!newBook.url) {

@@ -158,7 +158,7 @@
             },
             {
                 id: "scroll-down",
-                keys: ["arrowdown", "j", "ctrl+n", "ctrl+j"],
+                keys: "j",
                 description: m.keymap_next_heading(),
                 action: (event) => {
                     event.preventDefault()
@@ -166,13 +166,33 @@
                 },
             },
             {
+                id: "scroll-down-alt",
+                keys: ["arrowdown", "ctrl+n", "ctrl+j"],
+                description: m.keymap_next_heading(),
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("next")
+                },
+                allowInInputs: true,
+            },
+            {
                 id: "scroll-up",
-                keys: ["arrowup", "k", "ctrl+p", "ctrl+k"],
+                keys: "k",
                 description: m.keymap_prev_heading(),
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
                 },
+            },
+            {
+                id: "scroll-up-alt",
+                keys: ["arrowup", "ctrl+p", "ctrl+k"],
+                description: m.keymap_prev_heading(),
+                action: (event) => {
+                    event.preventDefault()
+                    navigateSelection("prev")
+                },
+                allowInInputs: true,
             },
             {
                 id: "select-heading",
