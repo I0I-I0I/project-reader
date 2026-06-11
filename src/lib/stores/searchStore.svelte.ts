@@ -30,7 +30,6 @@ class SearchStore {
     pageTexts = new SvelteMap<number, { original: string; lower: string }>()
 
     searchHistory = $state<string[]>([])
-    originalPosition = $state<{ pageNumber: number; scrollPosition: number } | null>(null)
     searchStartPage = $state<number | null>(null)
 
     constructor() {
@@ -385,7 +384,6 @@ class SearchStore {
     }
 
     reset() {
-        this.originalPosition = null
         this.currentPdf = null
         this.query = ""
         this.matches = []

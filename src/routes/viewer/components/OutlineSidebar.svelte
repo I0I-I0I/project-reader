@@ -139,8 +139,8 @@
     const sidebarCommandsNode = useCommands(
         [
             {
-                id: "close-outline-escape",
-                keys: "escape",
+                id: "close",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 action: () => {
                     onCloseOutline()
                 },
@@ -148,26 +148,17 @@
                 allowInInputs: true,
             },
             {
-                id: "close-outline-q",
+                id: "close-alt",
                 keys: "q",
                 action: () => {
                     onCloseOutline()
                 },
                 description: m.keymap_close_outline(),
-                allowInInputs: true,
+                allowInInputs: false,
             },
             {
                 id: "scroll-down",
-                keys: "j",
-                description: m.keymap_next_heading(),
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
-            },
-            {
-                id: "scroll-down-alt",
-                keys: "arrowdown",
+                keys: ["arrowdown", "j", "ctrl+n", "ctrl+j"],
                 description: m.keymap_next_heading(),
                 action: (event) => {
                     event.preventDefault()
@@ -176,34 +167,7 @@
             },
             {
                 id: "scroll-up",
-                keys: "k",
-                description: m.keymap_prev_heading(),
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
-            },
-            {
-                id: "scroll-up-alt",
-                keys: "arrowup",
-                description: m.keymap_prev_heading(),
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
-            },
-            {
-                id: "next-heading-ctrl-n",
-                keys: "ctrl+n",
-                description: m.keymap_next_heading(),
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
-            },
-            {
-                id: "prev-heading-ctrl-p",
-                keys: "ctrl+p",
+                keys: ["arrowup", "k", "ctrl+p", "ctrl+k"],
                 description: m.keymap_prev_heading(),
                 action: (event) => {
                     event.preventDefault()
@@ -237,9 +201,30 @@
         activeNodeBeforeOpen,
     )
 
-    function formatKey(keys: string): string {
-        return keys
-            .split("+")
+    function formatKey(keys: string | string[]): string {
+        if (Array.isArray(keys)) {
+            return keys.map((k) => formatKey(k)).join("/")
+        }
+        const MODIFIERS = ["ctrl", "meta", "alt", "shift"]
+        const parts = keys.split("+")
+        parts.sort((a, b) => {
+            const aLower = a.toLowerCase().trim()
+            const bLower = b.toLowerCase().trim()
+            const aIdx = MODIFIERS.indexOf(aLower)
+            const bIdx = MODIFIERS.indexOf(bLower)
+
+            if (aIdx !== -1 && bIdx !== -1) {
+                return aIdx - bIdx
+            }
+            if (aIdx !== -1) {
+                return -1
+            }
+            if (bIdx !== -1) {
+                return 1
+            }
+            return aLower.localeCompare(bLower)
+        })
+        return parts
             .map((part) => {
                 const lower = part.toLowerCase().trim()
                 if (lower === "arrowup") return "↑"
@@ -259,30 +244,24 @@
     let navigateShortcuts = $derived.by(() => {
         if (!sidebarCommandsNode) return []
         const cmds = sidebarCommandsNode.getAllCommands()
+        const downCmd = cmds.find((c) => c.id === "scroll-down")
+        const upCmd = cmds.find((c) => c.id === "scroll-up")
+        if (!downCmd || !upCmd || !downCmd.keys || !upCmd.keys) return []
 
-        const nextCmds = cmds.filter((c) => c.id?.startsWith("next-heading-") && c.keys)
-        const prevCmds = cmds.filter((c) => c.id?.startsWith("prev-heading-") && c.keys)
+        const downKeys = Array.isArray(downCmd.keys) ? downCmd.keys : [downCmd.keys]
+        const upKeys = Array.isArray(upCmd.keys) ? upCmd.keys : [upCmd.keys]
 
-        const pairs: { next: string; prev: string; display: string }[] = []
-
-        const nextToPrevSuffix: Record<string, string> = {
-            j: "k",
-            arrowdown: "arrowup",
-            "ctrl-n": "ctrl-p",
-        }
-
-        for (const nextCmd of nextCmds) {
-            const suffix = nextCmd.id?.replace("next-heading-", "") || ""
-            const expectedPrevSuffix = nextToPrevSuffix[suffix]
-            if (expectedPrevSuffix) {
-                const prevCmd = prevCmds.find((c) => c.id === `prev-heading-${expectedPrevSuffix}`)
-                if (prevCmd && prevCmd.keys && nextCmd.keys) {
-                    pairs.push({
-                        next: nextCmd.keys,
-                        prev: prevCmd.keys,
-                        display: `${formatKey(nextCmd.keys)}/${formatKey(prevCmd.keys)}`,
-                    })
-                }
+        const pairs: { display: string }[] = []
+        const keyPairs = [
+            { down: "j", up: "k" },
+            { down: "arrowdown", up: "arrowup" },
+            { down: "ctrl+n", up: "ctrl+p" },
+        ]
+        for (const pair of keyPairs) {
+            if (downKeys.includes(pair.down) && upKeys.includes(pair.up)) {
+                pairs.push({
+                    display: `${formatKey(pair.down)}/${formatKey(pair.up)}`,
+                })
             }
         }
         return pairs
@@ -291,8 +270,18 @@
     let closeShortcuts = $derived.by(() => {
         if (!sidebarCommandsNode) return []
         const cmds = sidebarCommandsNode.getAllCommands()
-        const closeCmds = cmds.filter((c) => c.id?.startsWith("close-outline-") && c.keys)
-        return closeCmds.map((c) => formatKey(c.keys!))
+        const closeCmd = cmds.find((c) => c.id === "close" && c.keys)
+        const closeAltCmd = cmds.find((c) => c.id === "close-alt" && c.keys)
+        const keys: string[] = []
+        if (closeCmd && closeCmd.keys) {
+            if (Array.isArray(closeCmd.keys)) keys.push(...closeCmd.keys)
+            else keys.push(closeCmd.keys)
+        }
+        if (closeAltCmd && closeAltCmd.keys) {
+            if (Array.isArray(closeAltCmd.keys)) keys.push(...closeAltCmd.keys)
+            else keys.push(closeAltCmd.keys)
+        }
+        return keys.map((k) => formatKey(k))
     })
 
     let selectShortcut = $derived.by(() => {

@@ -113,7 +113,7 @@
             square={uiStore.isCompact}
             onclick={onClose}
             aria-label={m.close_document()}
-            tooltip={m.close_document() + getShortcutHint(commandsNode, "close-viewer")}
+            tooltip={m.close_document() + getShortcutHint(commandsNode, "close")}
         >
             <span class="close-icon">×</span>
             <span class="close-text">{m.close()}</span>

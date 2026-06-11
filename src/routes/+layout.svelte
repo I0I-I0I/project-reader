@@ -106,7 +106,7 @@
         },
         {
             id: "open-prompt",
-            keys: "ctrl+k",
+            keys: ["ctrl+k", "shift+:"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
                 uiStore.prompt.mode = "global"
@@ -165,20 +165,7 @@
         },
         {
             id: "scroll-down",
-            keys: "j",
-            action: () => {
-                window.scrollBy({
-                    top: window.innerHeight * 0.2,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
-                })
-            },
-            description: m.keymap_scroll_down(),
-            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "scroll-down-alt",
-            keys: "arrowdown",
+            keys: ["arrowdown", "j"],
             action: () => {
                 window.scrollBy({
                     top: window.innerHeight * 0.2,
@@ -191,20 +178,7 @@
         },
         {
             id: "scroll-up",
-            keys: "k",
-            action: () => {
-                window.scrollBy({
-                    top: -window.innerHeight * 0.2,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
-                })
-            },
-            description: m.keymap_scroll_up(),
-            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "scroll-up-alt",
-            keys: "arrowup",
+            keys: ["arrowup", "k"],
             action: () => {
                 window.scrollBy({
                     top: -window.innerHeight * 0.2,
@@ -217,20 +191,7 @@
         },
         {
             id: "scroll-page-down",
-            keys: "d",
-            action: () => {
-                window.scrollBy({
-                    top: window.innerHeight * 0.6,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
-                })
-            },
-            description: m.keymap_scroll_down(),
-            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "scroll-page-down-alt",
-            keys: "pagedown",
+            keys: ["pagedown", "d"],
             action: () => {
                 window.scrollBy({
                     top: window.innerHeight * 0.6,
@@ -243,20 +204,7 @@
         },
         {
             id: "scroll-page-up",
-            keys: "u",
-            action: () => {
-                window.scrollBy({
-                    top: -window.innerHeight * 0.6,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
-                })
-            },
-            description: m.keymap_scroll_up(),
-            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "scroll-page-up-alt",
-            keys: "pageup",
+            keys: ["pageup", "u"],
             action: () => {
                 window.scrollBy({
                     top: -window.innerHeight * 0.6,

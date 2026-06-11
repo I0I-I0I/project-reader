@@ -4,6 +4,7 @@
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
+    import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
     import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
@@ -353,17 +354,45 @@
     {/if}
 
     {#if uiStore.isCompact && !uiStore.isSelectionMode}
-        <button
-            class="mobile-prompt-btn"
-            onclick={() => {
-                uiStore.prompt.mode = "global"
-                uiStore.prompt.isOpen = true
-            }}
-            aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
-            title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
-        >
-            <TerminalIcon />
-        </button>
+        <div class="mobile-controls-container">
+            <button
+                class="mobile-jump-btn back"
+                onclick={async (e) => {
+                    e.stopPropagation()
+                    await jumplistStore.jumpBack()
+                }}
+                disabled={jumplistStore.currentIndex <= 0}
+                aria-label={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
+                title={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
+            >
+                <ChevronIcon style="transform: rotate(90deg);" />
+            </button>
+
+            <button
+                class="mobile-prompt-btn"
+                onclick={() => {
+                    uiStore.prompt.mode = "global"
+                    uiStore.prompt.isOpen = true
+                }}
+                aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+                title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+            >
+                <TerminalIcon />
+            </button>
+
+            <button
+                class="mobile-jump-btn forward"
+                onclick={async (e) => {
+                    e.stopPropagation()
+                    await jumplistStore.jumpForward()
+                }}
+                disabled={jumplistStore.currentIndex >= jumplistStore.jumps.length - 1}
+                aria-label={m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}
+                title={m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}
+            >
+                <ChevronIcon style="transform: rotate(-90deg);" />
+            </button>
+        </div>
     {/if}
 </div>
 
@@ -487,11 +516,18 @@
         }
     }
 
-    .mobile-prompt-btn {
+    .mobile-controls-container {
         position: fixed;
         bottom: calc(16px + env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        z-index: 100;
+    }
+
+    .mobile-prompt-btn {
         width: 44px;
         height: 44px;
         background: var(--surface-color);
@@ -502,7 +538,6 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        z-index: 100;
         color: var(--text-color);
         padding: 0;
         transition:
@@ -512,7 +547,7 @@
     }
 
     .mobile-prompt-btn:active {
-        transform: translateX(-50%) translate(1px, 1px);
+        transform: translate(1px, 1px);
         box-shadow: 1px 1px 0 var(--shadow-color);
         background: var(--surface-hover-color);
     }
@@ -520,5 +555,42 @@
     .mobile-prompt-btn :global(svg) {
         width: 18px;
         height: 18px;
+    }
+
+    .mobile-jump-btn {
+        width: 40px;
+        height: 40px;
+        background: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-color);
+        padding: 0;
+        transition:
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .mobile-jump-btn:active:not(:disabled) {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        background: var(--surface-hover-color);
+    }
+
+    .mobile-jump-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        transform: translate(1px, 1px);
+    }
+
+    .mobile-jump-btn :global(svg) {
+        width: 16px;
+        height: 16px;
     }
 </style>

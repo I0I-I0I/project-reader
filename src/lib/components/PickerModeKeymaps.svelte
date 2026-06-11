@@ -4,7 +4,6 @@
     import * as m from "$lib/paraglide/messages"
     import { getContext, untrack } from "svelte"
     import { SvelteSet } from "svelte/reactivity"
-    import { PICKER_KEYS } from "$lib/constants"
     import type { VFSNode } from "$lib/stores/vfsStore.types"
 
     interface Props {
@@ -21,22 +20,32 @@
 
     const baseCommands: Command[] = [
         {
-            id: "exit-picking-mode-esc",
-            keys: "escape",
+            id: "close-or-back",
+            keys: ["escape", "ctrl+c", "ctrl+["],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                if (keyBuffer.length > 0) {
-                    keyBuffer = ""
-                } else {
-                    uiStore.isPickingMode = false
-                }
+                keyBuffer = ""
+                uiStore.isPickingMode = false
             },
             description: m.keymap_exit_selection_mode(),
+            allowInInputs: true,
             category: "commands" as const,
         },
         {
-            id: "picker-backspace",
-            keys: "backspace",
+            id: "close-alt",
+            keys: "q",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                keyBuffer = ""
+                uiStore.isPickingMode = false
+            },
+            description: m.keymap_exit_selection_mode(),
+            allowInInputs: false,
+            category: "commands" as const,
+        },
+        {
+            id: "backspace",
+            keys: ["backspace", "ctrl+h"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
                 if (keyBuffer.length > 0) {
@@ -101,20 +110,6 @@
                         }
                     },
                     description: `Type '${char}' for hint selection`,
-                    category: "commands" as const,
-                })
-            }
-
-            // 3. Register "q" as exit command only if it's not a valid next character
-            if (!nextChars.has("q")) {
-                dynamicCommands.push({
-                    id: "exit-picking-mode-q",
-                    keys: "q",
-                    action: (event: KeyboardEvent) => {
-                        event.preventDefault()
-                        uiStore.isPickingMode = false
-                    },
-                    description: m.keymap_exit_selection_mode(),
                     category: "commands" as const,
                 })
             }

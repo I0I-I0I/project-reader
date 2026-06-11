@@ -1,7 +1,11 @@
 <script lang="ts">
     import { getContext } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import {
+        useCommands,
+        type CommandNode,
+        KeyboardHandler,
+    } from "$lib/stores/commandsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
@@ -26,8 +30,12 @@
         const seen = new Set<string>()
         return allBindings
             .filter((b) => {
-                if (!b.description || !b.keys || seen.has(b.keys)) return false
-                seen.add(b.keys)
+                if (!b.description || !b.keys) return false
+                const keyStr = Array.isArray(b.keys)
+                    ? b.keys.map((k) => KeyboardHandler.normalize(k)).join(",")
+                    : KeyboardHandler.normalize(b.keys)
+                if (seen.has(keyStr)) return false
+                seen.add(keyStr)
                 return true
             })
             .map((b) => ({
@@ -40,7 +48,9 @@
         keymaps.filter(
             (k) =>
                 k.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                k.keys.toLowerCase().includes(searchQuery.toLowerCase()),
+                (Array.isArray(k.keys)
+                    ? k.keys.some((key) => key.toLowerCase().includes(searchQuery.toLowerCase()))
+                    : k.keys.toLowerCase().includes(searchQuery.toLowerCase())),
         ),
     )
 
@@ -66,34 +76,27 @@
     useCommands(
         [
             {
-                id: "close-help-q",
-                keys: "q",
+                id: "close",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 description: m.keymap_close_help(),
                 action: (e) => {
                     e.preventDefault()
                     onClose()
                 },
+                allowInInputs: true,
             },
             {
-                id: "close-help-escape",
-                keys: "escape",
-                description: m.keymap_close_help(),
+                id: "close-alt",
+                keys: ["q", "?"],
                 action: (e) => {
                     e.preventDefault()
                     onClose()
                 },
-            },
-            {
-                id: "close-help-question",
-                keys: "?",
                 description: m.keymap_close_help(),
-                action: (e) => {
-                    e.preventDefault()
-                    onClose()
-                },
+                allowInInputs: false,
             },
             {
-                id: "search-help-slash",
+                id: "search",
                 keys: "/",
                 description: m.keymap_search_shortcuts(),
                 action: (e) => {
@@ -104,7 +107,7 @@
             },
             {
                 id: "scroll-down",
-                keys: "j",
+                keys: ["arrowdown", "j"],
                 description: m.keymap_scroll_down(),
                 action: (e) => {
                     e.preventDefault()
@@ -116,31 +119,7 @@
             },
             {
                 id: "scroll-up",
-                keys: "k",
-                description: m.keymap_scroll_up(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: -80,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-down-alt",
-                keys: "arrowdown",
-                description: m.keymap_scroll_down(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: 80,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-up-alt",
-                keys: "arrowup",
+                keys: ["arrowup", "k"],
                 description: m.keymap_scroll_up(),
                 action: (e) => {
                     e.preventDefault()
@@ -152,19 +131,7 @@
             },
             {
                 id: "scroll-page-down",
-                keys: "d",
-                description: m.keymap_scroll_page_down(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: 200,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-page-down-alt",
-                keys: "pagedown",
+                keys: ["pagedown", "d"],
                 description: m.keymap_scroll_page_down(),
                 action: (e) => {
                     e.preventDefault()
@@ -176,19 +143,7 @@
             },
             {
                 id: "scroll-page-up",
-                keys: "u",
-                description: m.keymap_scroll_page_up(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: -200,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-page-up-alt",
-                keys: "pageup",
+                keys: ["pageup", "u"],
                 description: m.keymap_scroll_page_up(),
                 action: (e) => {
                     e.preventDefault()
@@ -209,6 +164,10 @@
             return [...base.split("+").map((k) => k.trim()), "+"]
         }
         return keyStr.split("+").map((k) => k.trim())
+    }
+
+    function getShortcutsArray(keys: string | string[]): string[] {
+        return Array.isArray(keys) ? keys : [keys]
     }
 </script>
 
@@ -253,8 +212,13 @@
                     {#each filteredKeymaps as keymap}
                         <div class="shortcut-row">
                             <div class="key-combo">
-                                {#each formatKeys(keymap.keys) as key}
-                                    <kbd class="key-badge">{key}</kbd>
+                                {#each getShortcutsArray(keymap.keys) as shortcut, idx}
+                                    {#if idx > 0}
+                                        <span class="shortcut-separator">/</span>
+                                    {/if}
+                                    {#each formatKeys(shortcut) as key}
+                                        <kbd class="key-badge">{key}</kbd>
+                                    {/each}
                                 {/each}
                             </div>
                             <span class="shortcut-desc">{keymap.description}</span>
@@ -320,6 +284,14 @@
         text-align: center;
         text-transform: uppercase;
         display: inline-block;
+    }
+
+    .shortcut-separator {
+        opacity: 0.5;
+        font-weight: 500;
+        margin: 0 2px;
+        color: var(--text-color);
+        font-size: 0.9rem;
     }
 
     .shortcut-desc {

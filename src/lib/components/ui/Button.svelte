@@ -448,6 +448,12 @@
         right: 12px;
     }
 
+    /* Hover/Focus Stacking Context */
+    .button:focus-visible,
+    .button:hover {
+        z-index: 110;
+    }
+
     /* Visibility */
     .button:focus-visible .tooltip,
     .button:hover .tooltip {

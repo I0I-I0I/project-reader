@@ -22,7 +22,6 @@ export const PICKER_KEYS = [
     "e",
     "t",
     "w",
-    "q",
     "i",
     "o",
     "p",

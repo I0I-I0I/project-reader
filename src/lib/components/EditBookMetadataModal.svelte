@@ -33,13 +33,24 @@
     useCommands(
         [
             {
-                keys: "escape",
+                id: "close",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 action: (event) => {
                     event.preventDefault()
                     handleClose()
                 },
                 description: m.cancel(),
                 allowInInputs: true,
+            },
+            {
+                id: "close-alt",
+                keys: "q",
+                action: (event) => {
+                    event.preventDefault()
+                    handleClose()
+                },
+                description: m.cancel(),
+                allowInInputs: false,
             },
         ],
         activeNodeBeforeOpen,

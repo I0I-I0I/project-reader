@@ -25,7 +25,7 @@
         [
             {
                 id: "exit-selection-mode",
-                keys: "escape",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 action: (event) => {
                     event.preventDefault()
                     if (uiStore.isPickingMode) {
@@ -35,23 +35,20 @@
                     uiStore.isSelectionMode = false
                     vfsStore.clearSelection()
                 },
+                allowInInputs: true,
                 description: m.keymap_exit_selection_mode(),
                 category: "commands",
             },
             {
-                id: "exit-selection-mode-q",
+                id: "close-alt",
                 keys: "q",
                 action: (event) => {
                     event.preventDefault()
-                    if (uiStore.isPickingMode) {
-                        uiStore.isPickingMode = false
-                        return
-                    }
                     uiStore.isSelectionMode = false
                     vfsStore.clearSelection()
                 },
                 description: m.keymap_exit_selection_mode(),
-                category: "commands",
+                allowInInputs: false,
             },
             {
                 id: "move-selected",

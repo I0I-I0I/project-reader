@@ -9,7 +9,11 @@
     import { searchStore } from "$lib/stores/searchStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import {
+        useCommands,
+        type CommandNode,
+        formatKeyString,
+    } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
     import BookItemIcon from "./icons/BookItemIcon.svelte"
@@ -37,7 +41,6 @@
     let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
     let innerHeight = $state<number | undefined>(undefined)
-    let originalPosition = $state<{ pageNumber: number; scrollPosition: number } | null>(null)
 
     let internalValue = $state(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
 
@@ -92,31 +95,6 @@
                 }
             }
         })
-    })
-
-    $effect(() => {
-        if (uiStore.prompt.mode === "search" && uiStore.prompt.isOpen) {
-            const results = searchResults
-            const index = selectedIndex
-            untrack(() => {
-                if (results && results[index]) {
-                    const selectedItem = results[index].item
-                    const matchIdx = parseInt(selectedItem.id.replace("search-match-", ""), 10)
-                    if (!isNaN(matchIdx) && searchStore.currentMatchIndex !== matchIdx) {
-                        searchStore.currentMatchIndex = matchIdx
-                        const match = searchStore.matches[matchIdx]
-                        if (match) {
-                            const currentBook = viewerStore.getCurrentBook()
-                            if (currentBook && currentBook.pageNumber !== match.pageNumber) {
-                                if (viewerStore.goToPage) {
-                                    viewerStore.goToPage(match.pageNumber)
-                                }
-                            }
-                        }
-                    }
-                }
-            })
-        }
     })
 
     async function scrollToSelected() {
@@ -189,8 +167,8 @@
     useCommands(
         [
             {
-                id: "prompt-escape",
-                keys: "escape",
+                id: "close",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 action: (event) => {
                     event.preventDefault()
                     handleClose()
@@ -199,8 +177,8 @@
                 allowInInputs: true,
             },
             {
-                id: "scroll-down-alt",
-                keys: "arrowdown",
+                id: "next",
+                keys: ["ctrl+n", "ctrl+j", "arrowdown"],
                 action: (event) => {
                     if (searchResults.length === 0) return
                     event.preventDefault()
@@ -212,21 +190,8 @@
                 allowInInputs: true,
             },
             {
-                id: "prompt-next-n",
-                keys: "ctrl+n",
-                action: (event) => {
-                    if (searchResults.length === 0) return
-                    event.preventDefault()
-                    selectedIndex = (selectedIndex + 1) % searchResults.length
-                    hasManuallySelected = true
-                    scrollToSelected()
-                },
-                description: "",
-                allowInInputs: true,
-            },
-            {
-                id: "scroll-up-alt",
-                keys: "arrowup",
+                id: "prev",
+                keys: ["ctrl+p", "ctrl+k", "arrowup"],
                 action: (event) => {
                     if (searchResults.length === 0) return
                     event.preventDefault()
@@ -239,22 +204,8 @@
                 allowInInputs: true,
             },
             {
-                id: "prompt-prev-p",
-                keys: "ctrl+p",
-                action: (event) => {
-                    if (searchResults.length === 0) return
-                    event.preventDefault()
-                    selectedIndex =
-                        (selectedIndex - 1 + searchResults.length) % searchResults.length
-                    hasManuallySelected = true
-                    scrollToSelected()
-                },
-                description: "",
-                allowInInputs: true,
-            },
-            {
-                id: "prompt-enter",
-                keys: "enter",
+                id: "enter",
+                keys: ["enter", "ctrl+y", "ctrl+m"],
                 action: (event) => {
                     if (searchResults.length === 0) return
                     event.preventDefault()
@@ -301,17 +252,6 @@
     }
 
     onMount(async () => {
-        if (uiStore.prompt.mode === "search") {
-            const book = viewerStore.getCurrentBook()
-            if (book) {
-                originalPosition = {
-                    pageNumber: book.pageNumber,
-                    scrollPosition: book.scrollPosition || 0,
-                }
-                searchStore.originalPosition = originalPosition
-            }
-        }
-
         if (value === "") {
             value = uiStore.prompt.initialValue || ""
         }
@@ -335,19 +275,24 @@
         }
     })
     function handleClose() {
-        if (uiStore.prompt.mode === "search" && originalPosition) {
-            if (viewerStore.goToPage) {
-                viewerStore.goToPage(originalPosition.pageNumber, {
-                    scrollPosition: originalPosition.scrollPosition,
-                    isJump: false,
-                })
-            }
-        }
-        searchStore.originalPosition = null
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
         }
         onClose()
+    }
+
+    function formatKeys(keyStr: string): string[] {
+        const formatted = formatKeyString(keyStr)
+        if (formatted === "+") return ["+"]
+        if (formatted.endsWith("++")) {
+            const base = formatted.slice(0, -2)
+            return [...base.split("+").map((k) => k.trim()), "+"]
+        }
+        return formatted.split("+").map((k) => k.trim())
+    }
+
+    function getShortcutsArray(keys: string | string[]): string[] {
+        return Array.isArray(keys) ? keys : [keys]
     }
 </script>
 
@@ -503,8 +448,13 @@
                                 <span class="category-badge {item.category}">{item.category}</span>
                                 {#if item.keys}
                                     <div class="shortcut-keys">
-                                        {#each item.keys.split("+") as key}
-                                            <kbd>{key.trim()}</kbd>
+                                        {#each getShortcutsArray(item.keys) as shortcut, idx}
+                                            {#if idx > 0}
+                                                <span class="shortcut-separator">/</span>
+                                            {/if}
+                                            {#each formatKeys(shortcut) as key}
+                                                <kbd>{key}</kbd>
+                                            {/each}
                                         {/each}
                                     </div>
                                 {/if}
@@ -923,20 +873,35 @@
 
     .shortcut-keys {
         display: flex;
-        gap: 2px;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .shortcut-separator {
+        opacity: 0.5;
+        font-weight: 500;
+        margin: 0 2px;
+        align-self: center;
+        color: var(--text-color);
+        font-size: 0.8rem;
     }
 
     kbd {
-        font-family: inherit;
+        font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
         font-size: 0.72rem;
-        font-weight: 500;
-        padding: 1px 5px;
-        border: 1.5px solid var(--border-color);
-        border-radius: 3px;
+        font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
-        box-shadow: 1px 1px 0 var(--border-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        border-radius: 4px;
+        padding: 3px 6px;
+        min-width: 14px;
+        text-align: center;
+        text-transform: uppercase;
+        display: inline-block;
         white-space: nowrap;
+        line-height: 1;
     }
 
     .empty-state {

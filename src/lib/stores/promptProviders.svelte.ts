@@ -11,7 +11,11 @@ import { getLanguageName } from "$lib/locale"
 import { page } from "$app/state"
 import { localizedPath, switchLanguage, type AppLocale } from "$lib/language"
 import type { SearchItem } from "$lib/stores/promptStore.svelte"
-import type { CommandRegistry } from "$lib/stores/commandsStore.svelte"
+import {
+    CommandRegistry,
+    KeyboardHandler,
+    getPrimaryKeysString,
+} from "$lib/stores/commandsStore.svelte"
 import type { FolderNode, FileNode } from "$lib/stores/vfsStore.types"
 
 const reverseTranslationMap = new Map<string, string>()
@@ -392,9 +396,26 @@ export function getCommandsPromptItems(activeNode: CommandRegistry | null): Sear
             const primaryCmd = group.reduce((best, current) => {
                 if (!current.keys) return best
                 if (!best.keys) return current
-                if (current.keys.includes("arrow")) return current
-                return best.keys.length <= current.keys.length ? best : current
+                const bestKeysStr = getPrimaryKeysString(best.keys)
+                const currentKeysStr = getPrimaryKeysString(current.keys)
+                if (currentKeysStr.includes("arrow")) return current
+                return bestKeysStr.length <= currentKeysStr.length ? best : current
             }, group[0])
+
+            const mergedKeys: string[] = []
+            const seenKeys = new Set<string>()
+            for (const cmd of group) {
+                if (cmd.keys) {
+                    const cmdKeys = Array.isArray(cmd.keys) ? cmd.keys : [cmd.keys]
+                    for (const k of cmdKeys) {
+                        const normalized = KeyboardHandler.normalize(k)
+                        if (normalized && !seenKeys.has(normalized)) {
+                            seenKeys.add(normalized)
+                            mergedKeys.push(normalized)
+                        }
+                    }
+                }
+            }
 
             const engTitle =
                 primaryCmd.englishDescription || getEnglishTranslation(primaryCmd.description)
@@ -402,23 +423,9 @@ export function getCommandsPromptItems(activeNode: CommandRegistry | null): Sear
                 id: primaryCmd.id ? `command-${primaryCmd.id}` : `command-${uniqueId}`,
                 title: primaryCmd.description,
                 englishTitle: engTitle,
-                subtitle: primaryCmd.subtitle
-                    ? primaryCmd.subtitle()
-                    : primaryCmd.keys
-                      ? m.shortcut_hint({ keys: primaryCmd.keys.toUpperCase() })
-                      : undefined,
-                englishSubtitle: primaryCmd.subtitle
-                    ? undefined
-                    : primaryCmd.keys
-                      ? m.shortcut_hint
-                          ? m.shortcut_hint(
-                                { keys: primaryCmd.keys.toUpperCase() },
-                                { locale: "en" },
-                            )
-                          : undefined
-                      : undefined,
+                subtitle: primaryCmd.subtitle ? primaryCmd.subtitle() : undefined,
                 category: primaryCmd.category || "commands",
-                keys: primaryCmd.keys,
+                keys: mergedKeys.length > 0 ? mergedKeys : undefined,
                 action: () => {
                     const event = new KeyboardEvent("keydown", {
                         bubbles: true,

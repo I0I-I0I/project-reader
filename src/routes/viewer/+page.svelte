@@ -93,13 +93,12 @@
                         action: () => {
                             searchStore.addToHistory(queryText)
 
-                            const orig = searchStore.originalPosition
                             const currentBook = viewerStore.getCurrentBook()
-                            if (orig && currentBook) {
+                            if (currentBook) {
                                 jumplistStore.pushBookPageJump(
                                     currentBook.id,
-                                    orig.pageNumber,
-                                    orig.scrollPosition,
+                                    currentBook.pageNumber,
+                                    currentBook.scrollPosition || 0,
                                 )
                             }
 
@@ -118,7 +117,6 @@
                             }
                             uiStore.isSearchModeActive = true
                             uiStore.prompt.isOpen = false
-                            searchStore.originalPosition = null
                         },
                     })
                 }
@@ -175,17 +173,6 @@
                 })
             }
         } else if (mode === "global") {
-            list.push({
-                id: "open-jumplist-cmd",
-                title: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
-                englishTitle: "Open jumplist",
-                category: "commands",
-                keys: "shfit+j",
-                action: () => {
-                    uiStore.prompt.mode = "jumplist"
-                },
-            })
-
             const num = parseInt(cleanValue.trim(), 10)
             if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
                 list.push({
@@ -273,7 +260,7 @@
         },
         {
             id: "zoom-out",
-            keys: "-",
+            keys: "shift+-",
             description: m.keymap_zoom_out(),
             englishDescription: m.keymap_zoom_out({}, { locale: "en" }),
             category: "settings",
@@ -287,22 +274,7 @@
         },
         {
             id: "scroll-down",
-            keys: "j",
-            description: m.keymap_scroll_down(),
-            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: window.innerHeight * 0.2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-down-alt",
-            keys: "arrowdown",
+            keys: ["j", "arrowdown"],
             description: m.keymap_scroll_down(),
             englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
             category: "navigation",
@@ -317,22 +289,7 @@
         },
         {
             id: "scroll-up",
-            keys: "k",
-            description: m.keymap_scroll_up(),
-            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: -window.innerHeight * 0.2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-up-alt",
-            keys: "arrowup",
+            keys: ["k", "arrowup"],
             description: m.keymap_scroll_up(),
             englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
             category: "navigation",
@@ -347,23 +304,7 @@
         },
         {
             id: "scroll-page-down",
-            keys: "d",
-            description: m.keymap_scroll_page_down(),
-            englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                const currentHeight = window.innerHeight
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: currentHeight / 2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-page-down-alt",
-            keys: "pagedown",
+            keys: ["d", "pagedown"],
             description: m.keymap_scroll_page_down(),
             englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
             category: "navigation",
@@ -379,23 +320,7 @@
         },
         {
             id: "scroll-page-up",
-            keys: "u",
-            description: m.keymap_scroll_page_up(),
-            englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                const currentHeight = window.innerHeight
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: currentHeight / -2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-page-up-alt",
-            keys: "pageup",
+            keys: ["u", "pageup"],
             description: m.keymap_scroll_page_up(),
             englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
             category: "navigation",
@@ -411,17 +336,7 @@
         },
         {
             id: "next-page",
-            keys: "space",
-            description: m.keymap_next_page(),
-            englishDescription: m.keymap_next_page({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                nextPage()
-            },
-        },
-        {
-            id: "next-page-alt",
-            keys: "arrowright",
+            keys: ["space", "arrowright"],
             description: m.keymap_next_page(),
             englishDescription: m.keymap_next_page({}, { locale: "en" }),
             category: "navigation",
@@ -431,17 +346,7 @@
         },
         {
             id: "prev-page",
-            keys: "shift+space",
-            description: m.keymap_prev_page(),
-            englishDescription: m.keymap_prev_page({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                prevPage()
-            },
-        },
-        {
-            id: "prev-page-alt",
-            keys: "arrowleft",
+            keys: ["shift+space", "arrowleft"],
             description: m.keymap_prev_page(),
             englishDescription: m.keymap_prev_page({}, { locale: "en" }),
             category: "navigation",
@@ -470,8 +375,8 @@
             },
         },
         {
-            id: "close-viewer",
-            keys: "q",
+            id: "close",
+            keys: ["q", "-"],
             description: m.keymap_close_viewer(),
             englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
             category: "commands",
@@ -484,7 +389,7 @@
             },
         },
         {
-            id: "hide-toolbars",
+            id: "hide-toolbar",
             keys: "shift+m",
             description: m.keymap_hide_toolbars(),
             englishDescription: m.keymap_hide_toolbars({}, { locale: "en" }),
@@ -521,7 +426,7 @@
         },
         {
             id: "close-search",
-            keys: "escape",
+            keys: ["escape", "ctrl+c", "ctrl+["],
             description: m.prompt_close_aria ? m.prompt_close_aria() : "Close search",
             englishDescription: "Close search",
             category: "commands",
@@ -532,6 +437,7 @@
                     uiStore.prompt.clearValue("search")
                 }
             },
+            allowInInputs: true,
         },
         {
             id: "next-search-match",
@@ -1362,7 +1268,7 @@
                                     aria-label={uiStore.isToolbarsVisible
                                         ? m.hide_toolbars()
                                         : m.show_toolbars()}
-                                    tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbars")}`}
+                                    tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbar")}`}
                                 >
                                     {#if uiStore.isToolbarsVisible}
                                         <MinimizeIcon />

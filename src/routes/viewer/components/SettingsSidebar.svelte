@@ -101,8 +101,8 @@
     useCommands(
         [
             {
-                id: "close-settings-escape",
-                keys: "escape",
+                id: "close",
+                keys: ["escape", "ctrl+c", "ctrl+["],
                 action: () => {
                     onClose()
                 },
@@ -110,13 +110,13 @@
                 allowInInputs: true,
             },
             {
-                id: "close-settings-q",
+                id: "close-alt",
                 keys: "q",
                 action: () => {
                     onClose()
                 },
                 description: m.keymap_close_settings(),
-                allowInInputs: true,
+                allowInInputs: false,
             },
         ],
         activeNodeBeforeOpen,

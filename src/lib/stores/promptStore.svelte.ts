@@ -5,7 +5,7 @@ export interface SearchItem {
     title: string
     subtitle?: string
     category: "books" | "commands" | "settings" | "navigation" | "menu"
-    keys?: string
+    keys?: string | string[]
     action: () => void
     pageNumber?: number
     englishTitle?: string

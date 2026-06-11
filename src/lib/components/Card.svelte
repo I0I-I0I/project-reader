@@ -406,6 +406,11 @@
         box-sizing: border-box;
     }
 
+    .card :global(.card-main-button):hover,
+    .card :global(.card-main-button):focus-visible {
+        z-index: auto;
+    }
+
     .card-cover-container {
         position: relative;
         width: 100%;

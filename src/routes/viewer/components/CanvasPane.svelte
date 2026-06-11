@@ -332,6 +332,14 @@
         }
     }
 
+    function syncScrollStateFallback() {
+        if (typeof window !== "undefined" && !("onscrollend" in window)) {
+            if (container && hasRestoredScroll) {
+                syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
+            }
+        }
+    }
+
     function handleScroll(e: Event) {
         if (!hasRestoredScroll) return
 
@@ -445,6 +453,7 @@
                 top: targetOffset,
                 behavior,
             })
+            scrollTop = targetOffset
             lastObservedPage = targetPage
             lastScale = currentScale
 
@@ -453,11 +462,13 @@
             if (behavior === "smooth") {
                 autoScrollTimeout = setTimeout(() => {
                     isAutoScrolling = false
+                    syncScrollStateFallback()
                 }, AUTO_SCROLL_TIMEOUT_MS)
             } else {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         isAutoScrolling = false
+                        syncScrollStateFallback()
                     })
                 })
             }
@@ -495,10 +506,12 @@
                 if (pageIndex >= 0 && pageDimensions[pageIndex]) {
                     const pageTop = pageOffsets[pageIndex]
                     const pageHeight = getPageHeight(pageDimensions[pageIndex])
+                    const targetScrollTop = pageTop + targetScrollPosition * pageHeight
                     container!.scrollTo({
-                        top: pageTop + targetScrollPosition * pageHeight,
+                        top: targetScrollTop,
                         behavior: "auto",
                     })
+                    scrollTop = targetScrollTop
                 }
             } else {
                 const pageEl = container!.querySelector(
@@ -784,10 +797,7 @@
     })
 
     $effect(() => {
-        const isSearchActive =
-            uiStore.isSearchModeActive ||
-            (uiStore.prompt.isOpen && uiStore.prompt.mode === "search")
-        if (!isSearchActive) return
+        if (!uiStore.isSearchModeActive || uiStore.prompt.isOpen) return
 
         const activeRange = searchStore.activeRange
         if (activeRange && container) {
