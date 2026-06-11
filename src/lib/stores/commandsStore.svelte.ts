@@ -392,17 +392,22 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
     )
 
     onMount(() => {
-        if (setActiveNode) {
-            setActiveNode(node)
-        } else {
-            commandDispatcher.activeRegistry = node
+        const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
+        const isDescendantActive = activeNow && node.isAncestorOf(activeNow)
+
+        if (!isDescendantActive) {
+            if (setActiveNode) {
+                setActiveNode(node)
+            } else {
+                commandDispatcher.activeRegistry = node
+            }
         }
 
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
             unregisterAll()
-            const activeNow = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
-            if (activeNow === node) {
+            const activeCurrent = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
+            if (activeCurrent === node) {
                 if (setActiveNode) {
                     setActiveNode(node.parent)
                 } else {
