@@ -28,6 +28,7 @@
     let searchInputRef = $state<HTMLInputElement | undefined>()
     let contentRef = $state<HTMLElement | undefined>()
     let noteToDeleteId = $state<string | null>(null)
+    let isSearchFocused = $state(false)
 
     let filteredNotes = $derived(
         notesStore.notes.filter(
@@ -115,6 +116,7 @@
             {
                 id: "close",
                 keys: ["ctrl+c", "ctrl+["],
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },
@@ -124,6 +126,7 @@
             {
                 id: "close-alt",
                 keys: ["escape", "q"],
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },
@@ -134,6 +137,7 @@
                 id: "scroll-down",
                 keys: "j",
                 description: "Next Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -143,6 +147,7 @@
                 id: "scroll-down-alt",
                 keys: ["arrowdown", "ctrl+n", "ctrl+j"],
                 description: "Next Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -153,6 +158,7 @@
                 id: "scroll-up",
                 keys: "k",
                 description: "Previous Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -162,6 +168,7 @@
                 id: "scroll-up-alt",
                 keys: ["arrowup", "ctrl+p", "ctrl+k"],
                 description: "Previous Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -172,6 +179,7 @@
                 id: "select-note",
                 keys: "enter",
                 description: "Jump to Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     const note = filteredNotes[selectedIndex]
@@ -185,11 +193,68 @@
                 id: "search-notes",
                 keys: "/",
                 description: "Search Notes",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     searchInputRef?.focus()
                     searchInputRef?.select()
                 },
+            },
+            {
+                id: "edit-selected-note",
+                keys: "e",
+                description: "Edit Selected Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                action: (event) => {
+                    event.preventDefault()
+                    const note = filteredNotes[selectedIndex]
+                    if (note) {
+                        triggerEditKeyboard(note)
+                    }
+                },
+            },
+            {
+                id: "delete-selected-note",
+                keys: "d",
+                description: "Delete Selected Note",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                action: (event) => {
+                    event.preventDefault()
+                    const note = filteredNotes[selectedIndex]
+                    if (note) {
+                        triggerDeleteKeyboard(note)
+                    }
+                },
+            },
+            {
+                id: "edit-selected-note-input",
+                keys: "ctrl+e",
+                description: "Edit Selected Note",
+                disabled: () =>
+                    !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
+                action: (event) => {
+                    event.preventDefault()
+                    const note = filteredNotes[selectedIndex]
+                    if (note) {
+                        triggerEditKeyboard(note)
+                    }
+                },
+                allowInInputs: true,
+            },
+            {
+                id: "delete-selected-note-input",
+                keys: "ctrl+d",
+                description: "Delete Selected Note",
+                disabled: () =>
+                    !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
+                action: (event) => {
+                    event.preventDefault()
+                    const note = filteredNotes[selectedIndex]
+                    if (note) {
+                        triggerDeleteKeyboard(note)
+                    }
+                },
+                allowInInputs: true,
             },
         ],
         activeNodeBeforeOpen,
@@ -292,6 +357,28 @@
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
+    let editShortcut = $derived.by(() => {
+        if (isSearchFocused) {
+            return formatKey("ctrl+e")
+        }
+        if (!sidebarCommandsNode) return ""
+        const cmd = sidebarCommandsNode
+            .getAllCommands()
+            .find((c) => c.id === "edit-selected-note" && c.keys)
+        return cmd ? formatKey(cmd.keys!) : ""
+    })
+
+    let deleteShortcut = $derived.by(() => {
+        if (isSearchFocused) {
+            return formatKey("ctrl+d")
+        }
+        if (!sidebarCommandsNode) return ""
+        const cmd = sidebarCommandsNode
+            .getAllCommands()
+            .find((c) => c.id === "delete-selected-note" && c.keys)
+        return cmd ? formatKey(cmd.keys!) : ""
+    })
+
     function slideAndFly(_: HTMLElement, { duration = 150 }) {
         return {
             duration,
@@ -317,6 +404,15 @@
 
     function triggerDelete(note: UserNote, e: MouseEvent) {
         e.stopPropagation()
+        noteToDeleteId = note.id
+    }
+
+    function triggerEditKeyboard(note: UserNote) {
+        notesStore.editingNote = note
+        notesStore.editorCoords = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    }
+
+    function triggerDeleteKeyboard(note: UserNote) {
         noteToDeleteId = note.id
     }
 </script>
@@ -351,6 +447,12 @@
             placeholder={`Search notes...${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
             class="search-input"
             onkeydown={handleSearchKeydown}
+            onfocus={() => {
+                isSearchFocused = true
+            }}
+            onblur={() => {
+                isSearchFocused = false
+            }}
         />
         {#if searchQuery}
             <button
@@ -443,6 +545,18 @@
             {#if searchShortcut}
                 <span class="hint-item">
                     <kbd>{searchShortcut}</kbd> Search
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if editShortcut}
+                <span class="hint-item">
+                    <kbd>{editShortcut}</kbd> Edit
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if deleteShortcut}
+                <span class="hint-item">
+                    <kbd>{deleteShortcut}</kbd> Delete
                 </span>
                 <span class="hint-divider">•</span>
             {/if}
@@ -541,12 +655,6 @@
         box-sizing: border-box;
     }
 
-    @media (max-width: 640px) {
-        .search-input {
-            font-size: 16px;
-        }
-    }
-
     .search-input:focus-visible {
         transform: translate(-1px, -1px);
         box-shadow: 3px 3px 0 var(--shadow-color);
@@ -641,11 +749,16 @@
         font-size: 10px;
         font-weight: 900;
         text-transform: uppercase;
-        color: var(--muted-text-color);
+        color: var(--faded-text-color);
+    }
+
+    .note-card.selected .note-card-header {
+        color: var(--text-color);
     }
 
     .note-page {
         background: var(--muted-bg-color);
+        color: var(--muted-text-color);
         border: 1px solid var(--border-color);
         padding: 1px 4px;
         border-radius: 2px;
@@ -761,8 +874,17 @@
             padding: 8px;
         }
 
+        .sidebar-search {
+            padding: 6px 12px;
+        }
+
         .search-input {
-            padding: 10px 36px 10px 14px;
+            padding: 6px 28px 6px 10px;
+            font-size: 14px;
+        }
+
+        .clear-search-btn {
+            right: 18px;
         }
 
         .note-card {

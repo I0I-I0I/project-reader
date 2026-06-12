@@ -13,6 +13,7 @@
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { notesStore } from "$lib/stores/notesStore.svelte"
 
     let {
         isOutlineLoading,
@@ -135,6 +136,7 @@
             {
                 id: "close",
                 keys: ["ctrl+c", "ctrl+["],
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onCloseOutline()
                 },
@@ -144,6 +146,7 @@
             {
                 id: "close-alt",
                 keys: ["escape", "q"],
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onCloseOutline()
                 },
@@ -154,6 +157,7 @@
                 id: "scroll-down",
                 keys: "j",
                 description: m.keymap_next_heading(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -163,6 +167,7 @@
                 id: "scroll-down-alt",
                 keys: ["arrowdown", "ctrl+n", "ctrl+j"],
                 description: m.keymap_next_heading(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -173,6 +178,7 @@
                 id: "scroll-up",
                 keys: "k",
                 description: m.keymap_prev_heading(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -182,6 +188,7 @@
                 id: "scroll-up-alt",
                 keys: ["arrowup", "ctrl+p", "ctrl+k"],
                 description: m.keymap_prev_heading(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -192,6 +199,7 @@
                 id: "select-heading",
                 keys: "enter",
                 description: m.keymap_select_heading(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     const heading = filteredOutlineList[selectedIndex]
@@ -205,6 +213,7 @@
                 id: "search-headings",
                 keys: "/",
                 description: m.keymap_search_headings(),
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: (event) => {
                     event.preventDefault()
                     searchInputRef?.focus()
@@ -635,8 +644,17 @@
     }
 
     @media (max-width: 640px) {
+        .sidebar-search {
+            padding: 6px 12px;
+        }
+
         .search-input {
-            font-size: 16px;
+            padding: 6px 28px 6px 10px;
+            font-size: 14px;
+        }
+
+        .clear-search-btn {
+            right: 18px;
         }
     }
 

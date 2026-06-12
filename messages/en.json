@@ -167,5 +167,12 @@
     "zoom_slider_aria": "Zoom scale slider",
     "quality_slider_aria": "Rendering quality slider",
     "scrub_slider_aria": "Page scrub slider",
-    "mobile_scrub_slider_aria": "Mobile page scrub slider"
+    "mobile_scrub_slider_aria": "Mobile page scrub slider",
+    "edit_note": "Edit note",
+    "add_note": "Add note",
+    "select_color_yellow": "Select yellow",
+    "select_color_green": "Select green",
+    "select_color_blue": "Select blue",
+    "select_color_pink": "Select pink",
+    "select_color_purple": "Select purple"
 }

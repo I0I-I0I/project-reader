@@ -260,6 +260,12 @@ export class CommandRegistry {
         let current: CommandRegistry | null = this
         while (current) {
             for (const command of current.commands) {
+                const isDisabled =
+                    typeof command.disabled === "function" ? command.disabled() : !!command.disabled
+                if (isDisabled) {
+                    continue
+                }
+
                 const id = command.id || command.description
                 if (seenIds.has(id)) {
                     continue

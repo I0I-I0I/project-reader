@@ -15,6 +15,8 @@
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import NotesSidebar from "./components/NotesSidebar.svelte"
+    import NotePopup from "./components/NotePopup.svelte"
+    import NoteEditor from "./components/NoteEditor.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
     import { notesStore } from "$lib/stores/notesStore.svelte"
@@ -385,7 +387,14 @@
             description: m.keymap_close_viewer(),
             englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
             category: "commands",
-            action: () => {
+            action: (event: KeyboardEvent) => {
+                if (notesStore.editingNote || notesStore.activePopup) {
+                    event.preventDefault()
+                    notesStore.editingNote = null
+                    notesStore.editorCoords = null
+                    notesStore.activePopup = null
+                    return
+                }
                 const book = viewerStore.getCurrentBook()
                 if (book) {
                     vfsStore.pushForwardHistory(book.id)
@@ -430,12 +439,46 @@
             },
         },
         {
+            id: "save-note",
+            keys: ["ctrl+enter"],
+            description: "Save Active Note",
+            allowInInputs: true,
+            disabled: () => !notesStore.editingNote,
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                saveCurrentNote()
+            },
+        },
+        {
+            id: "save-note-alt",
+            keys: ["enter"],
+            description: "Save Active Note",
+            allowInInputs: false,
+            disabled: () => !notesStore.editingNote,
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                saveCurrentNote()
+            },
+        },
+        {
             id: "close-search",
             keys: ["escape", "ctrl+c", "ctrl+["],
             description: m.prompt_close_aria ? m.prompt_close_aria() : "Close search",
             englishDescription: "Close search",
             category: "commands",
-            action: () => {
+            action: (event: KeyboardEvent) => {
+                if (notesStore.editingNote || notesStore.activePopup) {
+                    if (event.key === "c" && event.ctrlKey) {
+                        const selection = window.getSelection()?.toString()
+                        if (selection) return
+                    }
+                    event.preventDefault()
+                    notesStore.editingNote = null
+                    notesStore.editorCoords = null
+                    notesStore.activePopup = null
+                    return
+                }
+
                 if (uiStore.isSearchModeActive) {
                     uiStore.isSearchModeActive = false
                     searchStore.setQuery("")
@@ -522,6 +565,29 @@
     let isShortHeight = $derived(uiStore.isShortHeight)
     let viewportWidth = $state(0)
     let noteToDeleteId = $state<string | null>(null)
+
+    function saveCurrentNote() {
+        const editorState = notesStore.editingNote
+        if (!editorState) return
+
+        if ("isNew" in editorState) {
+            notesStore.addNote(
+                editorState.bookId,
+                editorState.pageNumber,
+                editorState.start,
+                editorState.end,
+                editorState.text,
+                editorState.noteContent || "",
+                editorState.color,
+            )
+        } else {
+            notesStore.updateNote(
+                (editorState as UserNote).id,
+                editorState.noteContent || "",
+                editorState.color,
+            )
+        }
+    }
 
     onMount(() => {
         vfsStore.clearForwardHistory()
@@ -1860,145 +1926,65 @@
                         }}
                     >
                         <NoteIcon width="16" height="16" />
-                        <span>Add Note</span>
+                        <span>{m.add_note()}</span>
                     </button>
                 </div>
             {/if}
 
             {#if notesStore.activePopup}
-                <div
-                    class="note-popup"
-                    style="position: fixed; left: {notesStore.activePopup.x}px; top: {notesStore
-                        .activePopup.y - 12}px; transform: translate(-50%, -100%); z-index: 1000;"
-                >
-                    <div class="popup-card">
-                        <div class="popup-header">
-                            <span class="popup-page"
-                                >Page {notesStore.activePopup.note.pageNumber}</span
-                            >
-                            <button
-                                class="popup-close"
-                                onclick={() => (notesStore.activePopup = null)}
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        <blockquote class="popup-quote">
-                            "{notesStore.activePopup.note.text}"
-                        </blockquote>
-
-                        {#if notesStore.activePopup.note.noteContent}
-                            <div class="popup-content">
-                                {notesStore.activePopup.note.noteContent}
-                            </div>
-                        {/if}
-
-                        <div class="popup-footer">
-                            <button
-                                class="popup-btn edit"
-                                onclick={(e) => {
-                                    const note = notesStore.activePopup?.note
-                                    const coords = notesStore.activePopup
-                                    if (note && coords) {
-                                        notesStore.editingNote = note
-                                        notesStore.editorCoords = { x: coords.x, y: coords.y }
-                                        notesStore.activePopup = null
-                                    }
-                                }}
-                            >
-                                Edit
-                            </button>
-                            <button
-                                class="popup-btn delete"
-                                onclick={() => {
-                                    const note = notesStore.activePopup?.note
-                                    if (note) {
-                                        noteToDeleteId = note.id
-                                        notesStore.activePopup = null
-                                    }
-                                }}
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <NotePopup
+                    activePopup={notesStore.activePopup}
+                    onClose={() => (notesStore.activePopup = null)}
+                    onEdit={() => {
+                        const note = notesStore.activePopup?.note
+                        const coords = notesStore.activePopup
+                        if (note && coords) {
+                            notesStore.editingNote = note
+                            notesStore.editorCoords = { x: coords.x, y: coords.y }
+                            notesStore.activePopup = null
+                        }
+                    }}
+                    onDelete={() => {
+                        const note = notesStore.activePopup?.note
+                        if (note) {
+                            noteToDeleteId = note.id
+                            notesStore.activePopup = null
+                        }
+                    }}
+                />
             {/if}
 
             {#if notesStore.editingNote}
-                {@const editorState = notesStore.editingNote}
-                <div
-                    class="note-editor"
-                    style="position: fixed; left: {notesStore.editorCoords?.x ??
-                        200}px; top: {(notesStore.editorCoords?.y ?? 200) -
-                        12}px; transform: translate(-50%, -100%); z-index: 1000;"
-                >
-                    <div class="editor-card">
-                        <div class="editor-header">
-                            <h3>{"id" in editorState ? "Edit Note" : "Add Note"}</h3>
-                            <span class="editor-page">Page {editorState.pageNumber}</span>
-                        </div>
-
-                        <blockquote class="editor-quote">
-                            "{editorState.text}"
-                        </blockquote>
-
-                        <textarea
-                            class="editor-textarea"
-                            placeholder="Write your note here..."
-                            bind:value={editorState.noteContent}
-                        ></textarea>
-
-                        <div class="color-picker">
-                            {#each ["yellow", "green", "blue", "pink", "purple"] as color (color)}
-                                <button
-                                    type="button"
-                                    class="color-swatch swatch-{color}"
-                                    class:selected={editorState.color === color}
-                                    onclick={() => (editorState.color = color as any)}
-                                    aria-label={`Select ${color}`}
-                                ></button>
-                            {/each}
-                        </div>
-
-                        <div class="editor-actions">
-                            <button
-                                class="editor-btn cancel"
-                                onclick={() => {
-                                    notesStore.editingNote = null
-                                    notesStore.editorCoords = null
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                class="editor-btn save"
-                                onclick={() => {
-                                    if ("isNew" in editorState) {
-                                        notesStore.addNote(
-                                            editorState.bookId,
-                                            editorState.pageNumber,
-                                            editorState.start,
-                                            editorState.end,
-                                            editorState.text,
-                                            editorState.noteContent || "",
-                                            editorState.color,
-                                        )
-                                    } else {
-                                        notesStore.updateNote(
-                                            (editorState as UserNote).id,
-                                            editorState.noteContent || "",
-                                            editorState.color,
-                                        )
-                                    }
-                                }}
-                            >
-                                Save
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <NoteEditor
+                    bind:editorState={notesStore.editingNote}
+                    editorCoords={notesStore.editorCoords}
+                    onCancel={() => {
+                        notesStore.editingNote = null
+                        notesStore.editorCoords = null
+                    }}
+                    onSave={() => {
+                        const editorState = notesStore.editingNote
+                        if (editorState) {
+                            if ("isNew" in editorState) {
+                                notesStore.addNote(
+                                    editorState.bookId,
+                                    editorState.pageNumber,
+                                    editorState.start,
+                                    editorState.end,
+                                    editorState.text,
+                                    editorState.noteContent || "",
+                                    editorState.color,
+                                )
+                            } else {
+                                notesStore.updateNote(
+                                    (editorState as UserNote).id,
+                                    editorState.noteContent || "",
+                                    editorState.color,
+                                )
+                            }
+                        }
+                    }}
+                />
             {/if}
 
             {#if noteToDeleteId}
@@ -2425,9 +2411,9 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        background: var(--border-color);
+        background: var(--text-color);
         color: var(--surface-color);
-        border: 2px solid var(--border-color);
+        border: 2px solid var(--text-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         padding: 6px 12px;
         font-family: inherit;
@@ -2444,190 +2430,5 @@
         box-shadow: 5px 5px 0 var(--shadow-color);
         background: var(--accent-active-color);
         color: var(--text-color);
-    }
-
-    /* Note Reader Popup & Editor Card styling */
-    .popup-card,
-    .editor-card {
-        width: 260px;
-        background: color-mix(in srgb, var(--surface-color) 92%, transparent);
-        backdrop-filter: blur(12px);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        padding: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        font-family: inherit;
-    }
-
-    .popup-header,
-    .editor-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .editor-header h3 {
-        margin: 0;
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
-        color: var(--text-color);
-    }
-
-    .popup-page,
-    .editor-page {
-        font-size: 9px;
-        font-weight: 900;
-        background: var(--muted-bg-color);
-        color: var(--muted-text-color);
-        border: 1px solid var(--border-color);
-        padding: 2px 6px;
-        border-radius: 2px;
-    }
-
-    .popup-close {
-        background: none;
-        border: none;
-        font-size: 16px;
-        font-weight: 900;
-        cursor: pointer;
-        color: var(--text-color);
-        padding: 0 4px;
-        opacity: 0.7;
-    }
-
-    .popup-close:hover {
-        opacity: 1;
-    }
-
-    .popup-quote,
-    .editor-quote {
-        margin: 0;
-        font-style: italic;
-        font-size: 10px;
-        color: var(--text-color);
-        background: rgba(0, 0, 0, 0.04);
-        padding: 6px;
-        border-left: 3px solid var(--border-color);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    .popup-content {
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--text-color);
-        line-height: 1.4;
-        word-break: break-word;
-        max-height: 80px;
-        overflow-y: auto;
-    }
-
-    .popup-footer,
-    .editor-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        margin-top: 4px;
-    }
-
-    .popup-btn,
-    .editor-btn {
-        padding: 4px 8px;
-        font-family: inherit;
-        font-size: 10px;
-        font-weight: 900;
-        text-transform: uppercase;
-        cursor: pointer;
-        border: 2px solid var(--border-color);
-        background: var(--surface-color);
-        color: var(--text-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        transition: all 0.1s ease;
-    }
-
-    .popup-btn:hover,
-    .editor-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        background: var(--accent-color);
-    }
-
-    .popup-btn.delete:hover {
-        color: #e53935;
-        background: rgba(229, 57, 53, 0.1);
-    }
-
-    .editor-textarea {
-        width: 100%;
-        height: 60px;
-        font-family: inherit;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 6px;
-        border: 2px solid var(--border-color);
-        box-shadow: inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.1);
-        background: var(--surface-color);
-        color: var(--text-color);
-        resize: none;
-        outline: none;
-        box-sizing: border-box;
-    }
-
-    .editor-textarea:focus {
-        border-color: var(--border-color);
-        box-shadow:
-            inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.15),
-            2px 2px 0 var(--shadow-color);
-    }
-
-    .color-picker {
-        display: flex;
-        gap: 6px;
-        justify-content: center;
-        padding: 4px 0;
-    }
-
-    .color-swatch {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid var(--border-color);
-        cursor: pointer;
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        transition: transform 0.1s ease;
-    }
-
-    .color-swatch:hover {
-        transform: scale(1.1);
-    }
-
-    .color-swatch.selected {
-        transform: scale(1.2);
-        box-shadow:
-            0 0 0 2px var(--surface-color),
-            0 0 0 4px var(--border-color);
-    }
-
-    .swatch-yellow {
-        background: rgb(255, 235, 59);
-    }
-    .swatch-green {
-        background: rgb(76, 175, 80);
-    }
-    .swatch-blue {
-        background: rgb(33, 150, 243);
-    }
-    .swatch-pink {
-        background: rgb(233, 30, 99);
-    }
-    .swatch-purple {
-        background: rgb(156, 39, 176);
     }
 </style>

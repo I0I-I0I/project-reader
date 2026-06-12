@@ -14,6 +14,7 @@
     import { cubicOut } from "svelte/easing"
     import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import { getContext, onMount } from "svelte"
+    import { notesStore } from "$lib/stores/notesStore.svelte"
     import { locales, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
@@ -89,6 +90,7 @@
             {
                 id: "close",
                 keys: ["escape", "ctrl+c", "ctrl+["],
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },
@@ -98,6 +100,7 @@
             {
                 id: "close-alt",
                 keys: "q",
+                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },

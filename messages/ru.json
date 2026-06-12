@@ -167,5 +167,12 @@
     "zoom_slider_aria": "Ползунок масштаба",
     "quality_slider_aria": "Ползунок качества рендеринга",
     "scrub_slider_aria": "Ползунок прокрутки страниц",
-    "mobile_scrub_slider_aria": "Мобильный ползунок прокрутки страниц"
+    "mobile_scrub_slider_aria": "Мобильный ползунок прокрутки страниц",
+    "edit_note": "Редактировать заметку",
+    "add_note": "Добавить заметку",
+    "select_color_yellow": "Выбрать желтый цвет",
+    "select_color_green": "Выбрать зеленый цвет",
+    "select_color_blue": "Выбрать синий цвет",
+    "select_color_pink": "Выбрать розовый цвет",
+    "select_color_purple": "Выбрать фиолетовый цвет"
 }
