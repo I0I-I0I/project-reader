@@ -2,6 +2,7 @@
     import { getContext } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/ui/Button.svelte"
+    import Modal from "$lib/components/ui/Modal.svelte"
     import {
         useCommands,
         type CommandNode,
@@ -10,12 +11,10 @@
 
     let {
         editorState = $bindable(),
-        editorCoords,
         onCancel,
         onSave,
     }: {
         editorState: any
-        editorCoords: { x: number; y: number } | null
         onCancel: () => void
         onSave: () => void
     } = $props()
@@ -53,22 +52,22 @@
     $effect(() => {
         if (textareaRef) {
             textareaRef.focus()
-            textareaRef.select()
         }
     })
 </script>
 
-<div
-    class="note-editor"
-    style="position: fixed; left: {editorCoords?.x ?? 200}px; top: {(editorCoords?.y ?? 200) -
-        12}px; transform: translate(-50%, -100%); z-index: 1000;"
->
-    <div class="editor-card">
-        <div class="editor-header">
-            <h3>{"id" in editorState ? m.edit_note() : m.add_note()}</h3>
+{#snippet header()}
+    <div class="editor-header">
+        <h3 class="modal-title">{"id" in editorState ? m.edit_note() : m.add_note()}</h3>
+        <div class="header-actions">
             <span class="editor-page">{m.page()} {editorState.pageNumber}</span>
+            <button class="close-btn" onclick={onCancel} aria-label={m.cancel()}> &times; </button>
         </div>
+    </div>
+{/snippet}
 
+<Modal onClose={onCancel} {header} autofocusClose={false}>
+    <div class="editor-body">
         <blockquote class="editor-quote">
             "{editorState.text}"
         </blockquote>
@@ -101,7 +100,9 @@
                 />
             {/each}
         </div>
+    </div>
 
+    {#snippet footer()}
         <div class="editor-actions">
             <Button
                 variant="none"
@@ -122,103 +123,167 @@
                 {m.save()}
             </Button>
         </div>
-    </div>
-</div>
+    {/snippet}
+</Modal>
 
 <style>
-    .editor-card {
-        width: 380px;
-        background: color-mix(in srgb, var(--surface-color) 92%, transparent);
-        backdrop-filter: blur(12px);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
-        padding: 12px;
+    @media (--mobile) {
+        .editor-textarea {
+            font-size: 16px !important;
+            height: 200px !important;
+        }
+    }
+
+    :global(.modal-title) {
+        font-family: Georgia, "Times New Roman", Times, serif !important;
+        font-weight: 900 !important;
+        font-size: 1.5rem !important;
+    }
+
+    .editor-body {
+        overflow-y: hidden !important;
+        padding: 16px 24px;
+        background: var(--bg-color);
         display: flex;
         flex-direction: column;
         gap: 8px;
-        font-family: inherit;
+    }
+
+    @media (--mobile) {
+        .editor-body {
+            padding: 12px 16px;
+        }
     }
 
     .editor-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-bottom: 2px solid var(--border-color);
+        background: var(--bg-color);
+        position: relative;
+        z-index: 10;
     }
 
-    .editor-header h3 {
-        margin: 0;
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
+    @media (--mobile) {
+        .editor-header {
+            padding: 12px 16px;
+        }
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.75rem;
+        font-weight: bold;
         color: var(--text-color);
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        transition: transform 0.1s ease;
+    }
+
+    @media (hover: hover) {
+        .close-btn:hover {
+            transform: scale(1.15);
+        }
+    }
+
+    .close-btn:active {
+        transform: scale(0.95);
     }
 
     .editor-page {
-        font-size: 9px;
-        font-weight: 900;
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
-        border: 1px solid var(--border-color);
-        padding: 2px 6px;
-        border-radius: 2px;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .editor-quote {
         margin: 0;
+        margin-bottom: 8px;
         font-style: italic;
-        font-size: 11px;
+        font-size: 13px;
         color: var(--text-color);
-        background: rgba(0, 0, 0, 0.04);
-        padding: 6px;
-        border-left: 3px solid var(--border-color);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
-        -webkit-box-orient: vertical;
+        background: rgba(0, 0, 0, 0.03);
+        padding: 12px 16px;
+        border-left: 4px solid var(--border-color);
+        max-height: 100px;
+        word-break: break-word;
+        line-height: 1.4;
+    }
+
+    @media (--mobile) {
+        .editor-quote {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+        }
     }
 
     .editor-textarea {
         width: 100%;
-        height: 120px;
+        height: 160px;
         font-family: inherit;
-        font-size: 13px;
-        font-weight: 700;
-        padding: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        padding: 16px;
         border: 2px solid var(--border-color);
-        box-shadow: inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.1);
         background: var(--surface-color);
         color: var(--text-color);
         resize: none;
         outline: none;
         box-sizing: border-box;
+        margin-bottom: 8px;
+        transition: all 0.1s ease;
+    }
+
+    @media (--mobile) {
+        .editor-textarea {
+            padding: 12px;
+            margin-bottom: 4px;
+        }
     }
 
     .editor-textarea:focus {
         border-color: var(--border-color);
-        box-shadow:
-            inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.15),
-            2px 2px 0 var(--shadow-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
     }
 
     .color-picker {
         display: flex;
-        gap: 6px;
+        gap: 8px;
         justify-content: center;
-        padding: 4px 0;
+        padding: 12px 0;
+    }
+
+    @media (--mobile) {
+        .color-picker {
+            padding: 8px 0;
+            gap: 6px;
+        }
     }
 
     :global(.color-swatch) {
-        width: 22px !important;
-        height: 22px !important;
+        width: 28px !important;
+        height: 28px !important;
         border-radius: 50% !important;
         border: 2px solid var(--border-color) !important;
         cursor: pointer !important;
-        box-shadow: 1px 1px 0 var(--shadow-color) !important;
         transition: transform 0.1s ease !important;
         padding: 0 !important;
         min-height: unset !important;
+        position: relative !important;
     }
 
     :global(.color-swatch:hover) {
@@ -226,53 +291,68 @@
     }
 
     :global(.color-swatch.selected) {
-        transform: scale(1.2) !important;
+        transform: scale(1.15) !important;
         box-shadow:
             0 0 0 2px var(--surface-color),
-            0 0 0 4px var(--border-color) !important;
+            0 0 0 5px var(--border-color) !important;
     }
 
     :global(.swatch-yellow) {
-        background: rgb(255, 235, 59) !important;
+        background: #ffde4d !important;
     }
     :global(.swatch-green) {
-        background: rgb(76, 175, 80) !important;
+        background: #2ecc71 !important;
     }
     :global(.swatch-blue) {
-        background: rgb(33, 150, 243) !important;
+        background: #3498db !important;
     }
     :global(.swatch-pink) {
-        background: rgb(233, 30, 99) !important;
+        background: #ff7675 !important;
     }
     :global(.swatch-purple) {
-        background: rgb(156, 39, 176) !important;
+        background: #a78bfa !important;
     }
 
     .editor-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 8px;
-        margin-top: 4px;
+        gap: 12px;
+    }
+
+    @media (--mobile) {
+        .editor-actions {
+            gap: 8px;
+        }
     }
 
     :global(.editor-btn) {
-        padding: 4px 8px !important;
+        padding: 8px 20px !important;
         font-family: inherit !important;
-        font-size: 10px !important;
+        font-size: 14px !important;
         font-weight: 900 !important;
         text-transform: uppercase !important;
         cursor: pointer !important;
         border: 2px solid var(--border-color) !important;
         background: var(--surface-color) !important;
         color: var(--text-color) !important;
-        box-shadow: 2px 2px 0 var(--shadow-color) !important;
+        box-shadow: 3px 3px 0 var(--shadow-color) !important;
         transition: all 0.1s ease !important;
         min-height: unset !important;
     }
 
     :global(.editor-btn:hover) {
         transform: translate(-1px, -1px) !important;
-        box-shadow: 3px 3px 0 var(--shadow-color) !important;
+        box-shadow: 4px 4px 0 var(--shadow-color) !important;
         background: var(--accent-color) !important;
+    }
+
+    :global(.editor-btn:active) {
+        transform: translate(1px, 1px) !important;
+        box-shadow: 1px 1px 0 var(--shadow-color) !important;
+    }
+
+    :global(.editor-btn.cancel:hover) {
+        background: var(--danger-color) !important;
+        color: white !important;
     }
 </style>

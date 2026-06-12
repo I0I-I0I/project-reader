@@ -1170,20 +1170,19 @@
         const selection = window.getSelection()
         if (selection && selection.toString()) return
 
-        const left_side = window.innerWidth * 0.1
-        const right_side = window.innerWidth * 0.9
-
         const { clientX } = e
-        const isMiddle = clientX >= left_side && clientX <= right_side
+        const width = window.innerWidth
+        const ratio = clientX / width
 
-        if (isMiddle) {
-            uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
-            return
-        }
-
-        if (clientX < left_side) {
+        if (ratio < 0.05) {
             sidebars.outline = true
-        } else if (clientX > right_side) {
+        } else if (ratio < 0.35) {
+            prevPage()
+        } else if (ratio < 0.65) {
+            uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
+        } else if (ratio < 0.95) {
+            nextPage()
+        } else {
             sidebars.settings = true
         }
     }
@@ -1902,8 +1901,8 @@
                 <div
                     class="note-fab"
                     style="position: fixed; left: {notesStore.activeSelection.x}px; top: {notesStore
-                        .activeSelection.y -
-                        12}px; transform: translate(-50%, -100%); z-index: 1000;"
+                        .activeSelection.bottomY +
+                        12}px; transform: translate(-50%, 0); z-index: 1000;"
                 >
                     <button
                         class="fab-btn"
@@ -1957,7 +1956,6 @@
             {#if notesStore.editingNote}
                 <NoteEditor
                     bind:editorState={notesStore.editingNote}
-                    editorCoords={notesStore.editorCoords}
                     onCancel={() => {
                         notesStore.editingNote = null
                         notesStore.editorCoords = null

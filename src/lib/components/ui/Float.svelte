@@ -48,72 +48,94 @@
             visualViewport.removeEventListener("scroll", updateViewport)
         }
     })
-
-    function handleBackdropClick(event: MouseEvent) {
-        if (event.target === event.currentTarget) {
-            onClose()
-        }
-    }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
-    class="backdrop"
+    class="wrapper"
     class:align-top={align === "top"}
     style="height: {viewportHeight}; top: {viewportTop};"
-    transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
-    onclick={handleBackdropClick}
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"
     tabindex="-1"
 >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="backdrop"
+        style="height: {viewportHeight}; top: {viewportTop};"
+        transition:fade={{ duration: settingsStore.animations ? 150 : 0 }}
+        onmousedown={onClose}
+    ></div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
         class="float-card"
         transition:scale={{ duration: settingsStore.animations ? 150 : 0, start: 0.95 }}
+        onmousedown={(e) => e.stopPropagation()}
+        onclick={(e) => e.stopPropagation()}
     >
         {@render children()}
     </div>
 </div>
 
 <style>
+    .wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 9999;
+        padding: 40px 20px;
+        box-sizing: border-box;
+    }
+
     .backdrop {
         position: fixed;
         top: 0;
         left: 0;
-        width: 100vw;
+        width: 100%;
         height: 100dvh;
         background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        padding: 20px;
-        box-sizing: border-box;
+        z-index: 0;
     }
 
-    .backdrop.align-top {
-        align-items: flex-start;
+    @media (--mobile) {
+        .wrapper {
+            padding: 16px 12px;
+        }
+    }
+
+    .wrapper.align-top {
         padding-top: 120px;
     }
 
     .float-card {
+        position: relative;
+        z-index: 10;
         background: var(--surface-color);
         border: 3px solid var(--border-color);
         box-shadow: 6px 6px 0 var(--shadow-color);
         width: 100%;
         max-width: 580px;
-        max-height: 85dvh;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
         border-radius: 4px;
         font-family: inherit;
         animation: card-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         overscroll-behavior: contain;
+        margin: auto;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .wrapper.align-top .float-card {
+        margin-top: 0;
     }
 
     @keyframes card-appear {
@@ -128,19 +150,18 @@
     }
 
     @media (--prompt) {
-        .backdrop.align-top {
-            align-items: flex-end;
+        .wrapper.align-top {
             padding: 0;
         }
 
-        .backdrop.align-top .float-card {
+        .wrapper.align-top .float-card {
             border-radius: 0;
-            max-height: 100%;
             height: 100%;
             box-shadow: none;
             border-left: none;
             border-right: none;
             border-bottom: none;
+            margin-top: auto;
         }
 
         .float-card {

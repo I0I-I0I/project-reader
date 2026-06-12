@@ -12,6 +12,7 @@ export interface SelectionState {
     text: string
     x: number
     y: number
+    bottomY: number
 }
 
 export interface PopupState {

@@ -1000,6 +1000,7 @@
                         text,
                         x: rect.left + rect.width / 2,
                         y: rect.top,
+                        bottomY: rect.bottom,
                     }
                 }
             }

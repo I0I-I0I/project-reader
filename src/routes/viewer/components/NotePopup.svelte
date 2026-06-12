@@ -63,7 +63,7 @@
 
 <div
     class="note-popup"
-    style="position: fixed; left: {activePopup.x}px; top: {activePopup.y -
+    style="position: fixed; left: clamp(200px, {activePopup.x}px, calc(100vw - 200px)); top: {activePopup.y -
         12}px; transform: translate(-50%, -100%); z-index: 1000;"
 >
     <div class="popup-card">
@@ -114,8 +114,30 @@
 </div>
 
 <style>
+    .note-popup {
+        transition:
+            top 0.2s ease,
+            left 0.2s ease;
+    }
+
+    @media (--mobile) {
+        .note-popup {
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: calc(100vw - 32px) !important;
+            max-width: 380px;
+        }
+
+        .popup-card {
+            width: 100% !important;
+        }
+    }
+
     .popup-card {
+        box-sizing: border-box;
         width: 380px;
+        max-height: calc(100vh - 40px);
         background: color-mix(in srgb, var(--surface-color) 92%, transparent);
         backdrop-filter: blur(12px);
         border: 3px solid var(--border-color);
@@ -169,12 +191,8 @@
         background: rgba(0, 0, 0, 0.04);
         padding: 6px;
         border-left: 3px solid var(--border-color);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
-        -webkit-box-orient: vertical;
+        max-height: 120px;
+        word-break: break-word;
     }
 
     .popup-content {
@@ -184,7 +202,6 @@
         line-height: 1.4;
         word-break: break-word;
         max-height: 180px;
-        overflow-y: auto;
     }
 
     .popup-footer {

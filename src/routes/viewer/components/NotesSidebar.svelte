@@ -772,12 +772,9 @@
         background: rgba(0, 0, 0, 0.03);
         padding: 4px 8px;
         border-left: 2px solid var(--border-color);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
+        max-height: 120px;
+        overflow-y: auto;
+        word-break: break-word;
     }
 
     .note-text-content {

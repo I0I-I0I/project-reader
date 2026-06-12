@@ -67,11 +67,10 @@
 
 <style>
     .modal-body {
+        overflow-y: hidden;
         display: flex;
         flex-direction: column;
         flex: 1;
-        overflow-y: auto;
-        min-height: 0;
     }
 
     .modal-header {
@@ -81,6 +80,12 @@
         padding: 16px 24px;
         border-bottom: 2px solid var(--border-color);
         background: var(--bg-color);
+    }
+
+    @media (--mobile) {
+        .modal-header {
+            padding: 12px 16px;
+        }
     }
 
     .modal-title {
@@ -119,6 +124,12 @@
         border-top: 2px solid var(--border-color);
         background: var(--bg-color);
         text-align: center;
+    }
+
+    @media (--mobile) {
+        .modal-footer {
+            padding: 12px 16px;
+        }
     }
 
     @keyframes card-appear {
