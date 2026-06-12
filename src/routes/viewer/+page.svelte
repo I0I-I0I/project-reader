@@ -12,7 +12,7 @@
     import { page } from "$app/state"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
-    import OutlineSidebar from "./components/OutlineSidebar.svelte"
+    import LeftSidebar from "./components/LeftSidebar.svelte"
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
     import NotesSidebar from "./components/NotesSidebar.svelte"
     import NotePopup from "./components/NotePopup.svelte"
@@ -374,8 +374,8 @@
         {
             id: "toggle-notes",
             keys: "shift+b",
-            description: "Toggle Notes Sidebar",
-            englishDescription: "Toggle Notes Sidebar",
+            description: m.keymap_toggle_notes(),
+            englishDescription: m.keymap_toggle_notes({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 sidebars.notes = !sidebars.notes
@@ -540,12 +540,25 @@
     let totalPages = $state(0)
 
     class SidebarState {
-        active = $state<"outline" | "settings" | "notes" | null>(null)
+        active = $state<"left" | "settings" | null>(null)
+        activeTab = $state<"outline" | "notes">("outline")
+
+        get left() {
+            return this.active === "left"
+        }
+        set left(v) {
+            this.active = v ? "left" : null
+        }
         get outline() {
-            return this.active === "outline"
+            return this.active === "left" && this.activeTab === "outline"
         }
         set outline(v) {
-            this.active = v ? "outline" : null
+            if (v) {
+                this.active = "left"
+                this.activeTab = "outline"
+            } else if (this.active === "left" && this.activeTab === "outline") {
+                this.active = null
+            }
         }
         get settings() {
             return this.active === "settings"
@@ -554,10 +567,15 @@
             this.active = v ? "settings" : null
         }
         get notes() {
-            return this.active === "notes"
+            return this.active === "left" && this.activeTab === "notes"
         }
         set notes(v) {
-            this.active = v ? "notes" : null
+            if (v) {
+                this.active = "left"
+                this.activeTab = "notes"
+            } else if (this.active === "left" && this.activeTab === "notes") {
+                this.active = null
+            }
         }
     }
     const sidebars = new SidebarState()
@@ -1316,7 +1334,7 @@
         }
 
         if (e.touches.length !== 1) return
-        if (sidebars.outline || sidebars.settings) return
+        if (sidebars.left || sidebars.settings) return
 
         // Don't trigger if touching any button, input, or open sidebar
         const target = e.target as HTMLElement
@@ -1343,7 +1361,7 @@
         if (isTransitioning) return
         if (settingsStore.layout === "scroll") return
         if (e.touches.length !== 1) return
-        if (sidebars.outline || sidebars.settings) return
+        if (sidebars.left || sidebars.settings) return
 
         const currentX = e.touches[0].clientX
         const currentY = e.touches[0].clientY
@@ -1411,7 +1429,7 @@
         if (isTransitioning) return
         if (settingsStore.layout === "scroll") return
         if (e.changedTouches.length !== 1) return
-        if (sidebars.outline || sidebars.settings) return
+        if (sidebars.left || sidebars.settings) return
 
         if (swipeState !== "swiping") {
             swipeTransition = "transform 0.2s ease-out"
@@ -1583,9 +1601,8 @@
                         <ViewerHeader
                             {name}
                             {isLoaded}
-                            bind:isOutlineOpen={sidebars.outline}
+                            bind:isOutlineOpen={sidebars.left}
                             bind:isSettingsOpen={sidebars.settings}
-                            bind:isNotesOpen={sidebars.notes}
                             onClose={handleClose}
                         />
                     </div>
@@ -1598,11 +1615,10 @@
                     class="viewer-body"
                     onclick={(args) => {
                         if (uiStore.isToolbarsVisible) {
-                            sidebars.outline = false
+                            sidebars.left = false
                             sidebars.settings = false
-                            sidebars.notes = false
                         }
-                        if (!sidebars.outline && !sidebars.settings) {
+                        if (!sidebars.left && !sidebars.settings) {
                             handleBodyClick(args)
                         }
                     }}
@@ -1612,30 +1628,31 @@
                             <Spinner variant="dots" label={m.loading_doc()} />
                         </div>
                     {:else}
-                        {#if sidebars.outline}
+                        {#if sidebars.left}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="sidebar-backdrop"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    sidebars.outline = false
+                                    sidebars.left = false
                                     isHoverTriggered = false
                                 }}
                             ></div>
-                            <OutlineSidebar
+                            <LeftSidebar
+                                bind:activeTab={sidebars.activeTab}
                                 {isOutlineLoading}
                                 {outlineList}
                                 bind:currentPage={viewerStore.currentPage}
                                 bind:scrollPosition={viewerStore.scrollPosition}
                                 {activeHeadings}
-                                onCloseOutline={() => {
-                                    sidebars.outline = false
+                                onClose={() => {
+                                    sidebars.left = false
                                     isHoverTriggered = false
                                 }}
                                 onMouseLeave={() => {
                                     if (!uiStore.isToolbarsVisible && isHoverTriggered) {
-                                        sidebars.outline = false
+                                        sidebars.left = false
                                         isHoverTriggered = false
                                     }
                                 }}
@@ -1655,42 +1672,20 @@
                             <SettingsSidebar onClose={() => (sidebars.settings = false)} />
                         {/if}
 
-                        {#if sidebars.notes}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                                class="sidebar-backdrop"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    sidebars.notes = false
-                                }}
-                            ></div>
-                            <NotesSidebar
-                                onClose={() => {
-                                    sidebars.notes = false
-                                }}
-                            />
-                        {/if}
-
-                        {#if !uiStore.isToolbarsVisible && !sidebars.outline}
+                        {#if !uiStore.isToolbarsVisible && !sidebars.left}
                             <!-- svelte-ignore a11y_mouse_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="outline-hover-trigger"
                                 onmouseenter={() => {
-                                    sidebars.outline = true
+                                    sidebars.left = true
+                                    sidebars.activeTab = "outline"
                                     isHoverTriggered = true
                                 }}
                             ></div>
                         {/if}
 
                         {#if uiStore.isCompact && settingsStore.layout !== "scroll"}
-                            <div
-                                class="slider-viewport"
-                                class:short-height={isShortHeight}
-                                class:single-layout={settingsStore.layout === "single"}
-                                bind:clientWidth={viewportWidth}
-                            >
                                 <div class="slider-track" style={sliderTrackStyle}>
                                     <!-- Previous Slide -->
                                     <div class="slider-slide prev-slide">
@@ -1847,7 +1842,6 @@
                                         {/if}
                                     </div>
                                 </div>
-                            </div>
                         {:else}
                             <div class="canvas-pane-wrapper">
                                 <CanvasPane

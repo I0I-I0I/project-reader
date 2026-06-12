@@ -14,8 +14,6 @@
         getShortcutHint,
     } from "$lib/stores/commandsStore.svelte"
 
-    import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
-
     let {
         name,
         isLoaded,
@@ -50,18 +48,6 @@
                 tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
             >
                 <MenuIcon />
-            </Button>
-            <Button
-                variant="action"
-                square={true}
-                open={isNotesOpen}
-                onclick={() => {
-                    isNotesOpen = !isNotesOpen
-                }}
-                aria-label="Notes & Highlights"
-                tooltip={"Notes & Highlights" + getShortcutHint(commandsNode, "toggle-notes")}
-            >
-                <NoteIcon />
             </Button>
         {/if}
         <span class="file-badge">PDF</span>

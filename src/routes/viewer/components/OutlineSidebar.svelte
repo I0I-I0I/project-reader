@@ -23,6 +23,7 @@
         activeHeadings,
         onCloseOutline,
         onMouseLeave,
+        minimal = false,
     } = $props<{
         isOutlineLoading: boolean
         outlineList: FlatHeading[] | null
@@ -31,6 +32,7 @@
         activeHeadings: Set<FlatHeading>
         onCloseOutline: () => void
         onMouseLeave?: (e: MouseEvent) => void
+        minimal?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -364,28 +366,7 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<div
-    class="outline-sidebar"
-    transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
-    onmouseleave={onMouseLeave}
-    onclick={(e) => e.stopPropagation()}
->
-    <div class="sidebar-header">
-        <h3>{m.outline()}</h3>
-        <Button
-            variant="close"
-            size="small"
-            square={true}
-            onclick={onCloseOutline}
-            aria-label={m.close()}
-            tooltip={m.close()}
-        >
-            ×
-        </Button>
-    </div>
-
+{#snippet sidebarContent()}
     {#if outlineList && outlineList.length > 0}
         <div class="sidebar-search">
             <input
@@ -483,7 +464,36 @@
             {/if}
         </div>
     {/if}
-</div>
+{/snippet}
+
+{#if minimal}
+    {@render sidebarContent()}
+{:else}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+        class="outline-sidebar"
+        transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
+        onmouseleave={onMouseLeave}
+        onclick={(e) => e.stopPropagation()}
+    >
+        <div class="sidebar-header">
+            <h3>{m.outline()}</h3>
+            <Button
+                variant="close"
+                size="small"
+                square={true}
+                onclick={onCloseOutline}
+                aria-label={m.close()}
+                tooltip={m.close()}
+            >
+                ×
+            </Button>
+        </div>
+
+        {@render sidebarContent()}
+    </div>
+{/if}
 
 <style>
     .outline-sidebar {

@@ -18,9 +18,10 @@
     import type { UserNote } from "$lib/stores/vfsStore.types"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
 
-    let { onClose, onMouseLeave } = $props<{
+    let { onClose, onMouseLeave, minimal = false } = $props<{
         onClose: () => void
         onMouseLeave?: (e: MouseEvent) => void
+        minimal?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -417,34 +418,13 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<div
-    class="notes-sidebar"
-    transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
-    onmouseleave={onMouseLeave}
-    onclick={(e) => e.stopPropagation()}
->
-    <div class="sidebar-header">
-        <h3>Notes & Highlights</h3>
-        <Button
-            variant="close"
-            size="small"
-            square={true}
-            onclick={onClose}
-            aria-label={m.close()}
-            tooltip={m.close()}
-        >
-            ×
-        </Button>
-    </div>
-
+{#snippet sidebarContent()}
     <div class="sidebar-search">
         <input
             bind:this={searchInputRef}
             type="text"
             bind:value={searchQuery}
-            placeholder={`Search notes...${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
+            placeholder={`${m.search_notes_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
             class="search-input"
             onkeydown={handleSearchKeydown}
             onfocus={() => {
@@ -471,10 +451,10 @@
     <div class="sidebar-content" bind:this={contentRef}>
         {#if notesStore.notes.length === 0}
             <div class="no-notes">
-                No notes or highlights in this document yet. Select text to create one!
+                {m.no_notes()}
             </div>
         {:else if filteredNotes.length === 0}
-            <div class="no-notes">No matching notes found.</div>
+            <div class="no-notes">{m.no_matching_notes()}</div>
         {:else}
             <div class="notes-list">
                 {#each filteredNotes as note, index (note.id)}
@@ -585,7 +565,36 @@
             }}
         />
     {/if}
-</div>
+{/snippet}
+
+{#if minimal}
+    {@render sidebarContent()}
+{:else}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+        class="notes-sidebar"
+        transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
+        onmouseleave={onMouseLeave}
+        onclick={(e) => e.stopPropagation()}
+    >
+        <div class="sidebar-header">
+            <h3>Notes & Highlights</h3>
+            <Button
+                variant="close"
+                size="small"
+                square={true}
+                onclick={onClose}
+                aria-label={m.close()}
+                tooltip={m.close()}
+            >
+                ×
+            </Button>
+        </div>
+
+        {@render sidebarContent()}
+    </div>
+{/if}
 
 <style>
     .notes-sidebar {
