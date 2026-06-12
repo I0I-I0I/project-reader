@@ -14,8 +14,14 @@
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
+    import NotesSidebar from "./components/NotesSidebar.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
     import ViewerFooter from "./components/ViewerFooter.svelte"
+    import { notesStore } from "$lib/stores/notesStore.svelte"
+    import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
+    import type { UserNote } from "$lib/stores/vfsStore.types"
+    import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
+    import { browser } from "$app/environment"
     import { localizedPath } from "$lib/language"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -364,6 +370,16 @@
             },
         },
         {
+            id: "toggle-notes",
+            keys: "shift+b",
+            description: "Toggle Notes Sidebar",
+            englishDescription: "Toggle Notes Sidebar",
+            category: "commands",
+            action: () => {
+                sidebars.notes = !sidebars.notes
+            },
+        },
+        {
             id: "close",
             keys: "q",
             description: m.keymap_close_viewer(),
@@ -481,7 +497,7 @@
     let totalPages = $state(0)
 
     class SidebarState {
-        active = $state<"outline" | "settings" | null>(null)
+        active = $state<"outline" | "settings" | "notes" | null>(null)
         get outline() {
             return this.active === "outline"
         }
@@ -494,17 +510,46 @@
         set settings(v) {
             this.active = v ? "settings" : null
         }
+        get notes() {
+            return this.active === "notes"
+        }
+        set notes(v) {
+            this.active = v ? "notes" : null
+        }
     }
     const sidebars = new SidebarState()
 
     let isShortHeight = $derived(uiStore.isShortHeight)
     let viewportWidth = $state(0)
+    let noteToDeleteId = $state<string | null>(null)
 
     onMount(() => {
         vfsStore.clearForwardHistory()
         if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
             goto(localizedPath("/"))
             return
+        }
+
+        const handleGlobalClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement
+            if (
+                !target.closest(".note-fab") &&
+                !target.closest(".note-popup") &&
+                !target.closest(".note-editor")
+            ) {
+                const selection = document.getSelection()
+                if (!selection || selection.isCollapsed) {
+                    notesStore.activeSelection = null
+                }
+                notesStore.activePopup = null
+                notesStore.editingNote = null
+                notesStore.editorCoords = null
+            }
+        }
+
+        window.addEventListener("mousedown", handleGlobalClick)
+        return () => {
+            window.removeEventListener("mousedown", handleGlobalClick)
         }
     })
 
@@ -513,6 +558,18 @@
             const currentBook = viewerStore.getCurrentBook()
             if (!currentBook || currentBook.isLocked) {
                 goto(localizedPath("/"))
+            }
+        }
+    })
+
+    // Load user highlights/notes for book
+    $effect(() => {
+        if (vfsStore.initialized) {
+            const currentBook = viewerStore.getCurrentBook()
+            if (currentBook) {
+                notesStore.loadNotesForBook(currentBook.id)
+            } else {
+                notesStore.clear()
             }
         }
     })
@@ -1331,6 +1388,7 @@
                             {isLoaded}
                             bind:isOutlineOpen={sidebars.outline}
                             bind:isSettingsOpen={sidebars.settings}
+                            bind:isNotesOpen={sidebars.notes}
                             onClose={handleClose}
                         />
                     </div>
@@ -1344,6 +1402,7 @@
                         if (uiStore.isToolbarsVisible) {
                             sidebars.outline = false
                             sidebars.settings = false
+                            sidebars.notes = false
                         }
                         if (!sidebars.outline && !sidebars.settings) {
                             handleBodyClick(args)
@@ -1399,6 +1458,23 @@
                                 }}
                             ></div>
                             <SettingsSidebar onClose={() => (sidebars.settings = false)} />
+                        {/if}
+
+                        {#if sidebars.notes}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="sidebar-backdrop"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    sidebars.notes = false
+                                }}
+                            ></div>
+                            <NotesSidebar
+                                onClose={() => {
+                                    sidebars.notes = false
+                                }}
+                            />
                         {/if}
 
                         {#if !uiStore.isToolbarsVisible && !sidebars.outline}
@@ -1754,6 +1830,191 @@
                     </div>
                 {/if}
             </div>
+
+            <!-- Floating Highlights & Notes overlays -->
+            {#if notesStore.activeSelection}
+                <div
+                    class="note-fab"
+                    style="position: fixed; left: {notesStore.activeSelection.x}px; top: {notesStore
+                        .activeSelection.y -
+                        12}px; transform: translate(-50%, -100%); z-index: 1000;"
+                >
+                    <button
+                        class="fab-btn"
+                        onclick={() => {
+                            const sel = notesStore.activeSelection
+                            if (sel) {
+                                notesStore.editingNote = {
+                                    isNew: true,
+                                    bookId: sel.bookId,
+                                    pageNumber: sel.pageNumber,
+                                    start: sel.start,
+                                    end: sel.end,
+                                    text: sel.text,
+                                    color: "yellow",
+                                    noteContent: "",
+                                }
+                                notesStore.editorCoords = { x: sel.x, y: sel.y }
+                                notesStore.activeSelection = null
+                            }
+                        }}
+                    >
+                        <NoteIcon width="16" height="16" />
+                        <span>Add Note</span>
+                    </button>
+                </div>
+            {/if}
+
+            {#if notesStore.activePopup}
+                <div
+                    class="note-popup"
+                    style="position: fixed; left: {notesStore.activePopup.x}px; top: {notesStore
+                        .activePopup.y - 12}px; transform: translate(-50%, -100%); z-index: 1000;"
+                >
+                    <div class="popup-card">
+                        <div class="popup-header">
+                            <span class="popup-page"
+                                >Page {notesStore.activePopup.note.pageNumber}</span
+                            >
+                            <button
+                                class="popup-close"
+                                onclick={() => (notesStore.activePopup = null)}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <blockquote class="popup-quote">
+                            "{notesStore.activePopup.note.text}"
+                        </blockquote>
+
+                        {#if notesStore.activePopup.note.noteContent}
+                            <div class="popup-content">
+                                {notesStore.activePopup.note.noteContent}
+                            </div>
+                        {/if}
+
+                        <div class="popup-footer">
+                            <button
+                                class="popup-btn edit"
+                                onclick={(e) => {
+                                    const note = notesStore.activePopup?.note
+                                    const coords = notesStore.activePopup
+                                    if (note && coords) {
+                                        notesStore.editingNote = note
+                                        notesStore.editorCoords = { x: coords.x, y: coords.y }
+                                        notesStore.activePopup = null
+                                    }
+                                }}
+                            >
+                                Edit
+                            </button>
+                            <button
+                                class="popup-btn delete"
+                                onclick={() => {
+                                    const note = notesStore.activePopup?.note
+                                    if (note) {
+                                        noteToDeleteId = note.id
+                                        notesStore.activePopup = null
+                                    }
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
+            {#if notesStore.editingNote}
+                {@const editorState = notesStore.editingNote}
+                <div
+                    class="note-editor"
+                    style="position: fixed; left: {notesStore.editorCoords?.x ??
+                        200}px; top: {(notesStore.editorCoords?.y ?? 200) -
+                        12}px; transform: translate(-50%, -100%); z-index: 1000;"
+                >
+                    <div class="editor-card">
+                        <div class="editor-header">
+                            <h3>{"id" in editorState ? "Edit Note" : "Add Note"}</h3>
+                            <span class="editor-page">Page {editorState.pageNumber}</span>
+                        </div>
+
+                        <blockquote class="editor-quote">
+                            "{editorState.text}"
+                        </blockquote>
+
+                        <textarea
+                            class="editor-textarea"
+                            placeholder="Write your note here..."
+                            bind:value={editorState.noteContent}
+                        ></textarea>
+
+                        <div class="color-picker">
+                            {#each ["yellow", "green", "blue", "pink", "purple"] as color (color)}
+                                <button
+                                    type="button"
+                                    class="color-swatch swatch-{color}"
+                                    class:selected={editorState.color === color}
+                                    onclick={() => (editorState.color = color as any)}
+                                    aria-label={`Select ${color}`}
+                                ></button>
+                            {/each}
+                        </div>
+
+                        <div class="editor-actions">
+                            <button
+                                class="editor-btn cancel"
+                                onclick={() => {
+                                    notesStore.editingNote = null
+                                    notesStore.editorCoords = null
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                class="editor-btn save"
+                                onclick={() => {
+                                    if ("isNew" in editorState) {
+                                        notesStore.addNote(
+                                            editorState.bookId,
+                                            editorState.pageNumber,
+                                            editorState.start,
+                                            editorState.end,
+                                            editorState.text,
+                                            editorState.noteContent || "",
+                                            editorState.color,
+                                        )
+                                    } else {
+                                        notesStore.updateNote(
+                                            (editorState as UserNote).id,
+                                            editorState.noteContent || "",
+                                            editorState.color,
+                                        )
+                                    }
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
+            {#if noteToDeleteId}
+                <DeleteConfirmModal
+                    message="Delete this highlight and note?"
+                    onConfirm={() => {
+                        if (noteToDeleteId) {
+                            notesStore.deleteNote(noteToDeleteId)
+                        }
+                        noteToDeleteId = null
+                    }}
+                    onCancel={() => {
+                        noteToDeleteId = null
+                    }}
+                />
+            {/if}
         </div>
     </div>
 {/if}
@@ -2157,5 +2418,216 @@
             box-shadow: 2px 2px 0 var(--shadow-color);
             border-width: 2px;
         }
+    }
+
+    /* Note Selection FAB styling */
+    .note-fab .fab-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--border-color);
+        color: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 4px 4px 0 var(--shadow-color);
+        padding: 6px 12px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .note-fab .fab-btn:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 var(--shadow-color);
+        background: var(--accent-active-color);
+        color: var(--text-color);
+    }
+
+    /* Note Reader Popup & Editor Card styling */
+    .popup-card,
+    .editor-card {
+        width: 260px;
+        background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+        backdrop-filter: blur(12px);
+        border: 3px solid var(--border-color);
+        box-shadow: 6px 6px 0 var(--shadow-color);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-family: inherit;
+    }
+
+    .popup-header,
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .editor-header h3 {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: var(--text-color);
+    }
+
+    .popup-page,
+    .editor-page {
+        font-size: 9px;
+        font-weight: 900;
+        background: var(--muted-bg-color);
+        color: var(--muted-text-color);
+        border: 1px solid var(--border-color);
+        padding: 2px 6px;
+        border-radius: 2px;
+    }
+
+    .popup-close {
+        background: none;
+        border: none;
+        font-size: 16px;
+        font-weight: 900;
+        cursor: pointer;
+        color: var(--text-color);
+        padding: 0 4px;
+        opacity: 0.7;
+    }
+
+    .popup-close:hover {
+        opacity: 1;
+    }
+
+    .popup-quote,
+    .editor-quote {
+        margin: 0;
+        font-style: italic;
+        font-size: 10px;
+        color: var(--text-color);
+        background: rgba(0, 0, 0, 0.04);
+        padding: 6px;
+        border-left: 3px solid var(--border-color);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .popup-content {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-color);
+        line-height: 1.4;
+        word-break: break-word;
+        max-height: 80px;
+        overflow-y: auto;
+    }
+
+    .popup-footer,
+    .editor-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .popup-btn,
+    .editor-btn {
+        padding: 4px 8px;
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: 2px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        transition: all 0.1s ease;
+    }
+
+    .popup-btn:hover,
+    .editor-btn:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        background: var(--accent-color);
+    }
+
+    .popup-btn.delete:hover {
+        color: #e53935;
+        background: rgba(229, 57, 53, 0.1);
+    }
+
+    .editor-textarea {
+        width: 100%;
+        height: 60px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px;
+        border: 2px solid var(--border-color);
+        box-shadow: inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.1);
+        background: var(--surface-color);
+        color: var(--text-color);
+        resize: none;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .editor-textarea:focus {
+        border-color: var(--border-color);
+        box-shadow:
+            inset 1.5px 1.5px 0 rgba(0, 0, 0, 0.15),
+            2px 2px 0 var(--shadow-color);
+    }
+
+    .color-picker {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        padding: 4px 0;
+    }
+
+    .color-swatch {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--border-color);
+        cursor: pointer;
+        box-shadow: 1px 1px 0 var(--shadow-color);
+        transition: transform 0.1s ease;
+    }
+
+    .color-swatch:hover {
+        transform: scale(1.1);
+    }
+
+    .color-swatch.selected {
+        transform: scale(1.2);
+        box-shadow:
+            0 0 0 2px var(--surface-color),
+            0 0 0 4px var(--border-color);
+    }
+
+    .swatch-yellow {
+        background: rgb(255, 235, 59);
+    }
+    .swatch-green {
+        background: rgb(76, 175, 80);
+    }
+    .swatch-blue {
+        background: rgb(33, 150, 243);
+    }
+    .swatch-pink {
+        background: rgb(233, 30, 99);
+    }
+    .swatch-purple {
+        background: rgb(156, 39, 176);
     }
 </style>

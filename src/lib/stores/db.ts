@@ -1,7 +1,20 @@
 import { Dexie, type EntityTable, type Transaction } from "dexie"
-import type { FolderNode, FileNode, BookPreview, FileContent, IndexedText } from "./vfsStore.types"
+import type {
+    FolderNode,
+    FileNode,
+    BookPreview,
+    FileContent,
+    IndexedText,
+    UserNote,
+} from "./vfsStore.types"
 
-export type TableName = "books" | "previews" | "folders" | "fileContents" | "indexedTexts"
+export type TableName =
+    | "books"
+    | "previews"
+    | "folders"
+    | "fileContents"
+    | "indexedTexts"
+    | "userNotes"
 
 export async function migrateVersion2(tx: Transaction) {
     await tx.table("books").each(async (book) => {
@@ -70,12 +83,23 @@ interface IDBFolders {
     getAll(): Promise<FolderNode[]>
 }
 
+interface IDBUserNotes {
+    get(id: string): Promise<UserNote | undefined>
+    put(record: UserNote): Promise<string>
+    bulkPut(records: UserNote[]): Promise<string>
+    delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
+    getByBookId(bookId: string): Promise<UserNote[]>
+    deleteByBookId(bookId: string): Promise<void>
+}
+
 export interface IDatabase {
     files: IDBBooks
     previews: IDBBookPreviews
     folders: IDBFolders
     fileContents: IDBFileContents
     indexedTexts: IDBIndexedTexts
+    userNotes: IDBUserNotes
     transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T>
 }
 
@@ -85,6 +109,7 @@ const db = new Dexie("Database") as Dexie & {
     folders: EntityTable<FolderNode, "id">
     fileContents: EntityTable<FileContent, "id">
     indexedTexts: EntityTable<IndexedText, "id">
+    userNotes: EntityTable<UserNote, "id">
 }
 
 db.version(1).stores({
@@ -108,6 +133,15 @@ db.version(3).stores({
     folders: "id",
     fileContents: "id",
     indexedTexts: "id, bookId",
+})
+
+db.version(4).stores({
+    books: "id",
+    previews: "id",
+    folders: "id",
+    fileContents: "id",
+    indexedTexts: "id, bookId",
+    userNotes: "id, bookId, pageNumber",
 })
 
 class DBBooks implements IDBBooks {
@@ -194,6 +228,30 @@ class DBIndexedTexts implements IDBIndexedTexts {
     }
 }
 
+class DBUserNotes implements IDBUserNotes {
+    get(id: string): Promise<UserNote | undefined> {
+        return db.userNotes.get(id)
+    }
+    put(record: UserNote): Promise<string> {
+        return db.userNotes.put(record)
+    }
+    bulkPut(records: UserNote[]): Promise<string> {
+        return db.userNotes.bulkPut(records)
+    }
+    delete(id: string): Promise<void> {
+        return db.userNotes.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.userNotes.bulkDelete(ids)
+    }
+    getByBookId(bookId: string): Promise<UserNote[]> {
+        return db.userNotes.where("bookId").equals(bookId).toArray()
+    }
+    async deleteByBookId(bookId: string): Promise<void> {
+        await db.userNotes.where("bookId").equals(bookId).delete()
+    }
+}
+
 class DBFolders implements IDBFolders {
     get(id: string): Promise<FolderNode | undefined> {
         return db.folders.get(id)
@@ -221,6 +279,7 @@ export class Database implements IDatabase {
     folders = new DBFolders()
     fileContents = new DBFileContents()
     indexedTexts = new DBIndexedTexts()
+    userNotes = new DBUserNotes()
 
     transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T> {
         return db.transaction(mode, tables, callback)

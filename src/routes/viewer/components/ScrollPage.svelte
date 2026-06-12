@@ -11,6 +11,13 @@
     import { ViewerLinkService } from "./ViewerLinkService"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
+    import {
+        notesStore,
+        getGlobalOffset,
+        getOffsetFromPoint,
+        getTextNodeAndOffset,
+    } from "$lib/stores/notesStore.svelte"
+    import { browser } from "$app/environment"
 
     let isShortHeight = $derived(uiStore.isShortHeight)
 
@@ -171,6 +178,199 @@
         }
     })
 
+    // User Notes and Highlights rendering
+    $effect(() => {
+        const count = textLayerRenderCount
+        const notes = notesStore.notes // reactive dependency
+        const pageNo = pageNumber
+
+        untrack(() => {
+            if (textLayerContainer && pdf) {
+                if (!cachedSpanRanges) {
+                    const spans = Array.from(textLayerContainer.querySelectorAll("span"))
+                    let currentOffset = 0
+                    cachedSpanRanges = spans.map((span) => {
+                        const text = span.textContent || ""
+                        const len = text.length
+                        const entry = {
+                            span,
+                            textNode: span.firstChild || span,
+                            start: currentOffset,
+                            end: currentOffset + len,
+                        }
+                        currentOffset += len
+                        return entry
+                    })
+                }
+
+                // Highlight notes on this page
+                const pageNotes = notesStore.notes.filter((n) => n.pageNumber === pageNo)
+                const noteRanges: { noteId: string; range: Range; color: string }[] = []
+                const spans = cachedSpanRanges
+
+                if (pageNotes.length > 0 && spans && spans.length > 0) {
+                    const findSpanByOffset = (offset: number) => {
+                        let lo = 0,
+                            hi = spans.length - 1
+                        while (lo <= hi) {
+                            const mid = (lo + hi) >>> 1
+                            const entry = spans[mid]
+                            if (entry.end <= offset) lo = mid + 1
+                            else if (entry.start > offset) hi = mid - 1
+                            else return entry
+                        }
+                        return null
+                    }
+
+                    pageNotes.forEach((note) => {
+                        const startEntry = findSpanByOffset(note.start)
+                        const endEntry = findSpanByOffset(note.end)
+
+                        if (startEntry && endEntry) {
+                            try {
+                                const range = new Range()
+                                const startRes = getTextNodeAndOffset(
+                                    startEntry.span,
+                                    note.start - startEntry.start,
+                                )
+                                const endRes = getTextNodeAndOffset(
+                                    endEntry.span,
+                                    note.end - endEntry.start,
+                                )
+                                range.setStart(startRes.node, startRes.offset)
+                                range.setEnd(endRes.node, endRes.offset)
+                                noteRanges.push({
+                                    noteId: note.id,
+                                    range,
+                                    color: note.color,
+                                })
+
+                                // Handle jumping/scrolling to note
+                                if (
+                                    notesStore.scrollingToNoteId === note.id &&
+                                    textLayerContainer
+                                ) {
+                                    requestAnimationFrame(() => {
+                                        range.startContainer.parentElement?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "center",
+                                        })
+                                    })
+                                    notesStore.scrollingToNoteId = null
+                                }
+                            } catch (e) {
+                                console.error("[ScrollPage] Failed to create note range:", e)
+                            }
+                        }
+                    })
+                }
+
+                notesStore.registerPageRanges(pageNo, noteRanges)
+            }
+        })
+        return () => {
+            untrack(() => {
+                notesStore.unregisterPageRanges(pageNo)
+            })
+        }
+    })
+
+    // Text Selection & Highlight Click Listeners
+    $effect(() => {
+        if (!browser || !pdf || !textLayerContainer) return
+        const containerEl = textLayerContainer
+
+        const handleSelectionChange = () => {
+            const selection = document.getSelection()
+            if (!selection || selection.isCollapsed) {
+                const currentBook = viewerStore.getCurrentBook()
+                if (
+                    currentBook &&
+                    notesStore.activeSelection?.bookId === currentBook.id &&
+                    notesStore.activeSelection?.pageNumber === pageNumber
+                ) {
+                    notesStore.activeSelection = null
+                }
+                return
+            }
+
+            const range = selection.getRangeAt(0)
+            const currentBook = viewerStore.getCurrentBook()
+            if (!currentBook) return
+
+            if (
+                containerEl.contains(range.startContainer) &&
+                containerEl.contains(range.endContainer)
+            ) {
+                const spans = cachedSpanRanges
+                if (spans) {
+                    const startOffset = getGlobalOffset(
+                        range.startContainer,
+                        range.startOffset,
+                        spans,
+                    )
+                    const endOffset = getGlobalOffset(range.endContainer, range.endOffset, spans)
+                    if (startOffset !== null && endOffset !== null) {
+                        const start = Math.min(startOffset, endOffset)
+                        const end = Math.max(startOffset, endOffset)
+                        const text = selection.toString()
+                        const rect = range.getBoundingClientRect()
+                        notesStore.activeSelection = {
+                            bookId: currentBook.id,
+                            pageNumber,
+                            start,
+                            end,
+                            text,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                        }
+                    }
+                }
+            }
+        }
+
+        const handleTextLayerClick = (e: MouseEvent) => {
+            const spans = cachedSpanRanges
+            if (!spans || !containerEl) return
+            const target = e.target as HTMLElement
+            if (!containerEl.contains(target)) return
+
+            const clickOffset = getOffsetFromPoint(e, containerEl, spans)
+            if (clickOffset !== null) {
+                const currentBook = viewerStore.getCurrentBook()
+                if (!currentBook) return
+
+                const clickedNote = notesStore.notes.find(
+                    (n) =>
+                        n.bookId === currentBook.id &&
+                        n.pageNumber === pageNumber &&
+                        clickOffset >= n.start &&
+                        clickOffset <= n.end,
+                )
+                if (clickedNote) {
+                    notesStore.activePopup = {
+                        note: clickedNote,
+                        x: e.clientX,
+                        y: e.clientY,
+                    }
+                    notesStore.activeSelection = null
+                    e.stopPropagation()
+                    e.preventDefault()
+                }
+            }
+        }
+
+        document.addEventListener("selectionchange", handleSelectionChange)
+        containerEl.addEventListener("click", handleTextLayerClick)
+
+        return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange)
+            if (containerEl) {
+                containerEl.removeEventListener("click", handleTextLayerClick)
+            }
+        }
+    })
+
     function highlightPage(pageNo: number, textContainer: HTMLElement) {
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNo)
         const ranges: Range[] = []
@@ -248,7 +448,7 @@
                     alt={m.page_render_alt({ page: pageNumber })}
                     class="pdf-image"
                 />
-                <div bind:this={textLayerContainer} class="textLayer"></div>
+                <div bind:this={textLayerContainer} class="textLayer" data-page={pageNumber}></div>
                 <div bind:this={annotationLayerContainer} class="annotationLayer"></div>
             </div>
         {:else}

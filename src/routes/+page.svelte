@@ -254,7 +254,26 @@
     {/if}
 
     {#if uiStore.isDeleteModalOpen}
-        <DeleteConfirmModal />
+        <DeleteConfirmModal
+            message={uiStore.nodesToDeleteIds.length > 1
+                ? m.delete_confirmation_multiple({ count: uiStore.nodesToDeleteIds.length })
+                : m.delete_confirmation_single()}
+            onConfirm={async () => {
+                const ids = [...uiStore.nodesToDeleteIds]
+                uiStore.isDeleteModalOpen = false
+                for (const id of ids) {
+                    await vfsStore.deleteNode(id)
+                }
+                uiStore.nodesToDeleteIds = []
+                if (uiStore.isSelectionMode && vfsStore.selectedIds.size === 0) {
+                    uiStore.isSelectionMode = false
+                }
+            }}
+            onCancel={() => {
+                uiStore.isDeleteModalOpen = false
+                uiStore.nodesToDeleteIds = []
+            }}
+        />
     {/if}
 
     {#if uiStore.isEditMetadataModalOpen && uiStore.nodeToEditMetadataId}

@@ -77,3 +77,35 @@
     background-color: rgba(255, 120, 0, 0.6);
     color: transparent;
 }
+
+/* User Notes Highlights (CSS Custom Highlight API) */
+::highlight(user-note-yellow) {
+    background-color: rgba(255, 235, 59, 0.35);
+    color: transparent;
+}
+
+::highlight(user-note-green) {
+    background-color: rgba(76, 175, 80, 0.35);
+    color: transparent;
+}
+
+::highlight(user-note-blue) {
+    background-color: rgba(33, 150, 243, 0.35);
+    color: transparent;
+}
+
+::highlight(user-note-pink) {
+    background-color: rgba(233, 30, 99, 0.35);
+    color: transparent;
+}
+
+::highlight(user-note-purple) {
+    background-color: rgba(156, 39, 176, 0.35);
+    color: transparent;
+}
+
+::highlight(user-note-active) {
+    background-color: rgba(255, 152, 0, 0.5) !important;
+    text-decoration: underline wavy rgba(255, 87, 34, 0.8) 2px;
+    color: transparent;
+}

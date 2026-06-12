@@ -4,9 +4,16 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type PDFDocument from "$lib/pdf"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { searchStore } from "$lib/stores/searchStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
+    import { searchStore } from "$lib/stores/searchStore.svelte"
+    import {
+        notesStore,
+        getGlobalOffset,
+        getOffsetFromPoint,
+        getTextNodeAndOffset,
+    } from "$lib/stores/notesStore.svelte"
+    import { browser } from "$app/environment"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
     import { untrack } from "svelte"
     import { MEDIA_QUERIES } from "$lib/breakpoints"
@@ -820,6 +827,238 @@
         }
     })
 
+    function highlightNotes(pageNo: number, textContainer: HTMLElement, cacheKey: 1 | 2) {
+        const pageNotes = notesStore.notes.filter((n) => n.pageNumber === pageNo)
+        const noteRanges: { noteId: string; range: Range; color: string }[] = []
+
+        if (pageNotes.length > 0) {
+            let spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
+            if (!spanRanges) {
+                const spans = Array.from(textContainer.querySelectorAll("span"))
+                let currentOffset = 0
+                spanRanges = spans.map((span) => {
+                    const text = span.textContent || ""
+                    const len = text.length
+                    const entry = {
+                        span,
+                        textNode: span.firstChild || span,
+                        start: currentOffset,
+                        end: currentOffset + len,
+                    }
+                    currentOffset += len
+                    return entry
+                })
+                if (cacheKey === 1) {
+                    cachedSpanRanges1 = spanRanges
+                } else {
+                    cachedSpanRanges2 = spanRanges
+                }
+            }
+
+            const findSpanByOffset = (ranges: any[], offset: number) => {
+                let lo = 0,
+                    hi = ranges.length - 1
+                while (lo <= hi) {
+                    const mid = (lo + hi) >>> 1
+                    const entry = ranges[mid]
+                    if (entry.end <= offset) lo = mid + 1
+                    else if (entry.start > offset) hi = mid - 1
+                    else return entry
+                }
+                return null
+            }
+
+            pageNotes.forEach((note) => {
+                const startEntry = findSpanByOffset(spanRanges!, note.start)
+                const endEntry = findSpanByOffset(spanRanges!, note.end)
+
+                if (startEntry && endEntry) {
+                    try {
+                        const range = new Range()
+                        const startRes = getTextNodeAndOffset(
+                            startEntry.span,
+                            note.start - startEntry.start,
+                        )
+                        const endRes = getTextNodeAndOffset(
+                            endEntry.span,
+                            note.end - endEntry.start,
+                        )
+                        range.setStart(startRes.node, startRes.offset)
+                        range.setEnd(endRes.node, endRes.offset)
+                        noteRanges.push({
+                            noteId: note.id,
+                            range,
+                            color: note.color,
+                        })
+
+                        // Handle scroll to note
+                        if (notesStore.scrollingToNoteId === note.id) {
+                            scrollToActiveRange(range)
+                            notesStore.scrollingToNoteId = null
+                        }
+                    } catch (e) {
+                        console.error("[CanvasPane] Failed to create note range:", e)
+                    }
+                }
+            })
+        }
+
+        notesStore.registerPageRanges(pageNo, noteRanges)
+    }
+
+    $effect(() => {
+        if (layoutMode === "scroll") return
+
+        const count = textLayer1RenderCount
+        const notes = notesStore.notes // reactive dependency
+        const pageNo = currentPage
+
+        untrack(() => {
+            if (textLayer1 && pdf && !isPageLoading) {
+                highlightNotes(pageNo, textLayer1, 1)
+            }
+        })
+        return () => {
+            untrack(() => {
+                notesStore.unregisterPageRanges(pageNo)
+            })
+        }
+    })
+
+    $effect(() => {
+        if (layoutMode !== "split") return
+
+        const count = textLayer2RenderCount
+        const notes = notesStore.notes // reactive dependency
+        const pageNo = currentPage + 1
+
+        untrack(() => {
+            if (textLayer2 && pdf && !isPageLoading) {
+                highlightNotes(pageNo, textLayer2, 2)
+            }
+        })
+        return () => {
+            untrack(() => {
+                notesStore.unregisterPageRanges(pageNo)
+            })
+        }
+    })
+
+    // Text Selection & Highlight Click Listeners for single/split layouts
+    $effect(() => {
+        if (!browser || !pdf || layoutMode === "scroll") return
+
+        const handleSelectionChange = () => {
+            const selection = document.getSelection()
+            if (!selection || selection.isCollapsed) {
+                const currentBook = viewerStore.getCurrentBook()
+                if (currentBook && notesStore.activeSelection?.bookId === currentBook.id) {
+                    const pg = notesStore.activeSelection.pageNumber
+                    if (pg === currentPage || pg === currentPage + 1) {
+                        notesStore.activeSelection = null
+                    }
+                }
+                return
+            }
+
+            const range = selection.getRangeAt(0)
+            const currentBook = viewerStore.getCurrentBook()
+            if (!currentBook) return
+
+            let selectedPage: number | null = null
+            let spans: any[] | null = null
+
+            if (
+                textLayer1 &&
+                textLayer1.contains(range.startContainer) &&
+                textLayer1.contains(range.endContainer)
+            ) {
+                selectedPage = currentPage
+                spans = cachedSpanRanges1
+            } else if (
+                textLayer2 &&
+                textLayer2.contains(range.startContainer) &&
+                textLayer2.contains(range.endContainer)
+            ) {
+                selectedPage = currentPage + 1
+                spans = cachedSpanRanges2
+            }
+
+            if (selectedPage !== null && spans) {
+                const startOffset = getGlobalOffset(range.startContainer, range.startOffset, spans)
+                const endOffset = getGlobalOffset(range.endContainer, range.endOffset, spans)
+                if (startOffset !== null && endOffset !== null) {
+                    const start = Math.min(startOffset, endOffset)
+                    const end = Math.max(startOffset, endOffset)
+                    const text = selection.toString()
+                    const rect = range.getBoundingClientRect()
+                    notesStore.activeSelection = {
+                        bookId: currentBook.id,
+                        pageNumber: selectedPage,
+                        start,
+                        end,
+                        text,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                    }
+                }
+            }
+        }
+
+        const handleTextLayerClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement
+            const textLayer = target.closest(".textLayer") as HTMLElement
+            if (!textLayer) return
+
+            const pageAttr = textLayer.getAttribute("data-page")
+            if (!pageAttr) return
+            const pageNo = parseInt(pageAttr, 10)
+
+            let spans: any[] | null = null
+            if (textLayer === textLayer1) spans = cachedSpanRanges1
+            else if (textLayer === textLayer2) spans = cachedSpanRanges2
+
+            if (spans) {
+                const clickOffset = getOffsetFromPoint(e, textLayer, spans)
+                if (clickOffset !== null) {
+                    const currentBook = viewerStore.getCurrentBook()
+                    if (!currentBook) return
+
+                    const clickedNote = notesStore.notes.find(
+                        (n) =>
+                            n.bookId === currentBook.id &&
+                            n.pageNumber === pageNo &&
+                            clickOffset >= n.start &&
+                            clickOffset <= n.end,
+                    )
+                    if (clickedNote) {
+                        notesStore.activePopup = {
+                            note: clickedNote,
+                            x: e.clientX,
+                            y: e.clientY,
+                        }
+                        notesStore.activeSelection = null
+                        e.stopPropagation()
+                        e.preventDefault()
+                    }
+                }
+            }
+        }
+
+        document.addEventListener("selectionchange", handleSelectionChange)
+        const currentContainer = container
+        if (currentContainer) {
+            currentContainer.addEventListener("click", handleTextLayerClick)
+        }
+
+        return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange)
+            if (currentContainer) {
+                currentContainer.removeEventListener("click", handleTextLayerClick)
+            }
+        }
+    })
+
     $effect(() => {
         if (!uiStore.isSearchModeActive || uiStore.prompt.isOpen) return
 
@@ -867,7 +1106,7 @@
                             alt={m.page_render_alt({ page: currentPage })}
                             class="pdf-image"
                         />
-                        <div bind:this={textLayer1} class="textLayer"></div>
+                        <div bind:this={textLayer1} class="textLayer" data-page={currentPage}></div>
                         <div bind:this={annotationLayer1} class="annotationLayer"></div>
                     </div>
                     <div class="book-spine"></div>
@@ -877,7 +1116,11 @@
                             alt={m.page_render_alt({ page: currentPage + 1 })}
                             class="pdf-image"
                         />
-                        <div bind:this={textLayer2} class="textLayer"></div>
+                        <div
+                            bind:this={textLayer2}
+                            class="textLayer"
+                            data-page={currentPage + 1}
+                        ></div>
                         <div bind:this={annotationLayer2} class="annotationLayer"></div>
                     </div>
                 </div>
@@ -888,7 +1131,7 @@
                         alt={m.page_render_alt({ page: currentPage })}
                         class="pdf-image"
                     />
-                    <div bind:this={textLayer1} class="textLayer"></div>
+                    <div bind:this={textLayer1} class="textLayer" data-page={currentPage}></div>
                     <div bind:this={annotationLayer1} class="annotationLayer"></div>
                 </div>
             {/if}

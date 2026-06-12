@@ -3,30 +3,26 @@
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
 
+    let {
+        title = m.delete_confirmation_title(),
+        message,
+        onConfirm,
+        onCancel,
+    } = $props<{
+        title?: string
+        message: string
+        onConfirm: () => void | Promise<void>
+        onCancel: () => void
+    }>()
+
     async function handleConfirm() {
-        const ids = [...uiStore.nodesToDeleteIds]
-
-        // Close modal first for better UX
-        uiStore.isDeleteModalOpen = false
-
-        for (const id of ids) {
-            await vfsStore.deleteNode(id)
-        }
-
-        // Reset state
-        uiStore.nodesToDeleteIds = []
-        if (uiStore.isSelectionMode && vfsStore.selectedIds.size === 0) {
-            uiStore.isSelectionMode = false
-        }
+        await onConfirm()
     }
 
     function handleCancel() {
-        uiStore.isDeleteModalOpen = false
-        uiStore.nodesToDeleteIds = []
+        onCancel()
     }
 
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
@@ -66,14 +62,10 @@
     )
 </script>
 
-<Modal autofocusClose={false} onClose={handleCancel} title={m.delete_confirmation_title()}>
+<Modal autofocusClose={false} onClose={handleCancel} {title}>
     <div class="modal-content">
         <p class="confirmation-message">
-            {#if uiStore.nodesToDeleteIds.length > 1}
-                {m.delete_confirmation_multiple({ count: uiStore.nodesToDeleteIds.length })}
-            {:else}
-                {m.delete_confirmation_single()}
-            {/if}
+            {message}
         </p>
 
         <div class="modal-actions">

@@ -14,17 +14,21 @@
         getShortcutHint,
     } from "$lib/stores/commandsStore.svelte"
 
+    import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
+
     let {
         name,
         isLoaded,
         isOutlineOpen = $bindable(),
         isSettingsOpen = $bindable(),
+        isNotesOpen = $bindable(),
         onClose,
     } = $props<{
         name: string
         isLoaded: boolean
         isOutlineOpen?: boolean
         isSettingsOpen?: boolean
+        isNotesOpen?: boolean
         onClose: () => void
     }>()
 
@@ -39,11 +43,25 @@
                 variant="action"
                 square={true}
                 open={isOutlineOpen}
-                onclick={() => (isOutlineOpen = !isOutlineOpen)}
+                onclick={() => {
+                    isOutlineOpen = !isOutlineOpen
+                }}
                 aria-label={m.outline()}
                 tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
             >
                 <MenuIcon />
+            </Button>
+            <Button
+                variant="action"
+                square={true}
+                open={isNotesOpen}
+                onclick={() => {
+                    isNotesOpen = !isNotesOpen
+                }}
+                aria-label="Notes & Highlights"
+                tooltip={"Notes & Highlights" + getShortcutHint(commandsNode, "toggle-notes")}
+            >
+                <NoteIcon />
             </Button>
         {/if}
         <span class="file-badge">PDF</span>

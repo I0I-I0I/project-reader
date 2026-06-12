@@ -55,3 +55,15 @@ export interface IndexedText {
     pageNumber: number
     text: string
 }
+
+export interface UserNote {
+    id: string
+    bookId: string
+    pageNumber: number
+    start: number
+    end: number
+    text: string
+    noteContent: string
+    color: "yellow" | "green" | "blue" | "pink" | "purple"
+    createdAt: number
+}
