@@ -1193,6 +1193,9 @@
     let swipeTimeoutId: any = null
     let pendingPageTurnAction: (() => void) | null = null
 
+    let viewerBodyElement = $state<HTMLDivElement | null>(null)
+    let swipeState: "undecided" | "swiping" | "native" = "undecided"
+
     function getPageScale(dim: { width: number; height: number } | null) {
         if (uiStore.isCompact && viewportWidth > 0 && pdf) {
             const pageWidth = dim?.width || pdf.defaultWidth || 612
@@ -1238,6 +1241,66 @@
     let touchStartY = 0
     let touchStartTime = 0
 
+    function checkScrollAndZoomState() {
+        let isScrollable = false
+        let atLeftEdge = true
+        let atRightEdge = true
+
+        if (typeof window !== "undefined") {
+            // 1. Check browser visual viewport (pinch-to-zoom)
+            if (window.visualViewport) {
+                const vv = window.visualViewport
+                if (vv.scale > 1.05) {
+                    isScrollable = true
+                    const layoutWidth = document.documentElement.clientWidth || window.innerWidth
+                    if (vv.offsetLeft > 5) {
+                        atLeftEdge = false
+                    }
+                    if (vv.offsetLeft + vv.width < layoutWidth - 5) {
+                        atRightEdge = false
+                    }
+                }
+            }
+
+            // 2. Check document/window horizontal scroll
+            const scrollLeft =
+                window.scrollX ||
+                document.documentElement.scrollLeft ||
+                document.body.scrollLeft ||
+                0
+            const scrollWidth =
+                document.documentElement.scrollWidth || document.body.scrollWidth || 0
+            const clientWidth = document.documentElement.clientWidth || window.innerWidth || 0
+            if (scrollWidth > clientWidth + 5) {
+                isScrollable = true
+                if (scrollLeft > 5) {
+                    atLeftEdge = false
+                }
+                if (scrollLeft + clientWidth < scrollWidth - 5) {
+                    atRightEdge = false
+                }
+            }
+
+            // 3. Check internal scroll container (canvas-frame)
+            if (scrollContainer) {
+                const sLeft = scrollContainer.scrollLeft
+                const sWidth = scrollContainer.scrollWidth
+                const cWidth = scrollContainer.clientWidth
+                if (sWidth > cWidth + 5) {
+                    isScrollable = true
+                    if (sLeft > 5) {
+                        atLeftEdge = false
+                    }
+                    if (sLeft + cWidth < sWidth - 5) {
+                        atRightEdge = false
+                    }
+                }
+            }
+        }
+
+        return { isScrollable, atLeftEdge, atRightEdge }
+    }
+
     function handleTouchStart(e: TouchEvent) {
         if (!uiStore.isCompact) return
 
@@ -1268,6 +1331,7 @@
         touchStartX = e.touches[0].clientX
         touchStartY = e.touches[0].clientY
         touchStartTime = Date.now()
+        swipeState = "undecided"
 
         // Reset positions
         swipeOffsetX = "0px"
@@ -1281,14 +1345,44 @@
         if (e.touches.length !== 1) return
         if (sidebars.outline || sidebars.settings) return
 
-        let deltaX = e.touches[0].clientX - touchStartX
-        const deltaY = e.touches[0].clientY - touchStartY
+        const currentX = e.touches[0].clientX
+        const currentY = e.touches[0].clientY
+        const diffX = currentX - touchStartX
+        const diffY = currentY - touchStartY
 
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (swipeState === "native") {
+            return
+        }
+
+        if (swipeState === "undecided") {
+            const absX = Math.abs(diffX)
+            const absY = Math.abs(diffY)
+            if (absX > 8 || absY > 8) {
+                if (absX > absY) {
+                    const { isScrollable, atLeftEdge, atRightEdge } = checkScrollAndZoomState()
+                    if (isScrollable) {
+                        if (diffX > 0 && atLeftEdge) {
+                            swipeState = "swiping"
+                        } else if (diffX < 0 && atRightEdge) {
+                            swipeState = "swiping"
+                        } else {
+                            swipeState = "native"
+                        }
+                    } else {
+                        swipeState = "swiping"
+                    }
+                } else {
+                    swipeState = "native"
+                }
+            }
+        }
+
+        if (swipeState === "swiping") {
             if (e.cancelable) {
                 e.preventDefault()
             }
 
+            let deltaX = diffX
             const step = settingsStore.layout === "split" ? 2 : 1
             const hasPrev = viewerStore.currentPage > 1
             const hasNext =
@@ -1317,12 +1411,19 @@
         if (e.changedTouches.length !== 1) return
         if (sidebars.outline || sidebars.settings) return
 
+        if (swipeState !== "swiping") {
+            swipeTransition = "transform 0.2s ease-out"
+            swipeOffsetX = "0px"
+            swipeState = "undecided"
+            return
+        }
+
         const deltaX = e.changedTouches[0].clientX - touchStartX
         const deltaY = e.changedTouches[0].clientY - touchStartY
         const deltaTime = Date.now() - touchStartTime
 
         const threshold = 50 // minimum distance in px
-        const maxDiagonal = 80 // maximum perpendicular deviation in px
+        const maxDiagonal = 100 // maximum perpendicular deviation in px
         const maxTime = 300 // maximum duration in ms
 
         const isSwipe =
@@ -1364,7 +1465,10 @@
                     pendingPageTurnAction = null
                 }, 150)
 
-                e.preventDefault()
+                if (e.cancelable) {
+                    e.preventDefault()
+                }
+                swipeState = "undecided"
                 return
             }
         }
@@ -1372,7 +1476,25 @@
         // Animate back to center
         swipeTransition = "transform 0.2s ease-out"
         swipeOffsetX = "0px"
+        swipeState = "undecided"
     }
+
+    $effect(() => {
+        if (!viewerBodyElement) return
+
+        const options = { passive: false }
+        viewerBodyElement.addEventListener("touchstart", handleTouchStart, options)
+        viewerBodyElement.addEventListener("touchmove", handleTouchMove, options)
+        viewerBodyElement.addEventListener("touchend", handleTouchEnd, options)
+
+        return () => {
+            if (viewerBodyElement) {
+                viewerBodyElement.removeEventListener("touchstart", handleTouchStart)
+                viewerBodyElement.removeEventListener("touchmove", handleTouchMove)
+                viewerBodyElement.removeEventListener("touchend", handleTouchEnd)
+            }
+        }
+    })
 
     function slideHeader(node: HTMLElement, { duration = 250 }) {
         const style = getComputedStyle(node)
@@ -1462,6 +1584,7 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
+                    bind:this={viewerBodyElement}
                     class="viewer-body"
                     onclick={(args) => {
                         if (uiStore.isToolbarsVisible) {
@@ -1473,9 +1596,6 @@
                             handleBodyClick(args)
                         }
                     }}
-                    ontouchstart={handleTouchStart}
-                    ontouchmove={handleTouchMove}
-                    ontouchend={handleTouchEnd}
                 >
                     {#if !isLoaded}
                         <div class="loading-state">

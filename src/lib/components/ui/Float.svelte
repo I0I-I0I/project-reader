@@ -18,6 +18,9 @@
     onMount(() => {
         if (typeof window === "undefined") return
 
+        const originalOverflow = document.body.style.overflow
+        document.body.style.overflow = "hidden"
+
         const visualViewport = window.visualViewport
         if (!visualViewport) {
             console.warn(
@@ -31,6 +34,7 @@
             updateViewportFallback()
             return () => {
                 window.removeEventListener("resize", updateViewportFallback)
+                document.body.style.overflow = originalOverflow
             }
         }
 
@@ -46,6 +50,7 @@
         return () => {
             visualViewport.removeEventListener("resize", updateViewport)
             visualViewport.removeEventListener("scroll", updateViewport)
+            document.body.style.overflow = originalOverflow
         }
     })
 </script>
