@@ -348,3 +348,40 @@ export function getTextNodeAndOffset(
     }
     return { node: parent.firstChild || parent, offset: targetOffset - current }
 }
+
+export interface SpanRange {
+    span: HTMLSpanElement
+    textNode: Node
+    start: number
+    end: number
+}
+
+export function buildSpanRanges(textContainer: HTMLElement): SpanRange[] {
+    const spans = Array.from(textContainer.querySelectorAll("span"))
+    let currentOffset = 0
+    return spans.map((span) => {
+        const text = span.textContent || ""
+        const len = text.length
+        const entry = {
+            span,
+            textNode: span.firstChild || span,
+            start: currentOffset,
+            end: currentOffset + len,
+        }
+        currentOffset += len
+        return entry
+    })
+}
+
+export function findSpanByOffset(ranges: SpanRange[], offset: number): SpanRange | null {
+    let lo = 0,
+        hi = ranges.length - 1
+    while (lo <= hi) {
+        const mid = (lo + hi) >>> 1
+        const entry = ranges[mid]
+        if (entry.end <= offset) lo = mid + 1
+        else if (entry.start > offset) hi = mid - 1
+        else return entry
+    }
+    return null
+}

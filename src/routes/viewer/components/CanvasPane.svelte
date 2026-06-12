@@ -11,6 +11,9 @@
         getGlobalOffset,
         getOffsetFromPoint,
         getTextNodeAndOffset,
+        buildSpanRanges,
+        findSpanByOffset,
+        type SpanRange,
     } from "$lib/stores/notesStore.svelte"
     import { browser } from "$app/environment"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -196,8 +199,8 @@
     let annotationLayer2 = $state<HTMLDivElement | null>(null)
     let textLayer1RenderCount = $state(0)
     let textLayer2RenderCount = $state(0)
-    let cachedSpanRanges1: any[] | null = null
-    let cachedSpanRanges2: any[] | null = null
+    let cachedSpanRanges1: SpanRange[] | null = null
+    let cachedSpanRanges2: SpanRange[] | null = null
 
     $effect(() => {
         const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
@@ -594,10 +597,10 @@
             }
 
             if (textContainer === textLayer1) {
-                cachedSpanRanges1 = null
+                cachedSpanRanges1 = buildSpanRanges(textContainer)
                 textLayer1RenderCount += 1
             } else if (textContainer === textLayer2) {
-                cachedSpanRanges2 = null
+                cachedSpanRanges2 = buildSpanRanges(textContainer)
                 textLayer2RenderCount += 1
             }
 
@@ -695,58 +698,26 @@
         const ranges: Range[] = []
 
         if (matches.length > 0) {
-            let spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
-            if (!spanRanges) {
-                const spans = Array.from(textContainer.querySelectorAll("span"))
-                let currentOffset = 0
-                spanRanges = spans.map((span) => {
-                    const text = span.textContent || ""
-                    const len = text.length
-                    const entry = {
-                        span,
-                        textNode: span.firstChild || span,
-                        start: currentOffset,
-                        end: currentOffset + len,
+            const spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
+
+            if (spanRanges) {
+                matches.forEach((match) => {
+                    const startEntry = findSpanByOffset(spanRanges, match.start)
+                    const endEntry = findSpanByOffset(spanRanges, match.end)
+
+                    if (startEntry && endEntry) {
+                        try {
+                            const range = new Range()
+                            range.setStart(startEntry.textNode, match.start - startEntry.start)
+                            range.setEnd(endEntry.textNode, match.end - endEntry.start)
+                            ranges.push(range)
+                        } catch (e) {
+                            console.error("[CanvasPane] Failed to create highlight range:", e)
+                            ranges.push(null as any) // Keep index aligned
+                        }
                     }
-                    currentOffset += len
-                    return entry
                 })
-                if (cacheKey === 1) {
-                    cachedSpanRanges1 = spanRanges
-                } else {
-                    cachedSpanRanges2 = spanRanges
-                }
             }
-
-            const findSpanByOffset = (ranges: any[], offset: number) => {
-                let lo = 0,
-                    hi = ranges.length - 1
-                while (lo <= hi) {
-                    const mid = (lo + hi) >>> 1
-                    const entry = ranges[mid]
-                    if (entry.end <= offset) lo = mid + 1
-                    else if (entry.start > offset) hi = mid - 1
-                    else return entry
-                }
-                return null
-            }
-
-            matches.forEach((match) => {
-                const startEntry = findSpanByOffset(spanRanges!, match.start)
-                const endEntry = findSpanByOffset(spanRanges!, match.end)
-
-                if (startEntry && endEntry) {
-                    try {
-                        const range = new Range()
-                        range.setStart(startEntry.textNode, match.start - startEntry.start)
-                        range.setEnd(endEntry.textNode, match.end - endEntry.start)
-                        ranges.push(range)
-                    } catch (e) {
-                        console.error("[CanvasPane] Failed to create highlight range:", e)
-                        ranges.push(null as any) // Keep index aligned
-                    }
-                }
-            })
         }
 
         searchStore.registerPageRanges(pageNumber, ranges)
@@ -832,75 +803,43 @@
         const noteRanges: { noteId: string; range: Range; color: string }[] = []
 
         if (pageNotes.length > 0) {
-            let spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
-            if (!spanRanges) {
-                const spans = Array.from(textContainer.querySelectorAll("span"))
-                let currentOffset = 0
-                spanRanges = spans.map((span) => {
-                    const text = span.textContent || ""
-                    const len = text.length
-                    const entry = {
-                        span,
-                        textNode: span.firstChild || span,
-                        start: currentOffset,
-                        end: currentOffset + len,
-                    }
-                    currentOffset += len
-                    return entry
-                })
-                if (cacheKey === 1) {
-                    cachedSpanRanges1 = spanRanges
-                } else {
-                    cachedSpanRanges2 = spanRanges
-                }
-            }
+            const spanRanges = cacheKey === 1 ? cachedSpanRanges1 : cachedSpanRanges2
 
-            const findSpanByOffset = (ranges: any[], offset: number) => {
-                let lo = 0,
-                    hi = ranges.length - 1
-                while (lo <= hi) {
-                    const mid = (lo + hi) >>> 1
-                    const entry = ranges[mid]
-                    if (entry.end <= offset) lo = mid + 1
-                    else if (entry.start > offset) hi = mid - 1
-                    else return entry
-                }
-                return null
-            }
+            if (spanRanges) {
+                pageNotes.forEach((note) => {
+                    const startEntry = findSpanByOffset(spanRanges, note.start)
+                    const endEntry = findSpanByOffset(spanRanges, note.end)
 
-            pageNotes.forEach((note) => {
-                const startEntry = findSpanByOffset(spanRanges!, note.start)
-                const endEntry = findSpanByOffset(spanRanges!, note.end)
+                    if (startEntry && endEntry) {
+                        try {
+                            const range = new Range()
+                            const startRes = getTextNodeAndOffset(
+                                startEntry.span,
+                                note.start - startEntry.start,
+                            )
+                            const endRes = getTextNodeAndOffset(
+                                endEntry.span,
+                                note.end - endEntry.start,
+                            )
+                            range.setStart(startRes.node, startRes.offset)
+                            range.setEnd(endRes.node, endRes.offset)
+                            noteRanges.push({
+                                noteId: note.id,
+                                range,
+                                color: note.color,
+                            })
 
-                if (startEntry && endEntry) {
-                    try {
-                        const range = new Range()
-                        const startRes = getTextNodeAndOffset(
-                            startEntry.span,
-                            note.start - startEntry.start,
-                        )
-                        const endRes = getTextNodeAndOffset(
-                            endEntry.span,
-                            note.end - endEntry.start,
-                        )
-                        range.setStart(startRes.node, startRes.offset)
-                        range.setEnd(endRes.node, endRes.offset)
-                        noteRanges.push({
-                            noteId: note.id,
-                            range,
-                            color: note.color,
-                        })
-
-                        // Handle scroll to note
-                        if (notesStore.scrollingToNoteId === note.id) {
-                            scrollToActiveRange(range)
-                            notesStore.scrollingToNoteId = null
+                            // Handle scroll to note
+                            if (notesStore.scrollingToNoteId === note.id) {
+                                scrollToActiveRange(range)
+                                notesStore.scrollingToNoteId = null
+                            }
+                        } catch (e) {
+                            console.error("[CanvasPane] Failed to create note range:", e)
                         }
-                    } catch (e) {
-                        console.error("[CanvasPane] Failed to create note range:", e)
                     }
-                }
-            })
+                })
+            }
         }
 
         notesStore.registerPageRanges(pageNo, noteRanges)

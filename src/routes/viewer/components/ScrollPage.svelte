@@ -16,6 +16,9 @@
         getGlobalOffset,
         getOffsetFromPoint,
         getTextNodeAndOffset,
+        buildSpanRanges,
+        findSpanByOffset,
+        type SpanRange,
     } from "$lib/stores/notesStore.svelte"
     import { browser } from "$app/environment"
 
@@ -105,7 +108,7 @@
                     textContainer.innerHTML = ""
                     return
                 }
-                cachedSpanRanges = null
+                cachedSpanRanges = buildSpanRanges(textContainer)
                 textLayerRenderCount += 1
 
                 annotationContainer.innerHTML = ""
@@ -159,7 +162,7 @@
     })
 
     let textLayerRenderCount = $state(0)
-    let cachedSpanRanges: any[] | null = null
+    let cachedSpanRanges: SpanRange[] | null = null
 
     $effect(() => {
         const count = textLayerRenderCount
@@ -185,46 +188,15 @@
         const pageNo = pageNumber
 
         untrack(() => {
-            if (textLayerContainer && pdf) {
-                if (!cachedSpanRanges) {
-                    const spans = Array.from(textLayerContainer.querySelectorAll("span"))
-                    let currentOffset = 0
-                    cachedSpanRanges = spans.map((span) => {
-                        const text = span.textContent || ""
-                        const len = text.length
-                        const entry = {
-                            span,
-                            textNode: span.firstChild || span,
-                            start: currentOffset,
-                            end: currentOffset + len,
-                        }
-                        currentOffset += len
-                        return entry
-                    })
-                }
-
+            if (textLayerContainer && pdf && cachedSpanRanges) {
                 // Highlight notes on this page
                 const pageNotes = notesStore.notes.filter((n) => n.pageNumber === pageNo)
                 const noteRanges: { noteId: string; range: Range; color: string }[] = []
-                const spans = cachedSpanRanges
 
-                if (pageNotes.length > 0 && spans && spans.length > 0) {
-                    const findSpanByOffset = (offset: number) => {
-                        let lo = 0,
-                            hi = spans.length - 1
-                        while (lo <= hi) {
-                            const mid = (lo + hi) >>> 1
-                            const entry = spans[mid]
-                            if (entry.end <= offset) lo = mid + 1
-                            else if (entry.start > offset) hi = mid - 1
-                            else return entry
-                        }
-                        return null
-                    }
-
+                if (pageNotes.length > 0) {
                     pageNotes.forEach((note) => {
-                        const startEntry = findSpanByOffset(note.start)
-                        const endEntry = findSpanByOffset(note.end)
+                        const startEntry = findSpanByOffset(cachedSpanRanges!, note.start)
+                        const endEntry = findSpanByOffset(cachedSpanRanges!, note.end)
 
                         if (startEntry && endEntry) {
                             try {
@@ -376,40 +348,10 @@
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNo)
         const ranges: Range[] = []
 
-        if (matches.length > 0) {
-            if (!cachedSpanRanges) {
-                const spans = Array.from(textContainer.querySelectorAll("span"))
-                let currentOffset = 0
-                cachedSpanRanges = spans.map((span) => {
-                    const text = span.textContent || ""
-                    const len = text.length
-                    const entry = {
-                        span,
-                        textNode: span.firstChild || span,
-                        start: currentOffset,
-                        end: currentOffset + len,
-                    }
-                    currentOffset += len
-                    return entry
-                })
-            }
-
-            const findSpanByOffset = (offset: number) => {
-                let lo = 0,
-                    hi = cachedSpanRanges!.length - 1
-                while (lo <= hi) {
-                    const mid = (lo + hi) >>> 1
-                    const entry = cachedSpanRanges![mid]
-                    if (entry.end <= offset) lo = mid + 1
-                    else if (entry.start > offset) hi = mid - 1
-                    else return entry
-                }
-                return null
-            }
-
+        if (matches.length > 0 && cachedSpanRanges) {
             matches.forEach((match) => {
-                const startEntry = findSpanByOffset(match.start)
-                const endEntry = findSpanByOffset(match.end)
+                const startEntry = findSpanByOffset(cachedSpanRanges!, match.start)
+                const endEntry = findSpanByOffset(cachedSpanRanges!, match.end)
 
                 if (startEntry && endEntry) {
                     try {
