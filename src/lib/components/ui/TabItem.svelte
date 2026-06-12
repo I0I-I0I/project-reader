@@ -10,14 +10,7 @@
         class?: string
     }
 
-    let {
-        active = false,
-        onclick,
-        label,
-        Icon,
-        title,
-        class: className = "",
-    }: Props = $props()
+    let { active = false, onclick, label, Icon, title, class: className = "" }: Props = $props()
 
     let element = $state<HTMLElement | null>(null)
 

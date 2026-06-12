@@ -13,6 +13,7 @@ type PromptMode =
     | "files-recursive"
     | "folders"
     | "search"
+    | "bookmarks"
 
 class PromptState {
     #mode = $state<PromptMode>("global")

@@ -4,7 +4,7 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { untrack, onMount, onDestroy } from "svelte"
+    import { untrack, onMount, onDestroy, tick } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
@@ -23,6 +23,10 @@
     import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
     import type { UserNote } from "$lib/stores/vfsStore.types"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
+    import Modal from "$lib/components/ui/Modal.svelte"
+    import Input from "$lib/components/ui/Input.svelte"
+    import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
+    import BookmarkAddKeymaps from "./components/BookmarkAddKeymaps.svelte"
     import { browser } from "$app/environment"
     import { localizedPath } from "$lib/language"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
@@ -223,6 +227,19 @@
 
     const commandsNode = useCommands([
         {
+            id: "toggle-bookmark-page",
+            keys: "b",
+            description: "Bookmark Page / Delete Bookmark",
+            englishDescription: "Bookmark Page / Delete Bookmark",
+            category: "commands",
+            disabled: () => isBookmarkAddModalOpen || bookmarkToDeleteId !== null,
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                handleBookmarkHeaderClick()
+            },
+        },
+
+        {
             keys: "shift+l",
             description: m.keymap_toggle_layouts(),
             englishDescription: m.keymap_toggle_layouts({}, { locale: "en" }),
@@ -372,13 +389,25 @@
             },
         },
         {
-            id: "toggle-notes",
-            keys: "shift+b",
+            id: "toggle-highlights",
+            keys: "shift+h",
             description: m.keymap_toggle_notes(),
             englishDescription: m.keymap_toggle_notes({}, { locale: "en" }),
             category: "commands",
             action: () => {
                 sidebars.notes = !sidebars.notes
+            },
+        },
+        {
+            id: "toggle-bookmarks",
+            keys: "shift+b",
+            description: m.keymap_toggle_bookmarks
+                ? m.keymap_toggle_bookmarks()
+                : "Toggle bookmarks",
+            englishDescription: "Toggle bookmarks",
+            category: "commands",
+            action: () => {
+                sidebars.bookmarks = !sidebars.bookmarks
             },
         },
         {
@@ -541,7 +570,7 @@
 
     class SidebarState {
         active = $state<"left" | "settings" | null>(null)
-        activeTab = $state<"outline" | "notes">("outline")
+        activeTab = $state<"outline" | "notes" | "bookmarks">("outline")
 
         get left() {
             return this.active === "left"
@@ -577,12 +606,79 @@
                 this.active = null
             }
         }
+        get bookmarks() {
+            return this.active === "left" && this.activeTab === "bookmarks"
+        }
+        set bookmarks(v) {
+            if (v) {
+                this.active = "left"
+                this.activeTab = "bookmarks"
+            } else if (this.active === "left" && this.activeTab === "bookmarks") {
+                this.active = null
+            }
+        }
     }
     const sidebars = new SidebarState()
 
     let isShortHeight = $derived(uiStore.isShortHeight)
     let viewportWidth = $state(0)
     let noteToDeleteId = $state<string | null>(null)
+
+    let isBookmarkAddModalOpen = $state(false)
+    let bookmarkName = $state("")
+    let bookmarkToDeleteId = $state<string | null>(null)
+
+    let currentBookId = $derived(currentBook?.id)
+    let currentPage = $derived(viewerStore.currentPage)
+
+    let isCurrentPageBookmarked = $derived(
+        currentBookId
+            ? bookmarksStore.bookmarks.some(
+                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
+              )
+            : false,
+    )
+    let currentPageBookmark = $derived(
+        currentBookId
+            ? bookmarksStore.bookmarks.find(
+                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
+              )
+            : null,
+    )
+
+    function handleBookmarkHeaderClick() {
+        if (isCurrentPageBookmarked) {
+            if (currentPageBookmark) {
+                bookmarkToDeleteId = currentPageBookmark.id
+            }
+        } else {
+            bookmarkName = `${m.page ? m.page() : "Page"} ${currentPage}`
+            isBookmarkAddModalOpen = true
+        }
+    }
+
+    async function handleConfirmAddBookmark() {
+        if (!currentBookId) return
+        const defaultName = `${m.page ? m.page() : "Page"} ${currentPage}`
+        const nameToUse = bookmarkName.trim() || defaultName
+        await bookmarksStore.addBookmark(currentBookId, currentPage, nameToUse)
+        isBookmarkAddModalOpen = false
+        bookmarkName = ""
+    }
+
+    $effect(() => {
+        if (isBookmarkAddModalOpen) {
+            tick().then(() => {
+                const input = document.getElementById(
+                    "header-bookmark-name-input",
+                ) as HTMLInputElement | null
+                if (input) {
+                    input.focus()
+                    input.select()
+                }
+            })
+        }
+    })
 
     function saveCurrentNote() {
         const editorState = notesStore.editingNote
@@ -766,7 +862,14 @@
 
     $effect(() => {
         const currentUrl = url
-        if (!currentUrl) return
+        if (!currentUrl) {
+            untrack(() => {
+                isLoaded = false
+                pdf = null
+                isPageLoading = false
+            })
+            return
+        }
 
         let canceled = false
         let loadedDoc: PDFDocument | null = null
@@ -1603,6 +1706,8 @@
                             {isLoaded}
                             bind:isOutlineOpen={sidebars.left}
                             bind:isSettingsOpen={sidebars.settings}
+                            isBookmarked={isCurrentPageBookmarked}
+                            onBookmarkClick={handleBookmarkHeaderClick}
                             onClose={handleClose}
                         />
                     </div>
@@ -1686,56 +1791,18 @@
                         {/if}
 
                         {#if uiStore.isCompact && settingsStore.layout !== "scroll"}
-                                <div class="slider-track" style={sliderTrackStyle}>
-                                    <!-- Previous Slide -->
-                                    <div class="slider-slide prev-slide">
-                                        {#if prevPageImage}
-                                            <div
-                                                class="pages-container"
-                                                class:split-mode={settingsStore.layout === "split"}
-                                            >
-                                                {#if settingsStore.layout === "split" && prevPageImage2}
-                                                    <div class="book-spread">
-                                                        <div
-                                                            class="pdf-image-wrapper split-left"
-                                                            style={prevImageStyle1}
-                                                        >
-                                                            <img
-                                                                src={prevPageImage}
-                                                                class="pdf-image"
-                                                                alt={m.page_render_alt({
-                                                                    page:
-                                                                        viewerStore.currentPage -
-                                                                        (settingsStore.layout ===
-                                                                        "split"
-                                                                            ? 2
-                                                                            : 1),
-                                                                })}
-                                                            />
-                                                        </div>
-                                                        <div class="book-spine"></div>
-                                                        <div
-                                                            class="pdf-image-wrapper split-right"
-                                                            style={prevImageStyle2}
-                                                        >
-                                                            <img
-                                                                src={prevPageImage2}
-                                                                class="pdf-image"
-                                                                alt={m.page_render_alt({
-                                                                    page:
-                                                                        viewerStore.currentPage -
-                                                                        (settingsStore.layout ===
-                                                                        "split"
-                                                                            ? 2
-                                                                            : 1) +
-                                                                        1,
-                                                                })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                {:else}
+                            <div class="slider-track" style={sliderTrackStyle}>
+                                <!-- Previous Slide -->
+                                <div class="slider-slide prev-slide">
+                                    {#if prevPageImage}
+                                        <div
+                                            class="pages-container"
+                                            class:split-mode={settingsStore.layout === "split"}
+                                        >
+                                            {#if settingsStore.layout === "split" && prevPageImage2}
+                                                <div class="book-spread">
                                                     <div
-                                                        class="pdf-image-wrapper"
+                                                        class="pdf-image-wrapper split-left"
                                                         style={prevImageStyle1}
                                                     >
                                                         <img
@@ -1751,77 +1818,76 @@
                                                             })}
                                                         />
                                                     </div>
-                                                {/if}
-                                            </div>
-                                        {/if}
-                                    </div>
-
-                                    <!-- Current Slide -->
-                                    <div class="slider-slide current-slide">
-                                        <CanvasPane
-                                            {pdf}
-                                            scale={settingsStore.scale}
-                                            bind:currentPage={viewerStore.currentPage}
-                                            bind:scrollPosition={viewerStore.scrollPosition}
-                                            bind:container={scrollContainer}
-                                            {isPageLoading}
-                                            {currentPageImage}
-                                            {currentPageImage2}
-                                            layoutMode={settingsStore.layout}
-                                            {currentPageDim1}
-                                            {currentPageDim2}
-                                        />
-                                    </div>
-
-                                    <!-- Next Slide -->
-                                    <div class="slider-slide next-slide">
-                                        {#if nextPageImage}
-                                            <div
-                                                class="pages-container"
-                                                class:split-mode={settingsStore.layout === "split"}
-                                            >
-                                                {#if settingsStore.layout === "split" && nextPageImage2}
-                                                    <div class="book-spread">
-                                                        <div
-                                                            class="pdf-image-wrapper split-left"
-                                                            style={nextImageStyle1}
-                                                        >
-                                                            <img
-                                                                src={nextPageImage}
-                                                                class="pdf-image"
-                                                                alt={m.page_render_alt({
-                                                                    page:
-                                                                        viewerStore.currentPage +
-                                                                        (settingsStore.layout ===
-                                                                        "split"
-                                                                            ? 2
-                                                                            : 1),
-                                                                })}
-                                                            />
-                                                        </div>
-                                                        <div class="book-spine"></div>
-                                                        <div
-                                                            class="pdf-image-wrapper split-right"
-                                                            style={nextImageStyle2}
-                                                        >
-                                                            <img
-                                                                src={nextPageImage2}
-                                                                class="pdf-image"
-                                                                alt={m.page_render_alt({
-                                                                    page:
-                                                                        viewerStore.currentPage +
-                                                                        (settingsStore.layout ===
-                                                                        "split"
-                                                                            ? 2
-                                                                            : 1) +
-                                                                        1,
-                                                                })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                {:else}
+                                                    <div class="book-spine"></div>
                                                     <div
-                                                        class="pdf-image-wrapper"
+                                                        class="pdf-image-wrapper split-right"
+                                                        style={prevImageStyle2}
+                                                    >
+                                                        <img
+                                                            src={prevPageImage2}
+                                                            class="pdf-image"
+                                                            alt={m.page_render_alt({
+                                                                page:
+                                                                    viewerStore.currentPage -
+                                                                    (settingsStore.layout ===
+                                                                    "split"
+                                                                        ? 2
+                                                                        : 1) +
+                                                                    1,
+                                                            })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            {:else}
+                                                <div
+                                                    class="pdf-image-wrapper"
+                                                    style={prevImageStyle1}
+                                                >
+                                                    <img
+                                                        src={prevPageImage}
+                                                        class="pdf-image"
+                                                        alt={m.page_render_alt({
+                                                            page:
+                                                                viewerStore.currentPage -
+                                                                (settingsStore.layout === "split"
+                                                                    ? 2
+                                                                    : 1),
+                                                        })}
+                                                    />
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
+
+                                <!-- Current Slide -->
+                                <div class="slider-slide current-slide">
+                                    <CanvasPane
+                                        {pdf}
+                                        scale={settingsStore.scale}
+                                        bind:currentPage={viewerStore.currentPage}
+                                        bind:scrollPosition={viewerStore.scrollPosition}
+                                        bind:container={scrollContainer}
+                                        {isPageLoading}
+                                        {currentPageImage}
+                                        {currentPageImage2}
+                                        layoutMode={settingsStore.layout}
+                                        {currentPageDim1}
+                                        {currentPageDim2}
+                                    />
+                                </div>
+
+                                <!-- Next Slide -->
+                                <div class="slider-slide next-slide">
+                                    {#if nextPageImage}
+                                        <div
+                                            class="pages-container"
+                                            class:split-mode={settingsStore.layout === "split"}
+                                        >
+                                            {#if settingsStore.layout === "split" && nextPageImage2}
+                                                <div class="book-spread">
+                                                    <div
+                                                        class="pdf-image-wrapper split-left"
                                                         style={nextImageStyle1}
                                                     >
                                                         <img
@@ -1837,11 +1903,48 @@
                                                             })}
                                                         />
                                                     </div>
-                                                {/if}
-                                            </div>
-                                        {/if}
-                                    </div>
+                                                    <div class="book-spine"></div>
+                                                    <div
+                                                        class="pdf-image-wrapper split-right"
+                                                        style={nextImageStyle2}
+                                                    >
+                                                        <img
+                                                            src={nextPageImage2}
+                                                            class="pdf-image"
+                                                            alt={m.page_render_alt({
+                                                                page:
+                                                                    viewerStore.currentPage +
+                                                                    (settingsStore.layout ===
+                                                                    "split"
+                                                                        ? 2
+                                                                        : 1) +
+                                                                    1,
+                                                            })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            {:else}
+                                                <div
+                                                    class="pdf-image-wrapper"
+                                                    style={nextImageStyle1}
+                                                >
+                                                    <img
+                                                        src={nextPageImage}
+                                                        class="pdf-image"
+                                                        alt={m.page_render_alt({
+                                                            page:
+                                                                viewerStore.currentPage +
+                                                                (settingsStore.layout === "split"
+                                                                    ? 2
+                                                                    : 1),
+                                                        })}
+                                                    />
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/if}
                                 </div>
+                            </div>
                         {:else}
                             <div class="canvas-pane-wrapper">
                                 <CanvasPane
@@ -2120,6 +2223,61 @@
                     }}
                     onCancel={() => {
                         noteToDeleteId = null
+                    }}
+                />
+            {/if}
+
+            {#if isBookmarkAddModalOpen}
+                <BookmarkAddKeymaps
+                    onConfirm={handleConfirmAddBookmark}
+                    onCancel={() => (isBookmarkAddModalOpen = false)}
+                />
+                <Modal
+                    onClose={() => (isBookmarkAddModalOpen = false)}
+                    title={m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}
+                    autofocusClose={false}
+                >
+                    <div class="modal-form">
+                        <Input
+                            id="header-bookmark-name-input"
+                            placeholder={m.bookmark_name_placeholder
+                                ? m.bookmark_name_placeholder()
+                                : "Bookmark name..."}
+                            label={m.bookmark_page ? m.bookmark_page() : "Bookmark this page"}
+                            bind:value={bookmarkName}
+                            onkeydown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault()
+                                    handleConfirmAddBookmark()
+                                }
+                            }}
+                        />
+                        <div class="modal-actions">
+                            <Button variant="brutalist" onclick={handleConfirmAddBookmark}>
+                                {m.add_bookmark ? m.add_bookmark() : "Add"}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onclick={() => (isBookmarkAddModalOpen = false)}
+                            >
+                                {m.cancel ? m.cancel() : "Cancel"}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            {/if}
+
+            {#if bookmarkToDeleteId}
+                <DeleteConfirmModal
+                    message="Delete this bookmark?"
+                    onConfirm={async () => {
+                        if (bookmarkToDeleteId) {
+                            await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
+                        }
+                        bookmarkToDeleteId = null
+                    }}
+                    onCancel={() => {
+                        bookmarkToDeleteId = null
                     }}
                 />
             {/if}
@@ -2552,5 +2710,24 @@
         box-shadow: 5px 5px 0 var(--shadow-color);
         background: var(--accent-active-color);
         color: var(--text-color);
+    }
+
+    .modal-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        margin-top: 10px;
+        box-sizing: border-box;
+        padding: 0 24px 24px 24px;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-top: 8px;
     }
 </style>

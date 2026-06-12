@@ -528,15 +528,25 @@ class VFSStore {
         // PHASE 4 OPTIMIZATION: Use bulkDelete for efficient batch removal
         await this.db.transaction(
             "rw",
-            ["books", "folders", "previews", "fileContents", "indexedTexts"],
+            [
+                "books",
+                "folders",
+                "previews",
+                "fileContents",
+                "indexedTexts",
+                "userNotes",
+                "bookmarks",
+            ],
             async () => {
                 if (fileIds.length > 0) {
                     await this.db.files.bulkDelete(fileIds)
                     await this.db.previews.bulkDelete(fileIds)
                     await this.db.fileContents.bulkDelete(fileIds)
-                    await Promise.all(
-                        fileIds.map((fid) => this.db.indexedTexts.deleteByBookId(fid)),
-                    )
+                    await Promise.all([
+                        ...fileIds.map((fid) => this.db.indexedTexts.deleteByBookId(fid)),
+                        ...fileIds.map((fid) => this.db.userNotes.deleteByBookId(fid)),
+                        ...fileIds.map((fid) => this.db.bookmarks.deleteByBookId(fid)),
+                    ])
                 }
                 if (folderIds.length > 0) {
                     await this.db.folders.bulkDelete(folderIds)

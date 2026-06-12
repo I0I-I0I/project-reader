@@ -53,9 +53,21 @@
             document.body.style.overflow = originalOverflow
         }
     })
+
+    function portal(node: HTMLElement) {
+        document.body.appendChild(node)
+        return {
+            destroy() {
+                if (node.parentNode) {
+                    node.parentNode.removeChild(node)
+                }
+            },
+        }
+    }
 </script>
 
 <div
+    use:portal
     class="wrapper"
     class:align-top={align === "top"}
     style="height: {viewportHeight}; top: {viewportTop};"

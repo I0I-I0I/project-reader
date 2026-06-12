@@ -19,7 +19,7 @@
         gap: 8px;
         align-items: center;
         overflow-x: auto;
-        overflow-y: hidden;
+        overflow-y: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;
         -webkit-overflow-scrolling: touch;

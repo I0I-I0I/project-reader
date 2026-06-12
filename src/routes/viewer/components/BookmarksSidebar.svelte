@@ -1,22 +1,26 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Spinner from "$lib/components/ui/Spinner.svelte"
     import { cubicOut } from "svelte/easing"
     import {
         useCommands,
         getShortcutHint,
         type CommandNode,
     } from "$lib/stores/commandsStore.svelte"
-    import { getContext, untrack } from "svelte"
+    import { getContext, untrack, tick } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { notesStore } from "$lib/stores/notesStore.svelte"
+    import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
+    import type { Bookmark } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import EditIcon from "$lib/components/icons/EditIcon.svelte"
-    import type { UserNote } from "$lib/stores/vfsStore.types"
+    import BookmarkIcon from "$lib/components/icons/BookmarkIcon.svelte"
+    import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
+    import Modal from "$lib/components/ui/Modal.svelte"
+    import Input from "$lib/components/ui/Input.svelte"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
+    import BookmarkEditKeymaps from "./BookmarkEditKeymaps.svelte"
 
     let {
         onClose,
@@ -32,23 +36,66 @@
     let selectedIndex = $state(-1)
     let searchInputRef = $state<HTMLInputElement | undefined>()
     let contentRef = $state<HTMLElement | undefined>()
-    let noteToDeleteId = $state<string | null>(null)
     let isSearchFocused = $state(false)
 
-    let filteredNotes = $derived(
-        notesStore.notes.filter(
-            (n) =>
-                n.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                n.noteContent.toLowerCase().includes(searchQuery.toLowerCase()),
-        ),
+    // Inline editing state for items in list
+    let editingBookmarkId = $state<string | null>(null)
+    let editingName = $state("")
+    let bookmarkToDeleteId = $state<string | null>(null)
+
+    $effect(() => {
+        if (editingBookmarkId) {
+            tick().then(() => {
+                const input = document.getElementById(
+                    "edit-bookmark-name-input",
+                ) as HTMLInputElement | null
+                if (input) {
+                    input.focus()
+                    input.select()
+                }
+            })
+        }
+    })
+
+    let currentBook = $derived(viewerStore.getCurrentBook())
+    let currentBookId = $derived(currentBook?.id)
+    let currentPage = $derived(viewerStore.currentPage)
+
+    let isCurrentPageBookmarked = $derived(
+        currentBookId
+            ? bookmarksStore.bookmarks.some(
+                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
+              )
+            : false,
     )
 
-    function selectNote(note: UserNote) {
-        if (note.pageNumber !== undefined) {
-            notesStore.scrollingToNoteId = note.id
-            if (viewerStore.goToPage) {
-                viewerStore.goToPage(note.pageNumber, { isJump: true })
-            }
+    let currentPageBookmark = $derived(
+        currentBookId
+            ? bookmarksStore.bookmarks.find(
+                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
+              )
+            : null,
+    )
+
+    let filteredBookmarks = $derived(
+        bookmarksStore.bookmarks
+            .filter(
+                (b) =>
+                    b.bookId === currentBookId &&
+                    b.name.toLowerCase().includes(searchQuery.toLowerCase()),
+            )
+            .sort((a, b) => a.pageNumber - b.pageNumber),
+    )
+
+    async function handleSaveRename(id: string | null) {
+        if (!id || !editingName.trim()) return
+        await bookmarksStore.updateBookmark(id, editingName.trim())
+        editingBookmarkId = null
+    }
+
+    function selectBookmark(bookmark: any) {
+        if (bookmark.pageNumber !== undefined) {
+            viewerStore.goToPage(bookmark.pageNumber, { isJump: true })
             if (window.innerWidth <= 480) {
                 onClose()
             }
@@ -56,20 +103,21 @@
     }
 
     function navigateSelection(direction: "next" | "prev") {
-        if (filteredNotes.length === 0) return
+        if (filteredBookmarks.length === 0) return
         if (direction === "next") {
-            selectedIndex = (selectedIndex + 1) % filteredNotes.length
+            selectedIndex = (selectedIndex + 1) % filteredBookmarks.length
         } else {
-            selectedIndex = (selectedIndex - 1 + filteredNotes.length) % filteredNotes.length
+            selectedIndex =
+                (selectedIndex - 1 + filteredBookmarks.length) % filteredBookmarks.length
         }
     }
 
     function handleSearchKeydown(event: KeyboardEvent) {
         if (event.key === "Enter") {
             event.preventDefault()
-            const note = filteredNotes[selectedIndex]
-            if (note) {
-                selectNote(note)
+            const bookmark = filteredBookmarks[selectedIndex]
+            if (bookmark) {
+                selectBookmark(bookmark)
                 onClose()
             }
         } else if (event.key === "Escape") {
@@ -81,7 +129,7 @@
     function scrollSelectedIntoView() {
         requestAnimationFrame(() => {
             if (!contentRef) return
-            const selectedEl = contentRef.querySelector(".note-card.selected")
+            const selectedEl = contentRef.querySelector(".bookmark-card.selected")
             if (selectedEl) {
                 selectedEl.scrollIntoView({ block: "nearest" })
             }
@@ -91,7 +139,7 @@
     let lastQuery = ""
 
     $effect(() => {
-        if (!filteredNotes || filteredNotes.length === 0) return
+        if (!filteredBookmarks || filteredBookmarks.length === 0) return
 
         const currentQuery = searchQuery
         untrack(() => {
@@ -107,7 +155,7 @@
 
     $effect(() => {
         const _ = selectedIndex
-        const __ = filteredNotes.length
+        const __ = filteredBookmarks.length
         untrack(() => {
             scrollSelectedIntoView()
         })
@@ -121,28 +169,28 @@
             {
                 id: "close",
                 keys: ["ctrl+c", "ctrl+["],
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: () => {
                     onClose()
                 },
-                description: "Close Notes Sidebar",
+                description: "Close Bookmarks Sidebar",
                 allowInInputs: true,
             },
             {
                 id: "close-alt",
                 keys: ["escape", "q"],
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: () => {
                     onClose()
                 },
-                description: "Close Notes Sidebar",
+                description: "Close Bookmarks Sidebar",
                 allowInInputs: false,
             },
             {
                 id: "scroll-down",
                 keys: "j",
-                description: "Next Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Next Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -151,8 +199,8 @@
             {
                 id: "scroll-down-alt",
                 keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-                description: "Next Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Next Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("next")
@@ -162,8 +210,8 @@
             {
                 id: "scroll-up",
                 keys: "k",
-                description: "Previous Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Previous Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -172,8 +220,8 @@
             {
                 id: "scroll-up-alt",
                 keys: ["arrowup", "ctrl+p", "ctrl+k"],
-                description: "Previous Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Previous Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
                     navigateSelection("prev")
@@ -181,24 +229,24 @@
                 allowInInputs: true,
             },
             {
-                id: "select-note",
+                id: "select-bookmark",
                 keys: "enter",
-                description: "Jump to Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Jump to Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
-                    const note = filteredNotes[selectedIndex]
-                    if (note) {
-                        selectNote(note)
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        selectBookmark(bookmark)
                         onClose()
                     }
                 },
             },
             {
-                id: "search-notes",
+                id: "search-bookmarks",
                 keys: "/",
-                description: "Search Notes",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Search Bookmarks",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
                     searchInputRef?.focus()
@@ -206,57 +254,55 @@
                 },
             },
             {
-                id: "edit-selected-note",
+                id: "edit-selected-bookmark",
                 keys: "e",
-                description: "Edit Selected Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Edit Selected Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
-                    const note = filteredNotes[selectedIndex]
-                    if (note) {
-                        triggerEditKeyboard(note)
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        triggerEditKeyboard(bookmark)
                     }
                 },
             },
             {
-                id: "delete-selected-note",
+                id: "delete-selected-bookmark",
                 keys: "d",
-                description: "Delete Selected Note",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Delete Selected Bookmark",
+                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
-                    const note = filteredNotes[selectedIndex]
-                    if (note) {
-                        triggerDeleteKeyboard(note)
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        triggerDeleteKeyboard(bookmark)
                     }
                 },
             },
             {
-                id: "edit-selected-note-input",
+                id: "edit-selected-bookmark-input",
                 keys: "ctrl+e",
-                description: "Edit Selected Note",
-                disabled: () =>
-                    !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Edit Selected Bookmark",
+                disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
-                    const note = filteredNotes[selectedIndex]
-                    if (note) {
-                        triggerEditKeyboard(note)
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        triggerEditKeyboard(bookmark)
                     }
                 },
                 allowInInputs: true,
             },
             {
-                id: "delete-selected-note-input",
+                id: "delete-selected-bookmark-input",
                 keys: "ctrl+d",
-                description: "Delete Selected Note",
-                disabled: () =>
-                    !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
+                description: "Delete Selected Bookmark",
+                disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
                 action: (event) => {
                     event.preventDefault()
-                    const note = filteredNotes[selectedIndex]
-                    if (note) {
-                        triggerDeleteKeyboard(note)
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        triggerDeleteKeyboard(bookmark)
                     }
                 },
                 allowInInputs: true,
@@ -264,6 +310,15 @@
         ],
         activeNodeBeforeOpen,
     )
+
+    function triggerEditKeyboard(bookmark: Bookmark) {
+        editingBookmarkId = bookmark.id
+        editingName = bookmark.name
+    }
+
+    function triggerDeleteKeyboard(bookmark: Bookmark) {
+        bookmarkToDeleteId = bookmark.id
+    }
 
     function formatKey(keys: string | string[]): string {
         if (Array.isArray(keys)) {
@@ -350,7 +405,7 @@
         if (!sidebarCommandsNode) return ""
         const cmd = sidebarCommandsNode
             .getAllCommands()
-            .find((c) => c.id === "select-note" && c.keys)
+            .find((c) => c.id === "select-bookmark" && c.keys)
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
@@ -358,7 +413,7 @@
         if (!sidebarCommandsNode) return ""
         const cmd = sidebarCommandsNode
             .getAllCommands()
-            .find((c) => c.id === "search-notes" && c.keys)
+            .find((c) => c.id === "search-bookmarks" && c.keys)
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
@@ -369,7 +424,7 @@
         if (!sidebarCommandsNode) return ""
         const cmd = sidebarCommandsNode
             .getAllCommands()
-            .find((c) => c.id === "edit-selected-note" && c.keys)
+            .find((c) => c.id === "edit-selected-bookmark" && c.keys)
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
@@ -380,7 +435,7 @@
         if (!sidebarCommandsNode) return ""
         const cmd = sidebarCommandsNode
             .getAllCommands()
-            .find((c) => c.id === "delete-selected-note" && c.keys)
+            .find((c) => c.id === "delete-selected-bookmark" && c.keys)
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
@@ -393,182 +448,194 @@
             },
         }
     }
-
-    function formatTimestamp(timestamp: number): string {
-        return new Date(timestamp).toLocaleString(undefined, {
-            dateStyle: "short",
-            timeStyle: "short",
-        })
-    }
-
-    function triggerEdit(note: UserNote, e: MouseEvent) {
-        e.stopPropagation()
-        notesStore.editingNote = note
-        notesStore.editorCoords = { x: e.clientX, y: e.clientY }
-    }
-
-    function triggerDelete(note: UserNote, e: MouseEvent) {
-        e.stopPropagation()
-        noteToDeleteId = note.id
-    }
-
-    function triggerEditKeyboard(note: UserNote) {
-        notesStore.editingNote = note
-        notesStore.editorCoords = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-    }
-
-    function triggerDeleteKeyboard(note: UserNote) {
-        noteToDeleteId = note.id
-    }
 </script>
 
 {#snippet sidebarContent()}
-    <div class="sidebar-search">
-        <input
-            bind:this={searchInputRef}
-            type="text"
-            bind:value={searchQuery}
-            placeholder={`${m.search_notes_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
-            class="search-input"
-            onkeydown={handleSearchKeydown}
-            onfocus={() => {
-                isSearchFocused = true
-            }}
-            onblur={() => {
-                isSearchFocused = false
-            }}
-        />
-        {#if searchQuery}
-            <button
-                class="clear-search-btn"
-                onclick={() => {
-                    searchQuery = ""
-                    searchInputRef?.focus()
+    <div class="bookmarks-sidebar-wrapper">
+        <div class="sidebar-search">
+            <input
+                bind:this={searchInputRef}
+                type="text"
+                bind:value={searchQuery}
+                placeholder={`${m.search_bookmarks_placeholder ? m.search_bookmarks_placeholder() : "Search bookmarks in this book..."}${getShortcutHint(sidebarCommandsNode, "search-bookmarks")}`}
+                class="search-input"
+                onkeydown={handleSearchKeydown}
+                onfocus={() => {
+                    isSearchFocused = true
                 }}
-                aria-label={m.clear_search_aria()}
-            >
-                ×
-            </button>
-        {/if}
-    </div>
-
-    <div class="sidebar-content" bind:this={contentRef}>
-        {#if notesStore.notes.length === 0}
-            <div class="no-notes">
-                {m.no_notes()}
-            </div>
-        {:else if filteredNotes.length === 0}
-            <div class="no-notes">{m.no_matching_notes()}</div>
-        {:else}
-            <div class="notes-list">
-                {#each filteredNotes as note, index (note.id)}
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div
-                        class="note-card color-{note.color}"
-                        class:selected={index === selectedIndex}
-                        onclick={() => {
-                            selectNote(note)
-                            selectedIndex = index
-                        }}
-                    >
-                        <div class="note-card-header">
-                            <span class="note-page">Page {note.pageNumber}</span>
-                            <span class="note-date">{formatTimestamp(note.createdAt)}</span>
-                        </div>
-
-                        <blockquote class="note-highlight">
-                            "{note.text}"
-                        </blockquote>
-
-                        {#if note.noteContent}
-                            <div class="note-text-content">
-                                {note.noteContent}
-                            </div>
-                        {/if}
-
-                        <div class="note-card-actions">
-                            <button
-                                class="action-btn edit"
-                                onclick={(e) => triggerEdit(note, e)}
-                                title="Edit Note"
-                            >
-                                <EditIcon width="14" height="14" />
-                            </button>
-                            <button
-                                class="action-btn delete"
-                                onclick={(e) => triggerDelete(note, e)}
-                                title="Delete Highlight"
-                            >
-                                <TrashIcon width="14" height="14" />
-                            </button>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
-
-    {#if !uiStore.isCompact}
-        <div class="sidebar-footer-hint">
-            {#if navigateShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each navigateShortcuts as pair, i (pair.display)}
-                        {#if i > 0},
-                        {/if}<kbd>{pair.display}</kbd>
-                    {/each}
-                    Navigate
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if selectShortcut}
-                <span class="hint-item">
-                    <kbd>{selectShortcut}</kbd> Go
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if searchShortcut}
-                <span class="hint-item">
-                    <kbd>{searchShortcut}</kbd> Search
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if editShortcut}
-                <span class="hint-item">
-                    <kbd>{editShortcut}</kbd> Edit
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if deleteShortcut}
-                <span class="hint-item">
-                    <kbd>{deleteShortcut}</kbd> Delete
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if closeShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each closeShortcuts as shortcut, i (shortcut)}
-                        {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
-                    {/each}
-                    Close
-                </span>
+                onblur={() => {
+                    isSearchFocused = false
+                }}
+            />
+            {#if searchQuery}
+                <button
+                    class="clear-search-btn"
+                    onclick={() => {
+                        searchQuery = ""
+                        searchInputRef?.focus()
+                    }}
+                    aria-label={m.clear_search_aria ? m.clear_search_aria() : "Clear search"}
+                >
+                    ×
+                </button>
             {/if}
         </div>
-    {/if}
 
-    {#if noteToDeleteId}
-        <DeleteConfirmModal
-            message="Delete this highlight and note?"
-            onConfirm={() => {
-                if (noteToDeleteId) {
-                    notesStore.deleteNote(noteToDeleteId)
-                }
-                noteToDeleteId = null
-            }}
-            onCancel={() => {
-                noteToDeleteId = null
-            }}
-        />
-    {/if}
+        <div class="sidebar-content" bind:this={contentRef}>
+            {#if filteredBookmarks.length === 0}
+                <div class="no-bookmarks">
+                    {m.no_bookmarks ? m.no_bookmarks() : "No bookmarks saved yet"}
+                </div>
+            {:else}
+                <div class="bookmarks-list">
+                    {#each filteredBookmarks as bookmark, index (bookmark.id)}
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div
+                            class="bookmark-card"
+                            class:selected={index === selectedIndex}
+                            onclick={() => {
+                                selectBookmark(bookmark)
+                                selectedIndex = index
+                            }}
+                        >
+                            <div class="bookmark-card-header">
+                                <span class="bookmark-page">Page {bookmark.pageNumber}</span>
+                            </div>
+                            <div class="bookmark-text-content">
+                                {bookmark.name}
+                            </div>
+                            <div class="bookmark-card-actions">
+                                <button
+                                    class="action-btn edit"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        editingBookmarkId = bookmark.id
+                                        editingName = bookmark.name
+                                    }}
+                                    title={m.edit_bookmark ? m.edit_bookmark() : "Rename"}
+                                >
+                                    <EditIcon width="14" height="14" />
+                                </button>
+                                <button
+                                    class="action-btn delete"
+                                    onclick={(e) => {
+                                        e.stopPropagation()
+                                        bookmarkToDeleteId = bookmark.id
+                                    }}
+                                    title={m.remove_bookmark ? m.remove_bookmark() : "Delete"}
+                                >
+                                    <TrashIcon width="14" height="14" />
+                                </button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        </div>
+
+        {#if !uiStore.isCompact}
+            <div class="sidebar-footer-hint">
+                {#if navigateShortcuts.length > 0}
+                    <span class="hint-item">
+                        {#each navigateShortcuts as pair, i (pair.display)}
+                            {#if i > 0},
+                            {/if}<kbd>{pair.display}</kbd>
+                        {/each}
+                        Navigate
+                    </span>
+                    <span class="hint-divider">•</span>
+                {/if}
+                {#if selectShortcut}
+                    <span class="hint-item">
+                        <kbd>{selectShortcut}</kbd> Go
+                    </span>
+                    <span class="hint-divider">•</span>
+                {/if}
+                {#if searchShortcut}
+                    <span class="hint-item">
+                        <kbd>{searchShortcut}</kbd> Search
+                    </span>
+                    <span class="hint-divider">•</span>
+                {/if}
+                {#if editShortcut}
+                    <span class="hint-item">
+                        <kbd>{editShortcut}</kbd> Edit
+                    </span>
+                    <span class="hint-divider">•</span>
+                {/if}
+                {#if deleteShortcut}
+                    <span class="hint-item">
+                        <kbd>{deleteShortcut}</kbd> Delete
+                    </span>
+                    <span class="hint-divider">•</span>
+                {/if}
+                {#if closeShortcuts.length > 0}
+                    <span class="hint-item">
+                        {#each closeShortcuts as shortcut, i (shortcut)}
+                            {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
+                        {/each}
+                        Close
+                    </span>
+                {/if}
+            </div>
+        {/if}
+
+        {#if editingBookmarkId}
+            <BookmarkEditKeymaps
+                onConfirm={() => handleSaveRename(editingBookmarkId)}
+                onCancel={() => (editingBookmarkId = null)}
+            />
+            <Modal
+                onClose={() => (editingBookmarkId = null)}
+                title={m.rename_bookmark ? m.rename_bookmark() : "Rename Bookmark"}
+                autofocusClose={false}
+            >
+                <div class="modal-form">
+                    <Input
+                        id="edit-bookmark-name-input"
+                        placeholder={m.bookmark_name_placeholder
+                            ? m.bookmark_name_placeholder()
+                            : "Bookmark name..."}
+                        label={m.rename_bookmark ? m.rename_bookmark() : "Rename Bookmark"}
+                        bind:value={editingName}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleSaveRename(editingBookmarkId)
+                            }
+                        }}
+                    />
+                    <div class="modal-actions">
+                        <Button
+                            variant="brutalist"
+                            onclick={() => handleSaveRename(editingBookmarkId)}
+                        >
+                            {m.save ? m.save() : "Save"}
+                        </Button>
+                        <Button variant="ghost" onclick={() => (editingBookmarkId = null)}>
+                            {m.cancel ? m.cancel() : "Cancel"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+        {/if}
+
+        {#if bookmarkToDeleteId}
+            <DeleteConfirmModal
+                message="Delete this bookmark?"
+                onConfirm={async () => {
+                    if (bookmarkToDeleteId) {
+                        await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
+                    }
+                    bookmarkToDeleteId = null
+                }}
+                onCancel={() => {
+                    bookmarkToDeleteId = null
+                }}
+            />
+        {/if}
+    </div>
 {/snippet}
 
 {#if minimal}
@@ -577,13 +644,13 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-        class="notes-sidebar"
+        class="bookmarks-sidebar"
         transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
         onmouseleave={onMouseLeave}
         onclick={(e) => e.stopPropagation()}
     >
         <div class="sidebar-header">
-            <h3>Notes & Highlights</h3>
+            <h3>{m.bookmarks ? m.bookmarks() : "Bookmarks"}</h3>
             <Button
                 variant="close"
                 size="small"
@@ -601,12 +668,19 @@
 {/if}
 
 <style>
-    .notes-sidebar {
+    .bookmarks-sidebar-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .bookmarks-sidebar {
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 320px;
+        width: 380px;
         background: color-mix(in srgb, var(--surface-color) 85%, transparent);
         backdrop-filter: blur(16px);
         border-right: 3px solid var(--border-color);
@@ -695,11 +769,10 @@
         flex: 1;
         overflow-y: auto;
         padding: 12px;
-        background: transparent;
         overscroll-behavior: contain;
     }
 
-    .no-notes {
+    .no-bookmarks {
         padding: 24px;
         text-align: center;
         font-size: 13px;
@@ -708,54 +781,36 @@
         line-height: 1.5;
     }
 
-    .notes-list {
+    .bookmarks-list {
         display: flex;
         flex-direction: column;
         gap: 12px;
     }
 
-    .note-card {
+    .bookmark-card {
         background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 3px 3px 0 var(--shadow-color);
         padding: 10px;
         cursor: pointer;
         transition: all 0.15s ease-out;
-        border-left-width: 6px;
         display: flex;
         flex-direction: column;
         gap: 6px;
     }
 
-    .note-card:hover {
+    .bookmark-card:hover {
         transform: translate(-1px, -1px);
         box-shadow: 4px 4px 0 var(--shadow-color);
     }
 
-    .note-card.selected {
+    .bookmark-card.selected {
         background: var(--accent-color);
         border-color: var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
     }
 
-    /* Colors mapped */
-    .note-card.color-yellow {
-        border-left-color: rgb(255, 235, 59);
-    }
-    .note-card.color-green {
-        border-left-color: rgb(76, 175, 80);
-    }
-    .note-card.color-blue {
-        border-left-color: rgb(33, 150, 243);
-    }
-    .note-card.color-pink {
-        border-left-color: rgb(233, 30, 99);
-    }
-    .note-card.color-purple {
-        border-left-color: rgb(156, 39, 176);
-    }
-
-    .note-card-header {
+    .bookmark-card-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -765,11 +820,11 @@
         color: var(--faded-text-color);
     }
 
-    .note-card.selected .note-card-header {
+    .bookmark-card.selected .bookmark-card-header {
         color: var(--text-color);
     }
 
-    .note-page {
+    .bookmark-page {
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
         border: 1px solid var(--border-color);
@@ -777,61 +832,42 @@
         border-radius: 2px;
     }
 
-    .note-highlight {
-        margin: 0;
-        font-style: italic;
-        font-size: 11px;
-        color: var(--text-color);
-        background: rgba(0, 0, 0, 0.03);
-        padding: 4px 8px;
-        border-left: 2px solid var(--border-color);
-        max-height: 120px;
-        overflow-y: auto;
-        word-break: break-word;
-    }
-
-    .note-text-content {
-        font-size: 12px;
+    .bookmark-text-content {
+        font-size: 13px;
         font-weight: 700;
         color: var(--text-color);
         line-height: 1.4;
         word-break: break-word;
     }
 
-    .note-card-actions {
+    .bookmark-card-actions {
         display: flex;
         justify-content: flex-end;
         gap: 6px;
-        opacity: 0.7;
-        transition: opacity 0.15s ease;
-    }
-
-    .note-card:hover .note-card-actions {
-        opacity: 1;
+        margin-top: 4px;
     }
 
     .action-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
+        background: var(--surface-color);
+        border: 2px solid var(--border-color);
+        box-shadow: 1px 1px 0 var(--shadow-color);
         padding: 4px;
-        color: var(--text-color);
+        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 2px;
-        border: 1px solid transparent;
+        color: var(--text-color);
         transition: all 0.1s ease;
     }
 
     .action-btn:hover {
-        background: var(--accent-color);
-        border-color: var(--border-color);
+        transform: translate(-1px, -1px);
+        box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
-    .action-btn.delete:hover {
-        color: #e53935;
-        background: rgba(229, 57, 53, 0.1);
+    .action-btn:active {
+        transform: translate(1px, 1px);
+        box-shadow: 0 0 0 var(--shadow-color);
     }
 
     .sidebar-footer-hint {
@@ -862,43 +898,22 @@
         font-weight: 900;
     }
 
-    .hint-divider {
-        opacity: 0.5;
+    .modal-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        margin-top: 10px;
+        box-sizing: border-box;
+        padding: 0 24px 24px 24px;
     }
 
-    .hint-item {
-        line-height: 1.5;
-    }
-
-    @media (max-width: 640px) {
-        .notes-sidebar {
-            width: 100%;
-            border-right: none;
-        }
-
-        .note-card-actions {
-            opacity: 1;
-        }
-
-        .action-btn {
-            padding: 8px;
-        }
-
-        .sidebar-search {
-            padding: 6px 12px;
-        }
-
-        .search-input {
-            padding: 6px 28px 6px 10px;
-            font-size: 14px;
-        }
-
-        .clear-search-btn {
-            right: 18px;
-        }
-
-        .note-card {
-            padding: 14px;
-        }
+    .modal-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-top: 8px;
     }
 </style>

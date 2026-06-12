@@ -222,13 +222,23 @@
         const p2 = layoutMode === "split" ? currentPage + 1 : null
 
         untrack(() => {
-            pdf!.getPageDimension(p1).then((dim: { width: number; height: number }) => {
-                fallbackPageDim1 = dim
-            })
-            if (p2 && p2 <= pdf!.pagesCount) {
-                pdf!.getPageDimension(p2).then((dim: { width: number; height: number }) => {
-                    fallbackPageDim2 = dim
+            pdf!
+                .getPageDimension(p1)
+                .then((dim: { width: number; height: number }) => {
+                    fallbackPageDim1 = dim
                 })
+                .catch((err: any) => {
+                    console.warn("[CanvasPane] Failed to get page dimension for page 1:", err)
+                })
+            if (p2 && p2 <= pdf!.pagesCount) {
+                pdf!
+                    .getPageDimension(p2)
+                    .then((dim: { width: number; height: number }) => {
+                        fallbackPageDim2 = dim
+                    })
+                    .catch((err: any) => {
+                        console.warn("[CanvasPane] Failed to get page dimension for page 2:", err)
+                    })
             } else {
                 fallbackPageDim2 = null
             }
@@ -241,9 +251,13 @@
         if (pdf && layoutMode === "scroll") {
             let active = true
             const loadDimensions = async () => {
-                const dims = await pdf.getAllPageDimensions()
-                if (active) {
-                    pageDimensions = dims
+                try {
+                    const dims = await pdf.getAllPageDimensions()
+                    if (active) {
+                        pageDimensions = dims
+                    }
+                } catch (err) {
+                    console.warn("[CanvasPane] Failed to load all page dimensions:", err)
                 }
             }
             loadDimensions()
@@ -527,9 +541,10 @@
             if (hasRestoredScroll) return
 
             const targetScrollPosition = scrollPosition
-            if (targetScrollPosition === 0) {
+            if (targetScrollPosition === 0 && layoutMode !== "scroll") {
                 lastObservedPage = currentPage
                 container!.scrollTo({ top: 0, left: 0, behavior: "auto" })
+                lastUpdatedScrollTop = 0
                 hasRestoredScroll = true
                 return
             }
@@ -546,6 +561,7 @@
                         behavior: "auto",
                     })
                     scrollTop = targetScrollTop
+                    lastUpdatedScrollTop = targetScrollTop
                 }
             } else {
                 const pageEl = container!.querySelector(
@@ -554,17 +570,20 @@
                 if (pageEl) {
                     const pageHeight = pageEl.offsetHeight
                     const pageTop = pageEl.offsetTop
+                    const targetScrollTop = pageTop + targetScrollPosition * pageHeight
                     container!.scrollTo({
-                        top: pageTop + targetScrollPosition * pageHeight,
+                        top: targetScrollTop,
                         left: 0,
                         behavior: "auto",
                     })
+                    lastUpdatedScrollTop = targetScrollTop
                 } else {
                     container!.scrollTo({
                         top: 0,
                         left: 0,
                         behavior: "auto",
                     })
+                    lastUpdatedScrollTop = 0
                 }
             }
             lastObservedPage = currentPage

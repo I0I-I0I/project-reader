@@ -7,6 +7,7 @@
         children?: Snippet
         Icon?: Component
         tooltip?: string
+        tooltipAlign?: "left" | "right" | "center"
         variant?: "action" | "fab" | "brutalist" | "ghost" | "none" | "close"
         size?: "none" | "small" | "default" | "large"
         square?: boolean
@@ -18,6 +19,7 @@
         children,
         Icon,
         tooltip,
+        tooltipAlign,
         title,
         variant = "action",
         size = "default",
@@ -38,7 +40,7 @@
         defaultHorizontal: "center",
     })
     const tooltipClass = $derived(
-        `tooltip-${floating.vertical} tooltip-align-${floating.horizontal}`,
+        `tooltip-${floating.vertical} tooltip-align-${tooltipAlign || floating.horizontal}`,
     )
 
     function handleMouseEnter(e: any) {

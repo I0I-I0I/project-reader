@@ -23,6 +23,7 @@
     import NavigationIcon from "./icons/NavigationIcon.svelte"
     import MenuIcon from "./icons/MenuIcon.svelte"
     import SearchNoResultsIcon from "./icons/SearchNoResultsIcon.svelte"
+    import BookmarkIcon from "./icons/BookmarkIcon.svelte"
 
     interface Props {
         onClose: () => void
@@ -390,6 +391,16 @@
                                             ? item.id.substring(5)
                                             : item.id}
                                     />
+                                {:else if item.category === "bookmarks"}
+                                    {#if item.bookId}
+                                        <PromptBookPreview bookId={item.bookId}>
+                                            {#snippet fallback()}
+                                                <BookmarkIcon class="item-icon bookmarks" />
+                                            {/snippet}
+                                        </PromptBookPreview>
+                                    {:else}
+                                        <BookmarkIcon class="item-icon bookmarks" />
+                                    {/if}
                                 {:else if item.category === "commands"}
                                     <CommandIcon class="item-icon command" />
                                 {:else if item.category === "settings"}
@@ -865,6 +876,17 @@
     :global(html.dark) .category-badge.menu {
         border-color: #a29bfe;
         color: #a29bfe;
+    }
+
+    .category-badge.bookmarks {
+        border-color: #e17055;
+        background: rgba(225, 112, 85, 0.08);
+        color: #e17055;
+    }
+
+    :global(html.dark) .category-badge.bookmarks {
+        border-color: #fab1a0;
+        color: #fab1a0;
     }
 
     .shortcut-keys {

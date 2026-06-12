@@ -4,12 +4,13 @@ export interface SearchItem {
     id: string
     title: string
     subtitle?: string
-    category: "books" | "commands" | "settings" | "navigation" | "menu"
+    category: "books" | "commands" | "settings" | "navigation" | "menu" | "bookmarks"
     keys?: string | string[]
     action: (opts?: { asJump?: boolean }) => void
     pageNumber?: number
     englishTitle?: string
     englishSubtitle?: string
+    bookId?: string
 }
 
 export type PromptProvider = (context: { value: string; mode: string }) => SearchItem[]

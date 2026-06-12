@@ -5,9 +5,11 @@
     import SettingsIcon from "$lib/components/icons/SettingsIcon.svelte"
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/components/icons/MinusIcon.svelte"
+    import BookmarkPlusIcon from "$lib/components/icons/BookmarkPlusIcon.svelte"
+    import BookmarkIcon from "$lib/components/icons/BookmarkIcon.svelte"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
-    import { onMount, getContext } from "svelte"
+    import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
         type CommandNode,
@@ -19,14 +21,16 @@
         isLoaded,
         isOutlineOpen = $bindable(),
         isSettingsOpen = $bindable(),
-        isNotesOpen = $bindable(),
+        isBookmarked = false,
+        onBookmarkClick,
         onClose,
     } = $props<{
         name: string
         isLoaded: boolean
         isOutlineOpen?: boolean
         isSettingsOpen?: boolean
-        isNotesOpen?: boolean
+        isBookmarked?: boolean
+        onBookmarkClick?: () => void
         onClose: () => void
     }>()
 
@@ -83,6 +87,28 @@
                     <PlusIcon />
                 </Button>
             {/if}
+            {#if isBookmarked}
+                <Button
+                    class="remove-bookmark-btn"
+                    variant="action"
+                    square={true}
+                    onclick={onBookmarkClick}
+                    aria-label={m.remove_bookmark ? m.remove_bookmark() : "Remove Bookmark"}
+                    tooltip={`${m.remove_bookmark ? m.remove_bookmark() : "Remove Bookmark"}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                >
+                    <BookmarkIcon />
+                </Button>
+            {:else}
+                <Button
+                    variant="action"
+                    square={true}
+                    onclick={onBookmarkClick}
+                    aria-label={m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}
+                    tooltip={`${m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                >
+                    <BookmarkPlusIcon />
+                </Button>
+            {/if}
             <Button
                 variant="action"
                 square={uiStore.isCompact}
@@ -110,6 +136,14 @@
 </div>
 
 <style>
+    :global(
+        .viewer-header
+            .remove-bookmark-btn:hover:not(:disabled):not(:active):not(.active):not(.open)
+    ) {
+        background: var(--danger-active-color, #ff4d4d) !important;
+        color: var(--danger-text-color, #ffffff) !important;
+    }
+
     .viewer-header {
         display: flex;
         justify-content: space-between;

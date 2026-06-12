@@ -251,14 +251,22 @@ export class KeyboardHandler {
 export class CommandRegistry {
     parent = $state.raw<CommandRegistry | null>(null)
     commands = $state.raw<Command[]>([])
+    isDestroyed = $state(false)
 
     allCommands = $derived.by(() => {
         const list: Command[] = []
+        if (this.isDestroyed) {
+            return list
+        }
         const seenIds = new Set<string>()
         const seenKeys = new Set<string>()
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         let current: CommandRegistry | null = this
         while (current) {
+            if (current.isDestroyed) {
+                current = current.parent
+                continue
+            }
             for (const command of current.commands) {
                 const isDisabled =
                     typeof command.disabled === "function" ? command.disabled() : !!command.disabled
@@ -453,13 +461,18 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
 
         const unregisterAll = node.registerAll(shortcuts)
         return () => {
+            node.isDestroyed = true
             unregisterAll()
             const activeCurrent = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
             if (activeCurrent === node || (activeCurrent && node.isAncestorOf(activeCurrent))) {
+                let targetParent = node.parent
+                while (targetParent && targetParent.isDestroyed) {
+                    targetParent = targetParent.parent
+                }
                 if (setActiveNode) {
-                    setActiveNode(node.parent)
+                    setActiveNode(targetParent)
                 } else {
-                    commandDispatcher.activeRegistry = node.parent
+                    commandDispatcher.activeRegistry = targetParent
                 }
             }
         }

@@ -67,3 +67,11 @@ export interface UserNote {
     color: "yellow" | "green" | "blue" | "pink" | "purple"
     createdAt: number
 }
+
+export interface Bookmark {
+    id: string
+    bookId: string
+    pageNumber: number
+    name: string
+    createdAt: number
+}

@@ -136,7 +136,7 @@
             </div>
         </div>
         <div class="card-metadata">
-            <p class="card-title">{m.import_pdf()}</p>
+            <p class="card-title">{m.import_file()}</p>
             <p class="card-author">&nbsp;</p>
         </div>
     </button>
@@ -145,7 +145,7 @@
         class="reader-card"
         class:drag-active={isDragging}
         role="region"
-        aria-label={m.pdf_drop_zone()}
+        aria-label={m.file_drop_zone()}
         ondragenter={handleDragEnter}
         ondragleave={handleDragLeave}
         ondragover={handleDragOver}
@@ -156,10 +156,10 @@
                 <div class="upload-icon-wrapper" aria-hidden="true">
                     <PlusIcon width="48" height="48" />
                 </div>
-                <h3>{m.import_pdf()}</h3>
+                <h3>{m.import_file()}</h3>
                 <p>{m.upload_p_text()}</p>
                 <button type="button" class="btn upload-btn" onclick={handleImportClick}>
-                    {m.choose_pdf()}
+                    {m.choose_file()}
                 </button>
             </div>
         </div>

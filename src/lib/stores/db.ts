@@ -6,6 +6,7 @@ import type {
     FileContent,
     IndexedText,
     UserNote,
+    Bookmark,
 } from "./vfsStore.types"
 
 export type TableName =
@@ -15,6 +16,7 @@ export type TableName =
     | "fileContents"
     | "indexedTexts"
     | "userNotes"
+    | "bookmarks"
 
 export async function migrateVersion2(tx: Transaction) {
     await tx.table("books").each(async (book) => {
@@ -93,6 +95,17 @@ interface IDBUserNotes {
     deleteByBookId(bookId: string): Promise<void>
 }
 
+interface IDBBookmarks {
+    get(id: string): Promise<Bookmark | undefined>
+    put(record: Bookmark): Promise<string>
+    bulkPut(records: Bookmark[]): Promise<string>
+    delete(id: string): Promise<void>
+    bulkDelete(ids: string[]): Promise<void>
+    getByBookId(bookId: string): Promise<Bookmark[]>
+    deleteByBookId(bookId: string): Promise<void>
+    getAll(): Promise<Bookmark[]>
+}
+
 export interface IDatabase {
     files: IDBBooks
     previews: IDBBookPreviews
@@ -100,6 +113,7 @@ export interface IDatabase {
     fileContents: IDBFileContents
     indexedTexts: IDBIndexedTexts
     userNotes: IDBUserNotes
+    bookmarks: IDBBookmarks
     transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T>
 }
 
@@ -110,6 +124,7 @@ const db = new Dexie("Database") as Dexie & {
     fileContents: EntityTable<FileContent, "id">
     indexedTexts: EntityTable<IndexedText, "id">
     userNotes: EntityTable<UserNote, "id">
+    bookmarks: EntityTable<Bookmark, "id">
 }
 
 db.version(1).stores({
@@ -142,6 +157,16 @@ db.version(4).stores({
     fileContents: "id",
     indexedTexts: "id, bookId",
     userNotes: "id, bookId, pageNumber",
+})
+
+db.version(5).stores({
+    books: "id",
+    previews: "id",
+    folders: "id",
+    fileContents: "id",
+    indexedTexts: "id, bookId",
+    userNotes: "id, bookId, pageNumber",
+    bookmarks: "id, bookId, pageNumber",
 })
 
 class DBBooks implements IDBBooks {
@@ -273,6 +298,33 @@ class DBFolders implements IDBFolders {
     }
 }
 
+class DBBookmarks implements IDBBookmarks {
+    get(id: string): Promise<Bookmark | undefined> {
+        return db.bookmarks.get(id)
+    }
+    put(record: Bookmark): Promise<string> {
+        return db.bookmarks.put(record)
+    }
+    bulkPut(records: Bookmark[]): Promise<string> {
+        return db.bookmarks.bulkPut(records)
+    }
+    delete(id: string): Promise<void> {
+        return db.bookmarks.delete(id)
+    }
+    bulkDelete(ids: string[]): Promise<void> {
+        return db.bookmarks.bulkDelete(ids)
+    }
+    getByBookId(bookId: string): Promise<Bookmark[]> {
+        return db.bookmarks.where("bookId").equals(bookId).toArray()
+    }
+    async deleteByBookId(bookId: string): Promise<void> {
+        await db.bookmarks.where("bookId").equals(bookId).delete()
+    }
+    getAll(): Promise<Bookmark[]> {
+        return db.bookmarks.toArray()
+    }
+}
+
 export class Database implements IDatabase {
     files = new DBBooks()
     previews = new DBBookPreviews()
@@ -280,6 +332,7 @@ export class Database implements IDatabase {
     fileContents = new DBFileContents()
     indexedTexts = new DBIndexedTexts()
     userNotes = new DBUserNotes()
+    bookmarks = new DBBookmarks()
 
     transaction<T>(mode: "r" | "rw", tables: TableName[], callback: () => Promise<T>): Promise<T> {
         return db.transaction(mode, tables, callback)

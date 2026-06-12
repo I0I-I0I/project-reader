@@ -14,6 +14,8 @@
     import TabItem from "$lib/components/ui/TabItem.svelte"
     import OutlineSidebar from "./OutlineSidebar.svelte"
     import NotesSidebar from "./NotesSidebar.svelte"
+    import BookmarksSidebar from "./BookmarksSidebar.svelte"
+    import BookmarkIcon from "$lib/components/icons/BookmarkIcon.svelte"
 
     let {
         activeTab = $bindable("outline"),
@@ -25,7 +27,7 @@
         scrollPosition = $bindable(),
         activeHeadings,
     } = $props<{
-        activeTab: "outline" | "notes"
+        activeTab: "outline" | "notes" | "bookmarks"
         onClose: () => void
         onMouseLeave?: (e: MouseEvent) => void
         isOutlineLoading: boolean
@@ -74,6 +76,13 @@
                 Icon={NoteIcon}
                 title={m.notes_highlights()}
             />
+            <TabItem
+                active={activeTab === "bookmarks"}
+                onclick={() => (activeTab = "bookmarks")}
+                label={m.bookmarks ? m.bookmarks() : "Bookmarks"}
+                Icon={BookmarkIcon}
+                title={m.bookmarks ? m.bookmarks() : "Bookmarks"}
+            />
         </Tabs>
         <Button
             variant="close"
@@ -100,7 +109,9 @@
                 onCloseOutline={onClose}
             />
         {:else if activeTab === "notes"}
-            <NotesSidebar minimal={true} onClose={onClose} />
+            <NotesSidebar minimal={true} {onClose} />
+        {:else if activeTab === "bookmarks"}
+            <BookmarksSidebar minimal={true} {onClose} />
         {/if}
     </div>
 </div>
@@ -169,4 +180,3 @@
         }
     }
 </style>
-

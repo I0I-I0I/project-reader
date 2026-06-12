@@ -12,6 +12,7 @@ import { localizedPath, switchLanguage, type AppLocale } from "$lib/language"
 import type { SearchItem } from "$lib/stores/promptStore.svelte"
 import { CommandRegistry, getPrimaryKeysString } from "$lib/stores/commandsStore.svelte"
 import type { FolderNode, FileNode } from "$lib/stores/vfsStore.types"
+import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
 
 const reverseTranslationMap = new Map<string, string>()
 let isMapInitialized = false
@@ -375,6 +376,31 @@ export function getCommandsPromptItems(activeNode: CommandRegistry | null): Sear
                 },
             })
         }
+    }
+    return list
+}
+
+export function getBookmarksPromptItems(): SearchItem[] {
+    const list: SearchItem[] = []
+    for (const bookmark of bookmarksStore.bookmarks) {
+        const bookNode = vfsStore.nodes[bookmark.bookId]
+        const bookName = bookNode ? bookNode.name : "Unknown Book"
+        list.push({
+            id: `bookmark-${bookmark.id}`,
+            title: bookmark.name,
+            subtitle: `${bookName} / ${m.page ? m.page() : "Page"} ${bookmark.pageNumber}`,
+            category: "bookmarks",
+            bookId: bookmark.bookId,
+            action: async () => {
+                uiStore.prompt.isOpen = false
+                uiStore.prompt.mode = "global"
+                if (bookNode && bookNode.type === "file") {
+                    await viewerStore.setCurrentBook(fileNodeToBook(bookNode))
+                    viewerStore.goToPage(bookmark.pageNumber, { isJump: true })
+                    goto(localizedPath("/viewer"))
+                }
+            },
+        })
     }
     return list
 }

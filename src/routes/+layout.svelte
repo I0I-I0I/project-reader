@@ -34,7 +34,9 @@
         getLanguagePromptItems,
         getFilesPromptItems,
         getCommandsPromptItems,
+        getBookmarksPromptItems,
     } from "$lib/stores/promptProviders.svelte"
+    import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
 
     let { children } = $props()
 
@@ -171,6 +173,18 @@
             category: "navigation",
         },
         {
+            id: "search-bookmarks",
+            keys: "shift+b",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.prompt.mode = "bookmarks"
+                uiStore.prompt.isOpen = true
+            },
+            description: m.search_bookmarks ? m.search_bookmarks() : "Search bookmarks",
+            englishDescription: "Search bookmarks",
+            category: "menu",
+        },
+        {
             keys: "?",
             action: () => {
                 isHelpOpen = !isHelpOpen
@@ -246,6 +260,7 @@
         // 3. Normal initialization
         vfsStore.init().then(async () => {
             await viewerStore.syncWithBooks()
+            await bookmarksStore.loadAllBookmarks()
 
             // Restore last visited URL if landing on the root page with no search params
             if (page.url.pathname === "/" && page.url.search === "") {
@@ -292,6 +307,9 @@
         if (uiStore.prompt.mode === "folders") {
             return m.keymap_go_to_folder ? m.keymap_go_to_folder() + "..." : "Go to folder..."
         }
+        if (uiStore.prompt.mode === "bookmarks") {
+            return m.search_bookmarks ? m.search_bookmarks() + "..." : "Search bookmarks..."
+        }
         return m.prompt_placeholder()
     })
 
@@ -315,6 +333,9 @@
         }
         if (mode === "files" || mode === "global" || mode === "files-recursive") {
             list.push(...getFilesPromptItems(mode))
+        }
+        if (mode === "bookmarks" || mode === "global") {
+            list.push(...getBookmarksPromptItems())
         }
         if (mode === "global") {
             list.push(...getCommandsPromptItems(currentActiveNode || rootNode))

@@ -3,7 +3,11 @@
     import * as m from "$lib/paraglide/messages"
     import Modal from "./ui/Modal.svelte"
     import Button from "./ui/Button.svelte"
-    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import {
+        useCommands,
+        type CommandNode,
+        getShortcutHint,
+    } from "$lib/stores/commandsStore.svelte"
 
     let {
         title = m.delete_confirmation_title(),
@@ -28,9 +32,10 @@
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    useCommands(
+    const commandsNode = useCommands(
         [
             {
+                id: "confirm-delete",
                 keys: "enter",
                 action: (event) => {
                     event.preventDefault()
@@ -39,6 +44,7 @@
                 description: m.delete(),
             },
             {
+                id: "cancel-delete",
                 keys: ["escape", "ctrl+c", "ctrl+["],
                 action: (event) => {
                     event.preventDefault()
@@ -69,10 +75,20 @@
         </p>
 
         <div class="modal-actions">
-            <Button variant="brutalist" class="modal-delete-btn" onclick={handleConfirm}>
+            <Button
+                variant="brutalist"
+                class="modal-delete-btn"
+                onclick={handleConfirm}
+                tooltip={`${m.delete()}${getShortcutHint(commandsNode, "confirm-delete")}`}
+            >
                 {m.delete()}
             </Button>
-            <Button variant="ghost" onclick={handleCancel}>
+            <Button
+                variant="ghost"
+                onclick={handleCancel}
+                tooltip={`${m.cancel()}${getShortcutHint(commandsNode, "cancel-delete")}`}
+                tooltipAlign="right"
+            >
                 {m.cancel()}
             </Button>
         </div>
