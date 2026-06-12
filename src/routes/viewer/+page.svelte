@@ -1357,10 +1357,12 @@
         if (swipeState === "undecided") {
             const absX = Math.abs(diffX)
             const absY = Math.abs(diffY)
-            if (absX > 8 || absY > 8) {
+            // Use a smaller threshold (4px) to lock into swiping faster and prevent double-movement jitter
+            if (absX > 4 || absY > 4) {
                 if (absX > absY) {
                     const { isScrollable, atLeftEdge, atRightEdge } = checkScrollAndZoomState()
                     if (isScrollable) {
+                        // When zoomed in, only allow swipes in the direction of the edge
                         if (diffX > 0 && atLeftEdge) {
                             swipeState = "swiping"
                         } else if (diffX < 0 && atRightEdge) {
@@ -1423,14 +1425,22 @@
         const deltaTime = Date.now() - touchStartTime
 
         const threshold = 50 // minimum distance in px
-        const maxDiagonal = 100 // maximum perpendicular deviation in px
         const maxTime = 300 // maximum duration in ms
+
+        // Use visual viewport width for the threshold if zoomed in, to make it easier to swipe
+        const viewportWidth = window.visualViewport
+            ? window.visualViewport.width
+            : window.innerWidth
+        const viewportHeight = window.visualViewport
+            ? window.visualViewport.height
+            : window.innerHeight
+        const maxDiagonal = Math.min(100, viewportHeight * 0.2) // tighter diagonal threshold when zoomed in
 
         const isSwipe =
             (deltaTime < maxTime &&
                 Math.abs(deltaX) > threshold &&
                 Math.abs(deltaY) < maxDiagonal) ||
-            Math.abs(deltaX) > window.innerWidth * 0.3
+            Math.abs(deltaX) > viewportWidth * 0.3
 
         if (isSwipe) {
             const isNext = deltaX < 0

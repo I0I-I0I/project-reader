@@ -529,7 +529,7 @@
             const targetScrollPosition = scrollPosition
             if (targetScrollPosition === 0) {
                 lastObservedPage = currentPage
-                container!.scrollTo({ top: 0, behavior: "auto" })
+                container!.scrollTo({ top: 0, left: 0, behavior: "auto" })
                 hasRestoredScroll = true
                 return
             }
@@ -542,6 +542,7 @@
                     const targetScrollTop = pageTop + targetScrollPosition * pageHeight
                     container!.scrollTo({
                         top: targetScrollTop,
+                        left: 0,
                         behavior: "auto",
                     })
                     scrollTop = targetScrollTop
@@ -555,11 +556,13 @@
                     const pageTop = pageEl.offsetTop
                     container!.scrollTo({
                         top: pageTop + targetScrollPosition * pageHeight,
+                        left: 0,
                         behavior: "auto",
                     })
                 } else {
                     container!.scrollTo({
                         top: 0,
+                        left: 0,
                         behavior: "auto",
                     })
                 }
