@@ -4,7 +4,6 @@
     import BookImporter from "$lib/components/BookImporter.svelte"
     import BookIcon from "$lib/components/icons/BookIcon.svelte"
     import TerminalIcon from "$lib/components/icons/TerminalIcon.svelte"
-    import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
     import Breadcrumbs from "$lib/components/ui/Breadcrumbs.svelte"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
@@ -26,7 +25,6 @@
     import { localizedPath } from "$lib/language"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { fileNodeToBook } from "$lib/stores/viewerStore.types"
-    import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
     import type { FileNode, VFSNode } from "$lib/stores/vfsStore.types"
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
@@ -35,13 +33,7 @@
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
 
-    const currentNodes = $derived(
-        [...vfsStore.currentNodes].sort((a, b) => {
-            if (a.type === "folder" && b.type !== "folder") return -1
-            if (a.type !== "folder" && b.type === "folder") return 1
-            return b.updatedAt - a.updatedAt
-        }),
-    )
+    const currentNodes = $derived(vfsStore.sortedCurrentNodes)
 
     let pickerKeyBuffer = $state("")
     const currentHints = $derived(generateHints(currentNodes.length, PICKER_KEYS))
@@ -67,10 +59,6 @@
         if (vfsStore.currentFolderId !== resolvedId) {
             vfsStore.currentFolderId = resolvedId
         }
-
-        untrack(() => {
-            jumplistStore.pushFolderJump(resolvedId)
-        })
     })
 
     let breadcrumbs = $derived.by(() => {
@@ -245,6 +233,14 @@
             })
         }
     })
+
+    $effect(() => {
+        if (!uiStore.isPickingMode) {
+            untrack(() => {
+                pickerKeyBuffer = ""
+            })
+        }
+    })
 </script>
 
 <div class="container">
@@ -356,19 +352,6 @@
     {#if uiStore.isCompact && !uiStore.isSelectionMode}
         <div class="mobile-controls-container">
             <button
-                class="mobile-jump-btn back"
-                onclick={async (e) => {
-                    e.stopPropagation()
-                    await jumplistStore.jumpBack()
-                }}
-                disabled={jumplistStore.currentIndex <= 0}
-                aria-label={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
-                title={m.keymap_jump_back ? m.keymap_jump_back() : "Jump back"}
-            >
-                <ChevronIcon style="transform: rotate(90deg);" />
-            </button>
-
-            <button
                 class="mobile-prompt-btn"
                 onclick={() => {
                     uiStore.prompt.mode = "global"
@@ -378,19 +361,6 @@
                 title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
             >
                 <TerminalIcon />
-            </button>
-
-            <button
-                class="mobile-jump-btn forward"
-                onclick={async (e) => {
-                    e.stopPropagation()
-                    await jumplistStore.jumpForward()
-                }}
-                disabled={jumplistStore.currentIndex >= jumplistStore.jumps.length - 1}
-                aria-label={m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}
-                title={m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward"}
-            >
-                <ChevronIcon style="transform: rotate(-90deg);" />
             </button>
         </div>
     {/if}
@@ -455,18 +425,6 @@
         box-sizing: border-box;
     }
 
-    .selection-info {
-        display: flex;
-        align-items: center;
-    }
-
-    .selection-count {
-        font-weight: 900;
-        font-size: 14px;
-        text-transform: uppercase;
-        color: var(--danger-active-color);
-    }
-
     .selection-actions {
         display: flex;
         align-items: stretch;
@@ -510,10 +468,6 @@
             padding: 0;
             justify-content: center;
         }
-
-        .selection-info {
-            justify-content: flex-start;
-        }
     }
 
     .mobile-controls-container {
@@ -555,42 +509,5 @@
     .mobile-prompt-btn :global(svg) {
         width: 18px;
         height: 18px;
-    }
-
-    .mobile-jump-btn {
-        width: 40px;
-        height: 40px;
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--text-color);
-        padding: 0;
-        transition:
-            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .mobile-jump-btn:active:not(:disabled) {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--surface-hover-color);
-    }
-
-    .mobile-jump-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        transform: translate(1px, 1px);
-    }
-
-    .mobile-jump-btn :global(svg) {
-        width: 16px;
-        height: 16px;
     }
 </style>

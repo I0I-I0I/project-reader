@@ -29,7 +29,7 @@ export const CONSTANTS: Constants = {
 export const DEFAULT_SETTINGS: Settings = {
     layout: "scroll",
     scale: 1.5,
-    quality: 3,
+    quality: 2,
     theme: "system",
     language: "ru",
     animations: true,
@@ -53,6 +53,10 @@ class SettingsStore {
                     console.error("Failed to parse settings from localStorage", e)
                 }
             } else {
+                // Auto-detect optimal quality based on device pixel ratio (capped at 2)
+                const dpr = window.devicePixelRatio || 1
+                this.settings.quality = Math.min(Math.max(Math.floor(dpr), 1), 2)
+
                 this.theme = (localStorage.getItem("theme") as Theme) || "system"
 
                 const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")

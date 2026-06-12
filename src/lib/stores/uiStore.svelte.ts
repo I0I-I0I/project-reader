@@ -13,7 +13,6 @@ type PromptMode =
     | "files-recursive"
     | "folders"
     | "search"
-    | "jumplist"
 
 class PromptState {
     #mode = $state<PromptMode>("global")
@@ -98,6 +97,7 @@ class UIStore {
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])
     #isCompact = $state(false)
+    #isShortHeight = $state(false)
     #nodeToMoveId = $state<string | null>(null)
     #isEditMetadataModalOpen = $state(false)
     #nodeToEditMetadataId = $state<string | null>(null)
@@ -126,6 +126,13 @@ class UIStore {
             } else if ((mediaQueryList as any).addListener) {
                 ;(mediaQueryList as any).addListener(checkCompact)
             }
+
+            const shortHeightMql = window.matchMedia("(max-height: 500px)")
+            const checkShortHeight = () => {
+                this.#isShortHeight = shortHeightMql.matches
+            }
+            checkShortHeight()
+            shortHeightMql.addEventListener("change", checkShortHeight)
         }
     }
 
@@ -148,9 +155,12 @@ class UIStore {
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
-        if (!value && this.prompt.mode === "move") {
-            this.prompt.isOpen = false
-            this.prompt.mode = "global"
+        if (!value) {
+            this.#isPickingMode = false
+            if (this.prompt.mode === "move") {
+                this.prompt.isOpen = false
+                this.prompt.mode = "global"
+            }
         }
     }
 
@@ -220,6 +230,10 @@ class UIStore {
 
     get isCompact(): boolean {
         return this.#isCompact
+    }
+
+    get isShortHeight(): boolean {
+        return this.#isShortHeight
     }
 
     get isSearchModeActive(): boolean {

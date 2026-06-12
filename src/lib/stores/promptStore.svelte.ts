@@ -6,7 +6,7 @@ export interface SearchItem {
     subtitle?: string
     category: "books" | "commands" | "settings" | "navigation" | "menu"
     keys?: string | string[]
-    action: () => void
+    action: (opts?: { asJump?: boolean }) => void
     pageNumber?: number
     englishTitle?: string
     englishSubtitle?: string
@@ -80,7 +80,10 @@ export function usePrompt(provider: PromptProvider, overrideParent?: PromptNode 
             if (setActiveNode) {
                 if (getActiveNode) {
                     const currentActive = getActiveNode()
-                    if (currentActive === node) {
+                    if (
+                        currentActive === node ||
+                        (currentActive && node.isAncestorOf(currentActive))
+                    ) {
                         setActiveNode(parentNode)
                     }
                 } else {

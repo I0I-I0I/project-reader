@@ -28,22 +28,8 @@
         onClose: () => void
     }>()
 
-    let isShortHeight = $state(false)
+    let isShortHeight = $derived(uiStore.isShortHeight)
     const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
-
-    onMount(() => {
-        const heightQuery = window.matchMedia("(max-height: 500px)")
-        isShortHeight = heightQuery.matches
-
-        const heightHandler = (e: MediaQueryListEvent) => {
-            isShortHeight = e.matches
-        }
-        heightQuery.addEventListener("change", heightHandler)
-
-        return () => {
-            heightQuery.removeEventListener("change", heightHandler)
-        }
-    })
 </script>
 
 <div class="viewer-header">

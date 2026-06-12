@@ -27,21 +27,7 @@
         onClose: () => void
     }>()
 
-    let isShortHeight = $state(browser ? window.matchMedia("(max-height: 500px)").matches : false)
-
-    onMount(() => {
-        const heightQuery = window.matchMedia("(max-height: 500px)")
-        isShortHeight = heightQuery.matches
-
-        const heightHandler = (e: MediaQueryListEvent) => {
-            isShortHeight = e.matches
-        }
-        heightQuery.addEventListener("change", heightHandler)
-
-        return () => {
-            heightQuery.removeEventListener("change", heightHandler)
-        }
-    })
+    let isShortHeight = $derived(uiStore.isShortHeight)
 
     function upScale() {
         settingsStore.scale = Math.min(settingsStore.scale + 0.25, CONSTANTS.maxScale)

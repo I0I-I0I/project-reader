@@ -131,11 +131,7 @@
 
     let searchResults = $derived.by(() => {
         const query = value.trim()
-        if (
-            uiStore.prompt.mode === "page" ||
-            uiStore.prompt.mode === "search" ||
-            uiStore.prompt.mode === "jumplist"
-        ) {
+        if (uiStore.prompt.mode === "page" || uiStore.prompt.mode === "search") {
             return allItems.map((item) => ({ item, matches: [] }))
         }
         if (query === "") {
@@ -150,8 +146,8 @@
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    function handleSelection(item: SearchItem) {
-        item.action()
+    function handleSelection(item: SearchItem, opts?: { asJump?: boolean }) {
+        item.action(opts)
         if (uiStore.prompt.isOpen) {
             const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
             if (promptInput) {
@@ -211,7 +207,7 @@
                     event.preventDefault()
                     const selected = searchResults[selectedIndex]
                     if (selected) {
-                        handleSelection(selected.item)
+                        handleSelection(selected.item, { asJump: true })
                     }
                 },
                 description: "",
@@ -311,7 +307,7 @@
                     if (searchResults.length === 0) return
                     const selected = searchResults[selectedIndex]
                     if (selected) {
-                        handleSelection(selected.item)
+                        handleSelection(selected.item, { asJump: true })
                     }
                 }}
             >

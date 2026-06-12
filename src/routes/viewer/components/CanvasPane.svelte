@@ -21,6 +21,7 @@
         currentPageImage2 = null,
         currentPage = $bindable(),
         scrollPosition = $bindable(),
+        container = $bindable(null),
         layoutMode = "single",
         scale = settingsStore.scale,
         pdf,
@@ -32,6 +33,7 @@
         currentPageImage2?: string | null
         currentPage: number
         scrollPosition: number
+        container?: HTMLElement | null
         layoutMode?: "single" | "split" | "scroll"
         scale?: number
         pdf: PDFDocument | null
@@ -40,23 +42,9 @@
     }>()
 
     let containerWidth = $state(0)
-    let isShortHeight = $state(false)
+    let isShortHeight = $derived(uiStore.isShortHeight)
     let hasInitiallyFit = false
     let hasRestoredScroll = false
-
-    $effect(() => {
-        const heightQuery = window.matchMedia("(max-height: 500px)")
-        isShortHeight = heightQuery.matches
-
-        const heightHandler = (e: MediaQueryListEvent) => {
-            isShortHeight = e.matches
-        }
-        heightQuery.addEventListener("change", heightHandler)
-
-        return () => {
-            heightQuery.removeEventListener("change", heightHandler)
-        }
-    })
 
     function fitToWidth() {
         if (!pdf || containerWidth <= 0) return
@@ -180,7 +168,6 @@
         return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height};`
     })
 
-    let container = $state<HTMLElement | null>(null)
     let isAutoScrolling = false
     let lastObservedPage = $state(-1)
     let autoScrollTimeout: ReturnType<typeof setTimeout> | undefined
@@ -282,10 +269,12 @@
 
     let lastUpdatedScrollTop = 0
     let scrollEndTimeout: ReturnType<typeof setTimeout> | undefined
+    let rafId: number | null = null
 
     $effect(() => {
         return () => {
             if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+            if (rafId !== null) cancelAnimationFrame(rafId)
         }
     })
 
@@ -358,36 +347,41 @@
         if (!hasRestoredScroll) return
 
         const target = e.target as HTMLElement
-        const currentScrollTop = target.scrollTop
-        const currentContainerHeight = target.clientHeight
 
         if (isAutoScrolling) return
 
-        let shouldUpdate = false
-        let foundPage = currentPage
+        // Throttle updates using requestAnimationFrame for smoother performance
+        if (rafId === null) {
+            rafId = requestAnimationFrame(() => {
+                rafId = null
 
-        if (layoutMode === "scroll") {
-            if (pageOffsets.length === 0) return
-            if (lastObservedPage === -1) return
+                let shouldUpdate = false
+                const currentScrollTop = target.scrollTop
+                const currentContainerHeight = target.clientHeight
 
-            const viewportMiddle = currentScrollTop + currentContainerHeight / 2
+                if (layoutMode === "scroll") {
+                    if (pageOffsets.length === 0) return
+                    if (lastObservedPage === -1) return
 
-            foundPage = findPageAtOffset(viewportMiddle)
+                    const viewportMiddle = currentScrollTop + currentContainerHeight / 2
+                    const foundPage = findPageAtOffset(viewportMiddle)
 
-            if (
-                foundPage !== currentPage ||
-                Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30
-            ) {
-                shouldUpdate = true
-            }
-        } else {
-            if (Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30) {
-                shouldUpdate = true
-            }
-        }
+                    if (
+                        foundPage !== currentPage ||
+                        Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30
+                    ) {
+                        shouldUpdate = true
+                    }
+                } else {
+                    if (Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30) {
+                        shouldUpdate = true
+                    }
+                }
 
-        if (shouldUpdate) {
-            syncScrollState(currentScrollTop, currentContainerHeight, target.scrollHeight)
+                if (shouldUpdate) {
+                    syncScrollState(currentScrollTop, currentContainerHeight, target.scrollHeight)
+                }
+            })
         }
 
         if (typeof window !== "undefined" && !("onscrollend" in window)) {
@@ -417,19 +411,31 @@
         let startIdx = 0
         let endIdx = pageDimensions.length - 1
 
-        for (let i = 0; i < pageOffsets.length; i++) {
-            const bottom = pageOffsets[i] + getPageHeight(pageDimensions[i]) + PAGE_GAP
-            if (bottom > renderTop) {
-                startIdx = i
-                break
+        // Use binary search to find startIdx
+        let low = 0
+        let high = pageOffsets.length - 1
+        while (low <= high) {
+            const mid = (low + high) >> 1
+            const top = pageOffsets[mid]
+            const height = getPageHeight(pageDimensions[mid])
+            if (top + height + PAGE_GAP > renderTop) {
+                startIdx = mid
+                high = mid - 1
+            } else {
+                low = mid + 1
             }
         }
 
-        for (let i = startIdx; i < pageOffsets.length; i++) {
-            const top = pageOffsets[i]
-            if (top > renderBottom) {
-                endIdx = i - 1
-                break
+        // Use binary search to find endIdx
+        low = startIdx
+        high = pageOffsets.length - 1
+        while (low <= high) {
+            const mid = (low + high) >> 1
+            if (pageOffsets[mid] < renderBottom) {
+                endIdx = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
             }
         }
 
@@ -503,6 +509,9 @@
     $effect(() => {
         if (!container || !pdf || isPageLoading) return
         if (layoutMode === "scroll" && pageOffsets.length === 0) return
+
+        // Register currentPage as a dependency ONLY when NOT in scroll layout
+        const _page = layoutMode !== "scroll" ? currentPage : null
 
         untrack(() => {
             if (hasRestoredScroll) return
@@ -702,13 +711,22 @@
                 }
             }
 
+            const findSpanByOffset = (ranges: any[], offset: number) => {
+                let lo = 0,
+                    hi = ranges.length - 1
+                while (lo <= hi) {
+                    const mid = (lo + hi) >>> 1
+                    const entry = ranges[mid]
+                    if (entry.end <= offset) lo = mid + 1
+                    else if (entry.start > offset) hi = mid - 1
+                    else return entry
+                }
+                return null
+            }
+
             matches.forEach((match) => {
-                const startEntry = spanRanges!.find(
-                    (entry) => entry.start <= match.start && entry.end > match.start,
-                )
-                const endEntry = spanRanges!.find(
-                    (entry) => entry.start <= match.end && entry.end >= match.end,
-                )
+                const startEntry = findSpanByOffset(spanRanges!, match.start)
+                const endEntry = findSpanByOffset(spanRanges!, match.end)
 
                 if (startEntry && endEntry) {
                     try {

@@ -5,7 +5,12 @@ declare global {
         // interface Error {}
         // interface Locals {}
         // interface PageData {}
-        // interface PageState {}
+        interface PageState {
+            _pdfjump?: boolean
+            page?: number
+            scrollPosition?: number
+            bookId?: string
+        }
         // interface Platform {}
     }
 

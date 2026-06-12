@@ -67,6 +67,7 @@ class SearchStore {
     private pageRanges = new SvelteMap<number, Range[]>()
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
+    private worker: Worker | null = null
 
     initPdf(pdf: PDFDocument) {
         if (this.currentPdf === pdf) return
@@ -91,6 +92,11 @@ class SearchStore {
             this.currentSearchAbortController = null
         }
 
+        if (this.worker) {
+            this.worker.terminate()
+            this.worker = null
+        }
+
         this.isIndexing = false
     }
 
@@ -109,19 +115,25 @@ class SearchStore {
             // 1. Try to load from IndexedDB first
             const cachedTexts = await vfsStore.db.indexedTexts.getByBookId(bookId)
             if (cachedTexts && cachedTexts.length > 0 && this.currentPdf === pdf) {
+                const tempMap = new Map<number, { original: string; lower: string }>()
                 for (const record of cachedTexts) {
-                    this.pageTexts.set(record.pageNumber, {
+                    tempMap.set(record.pageNumber, {
                         original: record.text,
                         lower: record.text.toLowerCase(),
                     })
+                }
+                // Batch update to SvelteMap
+                for (const [pageNum, text] of tempMap) {
+                    this.pageTexts.set(pageNum, text)
                 }
                 return
             }
 
             // 2. If not cached, extract page text in parallel
-            const limit = pLimit(5)
+            const limit = pLimit(2)
             const tasks: Promise<void>[] = []
             const recordsToSave: { pageNumber: number; text: string }[] = []
+            const localTexts = new Map<number, { original: string; lower: string }>()
 
             for (let i = 1; i <= totalPages; i++) {
                 const pageNum = i
@@ -130,18 +142,26 @@ class SearchStore {
                         if (this.currentPdf !== pdf) return
                         const textContent = await pdf.getTextContent(pageNum, true)
                         const text = textContent.items.map((item: any) => item.str).join("")
-                        this.pageTexts.set(pageNum, {
+                        const lower = text.toLowerCase()
+                        localTexts.set(pageNum, {
                             original: text,
-                            lower: text.toLowerCase(),
+                            lower,
                         })
                         recordsToSave.push({ pageNumber: pageNum, text })
-                        // Yield to keep the browser responsive
-                        await new Promise((resolve) => setTimeout(resolve, 0))
+                        // Yield to keep the browser responsive (approx one frame)
+                        await new Promise((resolve) => setTimeout(resolve, 4))
                     }),
                 )
             }
 
             await Promise.all(tasks)
+
+            // Batch update the reactive map once all tasks are complete
+            if (this.currentPdf === pdf) {
+                for (const [pageNum, text] of localTexts) {
+                    this.pageTexts.set(pageNum, text)
+                }
+            }
 
             // 3. Persist the extracted text in IndexedDB in batch
             if (this.currentPdf === pdf && recordsToSave.length > 0) {
@@ -187,87 +207,65 @@ class SearchStore {
 
         this.isSearching = true
         this.searchTimeoutId = setTimeout(() => {
-            this.runAsyncSearch(trimmed)
+            this.runWorkerSearch(trimmed)
         }, 150)
     }
 
-    private async runAsyncSearch(q: string) {
+    private async runWorkerSearch(q: string) {
+        if (!browser) return
+
+        if (!this.worker) {
+            const SearchWorker = (await import("../searchWorker?worker")).default
+            this.worker = new SearchWorker()
+        }
+
         const controller = new AbortController()
         this.currentSearchAbortController = controller
-        const signal = controller.signal
 
-        const matchesList: SearchMatch[] = []
         this.matches = []
         this._currentMatchIndex = -1
         this.isSearching = true
 
-        const qLower = q.toLowerCase()
-        let lastYieldTime = performance.now()
-        let lastUpdateTime = performance.now()
+        // Convert SvelteMap to plain object for worker transfer
+        const pageTextsObj: Record<number, { lower: string }> = {}
+        for (const [pageNum, page] of this.pageTexts.entries()) {
+            pageTextsObj[pageNum] = { lower: page.lower }
+        }
 
-        try {
-            for (const [pageNumber, page] of this.pageTexts.entries()) {
-                if (signal.aborted) return
+        this.worker.onmessage = (e) => {
+            if (controller.signal.aborted) return
+            const { type, payload } = e.data
+            if (type === "results") {
+                const { matches, isPartial } = payload
+                this.matches = matches
 
-                const lowerText = page.lower
-                let idx = lowerText.indexOf(qLower)
-                let pageMatchesFound = false
-
-                while (idx !== -1) {
-                    matchesList.push({
-                        pageNumber,
-                        start: idx,
-                        end: idx + qLower.length,
-                    })
-                    pageMatchesFound = true
-
-                    if (matchesList.length >= 10000) {
-                        break
-                    }
-                    idx = lowerText.indexOf(qLower, idx + 1)
-                }
-
-                const now = performance.now()
-                if (pageMatchesFound && now - lastUpdateTime > 100) {
-                    this.matches = [...matchesList]
-                    const startPage = this.searchStartPage ?? 1
-                    const nearestIdx = this.findNearestMatchIndex(this.matches, startPage)
-                    if (nearestIdx !== -1 && nearestIdx !== this._currentMatchIndex) {
-                        this._currentMatchIndex = nearestIdx
-                        this.goToCurrentMatch()
-                    }
-                    this.updateCSSHighlights()
-                    lastUpdateTime = now
-                }
-
-                if (matchesList.length >= 10000) {
-                    break
-                }
-
-                if (performance.now() - lastYieldTime > 16) {
-                    await new Promise((resolve) => setTimeout(resolve, 0))
-                    lastYieldTime = performance.now()
-                    if (signal.aborted) return
-                }
-            }
-
-            if (!signal.aborted) {
-                this.matches = matchesList
                 const startPage = this.searchStartPage ?? 1
                 const nearestIdx = this.findNearestMatchIndex(this.matches, startPage)
-                if (nearestIdx !== -1) {
+                if (nearestIdx !== -1 && nearestIdx !== this._currentMatchIndex) {
                     this._currentMatchIndex = nearestIdx
+                    this.goToCurrentMatch()
                 }
                 this.updateCSSHighlights()
-            }
-        } catch (e) {
-            console.error("[SearchStore] Error during async search:", e)
-        } finally {
-            if (this.currentSearchAbortController === controller) {
-                this.isSearching = false
-                this.currentSearchAbortController = null
+
+                if (!isPartial) {
+                    this.isSearching = false
+                    this.currentSearchAbortController = null
+                }
             }
         }
+
+        this.worker.postMessage({
+            type: "search",
+            payload: {
+                query: q,
+                pageTexts: pageTextsObj,
+                searchStartPage: this.searchStartPage ?? 1,
+            },
+        })
+    }
+
+    private async runAsyncSearch(q: string) {
+        await this.runWorkerSearch(q)
     }
 
     next() {
@@ -336,14 +334,30 @@ class SearchStore {
         return null
     }
 
+    private highlightUpdatePending = false
+
     registerPageRanges(pageNumber: number, ranges: Range[]) {
         this.pageRanges.set(pageNumber, ranges)
-        this.updateCSSHighlights()
+        this.queueHighlightUpdate()
     }
 
     unregisterPageRanges(pageNumber: number) {
         if (this.pageRanges.has(pageNumber)) {
             this.pageRanges.delete(pageNumber)
+            this.queueHighlightUpdate()
+        }
+    }
+
+    private queueHighlightUpdate() {
+        if (this.highlightUpdatePending) return
+        this.highlightUpdatePending = true
+        if (typeof requestAnimationFrame !== "undefined") {
+            requestAnimationFrame(() => {
+                this.highlightUpdatePending = false
+                this.updateCSSHighlights()
+            })
+        } else {
+            this.highlightUpdatePending = false
             this.updateCSSHighlights()
         }
     }

@@ -158,12 +158,7 @@
     )
 
     function formatKeys(keyStr: string): string[] {
-        if (keyStr === "+") return ["+"]
-        if (keyStr.endsWith("++")) {
-            const base = keyStr.slice(0, -2)
-            return [...base.split("+").map((k) => k.trim()), "+"]
-        }
-        return keyStr.split("+").map((k) => k.trim())
+        return KeyboardHandler.getFormattedParts(keyStr)
     }
 
     function getShortcutsArray(keys: string | string[]): string[] {

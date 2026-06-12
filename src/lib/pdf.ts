@@ -1,6 +1,7 @@
 import * as pdfjs from "pdfjs-dist"
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
+import { BREAKPOINTS } from "./breakpoints"
 
 export class Page {
     constructor(public pageNumber: number) {}
@@ -66,20 +67,27 @@ export default class PDFDocument implements DocumentInterface {
     public defaultHeight: number | null = null
     private pageDimensionsCache = new Map<number, { width: number; height: number }>()
     private pageCache = new Map<number, string>()
-    private pageCacheOrder: number[] = []
+    private isMobile = false
     private get maxPageCacheSize(): number {
-        return typeof window !== "undefined" && window.innerWidth < 800 ? 4 : 10
+        return this.isMobile ? 4 : 10
     }
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
-    private pageProxyCacheOrder: number[] = []
     private pageProxyPromises = new Map<number, Promise<pdfjs.PDFPageProxy>>()
     private get maxPageProxyCacheSize(): number {
-        return typeof window !== "undefined" && window.innerWidth < 800 ? 4 : 10
+        return this.isMobile ? 4 : 10
     }
     private outlineCache: FlatHeading[] | null = null
 
-    constructor(public url: string) {}
+    constructor(public url: string) {
+        if (typeof window !== "undefined") {
+            const mql = window.matchMedia(`(max-width: ${BREAKPOINTS.MOBILE}px)`)
+            this.isMobile = mql.matches
+            mql.addEventListener("change", (e) => {
+                this.isMobile = e.matches
+            })
+        }
+    }
 
     async load(_quality: number = 1): Promise<PDFDocument> {
         try {
@@ -167,7 +175,7 @@ export default class PDFDocument implements DocumentInterface {
     async getAllPageDimensions(): Promise<{ width: number; height: number }[]> {
         const dimensions: { width: number; height: number }[] = []
         const totalPages = this.pageCount
-        const chunkSize = 20
+        const chunkSize = 10 // Reduced chunk size for better responsiveness
 
         for (let i = 1; i <= totalPages; i += chunkSize) {
             const end = Math.min(i + chunkSize - 1, totalPages)
@@ -177,6 +185,9 @@ export default class PDFDocument implements DocumentInterface {
             }
             const chunkDims = await Promise.all(tasks)
             dimensions.push(...chunkDims)
+
+            // Yield to main thread after each chunk (approx one frame)
+            await new Promise((resolve) => setTimeout(resolve, 4))
         }
 
         return dimensions
@@ -247,21 +258,31 @@ export default class PDFDocument implements DocumentInterface {
 
         const flatHeadings = this.parseOutline(outline)
 
-        const resolvedHeadings = await Promise.all(
-            flatHeadings.map(async (heading) => {
-                let pageNumber: number | undefined = undefined
-                const dest = heading.dest
+        const resolvedHeadings: FlatHeading[] = []
+        const CHUNK = 20
+        for (let i = 0; i < flatHeadings.length; i += CHUNK) {
+            const batch = flatHeadings.slice(i, i + CHUNK)
+            const resolved = await Promise.all(
+                batch.map(async (heading) => {
+                    let pageNumber: number | undefined = undefined
+                    const dest = heading.dest
 
-                if (dest) {
-                    pageNumber = await this.resolveDestinationToPage(dest)
-                }
+                    if (dest) {
+                        pageNumber = await this.resolveDestinationToPage(dest)
+                    }
 
-                return {
-                    ...heading,
-                    pageNumber,
-                }
-            }),
-        )
+                    return {
+                        ...heading,
+                        pageNumber,
+                    }
+                }),
+            )
+            resolvedHeadings.push(...resolved)
+            if (i + CHUNK < flatHeadings.length) {
+                // Yield to main thread
+                await new Promise((resolve) => setTimeout(resolve, 4))
+            }
+        }
 
         this.outlineCache = resolvedHeadings
         return resolvedHeadings
@@ -277,9 +298,10 @@ export default class PDFDocument implements DocumentInterface {
 
         const cacheKey = page.pageNumber
         if (this.pageCache.has(cacheKey)) {
-            this.pageCacheOrder = this.pageCacheOrder.filter((k) => k !== cacheKey)
-            this.pageCacheOrder.push(cacheKey)
-            return this.pageCache.get(cacheKey)!
+            const url = this.pageCache.get(cacheKey)!
+            this.pageCache.delete(cacheKey)
+            this.pageCache.set(cacheKey, url)
+            return url
         }
 
         let pdfPage: pdfjs.PDFPageProxy | null = null
@@ -324,16 +346,21 @@ export default class PDFDocument implements DocumentInterface {
 
             if (signal?.aborted) throw new Error("Rendering cancelled")
 
-            const blob = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, "image/webp", 0.9),
-            )
+            const blob = await new Promise<Blob | null>((resolve) => {
+                if (typeof requestIdleCallback !== "undefined") {
+                    requestIdleCallback(() => canvas.toBlob(resolve, "image/webp", 0.9), {
+                        timeout: 1000,
+                    })
+                } else {
+                    canvas.toBlob(resolve, "image/webp", 0.9)
+                }
+            })
             if (!blob) throw new Error("Failed to create blob from canvas")
 
             pdfPage.cleanup()
 
             const blobUrl = URL.createObjectURL(blob)
             this.pageCache.set(cacheKey, blobUrl)
-            this.pageCacheOrder.push(cacheKey)
             this.enforcePageCacheLimit()
             return blobUrl
         } catch (err: any) {
@@ -353,9 +380,10 @@ export default class PDFDocument implements DocumentInterface {
     async getPageProxy(pageNumber: number): Promise<pdfjs.PDFPageProxy> {
         const pdfDoc = this.getRequiredPdfDoc()
         if (this.pageProxyCache.has(pageNumber)) {
-            this.pageProxyCacheOrder = this.pageProxyCacheOrder.filter((num) => num !== pageNumber)
-            this.pageProxyCacheOrder.push(pageNumber)
-            return this.pageProxyCache.get(pageNumber)!
+            const page = this.pageProxyCache.get(pageNumber)!
+            this.pageProxyCache.delete(pageNumber)
+            this.pageProxyCache.set(pageNumber, page)
+            return page
         }
 
         if (this.pageProxyPromises.has(pageNumber)) {
@@ -367,25 +395,7 @@ export default class PDFDocument implements DocumentInterface {
                 const page = await pdfDoc.getPage(pageNumber)
 
                 this.pageProxyCache.set(pageNumber, page)
-                this.pageProxyCacheOrder.push(pageNumber)
-
-                if (this.pageProxyCacheOrder.length > this.maxPageProxyCacheSize) {
-                    const evictedPageNum = this.pageProxyCacheOrder.shift()
-                    if (evictedPageNum !== undefined) {
-                        const evictedPage = this.pageProxyCache.get(evictedPageNum)
-                        if (evictedPage) {
-                            try {
-                                evictedPage.cleanup()
-                            } catch (err) {
-                                console.warn(
-                                    `[PDFDocument] Error cleaning up evicted page proxy ${evictedPageNum}:`,
-                                    err,
-                                )
-                            }
-                            this.pageProxyCache.delete(evictedPageNum)
-                        }
-                    }
-                }
+                this.enforcePageProxyCacheLimit()
                 return page
             } finally {
                 this.pageProxyPromises.delete(pageNumber)
@@ -394,6 +404,26 @@ export default class PDFDocument implements DocumentInterface {
 
         this.pageProxyPromises.set(pageNumber, promise)
         return promise
+    }
+
+    private enforcePageProxyCacheLimit(): void {
+        while (this.pageProxyCache.size > this.maxPageProxyCacheSize) {
+            const evictedPageNum = this.pageProxyCache.keys().next().value
+            if (evictedPageNum !== undefined) {
+                const evictedPage = this.pageProxyCache.get(evictedPageNum)
+                if (evictedPage) {
+                    try {
+                        evictedPage.cleanup()
+                    } catch (err) {
+                        console.warn(
+                            `[PDFDocument] Error cleaning up evicted page proxy ${evictedPageNum}:`,
+                            err,
+                        )
+                    }
+                }
+                this.pageProxyCache.delete(evictedPageNum)
+            }
+        }
     }
 
     async getTextContent(pageNumber: number, bypassCache = false): Promise<TextContent> {
@@ -460,12 +490,11 @@ export default class PDFDocument implements DocumentInterface {
             }
         }
         this.pageCache.clear()
-        this.pageCacheOrder = []
     }
 
     private enforcePageCacheLimit(): void {
-        while (this.pageCacheOrder.length > this.maxPageCacheSize) {
-            const evictedKey = this.pageCacheOrder.shift()
+        while (this.pageCache.size > this.maxPageCacheSize) {
+            const evictedKey = this.pageCache.keys().next().value
             if (evictedKey !== undefined) {
                 const url = this.pageCache.get(evictedKey)
                 if (url) {
@@ -474,8 +503,8 @@ export default class PDFDocument implements DocumentInterface {
                     } catch (err) {
                         console.warn(`[PDFDocument] Error revoking evicted page cache URL:`, err)
                     }
-                    this.pageCache.delete(evictedKey)
                 }
+                this.pageCache.delete(evictedKey)
             }
         }
     }
@@ -489,7 +518,6 @@ export default class PDFDocument implements DocumentInterface {
             }
         }
         this.pageProxyCache.clear()
-        this.pageProxyCacheOrder = []
     }
 
     async close(): Promise<void> {

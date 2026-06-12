@@ -26,8 +26,6 @@
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import { browser } from "$app/environment"
-    import { localizedPath } from "$lib/language"
-    import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
     import {
         getFoldersPromptItems,
         getMovePromptItems,
@@ -36,7 +34,6 @@
         getLanguagePromptItems,
         getFilesPromptItems,
         getCommandsPromptItems,
-        getJumplistPromptItems,
     } from "$lib/stores/promptProviders.svelte"
 
     let { children } = $props()
@@ -62,48 +59,6 @@
     setContext("get_active_prompt_node", () => currentActivePromptNode || rootPromptNode)
 
     rootNode = useCommands([
-        {
-            id: "jump-back",
-            keys: "ctrl+o",
-            description: m.keymap_jump_back ? m.keymap_jump_back() : "Jump back",
-            englishDescription: "Jump back",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                await jumplistStore.jumpBack()
-            },
-        },
-        {
-            id: "jump-forward",
-            keys: "ctrl+i",
-            description: m.keymap_jump_forward ? m.keymap_jump_forward() : "Jump forward",
-            englishDescription: "Jump forward",
-            category: "navigation",
-            action: async (event: KeyboardEvent) => {
-                event.preventDefault()
-                await jumplistStore.jumpForward()
-            },
-        },
-        {
-            id: "open-jumplist",
-            keys: "shift+j",
-            description: m.keymap_open_jumplist ? m.keymap_open_jumplist() : "Open jumplist",
-            englishDescription: "Open jumplist",
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "jumplist"
-                const activeIndex = jumplistStore.currentIndex
-                const jumpsCount = jumplistStore.jumps.length
-                if (activeIndex !== -1 && jumpsCount > 0) {
-                    const startIndex = Math.max(0, jumpsCount - 20)
-                    if (activeIndex >= startIndex) {
-                        uiStore.prompt.initialSelectedIndex = jumpsCount - 1 - activeIndex
-                    }
-                }
-                uiStore.prompt.isOpen = true
-            },
-        },
         {
             id: "open-prompt",
             keys: ["ctrl+k", "shift+:"],
@@ -337,9 +292,6 @@
         if (uiStore.prompt.mode === "folders") {
             return m.keymap_go_to_folder ? m.keymap_go_to_folder() + "..." : "Go to folder..."
         }
-        if (uiStore.prompt.mode === "jumplist") {
-            return m.jumplist ? m.jumplist() + "..." : "Jumplist..."
-        }
         return m.prompt_placeholder()
     })
 
@@ -364,9 +316,6 @@
         if (mode === "files" || mode === "global" || mode === "files-recursive") {
             list.push(...getFilesPromptItems(mode))
         }
-        if (mode === "jumplist") {
-            list.push(...getJumplistPromptItems())
-        }
         if (mode === "global") {
             list.push(...getCommandsPromptItems(currentActiveNode || rootNode))
         }
@@ -378,10 +327,22 @@
 
     let promptItems = $derived.by(() => {
         const activeNode = currentActivePromptNode || rootPromptNode
-        return activeNode.getAllItems({
-            value: uiStore.prompt.value,
-            mode: uiStore.prompt.mode,
-        })
+        const mode = uiStore.prompt.mode
+        if (mode === "search" || mode === "page" || mode === "global") {
+            return activeNode.getAllItems({
+                value: uiStore.prompt.value,
+                mode,
+            })
+        }
+        // We untrack value here because currently no providers use the live value
+        // to filter the initial list of items. Filtering is handled by Fuse in Prompt.svelte.
+        // This prevents the entire promptItems list from being recreated on every keystroke.
+        return untrack(() =>
+            activeNode.getAllItems({
+                value: uiStore.prompt.value,
+                mode: mode,
+            }),
+        )
     })
 </script>
 

@@ -76,12 +76,6 @@
                 selectHeading(heading)
                 onCloseOutline()
             }
-        } else if (event.ctrlKey && event.key === "n") {
-            event.preventDefault()
-            navigateSelection("next")
-        } else if (event.ctrlKey && event.key === "p") {
-            event.preventDefault()
-            navigateSelection("prev")
         } else if (event.key === "Escape") {
             event.preventDefault()
             searchInputRef?.blur()
@@ -140,7 +134,7 @@
         [
             {
                 id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
+                keys: ["ctrl+c", "ctrl+["],
                 action: () => {
                     onCloseOutline()
                 },
@@ -149,7 +143,7 @@
             },
             {
                 id: "close-alt",
-                keys: "q",
+                keys: ["escape", "q"],
                 action: () => {
                     onCloseOutline()
                 },
@@ -264,12 +258,16 @@
     let navigateShortcuts = $derived.by(() => {
         if (!sidebarCommandsNode) return []
         const cmds = sidebarCommandsNode.getAllCommands()
-        const downCmd = cmds.find((c) => c.id === "scroll-down")
-        const upCmd = cmds.find((c) => c.id === "scroll-up")
-        if (!downCmd || !upCmd || !downCmd.keys || !upCmd.keys) return []
+        const downCmds = cmds.filter((c) => c.id === "scroll-down" || c.id === "scroll-down-alt")
+        const upCmds = cmds.filter((c) => c.id === "scroll-up" || c.id === "scroll-up-alt")
+        if (downCmds.length === 0 || upCmds.length === 0) return []
 
-        const downKeys = Array.isArray(downCmd.keys) ? downCmd.keys : [downCmd.keys]
-        const upKeys = Array.isArray(upCmd.keys) ? upCmd.keys : [upCmd.keys]
+        const downKeys = downCmds.flatMap((c) =>
+            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
+        )
+        const upKeys = upCmds.flatMap((c) =>
+            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
+        )
 
         const pairs: { display: string }[] = []
         const keyPairs = [
@@ -484,7 +482,7 @@
         left: 0;
         top: 0;
         bottom: 0;
-        width: 280px;
+        max-width: 380px;
         background: color-mix(in srgb, var(--surface-color) 85%, transparent);
         backdrop-filter: blur(16px);
         border-right: 3px solid var(--border-color);
@@ -562,7 +560,7 @@
         padding: 10px 16px !important;
         padding-left: calc(16px + var(--depth) * 12px) !important;
         font-family: inherit !important;
-        font-size: 12px !important;
+        font-size: 14px !important;
         font-weight: 700 !important;
         color: var(--text-color) !important;
         cursor: pointer !important;

@@ -4,18 +4,13 @@ import { uiStore } from "$lib/stores/uiStore.svelte"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
 import { viewerStore } from "$lib/stores/viewerStore.svelte"
 import { fileNodeToBook } from "$lib/stores/viewerStore.types"
-import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
 import { goto } from "$app/navigation"
 import { locales, getLocale } from "$lib/paraglide/runtime"
 import { getLanguageName } from "$lib/locale"
 import { page } from "$app/state"
 import { localizedPath, switchLanguage, type AppLocale } from "$lib/language"
 import type { SearchItem } from "$lib/stores/promptStore.svelte"
-import {
-    CommandRegistry,
-    KeyboardHandler,
-    getPrimaryKeysString,
-} from "$lib/stores/commandsStore.svelte"
+import { CommandRegistry, getPrimaryKeysString } from "$lib/stores/commandsStore.svelte"
 import type { FolderNode, FileNode } from "$lib/stores/vfsStore.types"
 
 const reverseTranslationMap = new Map<string, string>()
@@ -67,10 +62,13 @@ export function getFoldersPromptItems(): SearchItem[] {
     ) as FolderNode[]
 
     for (const folder of allFolders) {
-        const folderPath = vfsStore.getFolderPath(folder.id)
+        const nodePath = vfsStore.getNodePath(folder.id)
+        // Convert "Folder / Subfolder" to "Folder/Subfolder" for the URL parameter
+        const folderPath = nodePath.split(" / ").join("/")
+
         list.push({
             id: `folder-${folder.id}`,
-            title: vfsStore.getNodePath(folder.id),
+            title: nodePath,
             category: "navigation",
             action: () => {
                 goto(localizedPath("/") + `?folder=${encodeURIComponent(folderPath)}`)
@@ -270,21 +268,14 @@ export function getLanguagePromptItems(): SearchItem[] {
 
 export function getFilesPromptItems(mode: string): SearchItem[] {
     const list: SearchItem[] = []
-    let files = Object.values(vfsStore.nodes).filter((node) => node.type === "file") as FileNode[]
+    let files = [...vfsStore.allFiles]
     files.sort((a, b) => b.updatedAt - a.updatedAt)
 
     if (mode === "files-recursive") {
         const targetFolderId = vfsStore.currentFolderId
         if (targetFolderId !== null) {
-            files = files.filter((file) => {
-                let currentId = file.parentId
-                while (currentId) {
-                    if (currentId === targetFolderId) return true
-                    const current = vfsStore.nodes[currentId]
-                    currentId = current ? current.parentId : null
-                }
-                return false
-            })
+            const descendantIds = vfsStore.currentFolderDescendantIds
+            files = files.filter((file) => descendantIds.has(file.id))
         }
     }
 
@@ -324,59 +315,6 @@ export function getFilesPromptItems(mode: string): SearchItem[] {
     return list
 }
 
-export function getJumplistPromptItems(): SearchItem[] {
-    const list: SearchItem[] = []
-    const jumps = jumplistStore.jumps
-    if (jumps.length === 0) {
-        list.push({
-            id: "jumplist-empty",
-            title: m.jumplist_empty ? m.jumplist_empty() : "No jumps yet",
-            category: "navigation",
-            action: () => {},
-        })
-    } else {
-        const startIndex = Math.max(0, jumps.length - 20)
-        for (let i = jumps.length - 1; i >= startIndex; i--) {
-            const jump = jumps[i]
-            const isActive = i === jumplistStore.currentIndex
-
-            let title = ""
-            let subtitle = ""
-
-            if (jump.type === "folder") {
-                title =
-                    jump.folderId === null ? (m.library ? m.library() : "Library") : jump.folderName
-                subtitle = jump.folderId === null ? "/" : jump.folderPath
-            } else if (jump.type === "book_open") {
-                title = jump.bookName
-                subtitle = "Opened book"
-            } else if (jump.type === "book_page") {
-                title = jump.bookName
-                subtitle = `${m.page ? m.page() : "Page"} ${jump.pageNumber}`
-            }
-
-            if (isActive) {
-                const currentPosText = m.current_position
-                    ? m.current_position()
-                    : "Current Position"
-                subtitle = subtitle ? `${subtitle} (${currentPosText})` : `(${currentPosText})`
-            }
-
-            list.push({
-                id: `jump-${i}`,
-                title,
-                subtitle: subtitle || undefined,
-                category: "navigation",
-                action: async () => {
-                    await jumplistStore.jumpToIndex(i)
-                    uiStore.prompt.isOpen = false
-                },
-            })
-        }
-    }
-    return list
-}
-
 export function getCommandsPromptItems(activeNode: CommandRegistry | null): SearchItem[] {
     const list: SearchItem[] = []
     if (activeNode) {
@@ -407,11 +345,11 @@ export function getCommandsPromptItems(activeNode: CommandRegistry | null): Sear
             for (const cmd of group) {
                 if (cmd.keys) {
                     const cmdKeys = Array.isArray(cmd.keys) ? cmd.keys : [cmd.keys]
-                    for (const k of cmdKeys) {
-                        const normalized = KeyboardHandler.normalize(k)
-                        if (normalized && !seenKeys.has(normalized)) {
-                            seenKeys.add(normalized)
-                            mergedKeys.push(normalized)
+                    for (let k of cmdKeys) {
+                        // Keys are now pre-normalized in CommandRegistry
+                        if (k && !seenKeys.has(k)) {
+                            seenKeys.add(k)
+                            mergedKeys.push(k)
                         }
                     }
                 }

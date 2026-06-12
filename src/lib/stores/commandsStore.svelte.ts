@@ -1,4 +1,5 @@
 import { getContext, setContext, onMount } from "svelte"
+import { uiStore } from "./uiStore.svelte"
 
 export type Command = {
     id?: string
@@ -174,16 +175,37 @@ export class KeyboardHandler {
         return false
     }
 
-    static format(keys: string | string[]): string {
-        if (Array.isArray(keys)) {
-            return keys.map((k) => KeyboardHandler.format(k)).join("/")
-        }
+    static getFormattedParts(keys: string): string[] {
         const isMacPlatform = KeyboardHandler.isMac()
         const MODIFIERS = ["ctrl", "meta", "mod", "alt", "shift"]
-        const parts = keys.split("+")
+
+        let parts: string[]
+        const trimmed = keys.trim()
+        if (trimmed === "+") {
+            parts = ["+"]
+        } else if (trimmed.startsWith("++")) {
+            parts = [
+                "+",
+                ...trimmed
+                    .slice(2)
+                    .split("+")
+                    .map((p) => p.trim()),
+            ]
+        } else if (trimmed.endsWith("++")) {
+            parts = [
+                ...trimmed
+                    .slice(0, -2)
+                    .split("+")
+                    .map((p) => p.trim()),
+                "+",
+            ]
+        } else {
+            parts = trimmed.split("+").map((p) => p.trim())
+        }
+
         parts.sort((a, b) => {
-            const aLower = a.toLowerCase().trim()
-            const bLower = b.toLowerCase().trim()
+            const aLower = a.toLowerCase()
+            const bLower = b.toLowerCase()
             const aIdx = MODIFIERS.indexOf(aLower)
             const bIdx = MODIFIERS.indexOf(bLower)
 
@@ -198,9 +220,10 @@ export class KeyboardHandler {
             }
             return aLower.localeCompare(bLower)
         })
+
         return parts
             .map((part) => {
-                const lower = part.toLowerCase().trim()
+                const lower = part.toLowerCase()
                 if (lower === "arrowleft") return "←"
                 if (lower === "arrowright") return "→"
                 if (lower === "arrowup") return "↑"
@@ -214,7 +237,14 @@ export class KeyboardHandler {
                 if (lower === "escape") return "Esc"
                 return part.toUpperCase()
             })
-            .join("+")
+            .filter(Boolean)
+    }
+
+    static format(keys: string | string[]): string {
+        if (Array.isArray(keys)) {
+            return keys.map((k) => KeyboardHandler.format(k)).join("/")
+        }
+        return KeyboardHandler.getFormattedParts(keys).join("+")
     }
 }
 
@@ -222,7 +252,7 @@ export class CommandRegistry {
     parent = $state.raw<CommandRegistry | null>(null)
     commands = $state.raw<Command[]>([])
 
-    get allCommands(): Command[] {
+    allCommands = $derived.by(() => {
         const list: Command[] = []
         const seenIds = new Set<string>()
         const seenKeys = new Set<string>()
@@ -238,13 +268,11 @@ export class CommandRegistry {
 
                 if (command.keys) {
                     const cmdKeys = Array.isArray(command.keys) ? command.keys : [command.keys]
-                    const remainingKeys = cmdKeys.filter(
-                        (k) => !seenKeys.has(KeyboardHandler.normalize(k)),
-                    )
+                    const remainingKeys = cmdKeys.filter((k) => !seenKeys.has(k))
                     if (remainingKeys.length === 0) {
                         list.push({ ...command, keys: undefined })
                     } else {
-                        remainingKeys.forEach((k) => seenKeys.add(KeyboardHandler.normalize(k)))
+                        remainingKeys.forEach((k) => seenKeys.add(k))
                         list.push({
                             ...command,
                             keys: Array.isArray(command.keys) ? remainingKeys : remainingKeys[0],
@@ -257,51 +285,65 @@ export class CommandRegistry {
             current = current.parent
         }
         return list
-    }
+    })
 
     constructor(parent: CommandRegistry | null = null) {
         this.parent = parent
     }
 
     register(command: Command) {
+        let normalizedCommand = { ...command }
         if (command.keys) {
             const cmdKeys = Array.isArray(command.keys) ? command.keys : [command.keys]
-            for (const key of cmdKeys) {
-                const normalizedKey = KeyboardHandler.normalize(key)
+            const normalizedKeys = cmdKeys.map((k) => KeyboardHandler.normalize(k))
+
+            for (const normalizedKey of normalizedKeys) {
                 const existing = this.commands.find((c) => {
                     if (!c.keys) return false
                     const cKeys = Array.isArray(c.keys) ? c.keys : [c.keys]
                     return cKeys.some((ck) => KeyboardHandler.normalize(ck) === normalizedKey)
                 })
                 if (existing) {
-                    throw new Error(`Key ${key} is already registered on this registry node`)
+                    throw new Error(
+                        `Key ${normalizedKey} is already registered on this registry node`,
+                    )
                 }
             }
+            normalizedCommand.keys = Array.isArray(command.keys)
+                ? normalizedKeys
+                : normalizedKeys[0]
         }
-        this.commands = [...this.commands, command]
+        this.commands = [...this.commands, normalizedCommand]
         return () => {
-            this.commands = this.commands.filter((c) => c !== command)
+            this.commands = this.commands.filter((c) => c !== normalizedCommand)
         }
     }
 
     registerAll(commands: Command[]) {
         const newCommands: Command[] = []
         for (const command of commands) {
+            let normalizedCommand = { ...command }
             if (command.keys) {
                 const cmdKeys = Array.isArray(command.keys) ? command.keys : [command.keys]
-                for (const key of cmdKeys) {
-                    const normalizedKey = KeyboardHandler.normalize(key)
+                const normalizedKeys = cmdKeys.map((k) => KeyboardHandler.normalize(k))
+
+                for (const normalizedKey of normalizedKeys) {
                     const existing = [...this.commands, ...newCommands].find((c) => {
                         if (!c.keys) return false
                         const cKeys = Array.isArray(c.keys) ? c.keys : [c.keys]
                         return cKeys.some((ck) => KeyboardHandler.normalize(ck) === normalizedKey)
                     })
                     if (existing) {
-                        throw new Error(`Key ${key} is already registered on this registry node`)
+                        throw new Error(
+                            `Key ${normalizedKey} is already registered on this registry node`,
+                        )
                     }
                 }
+                normalizedCommand.keys = Array.isArray(command.keys)
+                    ? normalizedKeys
+                    : normalizedKeys[0]
             }
-            newCommands.push(command)
+            newCommands.push(normalizedCommand)
         }
         this.commands = [...this.commands, ...newCommands]
         return () => {
@@ -407,7 +449,7 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
         return () => {
             unregisterAll()
             const activeCurrent = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
-            if (activeCurrent === node) {
+            if (activeCurrent === node || (activeCurrent && node.isAncestorOf(activeCurrent))) {
                 if (setActiveNode) {
                     setActiveNode(node.parent)
                 } else {
@@ -447,6 +489,7 @@ export function getRawShortcutHint(commandNode: CommandRegistry | null, id: stri
 }
 
 export function getShortcutHint(commandNode: CommandRegistry | null, id: string): string {
+    if (uiStore.isCompact) return ""
     const raw = getRawShortcutHint(commandNode, id)
     return raw ? ` [${raw}]` : ""
 }

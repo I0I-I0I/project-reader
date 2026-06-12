@@ -20,7 +20,7 @@
 
     const baseCommands: Command[] = [
         {
-            id: "close-or-back",
+            id: "close",
             keys: ["escape", "ctrl+c", "ctrl+["],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()

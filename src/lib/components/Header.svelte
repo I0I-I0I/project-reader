@@ -312,28 +312,6 @@
         }
     }
 
-    .header-commands-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        color: var(--text-color);
-        font-family: inherit;
-        font-size: 0.9rem;
-    }
-
-    .kbd-hint {
-        font-family: inherit;
-        background: var(--faded-color);
-        color: var(--text-color);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        padding: 1px 5px;
-        font-size: 0.75rem;
-        margin-left: 6px;
-        font-weight: bold;
-    }
-
     :global(.continue-btn) {
         padding: 6px 12px !important;
         font-size: 12px !important;

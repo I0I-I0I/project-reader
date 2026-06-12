@@ -13,6 +13,9 @@ import PDFDocument from "$lib/pdf"
 import { settingsStore } from "$lib/stores/settingsStore.svelte"
 import pLimit from "p-limit"
 
+const METADATA_REPAIR_DELAY_MS = 5000
+const METADATA_REPAIR_INTERVAL_MS = 1000
+
 class VFSStore {
     nodes = $state<VFSNodes>({})
     rootIds = $state<string[]>([])
@@ -29,10 +32,33 @@ class VFSStore {
     fileUrls = $state<Record<string, string>>({})
     isLockedMap = $state<Record<string, boolean>>({})
 
+    allFiles = $derived(
+        Object.values(this.nodes).filter((node) => node.type === "file") as FileNode[],
+    )
+
+    currentFolderDescendantIds = $derived.by(() => {
+        const targetFolderId = this.currentFolderId
+        if (targetFolderId === null) return new Set<string>()
+
+        const descendantIds = new Set<string>()
+        const stack = [targetFolderId]
+        while (stack.length > 0) {
+            const id = stack.pop()!
+            const node = this.nodes[id]
+            if (node && node.type === "folder") {
+                for (const childId of node.childrenIds) {
+                    descendantIds.add(childId)
+                    stack.push(childId)
+                }
+            }
+        }
+        return descendantIds
+    })
+
     private nativeFiles = new Map<string, File>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
     private previewUrlRefs: Record<string, number> = {}
-    metadataQueue = pLimit(2)
+    metadataQueue = pLimit(1)
 
     constructor(initialNodes: VFSNodes = {}) {
         this.nodes = initialNodes
@@ -55,9 +81,21 @@ class VFSStore {
         this.forwardHistory = []
     }
 
-    get currentNodes() {
-        return Object.values(this.nodes).filter((node) => node.parentId === this.currentFolderId)
-    }
+    currentNodes = $derived.by(() => {
+        const ids =
+            this.currentFolderId === null
+                ? this.rootIds
+                : (this.nodes[this.currentFolderId] as FolderNode)?.childrenIds || []
+        return ids.map((id) => this.nodes[id]).filter(Boolean)
+    })
+
+    sortedCurrentNodes = $derived.by(() => {
+        return [...this.currentNodes].sort((a, b) => {
+            if (a.type === "folder" && b.type !== "folder") return -1
+            if (a.type !== "folder" && b.type === "folder") return 1
+            return b.updatedAt - a.updatedAt
+        })
+    })
 
     toggleSelection(id: string) {
         if (this.selectedIds.has(id)) {
@@ -112,12 +150,14 @@ class VFSStore {
     }
 
     private repairMissingMetadata(files: FileNode[]) {
-        const missing = files.filter(
-            (fileNode) => !fileNode.metadata.totalPages || fileNode.metadata.author === undefined,
-        )
+        setTimeout(() => {
+            const missing = files.filter(
+                (fileNode) =>
+                    !fileNode.metadata.totalPages || fileNode.metadata.author === undefined,
+            )
+            if (missing.length === 0) return
 
-        for (const fileNode of missing) {
-            this.metadataQueue(async () => {
+            const processNode = async (fileNode: FileNode) => {
                 if (!this.nodes[fileNode.id]) return
 
                 const url = await this.getFileUrl(fileNode.id)
@@ -147,8 +187,30 @@ class VFSStore {
                         this.revokeFileUrl(fileNode.id)
                     }
                 }
-            })
-        }
+            }
+
+            // Prioritize nodes in the current folder
+            const currentFolderMissing = missing.filter((f) => f.parentId === this.currentFolderId)
+            const otherMissing = missing.filter((f) => f.parentId !== this.currentFolderId)
+
+            for (const fileNode of currentFolderMissing) {
+                this.metadataQueue(() => processNode(fileNode))
+            }
+
+            // Background the rest with a delay and lower priority (smaller chunks)
+            if (otherMissing.length > 0) {
+                // Process the rest slowly to avoid CPU spikes
+                const chunkedRepair = async () => {
+                    for (let i = 0; i < otherMissing.length; i++) {
+                        const fileNode = otherMissing[i]
+                        await this.metadataQueue(() => processNode(fileNode))
+                        // Wait a bit between files to keep the main thread very free
+                        await new Promise((r) => setTimeout(r, METADATA_REPAIR_INTERVAL_MS))
+                    }
+                }
+                chunkedRepair()
+            }
+        }, METADATA_REPAIR_DELAY_MS)
     }
 
     /**
@@ -732,11 +794,14 @@ class VFSStore {
             .filter(Boolean)
         if (segments.length === 0) return null
 
+        const folders = Object.values(this.nodes).filter(
+            (node) => node.type === "folder",
+        ) as FolderNode[]
+
         let currentId: string | null = null
         for (const segment of segments) {
-            const nextNode = Object.values(this.nodes).find(
+            const nextNode = folders.find(
                 (node) =>
-                    node.type === "folder" &&
                     node.parentId === currentId &&
                     node.name.toLowerCase() === segment.toLowerCase(),
             )

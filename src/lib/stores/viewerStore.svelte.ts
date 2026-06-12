@@ -1,7 +1,7 @@
 import { browser } from "$app/environment"
+import { pushState } from "$app/navigation"
 import type { FlatHeading } from "$lib/pdf"
 import { vfsStore } from "./vfsStore.svelte"
-import { jumplistStore } from "./jumplistStore.svelte"
 import { type Book, fileNodeToBook } from "./viewerStore.types"
 
 class ViewerStore {
@@ -11,9 +11,10 @@ class ViewerStore {
 
     currentPage = $state(1)
     scrollPosition = $state(0)
+    private _isRestoringHistory = false
+    lastSetPageState = $state<any>(null)
 
     constructor() {
-        jumplistStore.setViewer(this)
         if (browser) {
             const savedBook = localStorage.getItem("book")
             if (savedBook) {
@@ -42,6 +43,10 @@ class ViewerStore {
         }
     }
 
+    get isRestoringHistory() {
+        return this._isRestoringHistory
+    }
+
     get activeOutline() {
         return this.outlineList
     }
@@ -58,12 +63,26 @@ class ViewerStore {
 
     goToPage(page: number, options?: { scrollPosition?: number; isJump?: boolean }) {
         if (page >= 1 && (this.totalPages === 0 || page <= this.totalPages)) {
-            if (options?.isJump && this.book) {
-                // Record current position before jumping
-                jumplistStore.pushBookPageJump(this.book.id, this.currentPage, this.scrollPosition)
+            const oldPage = this.currentPage
+            const oldScroll = this.scrollPosition
+            const targetScroll = options?.scrollPosition ?? 0
+            const isPositionChanged =
+                page !== oldPage ||
+                (options?.scrollPosition !== undefined &&
+                    Math.abs(targetScroll - oldScroll) > 0.001)
+
+            // Push the target position to browser history using SvelteKit's pushState
+            if (options?.isJump && isPositionChanged && !this._isRestoringHistory && browser) {
+                const state = {
+                    _pdfjump: true,
+                    page: page,
+                    scrollPosition: targetScroll,
+                    bookId: this.book?.id,
+                }
+                this.lastSetPageState = state
+                pushState("", state)
             }
 
-            const oldPage = this.currentPage
             this.currentPage = page
             if (options?.scrollPosition !== undefined) {
                 this.scrollPosition = options.scrollPosition
@@ -75,32 +94,25 @@ class ViewerStore {
                 this.book.pageNumber = this.currentPage
                 this.book.scrollPosition = this.scrollPosition
             }
-
-            if (options?.isJump && this.book) {
-                // Record the landing position
-                jumplistStore.pushBookPageJump(this.book.id, page, this.scrollPosition)
-            }
         }
     }
 
-    get activeJumplist() {
-        return jumplistStore.jumps
-    }
-
-    get activeJumplistIndex() {
-        return jumplistStore.currentIndex
-    }
-
-    async jumpBack() {
-        await jumplistStore.jumpBack()
-    }
-
-    async jumpForward() {
-        await jumplistStore.jumpForward()
-    }
-
-    async jumpToIndex(index: number) {
-        await jumplistStore.jumpToIndex(index)
+    /** Called by SvelteKit state routing to restore a previously saved jump position. */
+    restoreFromHistoryState(state: {
+        _pdfjump: true
+        page: number
+        scrollPosition: number
+        bookId: string
+    }) {
+        if (state.bookId !== this.book?.id) return
+        this.lastSetPageState = state
+        if (state.page === this.currentPage && state.scrollPosition === this.scrollPosition) return
+        this._isRestoringHistory = true
+        try {
+            this.goToPage(state.page, { scrollPosition: state.scrollPosition })
+        } finally {
+            this._isRestoringHistory = false
+        }
     }
 
     async syncWithBooks() {
@@ -161,15 +173,9 @@ class ViewerStore {
         }
     }
 
-    async setCurrentBook(newBook: Book | null, options?: { isJump?: boolean }) {
+    async setCurrentBook(newBook: Book | null) {
         const oldBook = this.book
-        const oldBookId = oldBook?.id
         const newBookId = newBook?.id
-
-        // Record current position before switching
-        if (!options?.isJump && oldBook && newBook && oldBookId !== newBookId) {
-            jumplistStore.pushBookPageJump(oldBook.id, this.currentPage, this.scrollPosition)
-        }
 
         // Revoke old URL if it was a blob URL created by us
         if (oldBook && oldBook.id !== newBookId) {
@@ -207,17 +213,6 @@ class ViewerStore {
                     this.book = { ...newBook }
                 }
                 this.persistToLocalStorage(true)
-            }
-
-            // Record initial position in new book
-            const lastJump = jumplistStore.jumps[jumplistStore.currentIndex]
-            const isSameBookInJumplist =
-                lastJump &&
-                (lastJump.type === "book_open" || lastJump.type === "book_page") &&
-                lastJump.bookId === newBook.id
-
-            if (!options?.isJump && !isSameBookInJumplist) {
-                jumplistStore.pushBookOpenJump(newBook.id)
             }
         }
     }

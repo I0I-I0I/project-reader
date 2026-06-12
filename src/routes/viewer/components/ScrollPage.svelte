@@ -12,21 +12,7 @@
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
 
-    let isShortHeight = $state(false)
-
-    onMount(() => {
-        const heightQuery = window.matchMedia("(max-height: 500px)")
-        isShortHeight = heightQuery.matches
-
-        const heightHandler = (e: MediaQueryListEvent) => {
-            isShortHeight = e.matches
-        }
-        heightQuery.addEventListener("change", heightHandler)
-
-        return () => {
-            heightQuery.removeEventListener("change", heightHandler)
-        }
-    })
+    let isShortHeight = $derived(uiStore.isShortHeight)
 
     let { pdf, pageNumber, scale, offsetY, width, height } = $props<{
         pdf: PDFDocument
@@ -207,13 +193,22 @@
                 })
             }
 
+            const findSpanByOffset = (offset: number) => {
+                let lo = 0,
+                    hi = cachedSpanRanges!.length - 1
+                while (lo <= hi) {
+                    const mid = (lo + hi) >>> 1
+                    const entry = cachedSpanRanges![mid]
+                    if (entry.end <= offset) lo = mid + 1
+                    else if (entry.start > offset) hi = mid - 1
+                    else return entry
+                }
+                return null
+            }
+
             matches.forEach((match) => {
-                const startEntry = cachedSpanRanges!.find(
-                    (entry) => entry.start <= match.start && entry.end > match.start,
-                )
-                const endEntry = cachedSpanRanges!.find(
-                    (entry) => entry.start <= match.end && entry.end >= match.end,
-                )
+                const startEntry = findSpanByOffset(match.start)
+                const endEntry = findSpanByOffset(match.end)
 
                 if (startEntry && endEntry) {
                     try {

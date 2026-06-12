@@ -6,10 +6,10 @@
     import * as m from "$lib/paraglide/messages"
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { jumplistStore } from "$lib/stores/jumplistStore.svelte"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { searchStore } from "$lib/stores/searchStore.svelte"
-    import { goto } from "$app/navigation"
+    import { goto, replaceState } from "$app/navigation"
+    import { page } from "$app/state"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import OutlineSidebar from "./components/OutlineSidebar.svelte"
@@ -28,8 +28,14 @@
     import SearchIcon from "$lib/components/icons/SearchIcon.svelte"
     import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
 
+    let scrollContainer = $state<HTMLElement | null>(null)
+
+    onMount(() => {
+        scrollContainer = document.querySelector(".canvas-frame")
+    })
+
     function getScrollContainer() {
-        return document.querySelector(".canvas-frame")
+        return scrollContainer
     }
 
     function getMatchContext(text: string, start: number, end: number, contextLen = 40) {
@@ -89,30 +95,14 @@
                         subtitle: context,
                         category: "navigation",
                         pageNumber: match.pageNumber,
-                        action: () => {
+                        action: (opts) => {
                             searchStore.addToHistory(queryText)
-
-                            const currentBook = viewerStore.getCurrentBook()
-                            if (currentBook) {
-                                jumplistStore.pushBookPageJump(
-                                    currentBook.id,
-                                    currentBook.pageNumber,
-                                    currentBook.scrollPosition || 0,
-                                )
-                            }
 
                             searchStore.currentMatchIndex = i
                             if (viewerStore.goToPage) {
                                 viewerStore.goToPage(match.pageNumber, {
-                                    isJump: false,
+                                    isJump: opts?.asJump ?? false,
                                 })
-                                if (currentBook) {
-                                    jumplistStore.pushBookPageJump(
-                                        currentBook.id,
-                                        match.pageNumber,
-                                        0,
-                                    )
-                                }
                             }
                             uiStore.isSearchModeActive = true
                             uiStore.prompt.isOpen = false
@@ -245,7 +235,7 @@
         },
         {
             id: "zoom-in",
-            keys: "shift++",
+            keys: "+",
             description: m.keymap_zoom_in(),
             englishDescription: m.keymap_zoom_in({}, { locale: "en" }),
             category: "settings",
@@ -259,7 +249,7 @@
         },
         {
             id: "zoom-out",
-            keys: "shift+-",
+            keys: "-",
             description: m.keymap_zoom_out(),
             englishDescription: m.keymap_zoom_out({}, { locale: "en" }),
             category: "settings",
@@ -375,7 +365,7 @@
         },
         {
             id: "close",
-            keys: ["q", "-"],
+            keys: "q",
             description: m.keymap_close_viewer(),
             englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
             category: "commands",
@@ -466,8 +456,9 @@
         },
     ])
 
-    const url = $derived(viewerStore.getCurrentBook()?.url ?? "")
-    const name = $derived(viewerStore.getCurrentBook()?.name ?? "")
+    const currentBook = $derived(viewerStore.getCurrentBook())
+    const url = $derived(currentBook?.url ?? "")
+    const name = $derived(currentBook?.name ?? "")
 
     let pdf = $state.raw<PDFDocument | null>(null)
     let isLoaded = $state(false)
@@ -506,7 +497,7 @@
     }
     const sidebars = new SidebarState()
 
-    let isShortHeight = $state(false)
+    let isShortHeight = $derived(uiStore.isShortHeight)
     let viewportWidth = $state(0)
 
     onMount(() => {
@@ -514,18 +505,6 @@
         if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
             goto(localizedPath("/"))
             return
-        }
-
-        const heightQuery = window.matchMedia("(max-height: 500px)")
-        isShortHeight = heightQuery.matches
-
-        const heightHandler = (e: MediaQueryListEvent) => {
-            isShortHeight = e.matches
-        }
-        heightQuery.addEventListener("change", heightHandler)
-
-        return () => {
-            heightQuery.removeEventListener("change", heightHandler)
         }
     })
 
@@ -535,6 +514,23 @@
             if (!currentBook || currentBook.isLocked) {
                 goto(localizedPath("/"))
             }
+        }
+    })
+
+    // Listen to SvelteKit page.state updates to restore navigation positions
+    $effect(() => {
+        const state = page.state as App.PageState
+        if (state && state._pdfjump) {
+            const last = viewerStore.lastSetPageState
+            if (
+                last &&
+                last.page === state.page &&
+                last.scrollPosition === state.scrollPosition &&
+                last.bookId === state.bookId
+            ) {
+                return
+            }
+            viewerStore.restoreFromHistoryState(state as any)
         }
     })
 
@@ -550,6 +546,18 @@
                 // Update reactive state immediately for responsiveness
                 activeBook.pageNumber = cPage
                 activeBook.scrollPosition = sPos
+
+                // Keep browser history state in sync with current position (e.g. on scroll)
+                if (typeof window !== "undefined" && !viewerStore.isRestoringHistory) {
+                    const state = {
+                        _pdfjump: true,
+                        page: cPage,
+                        scrollPosition: sPos,
+                        bookId: activeBook.id,
+                    }
+                    viewerStore.lastSetPageState = state
+                    replaceState("", state)
+                }
 
                 // Debounce the persistent DB update
                 if (updateTimeout) clearTimeout(updateTimeout)
@@ -582,7 +590,6 @@
                     pageNumber: finalPage,
                     scrollPosition: finalScroll,
                 })
-                jumplistStore.pushBookPageJump(activeBook.id, finalPage, finalScroll)
             }
         }
     })
@@ -626,6 +633,7 @@
         untrack(() => {
             isLoaded = false
             pdf = null
+            isPageLoading = false
             const currentBook = viewerStore.getCurrentBook()
             viewerStore.currentPage = currentBook?.pageNumber || 1
             viewerStore.scrollPosition = currentBook?.scrollPosition || 0
@@ -702,6 +710,7 @@
                 nextPageDim1 = null
                 nextPageDim2 = null
                 lastPageNo = pageNo
+                isPageLoading = false
             })
             return
         }
@@ -1013,11 +1022,9 @@
         if (!isPageLoading) {
             const step = settingsStore.layout === "split" ? 2 : 1
             if (viewerStore.currentPage + step <= totalPages) {
-                viewerStore.currentPage += step
-                viewerStore.scrollPosition = 0
+                viewerStore.goToPage(viewerStore.currentPage + step)
             } else if (viewerStore.currentPage < totalPages) {
-                viewerStore.currentPage += 1
-                viewerStore.scrollPosition = 0
+                viewerStore.goToPage(viewerStore.currentPage + 1)
             }
         }
     }
@@ -1026,11 +1033,9 @@
         if (!isPageLoading) {
             const step = settingsStore.layout === "split" ? 2 : 1
             if (viewerStore.currentPage - step >= 1) {
-                viewerStore.currentPage -= step
-                viewerStore.scrollPosition = 0
+                viewerStore.goToPage(viewerStore.currentPage - step)
             } else if (viewerStore.currentPage > 1) {
-                viewerStore.currentPage = 1
-                viewerStore.scrollPosition = 0
+                viewerStore.goToPage(1)
             }
         }
     }
@@ -1066,21 +1071,6 @@
     let swipeTimeoutId: any = null
     let pendingPageTurnAction: (() => void) | null = null
 
-    const defaultWidth = $derived(pdf?.defaultWidth || 612)
-    const defaultHeight = $derived(pdf?.defaultHeight || 792)
-    const defaultAspectRatio = $derived(`${defaultWidth} / ${defaultHeight}`)
-
-    const effectiveScale = $derived.by(() => {
-        if (uiStore.isCompact && viewportWidth > 0 && pdf) {
-            const defWidth = pdf.defaultWidth || 612
-            if (isShortHeight) {
-                return (viewportWidth / defWidth) * (settingsStore.scale / 1.5)
-            }
-            return viewportWidth / defWidth
-        }
-        return settingsStore.scale
-    })
-
     function getPageScale(dim: { width: number; height: number } | null) {
         if (uiStore.isCompact && viewportWidth > 0 && pdf) {
             const pageWidth = dim?.width || pdf.defaultWidth || 612
@@ -1092,10 +1082,7 @@
         return settingsStore.scale
     }
 
-    function getSlideImageStyle(
-        dim: { width: number; height: number } | null,
-        isSplitRight = false,
-    ) {
+    function getSlideImageStyle(dim: { width: number; height: number } | null) {
         const actualDim =
             dim ||
             (pdf
@@ -1117,9 +1104,9 @@
     }
 
     const prevImageStyle1 = $derived(getSlideImageStyle(prevPageDim1))
-    const prevImageStyle2 = $derived(getSlideImageStyle(prevPageDim2, true))
+    const prevImageStyle2 = $derived(getSlideImageStyle(prevPageDim2))
     const nextImageStyle1 = $derived(getSlideImageStyle(nextPageDim1))
-    const nextImageStyle2 = $derived(getSlideImageStyle(nextPageDim2, true))
+    const nextImageStyle2 = $derived(getSlideImageStyle(nextPageDim2))
 
     const sliderTrackStyle = $derived(
         `transform: translate3d(calc(-33.333333% + ${swipeOffsetX}), 0, 0); transition: ${swipeTransition};`,
@@ -1510,6 +1497,7 @@
                                             scale={settingsStore.scale}
                                             bind:currentPage={viewerStore.currentPage}
                                             bind:scrollPosition={viewerStore.scrollPosition}
+                                            bind:container={scrollContainer}
                                             {isPageLoading}
                                             {currentPageImage}
                                             {currentPageImage2}
@@ -1596,6 +1584,7 @@
                                     scale={settingsStore.scale}
                                     bind:currentPage={viewerStore.currentPage}
                                     bind:scrollPosition={viewerStore.scrollPosition}
+                                    bind:container={scrollContainer}
                                     {isPageLoading}
                                     {currentPageImage}
                                     {currentPageImage2}
@@ -1703,43 +1692,6 @@
                         {/if}
 
                         {#if isLoaded && !uiStore.isSearchModeActive}
-                            <Button
-                                size="large"
-                                variant="fab"
-                                square={true}
-                                class="viewer-fab-btn fab-jump-forward {!uiStore.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
-                                onclick={async (e) => {
-                                    e.stopPropagation()
-                                    await jumplistStore.jumpForward()
-                                }}
-                                aria-label={m.keymap_jump_forward()}
-                                tooltip={`${m.keymap_jump_forward()}${getShortcutHint(commandsNode, "jump-forward")}`}
-                                disabled={jumplistStore.currentIndex >=
-                                    jumplistStore.jumps.length - 1}
-                            >
-                                <ChevronIcon style="transform: rotate(-90deg);" />
-                            </Button>
-
-                            <Button
-                                size="large"
-                                variant="fab"
-                                square={true}
-                                class="viewer-fab-btn fab-jump-back {!uiStore.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
-                                onclick={async (e) => {
-                                    e.stopPropagation()
-                                    await jumplistStore.jumpBack()
-                                }}
-                                aria-label={m.keymap_jump_back()}
-                                tooltip={`${m.keymap_jump_back()}${getShortcutHint(commandsNode, "jump-back")}`}
-                                disabled={jumplistStore.currentIndex <= 0}
-                            >
-                                <ChevronIcon style="transform: rotate(90deg);" />
-                            </Button>
-
                             <Button
                                 size="large"
                                 variant="fab"

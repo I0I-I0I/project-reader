@@ -90,7 +90,8 @@ self.addEventListener("fetch", (event) => {
             if (
                 response.status === 200 &&
                 !response.headers.get("cache-control")?.includes("no-store") &&
-                url.origin === self.location.origin
+                url.origin === self.location.origin &&
+                !url.pathname.toLowerCase().endsWith(".pdf") // Don't cache large PDFs in Cache API
             ) {
                 cache.put(event.request, response.clone())
             }
