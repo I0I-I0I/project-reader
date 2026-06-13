@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { Component, Snippet } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
-    import { createFloatingState } from "$lib/floating.svelte"
+    import { tooltip as tooltipAction } from "$lib/actions/tooltip"
 
     interface Props extends HTMLButtonAttributes {
         children?: Snippet
@@ -27,36 +27,14 @@
         open = false,
         href,
         class: className = "",
-        onmouseenter,
-        onfocus,
         ...props
     }: Props = $props()
 
     const displayTooltip = $derived(tooltip || title)
-
-    let buttonNode = $state<HTMLElement | null>(null)
-    const floating = createFloatingState(() => buttonNode, {
-        defaultVertical: "top",
-        defaultHorizontal: "center",
-    })
-    const tooltipClass = $derived(
-        `tooltip-${floating.vertical} tooltip-align-${tooltipAlign || floating.horizontal}`,
-    )
-
-    function handleMouseEnter(e: any) {
-        if (displayTooltip) floating.update()
-        onmouseenter?.(e)
-    }
-
-    function handleFocus(e: any) {
-        if (displayTooltip) floating.update()
-        onfocus?.(e)
-    }
 </script>
 
 {#if href}
     <a
-        bind:this={buttonNode}
         {href}
         class={[
             "button",
@@ -76,22 +54,18 @@
         ]
             .filter(Boolean)
             .join(" ")}
-        onmouseenter={handleMouseEnter}
-        onfocus={handleFocus}
+        use:tooltipAction={displayTooltip
+            ? { text: displayTooltip, align: tooltipAlign }
+            : undefined}
         {...props as any}
     >
         {#if Icon}
             <Icon />
         {/if}
         {@render children?.()}
-
-        {#if displayTooltip}
-            <span class="tooltip {tooltipClass}" role="tooltip">{displayTooltip}</span>
-        {/if}
     </a>
 {:else}
     <button
-        bind:this={buttonNode}
         class={[
             "button",
             variant === "action" ? "action-btn" : "",
@@ -110,18 +84,15 @@
         ]
             .filter(Boolean)
             .join(" ")}
-        onmouseenter={handleMouseEnter}
-        onfocus={handleFocus}
+        use:tooltipAction={displayTooltip
+            ? { text: displayTooltip, align: tooltipAlign }
+            : undefined}
         {...props}
     >
         {#if Icon}
             <Icon />
         {/if}
         {@render children?.()}
-
-        {#if displayTooltip}
-            <span class="tooltip {tooltipClass}" role="tooltip">{displayTooltip}</span>
-        {/if}
     </button>
 {/if}
 
@@ -368,111 +339,10 @@
         min-height: 0 !important;
     }
 
-    .tooltip {
-        position: absolute;
-        background-color: var(--muted-bg-color, #1a1a1a);
-        color: var(--muted-text-color, #f5f0e1);
-        padding: 6px 12px;
-        font-size: 11px;
-        font-weight: bold;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        white-space: normal;
-        max-width: 240px;
-        width: max-content;
-        word-break: break-word;
-        border-radius: 4px;
-        pointer-events: none;
-        opacity: 0;
-        visibility: hidden;
-        transition:
-            opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 9999;
-    }
-
-    .tooltip::after {
-        content: "";
-        position: absolute;
-        border-width: 5px;
-        border-style: solid;
-    }
-
-    /* Vertical variations */
-    .tooltip.tooltip-top {
-        bottom: calc(100% + 10px);
-    }
-    .tooltip.tooltip-top::after {
-        top: 100%;
-        border-color: var(--muted-bg-color, #1a1a1a) transparent transparent transparent;
-    }
-
-    .tooltip.tooltip-bottom {
-        top: calc(100% + 10px);
-    }
-    .tooltip.tooltip-bottom::after {
-        bottom: 100%;
-        border-color: transparent transparent var(--muted-bg-color, #1a1a1a) transparent;
-    }
-
-    /* Horizontal variations */
-    .tooltip.tooltip-align-center {
-        left: 50%;
-        transform: translateX(-50%) translateY(4px);
-    }
-    .tooltip.tooltip-bottom.tooltip-align-center {
-        transform: translateX(-50%) translateY(-4px);
-    }
-    .tooltip.tooltip-align-center::after {
-        left: 50%;
-        transform: translateX(-50%);
-    }
-
-    .tooltip.tooltip-align-left {
-        left: -4px;
-        transform: translateX(0) translateY(4px);
-    }
-    .tooltip.tooltip-bottom.tooltip-align-left {
-        transform: translateX(0) translateY(-4px);
-    }
-    .tooltip.tooltip-align-left::after {
-        left: 12px;
-    }
-
-    .tooltip.tooltip-align-right {
-        right: -4px;
-        transform: translateX(0) translateY(4px);
-    }
-    .tooltip.tooltip-bottom.tooltip-align-right {
-        transform: translateX(0) translateY(-4px);
-    }
-    .tooltip.tooltip-align-right::after {
-        right: 12px;
-    }
-
     /* Hover/Focus Stacking Context */
     .button:focus-visible,
     .button:hover {
         z-index: 110;
-    }
-
-    /* Visibility */
-    .button:focus-visible .tooltip,
-    .button:hover .tooltip {
-        opacity: 1;
-        visibility: visible;
-    }
-
-    .button:focus-visible .tooltip.tooltip-align-center,
-    .button:hover .tooltip.tooltip-align-center {
-        transform: translateX(-50%) translateY(0);
-    }
-
-    .button:focus-visible .tooltip.tooltip-align-left,
-    .button:hover .tooltip.tooltip-align-left,
-    .button:focus-visible .tooltip.tooltip-align-right,
-    .button:hover .tooltip.tooltip-align-right {
-        transform: translateX(0) translateY(0);
     }
 
     .action-btn :global(svg),

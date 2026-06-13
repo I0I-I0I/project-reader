@@ -35,12 +35,24 @@ export function createFloatingState(
             vertical = "top"
         }
 
-        if (rect.left < hThreshold) {
+        const defaultH =
+            options.defaultHorizontal !== undefined ? getVal(options.defaultHorizontal) : "center"
+
+        const isCloseLeft = rect.left < hThreshold
+        const isCloseRight = viewportWidth - rect.right < hThreshold
+
+        if (isCloseLeft && isCloseRight) {
+            if (defaultH === "left" || defaultH === "right") {
+                horizontal = defaultH
+            } else {
+                horizontal = rect.left > viewportWidth - rect.right ? "left" : "right"
+            }
+        } else if (isCloseLeft) {
             horizontal = "left"
-        } else if (viewportWidth - rect.right < hThreshold) {
+        } else if (isCloseRight) {
             horizontal = "right"
         } else {
-            horizontal = "center"
+            horizontal = defaultH
         }
     }
 

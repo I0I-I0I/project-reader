@@ -123,7 +123,7 @@
         <h3>{m.settings()}</h3>
         <Button
             variant="close"
-            size="small"
+            size="default"
             square={true}
             onclick={onClose}
             aria-label={m.close()}
@@ -482,7 +482,13 @@
 
     @media (--tiny-mobile) {
         .settings-sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            right: 0;
             width: 100%;
+            height: 100%;
+            z-index: 300;
             border-left: none;
         }
     }

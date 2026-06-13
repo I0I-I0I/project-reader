@@ -102,21 +102,31 @@
 
         const currentQuery = searchQuery
         untrack(() => {
-            if (selectedIndex === -1) {
-                const index = filteredOutlineList.findIndex((h: FlatHeading) =>
-                    activeHeadings.has(h),
-                )
-                selectedIndex = index !== -1 ? index : 0
-                lastQuery = currentQuery
-            } else if (currentQuery !== lastQuery) {
-                lastQuery = currentQuery
-                if (currentQuery !== "") {
-                    selectedIndex = 0
-                } else {
+            const isPhone = typeof window !== "undefined" && window.innerWidth <= 480
+            if (isPhone) {
+                if (selectedIndex === -1) {
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    selectedIndex = -1
+                }
+            } else {
+                if (selectedIndex === -1) {
                     const index = filteredOutlineList.findIndex((h: FlatHeading) =>
                         activeHeadings.has(h),
                     )
                     selectedIndex = index !== -1 ? index : 0
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    if (currentQuery !== "") {
+                        selectedIndex = 0
+                    } else {
+                        const index = filteredOutlineList.findIndex((h: FlatHeading) =>
+                            activeHeadings.has(h),
+                        )
+                        selectedIndex = index !== -1 ? index : 0
+                    }
                 }
             }
         })

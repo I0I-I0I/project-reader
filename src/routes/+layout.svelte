@@ -44,6 +44,10 @@
     let currentActivePromptNode = $state.raw<PromptNode | null>(null)
     let isHelpOpen = $state(false)
 
+    $effect(() => {
+        return uiStore.registerModal(() => isHelpOpen)
+    })
+
     let rootNode: CommandNode
     let rootPromptNode: PromptNode
 
@@ -495,5 +499,63 @@
             padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
                 calc(20px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
         }
+    }
+
+    :global(.global-tooltip) {
+        position: fixed;
+        background-color: var(--muted-bg-color, #1a1a1a);
+        color: var(--muted-text-color, #f5f0e1);
+        padding: 6.5px 12px;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        white-space: normal;
+        max-width: 240px;
+        width: max-content;
+        word-break: break-word;
+        border-radius: 4px;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        z-index: 100000;
+        font-family:
+            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        transition:
+            opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    :global(.global-tooltip.tooltip-top) {
+        transform: translateY(4px);
+    }
+
+    :global(.global-tooltip.tooltip-bottom) {
+        transform: translateY(-4px);
+    }
+
+    :global(.global-tooltip.visible) {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) !important;
+    }
+
+    :global(.global-tooltip::after) {
+        content: "";
+        position: absolute;
+        border-width: 5px;
+        border-style: solid;
+        left: var(--arrow-left, 50%);
+        transform: translateX(-50%);
+    }
+
+    :global(.global-tooltip.tooltip-top::after) {
+        top: 100%;
+        border-color: var(--muted-bg-color, #1a1a1a) transparent transparent transparent;
+    }
+
+    :global(.global-tooltip.tooltip-bottom::after) {
+        bottom: 100%;
+        border-color: transparent transparent var(--muted-bg-color, #1a1a1a) transparent;
     }
 </style>

@@ -1,16 +1,28 @@
 <script lang="ts">
     import type { Component } from "svelte"
+    import { tooltip as tooltipAction } from "$lib/actions/tooltip"
 
     interface Props {
         active?: boolean
         onclick?: (e: MouseEvent) => void
         label?: string
         Icon?: Component
+        tooltip?: string
+        tooltipAlign?: "left" | "right" | "center"
         title?: string
         class?: string
     }
 
-    let { active = false, onclick, label, Icon, title, class: className = "" }: Props = $props()
+    let {
+        active = false,
+        onclick,
+        label,
+        Icon,
+        tooltip,
+        tooltipAlign,
+        title,
+        class: className = "",
+    }: Props = $props()
 
     let element = $state<HTMLElement | null>(null)
 
@@ -23,6 +35,8 @@
             })
         }
     })
+
+    const displayTooltip = $derived(tooltip || title)
 </script>
 
 <button
@@ -30,7 +44,7 @@
     class="tab-item {className}"
     class:active
     {onclick}
-    {title}
+    use:tooltipAction={displayTooltip ? { text: displayTooltip, align: tooltipAlign } : undefined}
     aria-selected={active}
     role="tab"
 >
@@ -46,11 +60,11 @@
     .tab-item {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-        padding: 6px 12px;
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        padding: 0 16px;
+        background: transparent;
+        border: none;
         color: var(--text-color);
         font-family: inherit;
         font-size: 11px;
@@ -61,20 +75,40 @@
         transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
         flex-shrink: 0;
+        flex: 1;
+        min-width: max-content;
+        position: relative;
+        z-index: 2;
+        box-sizing: border-box;
     }
 
     @media (hover: hover) {
         .tab-item:hover:not(.active) {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
             background: var(--surface-hover-color);
         }
     }
 
     .tab-item.active {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--accent-active-color);
+        color: var(--text-color);
+    }
+
+    /* Vertical separators that don't touch the edges */
+    .tab-item:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 25%;
+        bottom: 25%;
+        width: 2px;
+        background-color: var(--border-color);
+        opacity: 0.2;
+        transition: opacity 0.1s ease;
+    }
+
+    /* Hide separator adjacent to active tab to keep it clean */
+    .tab-item.active::after,
+    :global(.tab-item):has(+ :global(.tab-item.active))::after {
+        opacity: 0;
     }
 
     :global(.tab-item svg) {
@@ -89,7 +123,8 @@
         }
 
         .tab-item {
-            padding: 6px 10px;
+            padding: 0 10px;
+            min-width: 0;
         }
     }
 </style>

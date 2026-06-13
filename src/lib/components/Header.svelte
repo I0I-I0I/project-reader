@@ -74,59 +74,66 @@
                 </Button>
             {/if}
 
-            <Switcher class="header-switcher-first" label={m.select_theme()}>
-                {#snippet trigger()}
-                    <currentThemeInfo.Icon class="switcher-icon" />
-                    <span class="current-label">{currentThemeInfo.label()}</span>
-                {/snippet}
-                {#snippet children({ close })}
-                    {#each THEMES as { value, label, Icon } (value)}
-                        <li>
-                            <button
-                                class="dropdown-item"
-                                class:active={settingsStore.theme === value}
-                                onclick={() => {
-                                    selectTheme(value)
-                                    close()
-                                }}
-                                aria-current={settingsStore.theme === value ? "true" : undefined}
-                            >
-                                <Icon class="switcher-icon-small" />
-                                <span>{label()}</span>
-                            </button>
-                        </li>
-                    {/each}
-                {/snippet}
-            </Switcher>
+            <div class="switchers-group">
+                <Switcher label={m.select_theme()}>
+                    {#snippet trigger()}
+                        <currentThemeInfo.Icon class="switcher-icon" />
+                        <span class="current-label">{currentThemeInfo.label()}</span>
+                    {/snippet}
+                    {#snippet children({ close })}
+                        {#each THEMES as { value, label, Icon } (value)}
+                            <li>
+                                <button
+                                    class="dropdown-item"
+                                    class:active={settingsStore.theme === value}
+                                    onclick={() => {
+                                        selectTheme(value)
+                                        close()
+                                    }}
+                                    aria-current={settingsStore.theme === value
+                                        ? "true"
+                                        : undefined}
+                                >
+                                    <Icon class="switcher-icon-small" />
+                                    <span>{label()}</span>
+                                </button>
+                            </li>
+                        {/each}
+                    {/snippet}
+                </Switcher>
 
-            <Switcher label={m.language_switcher()}>
-                {#snippet trigger()}
-                    <GlobeIcon class="switcher-icon" />
-                    <span class="current-label">{getLanguageName(getLocale())}</span>
-                {/snippet}
-                {#snippet children({ close })}
-                    {#each locales as locale (locale)}
-                        <li>
-                            <a
-                                data-sveltekit-reload
-                                href={resolve(
-                                    getLocalizedCurrentHref(page.url, locale as AppLocale) as any,
-                                )}
-                                class="dropdown-item"
-                                class:active={getLocale() === locale}
-                                aria-current={getLocale() === locale ? "true" : undefined}
-                                onclick={(event) => {
-                                    event.preventDefault()
-                                    switchLanguage(locale as AppLocale, page.url)
-                                    close()
-                                }}
-                            >
-                                <span>{getLanguageName(locale)}</span>
-                            </a>
-                        </li>
-                    {/each}
-                {/snippet}
-            </Switcher>
+                <Switcher label={m.language_switcher()}>
+                    {#snippet trigger()}
+                        <GlobeIcon class="switcher-icon" />
+                        <span class="current-label">{getLanguageName(getLocale())}</span>
+                    {/snippet}
+                    {#snippet children({ close })}
+                        {#each locales as locale (locale)}
+                            <li>
+                                <a
+                                    data-sveltekit-reload
+                                    href={resolve(
+                                        getLocalizedCurrentHref(
+                                            page.url,
+                                            locale as AppLocale,
+                                        ) as any,
+                                    )}
+                                    class="dropdown-item"
+                                    class:active={getLocale() === locale}
+                                    aria-current={getLocale() === locale ? "true" : undefined}
+                                    onclick={(event) => {
+                                        event.preventDefault()
+                                        switchLanguage(locale as AppLocale, page.url)
+                                        close()
+                                    }}
+                                >
+                                    <span>{getLanguageName(locale)}</span>
+                                </a>
+                            </li>
+                        {/each}
+                    {/snippet}
+                </Switcher>
+            </div>
         </div>
     </div>
 </header>
@@ -172,7 +179,10 @@
         flex-wrap: wrap;
     }
 
-    :global(.header-switcher-first) {
+    .switchers-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
         margin-left: auto;
     }
 
@@ -257,10 +267,6 @@
             transform: translate(calc(-50% - 1px), calc(-50% - 1px));
             color: var(--accent-color);
         }
-    }
-
-    :global(.switcher-first) {
-        margin-left: auto;
     }
 
     :global(.switcher-icon) {

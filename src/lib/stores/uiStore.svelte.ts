@@ -1,6 +1,7 @@
 import { browser } from "$app/environment"
-import { MEDIA_QUERIES } from "$lib/breakpoints"
+import { BREAKPOINTS, MEDIA_QUERIES } from "$lib/breakpoints"
 import type { CommandNode } from "./commandsStore.svelte"
+import { untrack } from "svelte"
 
 type PromptMode =
     | "global"
@@ -97,36 +98,28 @@ class UIStore {
     #isNewFolderModalOpen = $state(false)
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])
-    #isCompact = $state(false)
+    #innerWidth = $state(browser ? window.innerWidth : 1024)
+    #isTouch = $state(false)
     #isShortHeight = $state(false)
     #nodeToMoveId = $state<string | null>(null)
     #isEditMetadataModalOpen = $state(false)
     #nodeToEditMetadataId = $state<string | null>(null)
+    #customModalOpen = $state(false)
+    #modalStates = $state<(() => boolean)[]>([])
 
     constructor() {
         if (browser) {
-            const checkCompact = () => {
-                const isTouch =
+            const updateMetrics = () => {
+                this.#innerWidth = window.innerWidth
+                this.#isTouch =
                     window.matchMedia("(pointer: coarse)").matches ||
                     navigator.maxTouchPoints > 0 ||
                     "ontouchstart" in window
-                const isSmallScreen = window.matchMedia(MEDIA_QUERIES.TABLET).matches
-                const ua = navigator.userAgent || ""
-                const isUAPhone =
-                    /iPhone|iPod/.test(ua) ||
-                    (/Android/.test(ua) && /Mobile/.test(ua)) ||
-                    /BlackBerry|IEMobile|Opera Mini|webOS/.test(ua)
-                this.#isCompact = isUAPhone || (isTouch && isSmallScreen)
             }
 
-            setTimeout(checkCompact, 0)
+            updateMetrics()
 
-            const mediaQueryList = window.matchMedia(MEDIA_QUERIES.TABLET)
-            if (mediaQueryList.addEventListener) {
-                mediaQueryList.addEventListener("change", checkCompact)
-            } else if ((mediaQueryList as any).addListener) {
-                ;(mediaQueryList as any).addListener(checkCompact)
-            }
+            window.addEventListener("resize", updateMetrics)
 
             const shortHeightMql = window.matchMedia("(max-height: 500px)")
             const checkShortHeight = () => {
@@ -135,6 +128,14 @@ class UIStore {
             checkShortHeight()
             shortHeightMql.addEventListener("change", checkShortHeight)
         }
+    }
+
+    get isCompact(): boolean {
+        const isSmallScreen = this.#innerWidth <= BREAKPOINTS.TABLET
+        const ua = browser ? navigator.userAgent : ""
+        const isUAPhone = /iPhone|iPod|Android|Mobi|BlackBerry|IEMobile|Opera Mini|webOS/.test(ua)
+        const isUAMobile = browser ? (navigator as any).userAgentData?.mobile : false
+        return isUAMobile || isUAPhone || (this.#isTouch && isSmallScreen)
     }
 
     clearStates() {
@@ -148,6 +149,7 @@ class UIStore {
         this.#isEditMetadataModalOpen = false
         this.#nodeToEditMetadataId = null
         this.#isSearchModeActive = false
+        this.#customModalOpen = false
     }
 
     get isSelectionMode(): boolean {
@@ -229,10 +231,6 @@ class UIStore {
         this.#nodeToEditMetadataId = value
     }
 
-    get isCompact(): boolean {
-        return this.#isCompact
-    }
-
     get isShortHeight(): boolean {
         return this.#isShortHeight
     }
@@ -243,6 +241,32 @@ class UIStore {
 
     set isSearchModeActive(value: boolean) {
         this.#isSearchModeActive = value
+    }
+
+    get isModalOpen(): boolean {
+        return (
+            this.#isNewFolderModalOpen ||
+            this.#isDeleteModalOpen ||
+            this.#isEditMetadataModalOpen ||
+            this.prompt.isOpen ||
+            this.#customModalOpen ||
+            this.#modalStates.some((getState) => getState())
+        )
+    }
+
+    set isModalOpen(value: boolean) {
+        this.#customModalOpen = value
+    }
+
+    registerModal(getState: () => boolean) {
+        untrack(() => {
+            this.#modalStates.push(getState)
+        })
+        return () => {
+            untrack(() => {
+                this.#modalStates = this.#modalStates.filter((s) => s !== getState)
+            })
+        }
     }
 }
 

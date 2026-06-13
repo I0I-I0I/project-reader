@@ -61,7 +61,7 @@
     onclick={(e) => e.stopPropagation()}
 >
     <div class="sidebar-tabs">
-        <Tabs class="sidebar-tabs-list">
+        <Tabs class="sidebar-tabs-list" activeValue={activeTab}>
             <TabItem
                 active={activeTab === "outline"}
                 onclick={() => (activeTab = "outline")}
@@ -86,7 +86,7 @@
         </Tabs>
         <Button
             variant="close"
-            size="small"
+            size="default"
             square={true}
             onclick={onClose}
             aria-label={m.close()}
@@ -167,9 +167,15 @@
         overflow: hidden;
     }
 
-    @media (max-width: 480px) {
+    @media (--tiny-mobile) {
         .left-sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            z-index: 300;
             border-right: none;
         }
     }

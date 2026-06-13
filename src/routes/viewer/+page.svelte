@@ -14,7 +14,6 @@
     import ViewerHeader from "./components/ViewerHeader.svelte"
     import LeftSidebar from "./components/LeftSidebar.svelte"
     import SettingsSidebar from "./components/SettingsSidebar.svelte"
-    import NotesSidebar from "./components/NotesSidebar.svelte"
     import NotePopup from "./components/NotePopup.svelte"
     import NoteEditor from "./components/NoteEditor.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
@@ -627,6 +626,18 @@
     let isBookmarkAddModalOpen = $state(false)
     let bookmarkName = $state("")
     let bookmarkToDeleteId = $state<string | null>(null)
+
+    $effect(() => {
+        return uiStore.registerModal(
+            () =>
+                !!(
+                    isBookmarkAddModalOpen ||
+                    bookmarkToDeleteId ||
+                    noteToDeleteId ||
+                    notesStore.editingNote
+                ),
+        )
+    })
 
     let currentBookId = $derived(currentBook?.id)
     let currentPage = $derived(viewerStore.currentPage)
@@ -1424,6 +1435,7 @@
 
     function handleTouchStart(e: TouchEvent) {
         if (!uiStore.isCompact) return
+        if (uiStore.isModalOpen) return
 
         // If a transition is in progress, instantly complete the page turn to avoid lag/race conditions
         if (isTransitioning && swipeTimeoutId && pendingPageTurnAction) {
@@ -1461,6 +1473,7 @@
 
     function handleTouchMove(e: TouchEvent) {
         if (!uiStore.isCompact) return
+        if (uiStore.isModalOpen) return
         if (isTransitioning) return
         if (settingsStore.layout === "scroll") return
         if (e.touches.length !== 1) return
@@ -1529,6 +1542,7 @@
 
     function handleTouchEnd(e: TouchEvent) {
         if (!uiStore.isCompact) return
+        if (uiStore.isModalOpen) return
         if (isTransitioning) return
         if (settingsStore.layout === "scroll") return
         if (e.changedTouches.length !== 1) return
@@ -1567,37 +1581,19 @@
             const isNext = deltaX < 0
             const step = settingsStore.layout === "split" ? 2 : 1
 
-            // Calculate velocity (pixels per millisecond)
-            const velocity = Math.abs(deltaX) / (deltaTime || 1)
-            let stepsToSkip = 1
-            if (velocity > 1.2) {
-                // If velocity is high, skip multiple pages/spreads
-                stepsToSkip = Math.min(5, Math.floor(velocity * 1.5))
-            }
-
-            // Calculate target page
+            // Calculate target page (always turn exactly 1 page/spread per swipe)
             let targetPage = viewerStore.currentPage
             if (isNext) {
-                for (let i = 0; i < stepsToSkip; i++) {
-                    if (targetPage + step <= totalPages) {
-                        targetPage += step
-                    } else if (targetPage < totalPages) {
-                        targetPage = totalPages
-                        break
-                    } else {
-                        break
-                    }
+                if (targetPage + step <= totalPages) {
+                    targetPage += step
+                } else if (targetPage < totalPages) {
+                    targetPage = totalPages
                 }
             } else {
-                for (let i = 0; i < stepsToSkip; i++) {
-                    if (targetPage - step >= 1) {
-                        targetPage -= step
-                    } else if (targetPage > 1) {
-                        targetPage = 1
-                        break
-                    } else {
-                        break
-                    }
+                if (targetPage - step >= 1) {
+                    targetPage -= step
+                } else if (targetPage > 1) {
+                    targetPage = 1
                 }
             }
 
@@ -2306,6 +2302,13 @@
         z-index: 20;
         cursor: pointer;
         animation: fade-in 0.2s ease-out;
+    }
+
+    @media (--tiny-mobile) {
+        .sidebar-backdrop {
+            position: fixed;
+            z-index: 290;
+        }
     }
 
     .outline-hover-trigger {

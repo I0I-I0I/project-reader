@@ -44,6 +44,10 @@
     let bookmarkToDeleteId = $state<string | null>(null)
 
     $effect(() => {
+        return uiStore.registerModal(() => !!(editingBookmarkId || bookmarkToDeleteId))
+    })
+
+    $effect(() => {
         if (editingBookmarkId) {
             tick().then(() => {
                 const input = document.getElementById(
@@ -143,12 +147,22 @@
 
         const currentQuery = searchQuery
         untrack(() => {
-            if (selectedIndex === -1) {
-                selectedIndex = 0
-                lastQuery = currentQuery
-            } else if (currentQuery !== lastQuery) {
-                lastQuery = currentQuery
-                selectedIndex = 0
+            const isPhone = typeof window !== "undefined" && window.innerWidth <= 480
+            if (isPhone) {
+                if (selectedIndex === -1) {
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    selectedIndex = -1
+                }
+            } else {
+                if (selectedIndex === -1) {
+                    selectedIndex = 0
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    selectedIndex = 0
+                }
             }
         })
     })
@@ -451,191 +465,184 @@
 </script>
 
 {#snippet sidebarContent()}
-    <div class="bookmarks-sidebar-wrapper">
-        <div class="sidebar-search">
-            <input
-                bind:this={searchInputRef}
-                type="text"
-                bind:value={searchQuery}
-                placeholder={`${m.search_bookmarks_placeholder ? m.search_bookmarks_placeholder() : "Search bookmarks in this book..."}${getShortcutHint(sidebarCommandsNode, "search-bookmarks")}`}
-                class="search-input"
-                onkeydown={handleSearchKeydown}
-                onfocus={() => {
-                    isSearchFocused = true
+    <div class="sidebar-search">
+        <input
+            bind:this={searchInputRef}
+            type="text"
+            bind:value={searchQuery}
+            placeholder={`${m.search_bookmarks_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-bookmarks")}`}
+            class="search-input"
+            onkeydown={handleSearchKeydown}
+            onfocus={() => {
+                isSearchFocused = true
+            }}
+            onblur={() => {
+                isSearchFocused = false
+            }}
+        />
+        {#if searchQuery}
+            <button
+                class="clear-search-btn"
+                onclick={() => {
+                    searchQuery = ""
+                    searchInputRef?.focus()
                 }}
-                onblur={() => {
-                    isSearchFocused = false
-                }}
-            />
-            {#if searchQuery}
-                <button
-                    class="clear-search-btn"
-                    onclick={() => {
-                        searchQuery = ""
-                        searchInputRef?.focus()
-                    }}
-                    aria-label={m.clear_search_aria ? m.clear_search_aria() : "Clear search"}
-                >
-                    ×
-                </button>
-            {/if}
-        </div>
-
-        <div class="sidebar-content" bind:this={contentRef}>
-            {#if filteredBookmarks.length === 0}
-                <div class="no-bookmarks">
-                    {m.no_bookmarks ? m.no_bookmarks() : "No bookmarks saved yet"}
-                </div>
-            {:else}
-                <div class="bookmarks-list">
-                    {#each filteredBookmarks as bookmark, index (bookmark.id)}
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div
-                            class="bookmark-card"
-                            class:selected={index === selectedIndex}
-                            onclick={() => {
-                                selectBookmark(bookmark)
-                                selectedIndex = index
-                            }}
-                        >
-                            <div class="bookmark-card-header">
-                                <span class="bookmark-page">Page {bookmark.pageNumber}</span>
-                            </div>
-                            <div class="bookmark-text-content">
-                                {bookmark.name}
-                            </div>
-                            <div class="bookmark-card-actions">
-                                <button
-                                    class="action-btn edit"
-                                    onclick={(e) => {
-                                        e.stopPropagation()
-                                        editingBookmarkId = bookmark.id
-                                        editingName = bookmark.name
-                                    }}
-                                    title={m.edit_bookmark ? m.edit_bookmark() : "Rename"}
-                                >
-                                    <EditIcon width="14" height="14" />
-                                </button>
-                                <button
-                                    class="action-btn delete"
-                                    onclick={(e) => {
-                                        e.stopPropagation()
-                                        bookmarkToDeleteId = bookmark.id
-                                    }}
-                                    title={m.remove_bookmark ? m.remove_bookmark() : "Delete"}
-                                >
-                                    <TrashIcon width="14" height="14" />
-                                </button>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-            {/if}
-        </div>
-
-        {#if !uiStore.isCompact}
-            <div class="sidebar-footer-hint">
-                {#if navigateShortcuts.length > 0}
-                    <span class="hint-item">
-                        {#each navigateShortcuts as pair, i (pair.display)}
-                            {#if i > 0},
-                            {/if}<kbd>{pair.display}</kbd>
-                        {/each}
-                        Navigate
-                    </span>
-                    <span class="hint-divider">•</span>
-                {/if}
-                {#if selectShortcut}
-                    <span class="hint-item">
-                        <kbd>{selectShortcut}</kbd> Go
-                    </span>
-                    <span class="hint-divider">•</span>
-                {/if}
-                {#if searchShortcut}
-                    <span class="hint-item">
-                        <kbd>{searchShortcut}</kbd> Search
-                    </span>
-                    <span class="hint-divider">•</span>
-                {/if}
-                {#if editShortcut}
-                    <span class="hint-item">
-                        <kbd>{editShortcut}</kbd> Edit
-                    </span>
-                    <span class="hint-divider">•</span>
-                {/if}
-                {#if deleteShortcut}
-                    <span class="hint-item">
-                        <kbd>{deleteShortcut}</kbd> Delete
-                    </span>
-                    <span class="hint-divider">•</span>
-                {/if}
-                {#if closeShortcuts.length > 0}
-                    <span class="hint-item">
-                        {#each closeShortcuts as shortcut, i (shortcut)}
-                            {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
-                        {/each}
-                        Close
-                    </span>
-                {/if}
-            </div>
-        {/if}
-
-        {#if editingBookmarkId}
-            <BookmarkEditKeymaps
-                onConfirm={() => handleSaveRename(editingBookmarkId)}
-                onCancel={() => (editingBookmarkId = null)}
-            />
-            <Modal
-                onClose={() => (editingBookmarkId = null)}
-                title={m.rename_bookmark ? m.rename_bookmark() : "Rename Bookmark"}
-                autofocusClose={false}
+                aria-label={m.clear_search_aria()}
             >
-                <div class="modal-form">
-                    <Input
-                        id="edit-bookmark-name-input"
-                        placeholder={m.bookmark_name_placeholder
-                            ? m.bookmark_name_placeholder()
-                            : "Bookmark name..."}
-                        label={m.rename_bookmark ? m.rename_bookmark() : "Rename Bookmark"}
-                        bind:value={editingName}
-                        onkeydown={(e) => {
-                            if (e.key === "Enter") {
-                                e.preventDefault()
-                                handleSaveRename(editingBookmarkId)
-                            }
-                        }}
-                    />
-                    <div class="modal-actions">
-                        <Button
-                            variant="brutalist"
-                            onclick={() => handleSaveRename(editingBookmarkId)}
-                        >
-                            {m.save ? m.save() : "Save"}
-                        </Button>
-                        <Button variant="ghost" onclick={() => (editingBookmarkId = null)}>
-                            {m.cancel ? m.cancel() : "Cancel"}
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
-        {/if}
-
-        {#if bookmarkToDeleteId}
-            <DeleteConfirmModal
-                message="Delete this bookmark?"
-                onConfirm={async () => {
-                    if (bookmarkToDeleteId) {
-                        await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
-                    }
-                    bookmarkToDeleteId = null
-                }}
-                onCancel={() => {
-                    bookmarkToDeleteId = null
-                }}
-            />
+                ×
+            </button>
         {/if}
     </div>
+
+    <div class="sidebar-content" bind:this={contentRef}>
+        {#if filteredBookmarks.length === 0}
+            <div class="no-bookmarks">
+                {m.no_bookmarks()}
+            </div>
+        {:else}
+            <div class="bookmarks-list">
+                {#each filteredBookmarks as bookmark, index (bookmark.id)}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div
+                        class="bookmark-card"
+                        class:selected={index === selectedIndex}
+                        onclick={() => {
+                            selectBookmark(bookmark)
+                            selectedIndex = index
+                        }}
+                    >
+                        <div class="bookmark-card-header">
+                            <span class="bookmark-page">Page {bookmark.pageNumber}</span>
+                        </div>
+                        <div class="bookmark-text-content">
+                            {bookmark.name}
+                        </div>
+                        <div class="bookmark-card-actions">
+                            <button
+                                class="action-btn edit"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    editingBookmarkId = bookmark.id
+                                    editingName = bookmark.name
+                                }}
+                                title={m.edit_bookmark()}
+                            >
+                                <EditIcon width="14" height="14" />
+                            </button>
+                            <button
+                                class="action-btn delete"
+                                onclick={(e) => {
+                                    e.stopPropagation()
+                                    bookmarkToDeleteId = bookmark.id
+                                }}
+                                title={m.remove_bookmark()}
+                            >
+                                <TrashIcon width="14" height="14" />
+                            </button>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </div>
+
+    {#if !uiStore.isCompact}
+        <div class="sidebar-footer-hint">
+            {#if navigateShortcuts.length > 0}
+                <span class="hint-item">
+                    {#each navigateShortcuts as pair, i (pair.display)}
+                        {#if i > 0},
+                        {/if}<kbd>{pair.display}</kbd>
+                    {/each}
+                    Navigate
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if selectShortcut}
+                <span class="hint-item">
+                    <kbd>{selectShortcut}</kbd> Go
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if searchShortcut}
+                <span class="hint-item">
+                    <kbd>{searchShortcut}</kbd> Search
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if editShortcut}
+                <span class="hint-item">
+                    <kbd>{editShortcut}</kbd> Edit
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if deleteShortcut}
+                <span class="hint-item">
+                    <kbd>{deleteShortcut}</kbd> Delete
+                </span>
+                <span class="hint-divider">•</span>
+            {/if}
+            {#if closeShortcuts.length > 0}
+                <span class="hint-item">
+                    {#each closeShortcuts as shortcut, i (shortcut)}
+                        {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
+                    {/each}
+                    Close
+                </span>
+            {/if}
+        </div>
+    {/if}
+
+    {#if editingBookmarkId}
+        <BookmarkEditKeymaps
+            onConfirm={() => handleSaveRename(editingBookmarkId)}
+            onCancel={() => (editingBookmarkId = null)}
+        />
+        <Modal
+            onClose={() => (editingBookmarkId = null)}
+            title={m.rename_bookmark()}
+            autofocusClose={false}
+        >
+            <div class="modal-form">
+                <Input
+                    id="edit-bookmark-name-input"
+                    placeholder={m.bookmark_name_placeholder()}
+                    label={m.rename_bookmark()}
+                    bind:value={editingName}
+                    onkeydown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleSaveRename(editingBookmarkId)
+                        }
+                    }}
+                />
+                <div class="modal-actions">
+                    <Button variant="brutalist" onclick={() => handleSaveRename(editingBookmarkId)}>
+                        {m.save()}
+                    </Button>
+                    <Button variant="ghost" onclick={() => (editingBookmarkId = null)}>
+                        {m.cancel()}
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    {/if}
+
+    {#if bookmarkToDeleteId}
+        <DeleteConfirmModal
+            message="Delete this bookmark?"
+            onConfirm={async () => {
+                if (bookmarkToDeleteId) {
+                    await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
+                }
+                bookmarkToDeleteId = null
+            }}
+            onCancel={() => {
+                bookmarkToDeleteId = null
+            }}
+        />
+    {/if}
 {/snippet}
 
 {#if minimal}
@@ -650,7 +657,7 @@
         onclick={(e) => e.stopPropagation()}
     >
         <div class="sidebar-header">
-            <h3>{m.bookmarks ? m.bookmarks() : "Bookmarks"}</h3>
+            <h3>{m.bookmarks()}</h3>
             <Button
                 variant="close"
                 size="small"
@@ -668,19 +675,12 @@
 {/if}
 
 <style>
-    .bookmarks-sidebar-wrapper {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-    }
-
     .bookmarks-sidebar {
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 380px;
+        width: 320px;
         background: color-mix(in srgb, var(--surface-color) 85%, transparent);
         backdrop-filter: blur(16px);
         border-right: 3px solid var(--border-color);
@@ -845,29 +845,36 @@
         justify-content: flex-end;
         gap: 6px;
         margin-top: 4px;
+        opacity: 0.7;
+        transition: opacity 0.15s ease;
+    }
+
+    .bookmark-card:hover .bookmark-card-actions {
+        opacity: 1;
     }
 
     .action-btn {
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        padding: 4px;
+        background: none;
+        border: none;
         cursor: pointer;
+        padding: 4px;
+        color: var(--text-color);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--text-color);
+        border-radius: 2px;
+        border: 1px solid transparent;
         transition: all 0.1s ease;
     }
 
     .action-btn:hover {
-        transform: translate(-1px, -1px);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        background: var(--accent-color);
+        border-color: var(--border-color);
     }
 
-    .action-btn:active {
-        transform: translate(1px, 1px);
-        box-shadow: 0 0 0 var(--shadow-color);
+    .action-btn.delete:hover {
+        color: #e53935;
+        background: rgba(229, 57, 53, 0.1);
     }
 
     .sidebar-footer-hint {
@@ -915,5 +922,44 @@
         align-items: center;
         width: 100%;
         margin-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+        .bookmarks-sidebar {
+            width: 100%;
+            border-right: none;
+        }
+
+        .bookmark-card-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            padding: 8px;
+        }
+
+        .sidebar-search {
+            padding: 6px 12px;
+        }
+
+        .search-input {
+            padding: 6px 28px 6px 10px;
+            font-size: 14px;
+        }
+
+        .clear-search-btn {
+            right: 18px;
+        }
+
+        .bookmark-card {
+            padding: 14px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .action-btn :global(svg) {
+            width: 16px !important;
+            height: 16px !important;
+        }
     }
 </style>

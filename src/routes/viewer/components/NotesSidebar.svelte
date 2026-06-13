@@ -95,12 +95,22 @@
 
         const currentQuery = searchQuery
         untrack(() => {
-            if (selectedIndex === -1) {
-                selectedIndex = 0
-                lastQuery = currentQuery
-            } else if (currentQuery !== lastQuery) {
-                lastQuery = currentQuery
-                selectedIndex = 0
+            const isPhone = typeof window !== "undefined" && window.innerWidth <= 480
+            if (isPhone) {
+                if (selectedIndex === -1) {
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    selectedIndex = -1
+                }
+            } else {
+                if (selectedIndex === -1) {
+                    selectedIndex = 0
+                    lastQuery = currentQuery
+                } else if (currentQuery !== lastQuery) {
+                    lastQuery = currentQuery
+                    selectedIndex = 0
+                }
             }
         })
     })
@@ -899,6 +909,13 @@
 
         .note-card {
             padding: 14px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .action-btn :global(svg) {
+            width: 16px !important;
+            height: 16px !important;
         }
     }
 </style>

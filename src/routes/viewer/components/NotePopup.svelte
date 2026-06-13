@@ -2,6 +2,8 @@
     import { getContext } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/components/ui/Button.svelte"
+    import Float from "$lib/components/ui/Float.svelte"
+    import { uiStore } from "$lib/stores/uiStore.svelte"
     import {
         useCommands,
         type CommandNode,
@@ -23,6 +25,10 @@
 
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+
+    $effect(() => {
+        return uiStore.registerModal(() => true)
+    })
 
     const popupCommandsNode = useCommands(
         [
@@ -61,12 +67,8 @@
     )
 </script>
 
-<div
-    class="note-popup"
-    style="position: fixed; left: clamp(200px, {activePopup.x}px, calc(100vw - 200px)); top: {activePopup.y -
-        12}px; transform: translate(-50%, -100%); z-index: 1000;"
->
-    <div class="popup-card">
+<Float {onClose}>
+    <div class="note-popup-content">
         <div class="popup-header">
             <span class="popup-page">{m.page()} {activePopup.note.pageNumber}</span>
             <Button
@@ -111,42 +113,25 @@
             </Button>
         </div>
     </div>
-</div>
+</Float>
 
 <style>
-    .note-popup {
-        transition:
-            top 0.2s ease,
-            left 0.2s ease;
+    :global(.float-card:has(.note-popup-content)) {
+        max-width: 380px !important;
+        background: color-mix(in srgb, var(--surface-color) 92%, transparent) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
     }
 
-    @media (--mobile) {
-        .note-popup {
-            left: 50% !important;
-            top: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: calc(100vw - 32px) !important;
-            max-width: 380px;
-        }
-
-        .popup-card {
-            width: 100% !important;
-        }
-    }
-
-    .popup-card {
+    .note-popup-content {
         box-sizing: border-box;
-        width: 380px;
-        max-height: calc(100vh - 40px);
-        background: color-mix(in srgb, var(--surface-color) 92%, transparent);
-        backdrop-filter: blur(12px);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
         padding: 12px;
         display: flex;
         flex-direction: column;
         gap: 8px;
         font-family: inherit;
+        width: 100%;
+        max-height: calc(100vh - 40px);
     }
 
     .popup-header {
