@@ -1566,10 +1566,42 @@
         if (isSwipe) {
             const isNext = deltaX < 0
             const step = settingsStore.layout === "split" ? 2 : 1
-            const canTurn = isNext
-                ? viewerStore.currentPage + step <= totalPages ||
-                  viewerStore.currentPage < totalPages
-                : viewerStore.currentPage - step >= 1 || viewerStore.currentPage > 1
+
+            // Calculate velocity (pixels per millisecond)
+            const velocity = Math.abs(deltaX) / (deltaTime || 1)
+            let stepsToSkip = 1
+            if (velocity > 1.2) {
+                // If velocity is high, skip multiple pages/spreads
+                stepsToSkip = Math.min(5, Math.floor(velocity * 1.5))
+            }
+
+            // Calculate target page
+            let targetPage = viewerStore.currentPage
+            if (isNext) {
+                for (let i = 0; i < stepsToSkip; i++) {
+                    if (targetPage + step <= totalPages) {
+                        targetPage += step
+                    } else if (targetPage < totalPages) {
+                        targetPage = totalPages
+                        break
+                    } else {
+                        break
+                    }
+                }
+            } else {
+                for (let i = 0; i < stepsToSkip; i++) {
+                    if (targetPage - step >= 1) {
+                        targetPage -= step
+                    } else if (targetPage > 1) {
+                        targetPage = 1
+                        break
+                    } else {
+                        break
+                    }
+                }
+            }
+
+            const canTurn = targetPage !== viewerStore.currentPage
 
             if (canTurn) {
                 isTransitioning = true
@@ -1578,11 +1610,7 @@
                 swipeOffsetX = isNext ? "-33.333333%" : "33.333333%"
 
                 const action = () => {
-                    if (isNext) {
-                        nextPage()
-                    } else {
-                        prevPage()
-                    }
+                    viewerStore.goToPage(targetPage)
                 }
                 pendingPageTurnAction = action
 
@@ -1795,68 +1823,20 @@
                                 <!-- Previous Slide -->
                                 <div class="slider-slide prev-slide">
                                     {#if prevPageImage}
-                                        <div
-                                            class="pages-container"
-                                            class:split-mode={settingsStore.layout === "split"}
-                                        >
-                                            {#if settingsStore.layout === "split" && prevPageImage2}
-                                                <div class="book-spread">
-                                                    <div
-                                                        class="pdf-image-wrapper split-left"
-                                                        style={prevImageStyle1}
-                                                    >
-                                                        <img
-                                                            src={prevPageImage}
-                                                            class="pdf-image"
-                                                            alt={m.page_render_alt({
-                                                                page:
-                                                                    viewerStore.currentPage -
-                                                                    (settingsStore.layout ===
-                                                                    "split"
-                                                                        ? 2
-                                                                        : 1),
-                                                            })}
-                                                        />
-                                                    </div>
-                                                    <div class="book-spine"></div>
-                                                    <div
-                                                        class="pdf-image-wrapper split-right"
-                                                        style={prevImageStyle2}
-                                                    >
-                                                        <img
-                                                            src={prevPageImage2}
-                                                            class="pdf-image"
-                                                            alt={m.page_render_alt({
-                                                                page:
-                                                                    viewerStore.currentPage -
-                                                                    (settingsStore.layout ===
-                                                                    "split"
-                                                                        ? 2
-                                                                        : 1) +
-                                                                    1,
-                                                            })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="pdf-image-wrapper"
-                                                    style={prevImageStyle1}
-                                                >
-                                                    <img
-                                                        src={prevPageImage}
-                                                        class="pdf-image"
-                                                        alt={m.page_render_alt({
-                                                            page:
-                                                                viewerStore.currentPage -
-                                                                (settingsStore.layout === "split"
-                                                                    ? 2
-                                                                    : 1),
-                                                        })}
-                                                    />
-                                                </div>
-                                            {/if}
-                                        </div>
+                                        <CanvasPane
+                                            {pdf}
+                                            scale={settingsStore.scale}
+                                            currentPage={viewerStore.currentPage -
+                                                (settingsStore.layout === "split" ? 2 : 1)}
+                                            scrollPosition={0}
+                                            renderLayers={false}
+                                            isPageLoading={false}
+                                            currentPageImage={prevPageImage}
+                                            currentPageImage2={prevPageImage2}
+                                            layoutMode={settingsStore.layout}
+                                            currentPageDim1={prevPageDim1}
+                                            currentPageDim2={prevPageDim2}
+                                        />
                                     {/if}
                                 </div>
 
@@ -1880,68 +1860,20 @@
                                 <!-- Next Slide -->
                                 <div class="slider-slide next-slide">
                                     {#if nextPageImage}
-                                        <div
-                                            class="pages-container"
-                                            class:split-mode={settingsStore.layout === "split"}
-                                        >
-                                            {#if settingsStore.layout === "split" && nextPageImage2}
-                                                <div class="book-spread">
-                                                    <div
-                                                        class="pdf-image-wrapper split-left"
-                                                        style={nextImageStyle1}
-                                                    >
-                                                        <img
-                                                            src={nextPageImage}
-                                                            class="pdf-image"
-                                                            alt={m.page_render_alt({
-                                                                page:
-                                                                    viewerStore.currentPage +
-                                                                    (settingsStore.layout ===
-                                                                    "split"
-                                                                        ? 2
-                                                                        : 1),
-                                                            })}
-                                                        />
-                                                    </div>
-                                                    <div class="book-spine"></div>
-                                                    <div
-                                                        class="pdf-image-wrapper split-right"
-                                                        style={nextImageStyle2}
-                                                    >
-                                                        <img
-                                                            src={nextPageImage2}
-                                                            class="pdf-image"
-                                                            alt={m.page_render_alt({
-                                                                page:
-                                                                    viewerStore.currentPage +
-                                                                    (settingsStore.layout ===
-                                                                    "split"
-                                                                        ? 2
-                                                                        : 1) +
-                                                                    1,
-                                                            })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="pdf-image-wrapper"
-                                                    style={nextImageStyle1}
-                                                >
-                                                    <img
-                                                        src={nextPageImage}
-                                                        class="pdf-image"
-                                                        alt={m.page_render_alt({
-                                                            page:
-                                                                viewerStore.currentPage +
-                                                                (settingsStore.layout === "split"
-                                                                    ? 2
-                                                                    : 1),
-                                                        })}
-                                                    />
-                                                </div>
-                                            {/if}
-                                        </div>
+                                        <CanvasPane
+                                            {pdf}
+                                            scale={settingsStore.scale}
+                                            currentPage={viewerStore.currentPage +
+                                                (settingsStore.layout === "split" ? 2 : 1)}
+                                            scrollPosition={0}
+                                            renderLayers={false}
+                                            isPageLoading={false}
+                                            currentPageImage={nextPageImage}
+                                            currentPageImage2={nextPageImage2}
+                                            layoutMode={settingsStore.layout}
+                                            currentPageDim1={nextPageDim1}
+                                            currentPageDim2={nextPageDim2}
+                                        />
                                     {/if}
                                 </div>
                             </div>
@@ -2333,24 +2265,6 @@
         overflow: hidden;
     }
 
-    .slider-viewport {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        display: flex;
-        flex: 1;
-        background: var(--canvas-bg-color);
-        box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.05);
-    }
-
-    @media (min-width: 801px) and (min-height: 501px) {
-        .slider-viewport {
-            background-image: radial-gradient(var(--border-color) 1px, transparent 0);
-            background-size: 24px 24px;
-        }
-    }
-
     .slider-track {
         display: flex;
         flex-direction: row;
@@ -2372,123 +2286,8 @@
         box-sizing: border-box;
     }
 
-    .slider-viewport.single-layout:not(.short-height) .slider-slide {
-        justify-content: center;
-    }
-
-    .slider-slide .pages-container {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    .slider-viewport.short-height .slider-slide {
-        padding: 16px;
-    }
-
-    .slider-viewport.short-height .slider-slide:not(.current-slide) {
-        overflow-y: auto;
-    }
-
-    .slider-slide .pdf-image-wrapper {
-        display: inline-flex;
-        position: relative;
-        box-sizing: border-box;
-    }
-
-    /* Book Spread joined layout */
-    .book-spread {
-        display: flex;
-        position: relative;
-        align-items: flex-start;
-        box-shadow: 12px 12px 0 var(--shadow-color);
-        border: 3px solid var(--border-color);
-        background: var(--surface-color);
-    }
-
-    .book-spread .pdf-image-wrapper {
-        border: none;
-        box-shadow: none;
-    }
-
-    .book-spread .split-left {
-        border-right: 1px solid rgba(0, 0, 0, 0.12);
-    }
-
-    :global(html.dark) .book-spread .split-left {
-        border-right-color: rgba(255, 255, 255, 0.12);
-    }
-
-    .book-spine {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 50%;
-        width: 32px;
-        transform: translateX(-50%);
+    .slider-slide:not(.current-slide) {
         pointer-events: none;
-        z-index: 5;
-        background: linear-gradient(
-            to right,
-            rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.05) 30%,
-            rgba(0, 0, 0, 0.12) 48%,
-            rgba(0, 0, 0, 0.18) 50%,
-            rgba(0, 0, 0, 0.12) 52%,
-            rgba(0, 0, 0, 0.05) 70%,
-            rgba(0, 0, 0, 0) 100%
-        );
-    }
-
-    :global(html.dark) .book-spine {
-        background: linear-gradient(
-            to right,
-            rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.15) 30%,
-            rgba(0, 0, 0, 0.35) 48%,
-            rgba(0, 0, 0, 0.5) 50%,
-            rgba(0, 0, 0, 0.35) 52%,
-            rgba(0, 0, 0, 0.15) 70%,
-            rgba(0, 0, 0, 0) 100%
-        );
-    }
-
-    /* When mobile-full-width is active (not short height) */
-    .slider-viewport:not(.short-height) .pdf-image-wrapper {
-        border-width: 0;
-        box-shadow: none;
-        border-bottom: none !important;
-    }
-
-    .slider-viewport:not(.short-height) .book-spread {
-        border-width: 0;
-        box-shadow: none;
-        width: 100% !important;
-        border-bottom: none !important;
-    }
-
-    .slider-viewport:not(.short-height) .book-spread .pdf-image-wrapper {
-        border-bottom: none !important;
-    }
-
-    /* When short height, match CanvasPane's default pdf-image-wrapper styling */
-    .slider-viewport.short-height .pdf-image-wrapper {
-        border: 3px solid var(--border-color);
-        box-shadow: 12px 12px 0 var(--shadow-color);
-        background: var(--surface-color);
-    }
-
-    .slider-slide .pdf-image {
-        display: block;
-        width: 100% !important;
-        height: auto !important;
-    }
-
-    :global(html.dark) .slider-slide .pdf-image {
-        filter: invert(1) hue-rotate(180deg);
     }
 
     .loading-state {

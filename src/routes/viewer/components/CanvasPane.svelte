@@ -37,6 +37,7 @@
         pdf,
         currentPageDim1: propPageDim1 = null,
         currentPageDim2: propPageDim2 = null,
+        renderLayers = true,
     } = $props<{
         isPageLoading?: boolean
         currentPageImage?: string | null
@@ -49,6 +50,7 @@
         pdf: PDFDocument | null
         currentPageDim1?: { width: number; height: number } | null
         currentPageDim2?: { width: number; height: number } | null
+        renderLayers?: boolean
     }>()
 
     let containerWidth = $state(0)
@@ -674,7 +676,7 @@
     let textLayerController2: AbortController | null = null
 
     $effect(() => {
-        if (!pdf || layoutMode === "scroll" || isPageLoading) return
+        if (!renderLayers || !pdf || layoutMode === "scroll" || isPageLoading) return
         const tLayer1 = textLayer1
         const aLayer1 = annotationLayer1
         // Synchronously read reactive variables so Svelte registers them as dependencies:
@@ -695,7 +697,7 @@
     })
 
     $effect(() => {
-        if (!pdf || layoutMode !== "split" || isPageLoading) return
+        if (!renderLayers || !pdf || layoutMode !== "split" || isPageLoading) return
         const tLayer2 = textLayer2
         const aLayer2 = annotationLayer2
         // Synchronously read reactive variables so Svelte registers them as dependencies:
@@ -783,7 +785,7 @@
     }
 
     $effect(() => {
-        if (layoutMode === "scroll") return
+        if (!renderLayers || layoutMode === "scroll") return
 
         const count = textLayer1RenderCount
         const matches = searchStore.matches
@@ -802,7 +804,7 @@
     })
 
     $effect(() => {
-        if (layoutMode !== "split") return
+        if (!renderLayers || layoutMode !== "split") return
 
         const count = textLayer2RenderCount
         const matches = searchStore.matches
@@ -868,7 +870,7 @@
     }
 
     $effect(() => {
-        if (layoutMode === "scroll") return
+        if (!renderLayers || layoutMode === "scroll") return
 
         const count = textLayer1RenderCount
         const notes = notesStore.notes // reactive dependency
@@ -887,7 +889,7 @@
     })
 
     $effect(() => {
-        if (layoutMode !== "split") return
+        if (!renderLayers || layoutMode !== "split") return
 
         const count = textLayer2RenderCount
         const notes = notesStore.notes // reactive dependency
@@ -1068,8 +1070,14 @@
                             alt={m.page_render_alt({ page: currentPage })}
                             class="pdf-image"
                         />
-                        <div bind:this={textLayer1} class="textLayer" data-page={currentPage}></div>
-                        <div bind:this={annotationLayer1} class="annotationLayer"></div>
+                        {#if renderLayers}
+                            <div
+                                bind:this={textLayer1}
+                                class="textLayer"
+                                data-page={currentPage}
+                            ></div>
+                            <div bind:this={annotationLayer1} class="annotationLayer"></div>
+                        {/if}
                     </div>
                     <div class="book-spine"></div>
                     <div class="pdf-image-wrapper split-right" style={wrapperStyle2}>
@@ -1078,12 +1086,14 @@
                             alt={m.page_render_alt({ page: currentPage + 1 })}
                             class="pdf-image"
                         />
-                        <div
-                            bind:this={textLayer2}
-                            class="textLayer"
-                            data-page={currentPage + 1}
-                        ></div>
-                        <div bind:this={annotationLayer2} class="annotationLayer"></div>
+                        {#if renderLayers}
+                            <div
+                                bind:this={textLayer2}
+                                class="textLayer"
+                                data-page={currentPage + 1}
+                            ></div>
+                            <div bind:this={annotationLayer2} class="annotationLayer"></div>
+                        {/if}
                     </div>
                 </div>
             {:else}
@@ -1093,8 +1103,10 @@
                         alt={m.page_render_alt({ page: currentPage })}
                         class="pdf-image"
                     />
-                    <div bind:this={textLayer1} class="textLayer" data-page={currentPage}></div>
-                    <div bind:this={annotationLayer1} class="annotationLayer"></div>
+                    {#if renderLayers}
+                        <div bind:this={textLayer1} class="textLayer" data-page={currentPage}></div>
+                        <div bind:this={annotationLayer1} class="annotationLayer"></div>
+                    {/if}
                 </div>
             {/if}
         </div>
