@@ -2039,8 +2039,6 @@
         height: 100%;
     }
 
-
-
     .outline-hover-trigger {
         position: absolute;
         left: 0;

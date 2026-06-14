@@ -309,7 +309,6 @@
             })
         }
     })
-
 </script>
 
 {#snippet sidebarContent()}
@@ -407,7 +406,6 @@
 {@render sidebarContent()}
 
 <style>
-
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -580,7 +578,6 @@
         box-shadow: inset 4px 0 0 var(--border-color) !important;
         font-weight: 900 !important;
     }
-
 
     .sidebar-footer-hint {
         display: flex;

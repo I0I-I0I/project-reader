@@ -1,5 +1,3 @@
-import { onDestroy } from "svelte"
-
 export interface SwipeOptions {
     /**
      * Reactively controls whether swipe logic is active.
@@ -44,6 +42,13 @@ export interface SwipeOptions {
      * Default: "33.333333%"
      */
     prevSwipeOffset?: string
+
+    /**
+     * Threshold in pixels from the screen edges where swipes are ignored.
+     * This is to allow built-in browser history navigation gestures.
+     * Default: 40
+     */
+    edgeThreshold?: number
 }
 
 export function createSwipeState(elementGetter: () => HTMLElement | null, options: SwipeOptions) {
@@ -60,6 +65,7 @@ export function createSwipeState(elementGetter: () => HTMLElement | null, option
 
     const nextSwipeOffset = options.nextSwipeOffset ?? "-33.333333%"
     const prevSwipeOffset = options.prevSwipeOffset ?? "33.333333%"
+    const edgeThreshold = options.edgeThreshold ?? 40
 
     function checkScrollAndZoomState() {
         let isScrollable = false
@@ -150,6 +156,16 @@ export function createSwipeState(elementGetter: () => HTMLElement | null, option
         touchStartX = e.touches[0].clientX
         touchStartY = e.touches[0].clientY
         touchStartTime = Date.now()
+
+        const screenWidth = typeof window !== "undefined" ? window.innerWidth : 0
+        if (
+            screenWidth &&
+            (touchStartX < edgeThreshold || touchStartX > screenWidth - edgeThreshold)
+        ) {
+            swipeState = "native"
+            return
+        }
+
         swipeState = "undecided"
 
         // Reset positions

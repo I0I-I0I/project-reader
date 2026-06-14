@@ -5,7 +5,11 @@
     import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
-    import { getShortcutHint, useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import {
+        getShortcutHint,
+        useCommands,
+        type CommandNode,
+    } from "$lib/stores/commandsStore.svelte"
     import { getContext, untrack } from "svelte"
     import type { FlatHeading } from "$lib/pdf"
 
@@ -51,26 +55,35 @@
         [
             {
                 id: "close",
-                keys: initialSide === "right" ? ["escape", "ctrl+c", "ctrl+["] : ["ctrl+c", "ctrl+["],
-                disabled: () => (initialSide === "left" && uiStore.isModalOpen) || !!notesStore.editingNote || !!notesStore.activePopup,
+                keys:
+                    initialSide === "right" ? ["escape", "ctrl+c", "ctrl+["] : ["ctrl+c", "ctrl+["],
+                disabled: () =>
+                    (initialSide === "left" && uiStore.isModalOpen) ||
+                    !!notesStore.editingNote ||
+                    !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },
-                description: initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
+                description:
+                    initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
                 allowInInputs: true,
             },
             {
                 id: "close-alt",
                 keys: initialSide === "right" ? "q" : ["escape", "q"],
-                disabled: () => (initialSide === "left" && uiStore.isModalOpen) || !!notesStore.editingNote || !!notesStore.activePopup,
+                disabled: () =>
+                    (initialSide === "left" && uiStore.isModalOpen) ||
+                    !!notesStore.editingNote ||
+                    !!notesStore.activePopup,
                 action: () => {
                     onClose()
                 },
-                description: initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
+                description:
+                    initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
                 allowInInputs: false,
-            }
+            },
         ],
-        activeNodeBeforeOpen || undefined
+        activeNodeBeforeOpen || undefined,
     )
 
     function slideFromSide(_: HTMLElement, { duration = 150 }) {
@@ -156,12 +169,12 @@
                 bind:currentPage
                 bind:scrollPosition
                 {activeHeadings}
-                onClose={onClose}
+                {onClose}
             />
         {:else if activeTab === "notes"}
-            <NotesSidebar onClose={onClose} />
+            <NotesSidebar {onClose} />
         {:else if activeTab === "bookmarks"}
-            <BookmarksSidebar onClose={onClose} />
+            <BookmarksSidebar {onClose} />
         {:else if activeTab === "settings"}
             <SettingsSidebar />
         {/if}

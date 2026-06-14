@@ -141,7 +141,7 @@
     }
 
     .popup-page {
-        font-size: 9px;
+        font-size: 12px;
         font-weight: 900;
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
@@ -153,7 +153,7 @@
     :global(.popup-close) {
         background: none !important;
         border: none !important;
-        font-size: 16px !important;
+        font-size: 18px !important;
         font-weight: 900 !important;
         cursor: pointer !important;
         color: var(--text-color) !important;
@@ -171,17 +171,18 @@
     .popup-quote {
         margin: 0;
         font-style: italic;
-        font-size: 11px;
+        font-size: 14px;
+        overflow-y: auto;
         color: var(--text-color);
         background: rgba(0, 0, 0, 0.04);
         padding: 6px;
         border-left: 3px solid var(--border-color);
-        max-height: 120px;
+        max-height: 240px;
         word-break: break-word;
     }
 
     .popup-content {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 700;
         color: var(--text-color);
         line-height: 1.4;

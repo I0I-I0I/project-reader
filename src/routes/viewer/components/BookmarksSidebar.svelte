@@ -14,9 +14,7 @@
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
     import BookmarkEditKeymaps from "./BookmarkEditKeymaps.svelte"
 
-    let {
-        onClose,
-    } = $props<{
+    let { onClose } = $props<{
         onClose: () => void
     }>()
 
@@ -381,7 +379,6 @@
             .find((c) => c.id === "delete-selected-bookmark" && c.keys)
         return cmd ? formatKey(cmd.keys!) : ""
     })
-
 </script>
 
 {#snippet sidebarContent()}
@@ -560,7 +557,6 @@
 {@render sidebarContent()}
 
 <style>
-
     .sidebar-search {
         position: relative;
         padding: 10px 16px;
@@ -771,8 +767,6 @@
     }
 
     @media (max-width: 640px) {
-
-
         .bookmark-card-actions {
             opacity: 1;
         }

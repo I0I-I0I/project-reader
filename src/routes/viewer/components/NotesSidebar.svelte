@@ -11,9 +11,7 @@
     import type { UserNote } from "$lib/stores/vfsStore.types"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
 
-    let {
-        onClose,
-    } = $props<{
+    let { onClose } = $props<{
         onClose: () => void
     }>()
 
@@ -340,7 +338,6 @@
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
-
     function formatTimestamp(timestamp: number): string {
         return new Date(timestamp).toLocaleString(undefined, {
             dateStyle: "short",
@@ -513,7 +510,6 @@
 {@render sidebarContent()}
 
 <style>
-
     .sidebar-search {
         position: relative;
         padding: 10px 16px;
@@ -744,8 +740,6 @@
     }
 
     @media (max-width: 640px) {
-
-
         .note-card-actions {
             opacity: 1;
         }

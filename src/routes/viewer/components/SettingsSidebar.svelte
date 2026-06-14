@@ -21,7 +21,6 @@
 
     let isShortHeight = $derived(uiStore.isShortHeight)
 
-
     function upScale() {
         settingsStore.scale = Math.min(settingsStore.scale + 0.25, CONSTANTS.maxScale)
     }
@@ -64,119 +63,72 @@
 </script>
 
 <div class="sidebar-content">
-        <section class="settings-section">
-            <h4 class="section-title">{m.layout()}</h4>
-            <div class="layout-options" role="group" aria-label={m.layout()}>
-                <Button
-                    class={"option-btn" + (settingsStore.layout === "single" ? " active" : "")}
-                    variant="action"
-                    size="default"
-                    onclick={() => (settingsStore.layout = "single")}
-                >
-                    <SinglePageIcon />
-                    <span>{m.single_page()}</span>
-                </Button>
-                <Button
-                    class={"option-btn" + (settingsStore.layout === "split" ? " active" : "")}
-                    variant="action"
-                    size="default"
-                    onclick={() => (settingsStore.layout = "split")}
-                >
-                    <SplitPagesIcon />
-                    <span>{m.split_pages()}</span>
-                </Button>
-                <Button
-                    class={"option-btn" + (settingsStore.layout === "scroll" ? " active" : "")}
-                    variant="action"
-                    size="default"
-                    onclick={() => (settingsStore.layout = "scroll")}
-                >
-                    <ScrollPagesIcon />
-                    <span>{m.scroll_pages()}</span>
-                </Button>
-            </div>
-        </section>
+    <section class="settings-section">
+        <h4 class="section-title">{m.layout()}</h4>
+        <div class="layout-options" role="group" aria-label={m.layout()}>
+            <Button
+                class={"option-btn" + (settingsStore.layout === "single" ? " active" : "")}
+                variant="action"
+                size="default"
+                onclick={() => (settingsStore.layout = "single")}
+            >
+                <SinglePageIcon />
+                <span>{m.single_page()}</span>
+            </Button>
+            <Button
+                class={"option-btn" + (settingsStore.layout === "split" ? " active" : "")}
+                variant="action"
+                size="default"
+                onclick={() => (settingsStore.layout = "split")}
+            >
+                <SplitPagesIcon />
+                <span>{m.split_pages()}</span>
+            </Button>
+            <Button
+                class={"option-btn" + (settingsStore.layout === "scroll" ? " active" : "")}
+                variant="action"
+                size="default"
+                onclick={() => (settingsStore.layout = "scroll")}
+            >
+                <ScrollPagesIcon />
+                <span>{m.scroll_pages()}</span>
+            </Button>
+        </div>
+    </section>
 
-        {#if !uiStore.isCompact || isShortHeight}
-            <section class="settings-section">
-                <h4 class="section-title">{m.page()}</h4>
-                <div class="zoom-controls" role="group" aria-label={m.page()}>
-                    <Button
-                        variant="action"
-                        size="default"
-                        square={true}
-                        onclick={downScale}
-                        aria-label={m.zoom_out()}
-                        class="zoom-btn"
-                    >
-                        <MinusIcon />
-                    </Button>
-                    <div class="scale-input-container">
-                        <input
-                            type="number"
-                            value={Math.round(settingsStore.scale * 100)}
-                            onchange={handleScaleChange}
-                            onkeydown={handleKeyDown}
-                            min={Math.round(CONSTANTS.minScale * 100)}
-                            max={Math.round(CONSTANTS.maxScale * 100)}
-                            class="scale-input"
-                            aria-label={m.zoom_scale()}
-                        />
-                        <span class="percent-sign">%</span>
-                    </div>
-                    <Button
-                        variant="action"
-                        size="default"
-                        square={true}
-                        onclick={upScale}
-                        aria-label={m.zoom_in()}
-                        class="zoom-btn"
-                    >
-                        <PlusIcon />
-                    </Button>
-                </div>
-                <div class="slider-container">
-                    <input
-                        type="range"
-                        min={Math.round(CONSTANTS.minScale * 100)}
-                        max={Math.round(CONSTANTS.maxScale * 100)}
-                        step="5"
-                        value={Math.round(settingsStore.scale * 100)}
-                        oninput={(e) => {
-                            const val = parseInt((e.target as HTMLInputElement).value, 10)
-                            if (!isNaN(val)) {
-                                settingsStore.scale = val / 100
-                            }
-                        }}
-                        class="sidebar-slider"
-                        aria-label={m.zoom_slider_aria()}
-                    />
-                </div>
-            </section>
-        {/if}
-
+    {#if !uiStore.isCompact || isShortHeight}
         <section class="settings-section">
-            <h4 class="section-title">{m.quality()}</h4>
-            <div class="zoom-controls" role="group" aria-label={m.quality()}>
+            <h4 class="section-title">{m.page()}</h4>
+            <div class="zoom-controls" role="group" aria-label={m.page()}>
                 <Button
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={downQuality}
-                    aria-label={m.quality_down()}
+                    onclick={downScale}
+                    aria-label={m.zoom_out()}
                     class="zoom-btn"
                 >
                     <MinusIcon />
                 </Button>
                 <div class="scale-input-container">
-                    <span>{settingsStore.quality}</span>
+                    <input
+                        type="number"
+                        value={Math.round(settingsStore.scale * 100)}
+                        onchange={handleScaleChange}
+                        onkeydown={handleKeyDown}
+                        min={Math.round(CONSTANTS.minScale * 100)}
+                        max={Math.round(CONSTANTS.maxScale * 100)}
+                        class="scale-input"
+                        aria-label={m.zoom_scale()}
+                    />
+                    <span class="percent-sign">%</span>
                 </div>
                 <Button
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={upQuality}
-                    aria-label={m.quality_up()}
+                    onclick={upScale}
+                    aria-label={m.zoom_in()}
                     class="zoom-btn"
                 >
                     <PlusIcon />
@@ -185,75 +137,118 @@
             <div class="slider-container">
                 <input
                     type="range"
-                    min={CONSTANTS.minQuality}
-                    max={CONSTANTS.maxQuality}
-                    step="1"
-                    value={settingsStore.quality}
+                    min={Math.round(CONSTANTS.minScale * 100)}
+                    max={Math.round(CONSTANTS.maxScale * 100)}
+                    step="5"
+                    value={Math.round(settingsStore.scale * 100)}
                     oninput={(e) => {
                         const val = parseInt((e.target as HTMLInputElement).value, 10)
                         if (!isNaN(val)) {
-                            settingsStore.quality = val
+                            settingsStore.scale = val / 100
                         }
                     }}
                     class="sidebar-slider"
-                    aria-label={m.quality_slider_aria()}
+                    aria-label={m.zoom_slider_aria()}
                 />
             </div>
         </section>
+    {/if}
 
-        <section class="settings-section">
-            <h4 class="section-title">{m.theme()}</h4>
-            <div class="theme-options" role="group" aria-label={m.theme()}>
-                {#each THEMES as { value, label, Icon } (value)}
-                    <Button
-                        class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
-                        variant="action"
-                        size="default"
-                        onclick={() => (settingsStore.theme = value)}
-                    >
-                        <Icon class="theme-icon" />
-                        <span>{label()}</span>
-                    </Button>
-                {/each}
+    <section class="settings-section">
+        <h4 class="section-title">{m.quality()}</h4>
+        <div class="zoom-controls" role="group" aria-label={m.quality()}>
+            <Button
+                variant="action"
+                size="default"
+                square={true}
+                onclick={downQuality}
+                aria-label={m.quality_down()}
+                class="zoom-btn"
+            >
+                <MinusIcon />
+            </Button>
+            <div class="scale-input-container">
+                <span>{settingsStore.quality}</span>
             </div>
-        </section>
+            <Button
+                variant="action"
+                size="default"
+                square={true}
+                onclick={upQuality}
+                aria-label={m.quality_up()}
+                class="zoom-btn"
+            >
+                <PlusIcon />
+            </Button>
+        </div>
+        <div class="slider-container">
+            <input
+                type="range"
+                min={CONSTANTS.minQuality}
+                max={CONSTANTS.maxQuality}
+                step="1"
+                value={settingsStore.quality}
+                oninput={(e) => {
+                    const val = parseInt((e.target as HTMLInputElement).value, 10)
+                    if (!isNaN(val)) {
+                        settingsStore.quality = val
+                    }
+                }}
+                class="sidebar-slider"
+                aria-label={m.quality_slider_aria()}
+            />
+        </div>
+    </section>
 
-        <section class="settings-section">
-            <h4 class="section-title">{m.animations()}</h4>
-            <div class="animation-options">
-                <Toggle
-                    bind:checked={settingsStore.animations}
-                    label={settingsStore.animations
-                        ? m.animations_enabled()
-                        : m.animations_disabled()}
-                />
-            </div>
-        </section>
+    <section class="settings-section">
+        <h4 class="section-title">{m.theme()}</h4>
+        <div class="theme-options" role="group" aria-label={m.theme()}>
+            {#each THEMES as { value, label, Icon } (value)}
+                <Button
+                    class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
+                    variant="action"
+                    size="default"
+                    onclick={() => (settingsStore.theme = value)}
+                >
+                    <Icon class="theme-icon" />
+                    <span>{label()}</span>
+                </Button>
+            {/each}
+        </div>
+    </section>
 
-        <section class="settings-section">
-            <h4 class="section-title">{m.language_switcher()}</h4>
-            <div class="language-options" role="group" aria-label={m.language_switcher()}>
-                {#each locales as locale (locale)}
-                    <Button
-                        data-sveltekit-reload
-                        href={resolve(
-                            getLocalizedCurrentHref(page.url, locale as AppLocale) as any,
-                        )}
-                        class={"option-btn" + (getLocale() === locale ? " active" : "")}
-                        variant="action"
-                        size="default"
-                        onclick={(event: MouseEvent) => {
-                            event.preventDefault()
-                            switchLanguage(locale as AppLocale, page.url)
-                        }}
-                    >
-                        <GlobeIcon />
-                        <span>{getLanguageName(locale)}</span>
-                    </Button>
-                {/each}
-            </div>
-        </section>
-    </div>
+    <section class="settings-section">
+        <h4 class="section-title">{m.animations()}</h4>
+        <div class="animation-options">
+            <Toggle
+                bind:checked={settingsStore.animations}
+                label={settingsStore.animations ? m.animations_enabled() : m.animations_disabled()}
+            />
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h4 class="section-title">{m.language_switcher()}</h4>
+        <div class="language-options" role="group" aria-label={m.language_switcher()}>
+            {#each locales as locale (locale)}
+                <Button
+                    data-sveltekit-reload
+                    href={resolve(getLocalizedCurrentHref(page.url, locale as AppLocale) as any)}
+                    class={"option-btn" + (getLocale() === locale ? " active" : "")}
+                    variant="action"
+                    size="default"
+                    onclick={(event: MouseEvent) => {
+                        event.preventDefault()
+                        switchLanguage(locale as AppLocale, page.url)
+                    }}
+                >
+                    <GlobeIcon />
+                    <span>{getLanguageName(locale)}</span>
+                </Button>
+            {/each}
+        </div>
+    </section>
+</div>
 
 <style>
     .sidebar-content {
@@ -368,8 +363,6 @@
         align-items: center !important;
         justify-content: center !important;
     }
-
-
 
     .slider-container {
         display: flex;
