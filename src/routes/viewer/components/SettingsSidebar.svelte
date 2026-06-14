@@ -11,24 +11,16 @@
     import SystemIcon from "$lib/components/icons/SystemIcon.svelte"
     import Toggle from "$lib/components/ui/Toggle.svelte"
     import { CONSTANTS, settingsStore, type Theme } from "$lib/stores/settingsStore.svelte"
-    import { cubicOut } from "svelte/easing"
-    import { useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
-    import { getContext, onMount } from "svelte"
-    import { notesStore } from "$lib/stores/notesStore.svelte"
     import { locales, getLocale } from "$lib/paraglide/runtime"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
     import GlobeIcon from "$lib/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/locale"
-    import { browser } from "$app/environment"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { getLocalizedCurrentHref, switchLanguage, type AppLocale } from "$lib/language"
 
-    let { onClose } = $props<{
-        onClose: () => void
-    }>()
-
     let isShortHeight = $derived(uiStore.isShortHeight)
+
 
     function upScale() {
         settingsStore.scale = Math.min(settingsStore.scale + 0.25, CONSTANTS.maxScale)
@@ -69,71 +61,9 @@
         { value: "dark", label: () => m.dark(), Icon: MoonIcon },
         { value: "system", label: () => m.system(), Icon: SystemIcon },
     ] as const
-
-    function slideFromRight(_: HTMLElement, { duration = 150 }) {
-        return {
-            duration,
-            css: (t: number) => {
-                const eased = cubicOut(t)
-                return `
-                    transform: translateX(${(1 - eased) * 100}%);
-                `
-            },
-        }
-    }
-
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
-
-    useCommands(
-        [
-            {
-                id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: () => {
-                    onClose()
-                },
-                description: m.keymap_close_settings(),
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: "q",
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: () => {
-                    onClose()
-                },
-                description: m.keymap_close_settings(),
-                allowInInputs: false,
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-    class="settings-sidebar"
-    transition:slideFromRight={{ duration: settingsStore.animations ? 150 : 0 }}
-    onclick={(e) => e.stopPropagation()}
->
-    <div class="sidebar-header">
-        <h3>{m.settings()}</h3>
-        <Button
-            variant="close"
-            size="default"
-            square={true}
-            onclick={onClose}
-            aria-label={m.close()}
-            tooltip={m.close()}
-        >
-            ×
-        </Button>
-    </div>
-
-    <div class="sidebar-content">
+<div class="sidebar-content">
         <section class="settings-section">
             <h4 class="section-title">{m.layout()}</h4>
             <div class="layout-options" role="group" aria-label={m.layout()}>
@@ -324,49 +254,8 @@
             </div>
         </section>
     </div>
-</div>
 
 <style>
-    .settings-sidebar {
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 280px;
-        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
-        backdrop-filter: blur(16px);
-        border-left: 3px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        overflow: visible;
-        z-index: 200;
-        box-sizing: border-box;
-        box-shadow: -10px 0 0 rgba(0, 0, 0, 0.08);
-    }
-
-    .sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
-        border-bottom: 3px solid var(--border-color);
-        padding: 10px 16px;
-        padding-top: calc(10px + env(safe-area-inset-top));
-        padding-right: calc(16px + env(safe-area-inset-right));
-        flex-shrink: 0;
-        position: relative;
-        z-index: 10;
-    }
-
-    .sidebar-header h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 900;
-        color: var(--text-color);
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-    }
-
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -480,18 +369,7 @@
         justify-content: center !important;
     }
 
-    @media (--tiny-mobile) {
-        .settings-sidebar {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 300;
-            border-left: none;
-        }
-    }
+
 
     .slider-container {
         display: flex;

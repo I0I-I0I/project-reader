@@ -12,8 +12,7 @@
     import { page } from "$app/state"
 
     import ViewerHeader from "./components/ViewerHeader.svelte"
-    import LeftSidebar from "./components/LeftSidebar.svelte"
-    import SettingsSidebar from "./components/SettingsSidebar.svelte"
+    import Sidebar from "./components/Sidebar.svelte"
     import NotePopup from "./components/NotePopup.svelte"
     import NoteEditor from "./components/NoteEditor.svelte"
     import CanvasPane from "./components/CanvasPane.svelte"
@@ -1363,8 +1362,7 @@
             "textarea",
             "a",
             ".viewer-fab-btn",
-            ".settings-sidebar",
-            ".outline-sidebar",
+            ".sidebar",
             ".viewer-header",
             ".viewer-footer",
             ".sidebar-backdrop",
@@ -1520,17 +1518,8 @@
                         </div>
                     {:else}
                         {#if sidebars.left}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                                class="sidebar-backdrop"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    sidebars.left = false
-                                    isHoverTriggered = false
-                                }}
-                            ></div>
-                            <LeftSidebar
+                            <Sidebar
+                                side="left"
                                 bind:activeTab={sidebars.activeTab}
                                 {isOutlineLoading}
                                 {outlineList}
@@ -1551,16 +1540,11 @@
                         {/if}
 
                         {#if sidebars.settings}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                                class="sidebar-backdrop"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    sidebars.settings = false
-                                }}
-                            ></div>
-                            <SettingsSidebar onClose={() => (sidebars.settings = false)} />
+                            <Sidebar
+                                side="right"
+                                activeTab="settings"
+                                onClose={() => (sidebars.settings = false)}
+                            />
                         {/if}
 
                         {#if !uiStore.isToolbarsVisible && !sidebars.left}
@@ -2055,23 +2039,7 @@
         height: 100%;
     }
 
-    .sidebar-backdrop {
-        display: block;
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.25);
-        backdrop-filter: blur(4px);
-        z-index: 20;
-        cursor: pointer;
-        animation: fade-in 0.2s ease-out;
-    }
 
-    @media (--tiny-mobile) {
-        .sidebar-backdrop {
-            position: fixed;
-            z-index: 290;
-        }
-    }
 
     .outline-hover-trigger {
         position: absolute;

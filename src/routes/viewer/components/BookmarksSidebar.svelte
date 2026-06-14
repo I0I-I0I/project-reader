@@ -1,9 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import { cubicOut } from "svelte/easing"
     import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
     import { untrack, tick } from "svelte"
-    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
@@ -18,12 +16,8 @@
 
     let {
         onClose,
-        onMouseLeave,
-        minimal = false,
     } = $props<{
         onClose: () => void
-        onMouseLeave?: (e: MouseEvent) => void
-        minimal?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -388,15 +382,6 @@
         return cmd ? formatKey(cmd.keys!) : ""
     })
 
-    function slideAndFly(_: HTMLElement, { duration = 150 }) {
-        return {
-            duration,
-            css: (t: number) => {
-                const eased = cubicOut(t)
-                return `transform: translateX(${(eased - 1) * 100}%);`
-            },
-        }
-    }
 </script>
 
 {#snippet sidebarContent()}
@@ -572,75 +557,9 @@
     {/if}
 {/snippet}
 
-{#if minimal}
-    {@render sidebarContent()}
-{:else}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-        class="bookmarks-sidebar"
-        transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
-        onmouseleave={onMouseLeave}
-        onclick={(e) => e.stopPropagation()}
-    >
-        <div class="sidebar-header">
-            <h3>{m.bookmarks()}</h3>
-            <Button
-                variant="close"
-                size="small"
-                square={true}
-                onclick={onClose}
-                aria-label={m.close()}
-                tooltip={m.close()}
-            >
-                ×
-            </Button>
-        </div>
-
-        {@render sidebarContent()}
-    </div>
-{/if}
+{@render sidebarContent()}
 
 <style>
-    .bookmarks-sidebar {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 320px;
-        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
-        backdrop-filter: blur(16px);
-        border-right: 3px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        overflow: visible;
-        z-index: 200;
-        box-sizing: border-box;
-        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.08);
-    }
-
-    .sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
-        border-bottom: 3px solid var(--border-color);
-        padding: 10px 16px;
-        padding-top: calc(10px + env(safe-area-inset-top));
-        padding-left: calc(16px + env(safe-area-inset-left));
-        flex-shrink: 0;
-        position: relative;
-        z-index: 10;
-    }
-
-    .sidebar-header h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 900;
-        color: var(--text-color);
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-    }
 
     .sidebar-search {
         position: relative;
@@ -852,10 +771,7 @@
     }
 
     @media (max-width: 640px) {
-        .bookmarks-sidebar {
-            width: 100%;
-            border-right: none;
-        }
+
 
         .bookmark-card-actions {
             opacity: 1;

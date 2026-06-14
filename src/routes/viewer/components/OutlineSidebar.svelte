@@ -2,10 +2,8 @@
     import * as m from "$lib/paraglide/messages"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
-    import { cubicOut } from "svelte/easing"
     import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
     import { untrack } from "svelte"
-    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
@@ -17,18 +15,14 @@
         currentPage = $bindable(),
         scrollPosition = $bindable(),
         activeHeadings,
-        onCloseOutline,
-        onMouseLeave,
-        minimal = false,
+        onClose,
     } = $props<{
         isOutlineLoading: boolean
         outlineList: FlatHeading[] | null
         currentPage: number
         scrollPosition: number
         activeHeadings: Set<FlatHeading>
-        onCloseOutline: () => void
-        onMouseLeave?: (e: MouseEvent) => void
-        minimal?: boolean
+        onClose: () => void
     }>()
 
     let searchQuery = $state("")
@@ -52,7 +46,7 @@
                 scrollPosition = 0
             }
             if (window.innerWidth <= 480) {
-                onCloseOutline()
+                onClose()
             }
         }
     }
@@ -73,7 +67,7 @@
             const heading = filteredOutlineList[selectedIndex]
             if (heading) {
                 selectHeading(heading)
-                onCloseOutline()
+                onClose()
             }
         } else if (event.key === "Escape") {
             event.preventDefault()
@@ -189,7 +183,7 @@
                 const heading = filteredOutlineList[selectedIndex]
                 if (heading) {
                     selectHeading(heading)
-                    onCloseOutline()
+                    onClose()
                 }
             },
         },
@@ -316,17 +310,6 @@
         }
     })
 
-    function slideAndFly(_: HTMLElement, { duration = 150 }) {
-        return {
-            duration,
-            css: (t: number) => {
-                const eased = cubicOut(t)
-                return `
-                    transform: translateX(${(eased - 1) * 100}%);
-                `
-            },
-        }
-    }
 </script>
 
 {#snippet sidebarContent()}
@@ -421,75 +404,9 @@
     {/if}
 {/snippet}
 
-{#if minimal}
-    {@render sidebarContent()}
-{:else}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div
-        class="outline-sidebar"
-        transition:slideAndFly={{ duration: settingsStore.animations ? 150 : 0 }}
-        onmouseleave={onMouseLeave}
-        onclick={(e) => e.stopPropagation()}
-    >
-        <div class="sidebar-header">
-            <h3>{m.outline()}</h3>
-            <Button
-                variant="close"
-                size="small"
-                square={true}
-                onclick={onCloseOutline}
-                aria-label={m.close()}
-                tooltip={m.close()}
-            >
-                ×
-            </Button>
-        </div>
-
-        {@render sidebarContent()}
-    </div>
-{/if}
+{@render sidebarContent()}
 
 <style>
-    .outline-sidebar {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        max-width: 380px;
-        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
-        backdrop-filter: blur(16px);
-        border-right: 3px solid var(--border-color);
-        display: flex;
-        flex-direction: column;
-        overflow: visible;
-        z-index: 200;
-        box-sizing: border-box;
-        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.08);
-    }
-
-    .sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
-        border-bottom: 3px solid var(--border-color);
-        padding: 10px 16px;
-        padding-top: calc(10px + env(safe-area-inset-top));
-        padding-left: calc(16px + env(safe-area-inset-left));
-        flex-shrink: 0;
-        position: relative;
-        z-index: 10;
-    }
-
-    .sidebar-header h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 900;
-        color: var(--text-color);
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-    }
 
     .sidebar-content {
         flex: 1;
@@ -664,12 +581,6 @@
         font-weight: 900 !important;
     }
 
-    @media (--tiny-mobile) {
-        .outline-sidebar {
-            width: 100%;
-            border-right: none;
-        }
-    }
 
     .sidebar-footer-hint {
         display: flex;
