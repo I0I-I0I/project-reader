@@ -559,8 +559,8 @@
 <style>
     .sidebar-search {
         position: relative;
-        padding: 10px 16px;
-        background: color-mix(in srgb, var(--accent-active-color) 70%, transparent);
+        padding: 0;
+        background: var(--surface-color);
         border-bottom: 3px solid var(--border-color);
         display: flex;
         align-items: center;
@@ -571,40 +571,52 @@
 
     .search-input {
         width: 100%;
-        padding: 6px 32px 6px 12px;
+        padding: 12px 36px 12px 16px;
         font-family: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        border: none;
         outline: none;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.15s ease;
         box-sizing: border-box;
     }
 
-    .search-input:focus-visible {
-        transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        border-color: var(--border-color);
+    .search-input:focus {
+        background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
+        box-shadow: inset 4px 0 0 var(--accent-color);
     }
 
     .clear-search-btn {
         position: absolute;
-        right: 22px;
-        background: none;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--faded-color);
         border: none;
-        font-size: 16px;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
         font-weight: 800;
         cursor: pointer;
         color: var(--text-color);
-        padding: 4px;
+        opacity: 0.6;
         display: flex;
         align-items: center;
         justify-content: center;
-        opacity: 0.7;
-        transition: opacity 0.1s ease;
+        transition: all 0.15s ease;
+        padding: 0;
+        line-height: 1;
+    }
+
+    @media (hover: hover) {
+        .clear-search-btn:hover {
+            opacity: 1;
+            background: var(--border-color);
+            color: var(--surface-color);
+        }
     }
 
     .sidebar-content {
@@ -776,16 +788,16 @@
         }
 
         .sidebar-search {
-            padding: 6px 12px;
+            padding: 0;
         }
 
         .search-input {
-            padding: 6px 28px 6px 10px;
+            padding: 10px 32px 10px 14px;
             font-size: 14px;
         }
 
         .clear-search-btn {
-            right: 18px;
+            right: 10px !important;
         }
 
         .bookmark-card {

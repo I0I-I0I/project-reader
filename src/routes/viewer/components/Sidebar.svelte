@@ -225,9 +225,9 @@
     }
 
     .sidebar.left .sidebar-header {
-        padding: 0 8px;
+        padding: 0 12px;
         padding-top: env(safe-area-inset-top);
-        padding-left: calc(8px + env(safe-area-inset-left));
+        padding-left: calc(12px + env(safe-area-inset-left));
     }
 
     .sidebar.right .sidebar-header {
