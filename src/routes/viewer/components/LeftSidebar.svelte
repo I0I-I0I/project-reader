@@ -4,9 +4,8 @@
     import MenuIcon from "$lib/components/icons/MenuIcon.svelte"
     import NoteIcon from "$lib/components/icons/NoteIcon.svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
     import { cubicOut } from "svelte/easing"
-    import { getShortcutHint, type CommandNode } from "$lib/stores/commandsStore.svelte"
+    import { getShortcutHint, useCommands, type CommandNode } from "$lib/stores/commandsStore.svelte"
     import { getContext } from "svelte"
     import type { FlatHeading } from "$lib/pdf"
 
@@ -16,6 +15,8 @@
     import NotesSidebar from "./NotesSidebar.svelte"
     import BookmarksSidebar from "./BookmarksSidebar.svelte"
     import BookmarkIcon from "$lib/components/icons/BookmarkIcon.svelte"
+    import { notesStore } from "$lib/stores/notesStore.svelte";
+    import { uiStore } from "$lib/stores/uiStore.svelte"
 
     let {
         activeTab = $bindable("outline"),
@@ -37,7 +38,30 @@
         activeHeadings: Set<FlatHeading>
     }>()
 
-    const commandsNode = getContext<CommandNode>("commands_node")
+    const leftSidebarCommandsNode = useCommands(
+        [
+            {
+                id: "close",
+                keys: ["ctrl+c", "ctrl+["],
+                disabled: () => uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup,
+                action: () => {
+                    onClose()
+                },
+                description: m.keymap_close_sidebar(),
+                allowInInputs: true,
+            },
+            {
+                id: "close-alt",
+                keys: ["escape", "q"],
+                disabled: () => uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup,
+                action: () => {
+                    onClose()
+                },
+                description: m.keymap_close_sidebar(),
+                allowInInputs: false,
+            }
+        ]
+    )
 
     function slideFromLeft(_: HTMLElement, { duration = 150 }) {
         return {
@@ -90,7 +114,7 @@
             square={true}
             onclick={onClose}
             aria-label={m.close()}
-            tooltip={m.close()}
+            tooltip={`${m.close()} ${getShortcutHint(leftSidebarCommandsNode, "close", "close-alt")}`}
             class="sidebar-close-btn"
         >
             ×

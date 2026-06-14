@@ -3,12 +3,8 @@
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import type { FlatHeading } from "$lib/pdf"
     import { cubicOut } from "svelte/easing"
-    import {
-        useCommands,
-        getShortcutHint,
-        type CommandNode,
-    } from "$lib/stores/commandsStore.svelte"
-    import { getContext, untrack } from "svelte"
+    import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
+    import { untrack } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -140,101 +136,75 @@
         })
     })
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
-
-    const sidebarCommandsNode = useCommands(
-        [
-            {
-                id: "close",
-                keys: ["ctrl+c", "ctrl+["],
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: () => {
+    const sidebarCommandsNode = useCommands([
+        {
+            id: "scroll-down",
+            keys: "j",
+            description: m.keymap_next_heading(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("next")
+            },
+        },
+        {
+            id: "scroll-down-alt",
+            keys: ["arrowdown", "ctrl+n", "ctrl+j"],
+            description: m.keymap_next_heading(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("next")
+            },
+            allowInInputs: true,
+        },
+        {
+            id: "scroll-up",
+            keys: "k",
+            description: m.keymap_prev_heading(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("prev")
+            },
+        },
+        {
+            id: "scroll-up-alt",
+            keys: ["arrowup", "ctrl+p", "ctrl+k"],
+            description: m.keymap_prev_heading(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("prev")
+            },
+            allowInInputs: true,
+        },
+        {
+            id: "select-heading",
+            keys: "enter",
+            description: m.keymap_select_heading(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                const heading = filteredOutlineList[selectedIndex]
+                if (heading) {
+                    selectHeading(heading)
                     onCloseOutline()
-                },
-                description: m.keymap_close_outline(),
-                allowInInputs: true,
+                }
             },
-            {
-                id: "close-alt",
-                keys: ["escape", "q"],
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: () => {
-                    onCloseOutline()
-                },
-                description: m.keymap_close_outline(),
-                allowInInputs: false,
+        },
+        {
+            id: "search-headings",
+            keys: "/",
+            description: m.keymap_search_headings(),
+            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
+            action: (event) => {
+                event.preventDefault()
+                searchInputRef?.focus()
+                searchInputRef?.select()
             },
-            {
-                id: "scroll-down",
-                keys: "j",
-                description: m.keymap_next_heading(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
-            },
-            {
-                id: "scroll-down-alt",
-                keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-                description: m.keymap_next_heading(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
-                allowInInputs: true,
-            },
-            {
-                id: "scroll-up",
-                keys: "k",
-                description: m.keymap_prev_heading(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
-            },
-            {
-                id: "scroll-up-alt",
-                keys: ["arrowup", "ctrl+p", "ctrl+k"],
-                description: m.keymap_prev_heading(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
-                allowInInputs: true,
-            },
-            {
-                id: "select-heading",
-                keys: "enter",
-                description: m.keymap_select_heading(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    const heading = filteredOutlineList[selectedIndex]
-                    if (heading) {
-                        selectHeading(heading)
-                        onCloseOutline()
-                    }
-                },
-            },
-            {
-                id: "search-headings",
-                keys: "/",
-                description: m.keymap_search_headings(),
-                disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-                action: (event) => {
-                    event.preventDefault()
-                    searchInputRef?.focus()
-                    searchInputRef?.select()
-                },
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+        },
+    ])
 
     function formatKey(keys: string | string[]): string {
         if (Array.isArray(keys)) {
@@ -304,23 +274,6 @@
             }
         }
         return pairs
-    })
-
-    let closeShortcuts = $derived.by(() => {
-        if (!sidebarCommandsNode) return []
-        const cmds = sidebarCommandsNode.getAllCommands()
-        const closeCmd = cmds.find((c) => c.id === "close" && c.keys)
-        const closeAltCmd = cmds.find((c) => c.id === "close-alt" && c.keys)
-        const keys: string[] = []
-        if (closeCmd && closeCmd.keys) {
-            if (Array.isArray(closeCmd.keys)) keys.push(...closeCmd.keys)
-            else keys.push(closeCmd.keys)
-        }
-        if (closeAltCmd && closeAltCmd.keys) {
-            if (Array.isArray(closeAltCmd.keys)) keys.push(...closeAltCmd.keys)
-            else keys.push(closeAltCmd.keys)
-        }
-        return keys.map((k) => formatKey(k))
     })
 
     let selectShortcut = $derived.by(() => {
@@ -463,14 +416,6 @@
                     <kbd>{searchShortcut}</kbd> Search
                 </span>
                 <span class="hint-divider">•</span>
-            {/if}
-            {#if closeShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each closeShortcuts as shortcut, i}
-                        {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
-                    {/each}
-                    Close
-                </span>
             {/if}
         </div>
     {/if}

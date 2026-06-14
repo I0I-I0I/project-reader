@@ -1,12 +1,8 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import { cubicOut } from "svelte/easing"
-    import {
-        useCommands,
-        getShortcutHint,
-        type CommandNode,
-    } from "$lib/stores/commandsStore.svelte"
-    import { getContext, untrack, tick } from "svelte"
+    import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
+    import { untrack, tick } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "$lib/components/ui/Button.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -15,8 +11,6 @@
     import type { Bookmark } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import EditIcon from "$lib/components/icons/EditIcon.svelte"
-    import BookmarkIcon from "$lib/components/icons/BookmarkIcon.svelte"
-    import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
     import Modal from "$lib/components/ui/Modal.svelte"
     import Input from "$lib/components/ui/Input.svelte"
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
@@ -64,22 +58,6 @@
     let currentBook = $derived(viewerStore.getCurrentBook())
     let currentBookId = $derived(currentBook?.id)
     let currentPage = $derived(viewerStore.currentPage)
-
-    let isCurrentPageBookmarked = $derived(
-        currentBookId
-            ? bookmarksStore.bookmarks.some(
-                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
-              )
-            : false,
-    )
-
-    let currentPageBookmark = $derived(
-        currentBookId
-            ? bookmarksStore.bookmarks.find(
-                  (b) => b.bookId === currentBookId && b.pageNumber === currentPage,
-              )
-            : null,
-    )
 
     let filteredBookmarks = $derived(
         bookmarksStore.bookmarks
@@ -175,155 +153,129 @@
         })
     })
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
-
-    const sidebarCommandsNode = useCommands(
-        [
-            {
-                id: "close",
-                keys: ["ctrl+c", "ctrl+["],
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: () => {
+    const sidebarCommandsNode = useCommands([
+        {
+            id: "scroll-down",
+            keys: "j",
+            description: "Next Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("next")
+            },
+        },
+        {
+            id: "scroll-down-alt",
+            keys: ["arrowdown", "ctrl+n", "ctrl+j"],
+            description: "Next Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("next")
+            },
+            allowInInputs: true,
+        },
+        {
+            id: "scroll-up",
+            keys: "k",
+            description: "Previous Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("prev")
+            },
+        },
+        {
+            id: "scroll-up-alt",
+            keys: ["arrowup", "ctrl+p", "ctrl+k"],
+            description: "Previous Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                navigateSelection("prev")
+            },
+            allowInInputs: true,
+        },
+        {
+            id: "select-bookmark",
+            keys: "enter",
+            description: "Jump to Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                const bookmark = filteredBookmarks[selectedIndex]
+                if (bookmark) {
+                    selectBookmark(bookmark)
                     onClose()
-                },
-                description: "Close Bookmarks Sidebar",
-                allowInInputs: true,
+                }
             },
-            {
-                id: "close-alt",
-                keys: ["escape", "q"],
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: () => {
-                    onClose()
-                },
-                description: "Close Bookmarks Sidebar",
-                allowInInputs: false,
+        },
+        {
+            id: "search-bookmarks",
+            keys: "/",
+            description: "Search Bookmarks",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                searchInputRef?.focus()
+                searchInputRef?.select()
             },
-            {
-                id: "scroll-down",
-                keys: "j",
-                description: "Next Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
+        },
+        {
+            id: "edit-selected-bookmark",
+            keys: "e",
+            description: "Edit Selected Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                const bookmark = filteredBookmarks[selectedIndex]
+                if (bookmark) {
+                    triggerEditKeyboard(bookmark)
+                }
             },
-            {
-                id: "scroll-down-alt",
-                keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-                description: "Next Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("next")
-                },
-                allowInInputs: true,
+        },
+        {
+            id: "delete-selected-bookmark",
+            keys: "d",
+            description: "Delete Selected Bookmark",
+            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                const bookmark = filteredBookmarks[selectedIndex]
+                if (bookmark) {
+                    triggerDeleteKeyboard(bookmark)
+                }
             },
-            {
-                id: "scroll-up",
-                keys: "k",
-                description: "Previous Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
+        },
+        {
+            id: "edit-selected-bookmark-input",
+            keys: "ctrl+e",
+            description: "Edit Selected Bookmark",
+            disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                const bookmark = filteredBookmarks[selectedIndex]
+                if (bookmark) {
+                    triggerEditKeyboard(bookmark)
+                }
             },
-            {
-                id: "scroll-up-alt",
-                keys: ["arrowup", "ctrl+p", "ctrl+k"],
-                description: "Previous Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    navigateSelection("prev")
-                },
-                allowInInputs: true,
+            allowInInputs: true,
+        },
+        {
+            id: "delete-selected-bookmark-input",
+            keys: "ctrl+d",
+            description: "Delete Selected Bookmark",
+            disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
+            action: (event) => {
+                event.preventDefault()
+                const bookmark = filteredBookmarks[selectedIndex]
+                if (bookmark) {
+                    triggerDeleteKeyboard(bookmark)
+                }
             },
-            {
-                id: "select-bookmark",
-                keys: "enter",
-                description: "Jump to Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    const bookmark = filteredBookmarks[selectedIndex]
-                    if (bookmark) {
-                        selectBookmark(bookmark)
-                        onClose()
-                    }
-                },
-            },
-            {
-                id: "search-bookmarks",
-                keys: "/",
-                description: "Search Bookmarks",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    searchInputRef?.focus()
-                    searchInputRef?.select()
-                },
-            },
-            {
-                id: "edit-selected-bookmark",
-                keys: "e",
-                description: "Edit Selected Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    const bookmark = filteredBookmarks[selectedIndex]
-                    if (bookmark) {
-                        triggerEditKeyboard(bookmark)
-                    }
-                },
-            },
-            {
-                id: "delete-selected-bookmark",
-                keys: "d",
-                description: "Delete Selected Bookmark",
-                disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    const bookmark = filteredBookmarks[selectedIndex]
-                    if (bookmark) {
-                        triggerDeleteKeyboard(bookmark)
-                    }
-                },
-            },
-            {
-                id: "edit-selected-bookmark-input",
-                keys: "ctrl+e",
-                description: "Edit Selected Bookmark",
-                disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    const bookmark = filteredBookmarks[selectedIndex]
-                    if (bookmark) {
-                        triggerEditKeyboard(bookmark)
-                    }
-                },
-                allowInInputs: true,
-            },
-            {
-                id: "delete-selected-bookmark-input",
-                keys: "ctrl+d",
-                description: "Delete Selected Bookmark",
-                disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
-                action: (event) => {
-                    event.preventDefault()
-                    const bookmark = filteredBookmarks[selectedIndex]
-                    if (bookmark) {
-                        triggerDeleteKeyboard(bookmark)
-                    }
-                },
-                allowInInputs: true,
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+            allowInInputs: true,
+        },
+    ])
 
     function triggerEditKeyboard(bookmark: Bookmark) {
         editingBookmarkId = bookmark.id
@@ -396,23 +348,6 @@
             }
         }
         return pairs
-    })
-
-    let closeShortcuts = $derived.by(() => {
-        if (!sidebarCommandsNode) return []
-        const cmds = sidebarCommandsNode.getAllCommands()
-        const closeCmd = cmds.find((c) => c.id === "close" && c.keys)
-        const closeAltCmd = cmds.find((c) => c.id === "close-alt" && c.keys)
-        const keys: string[] = []
-        if (closeCmd && closeCmd.keys) {
-            if (Array.isArray(closeCmd.keys)) keys.push(...closeCmd.keys)
-            else keys.push(closeCmd.keys)
-        }
-        if (closeAltCmd && closeAltCmd.keys) {
-            if (Array.isArray(closeAltCmd.keys)) keys.push(...closeAltCmd.keys)
-            else keys.push(closeAltCmd.keys)
-        }
-        return keys.map((k) => formatKey(k))
     })
 
     let selectShortcut = $derived.by(() => {
@@ -582,14 +517,6 @@
                     <kbd>{deleteShortcut}</kbd> Delete
                 </span>
                 <span class="hint-divider">•</span>
-            {/if}
-            {#if closeShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each closeShortcuts as shortcut, i (shortcut)}
-                        {#if i > 0}/{/if}<kbd>{shortcut}</kbd>
-                    {/each}
-                    Close
-                </span>
             {/if}
         </div>
     {/if}

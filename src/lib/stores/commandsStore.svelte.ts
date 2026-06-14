@@ -507,9 +507,16 @@ export function getRawShortcutHint(commandNode: CommandRegistry | null, id: stri
     return formatKeyString(primaryAction.keys!)
 }
 
-export function getShortcutHint(commandNode: CommandRegistry | null, id: string): string {
+export function getShortcutHint(commandNode: CommandRegistry | null, ...ids: string[]): string {
     if (uiStore.isCompact) return ""
-    const raw = getRawShortcutHint(commandNode, id)
+    let raw = ""
+    for (let i = 0; i < ids.length; i++) {
+        const hint = getRawShortcutHint(commandNode, ids[i])
+        if (hint) {
+            if (i > 0) raw += "/"
+            raw += `${hint}`
+        }
+    }
     return raw ? ` [${raw}]` : ""
 }
 
