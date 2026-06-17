@@ -107,7 +107,7 @@
     }
 
     .confirmation-message {
-        font-size: 16px;
+        font-size: var(--font-size-xl);
         line-height: 1.5;
         color: var(--text-color);
         margin: 0;

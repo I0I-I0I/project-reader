@@ -438,7 +438,7 @@
         display: flex;
         align-items: center;
         gap: 32px;
-        z-index: 1000;
+        z-index: var(--z-modal);
         min-width: 400px;
         max-width: 90vw;
         box-sizing: border-box;
@@ -497,7 +497,7 @@
         display: flex;
         align-items: center;
         gap: 16px;
-        z-index: 100;
+        z-index: var(--z-sticky);
     }
 
     .mobile-prompt-btn {
@@ -506,7 +506,7 @@
         background: var(--surface-color);
         border: 2px solid var(--border-color);
         box-shadow: 3px 3px 0 var(--shadow-color);
-        border-radius: 50%;
+        border-radius: var(--radius-full);
         display: flex;
         align-items: center;
         justify-content: center;

@@ -557,7 +557,7 @@
         width: 100%;
         height: 2px;
         background: transparent;
-        z-index: 10;
+        z-index: var(--z-10);
         transform: scaleX(0);
         transform-origin: left;
         transition:
@@ -628,7 +628,7 @@
         border: none;
         outline: none;
         font-family: inherit;
-        font-size: 1.1rem;
+        font-size: var(--font-size-2xl);
         color: var(--text-color);
         padding: 0;
     }
@@ -645,14 +645,14 @@
         color: var(--text-color);
         opacity: 0.4;
         font-family: inherit;
-        font-size: 1.1rem;
+        font-size: var(--font-size-2xl);
         user-select: none;
     }
 
     .close-btn {
         background: transparent;
         border: none;
-        font-size: 1rem;
+        font-size: var(--font-size-xl);
         color: var(--text-color);
         opacity: 0.5;
         cursor: pointer;
@@ -699,7 +699,7 @@
     .results-list::-webkit-scrollbar-thumb {
         background: var(--border-color);
         opacity: 0.3;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     .result-item {
@@ -709,7 +709,7 @@
         padding: 10px 12px;
         background: transparent;
         border: 2px solid transparent;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         text-align: left;
         cursor: pointer;
         font-family: inherit;
@@ -749,7 +749,7 @@
         justify-content: center;
         width: 32px;
         height: 32px;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         border: 1.5px solid var(--border-color);
         background: var(--bg-color);
         color: var(--text-color);
@@ -771,7 +771,7 @@
     }
 
     .item-title {
-        font-size: 0.95rem;
+        font-size: var(--font-size-xl);
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
@@ -779,14 +779,14 @@
     }
 
     .english-title-hint {
-        font-size: 0.82rem;
+        font-size: var(--font-size-base);
         font-weight: normal;
         opacity: 0.5;
         margin-left: 8px;
     }
 
     .item-subtitle {
-        font-size: 0.78rem;
+        font-size: var(--font-size-sm);
         opacity: 0.6;
         white-space: nowrap;
         overflow: hidden;
@@ -801,12 +801,12 @@
     }
 
     .category-badge {
-        font-size: 0.62rem;
+        font-size: var(--font-size-2xs);
         font-weight: bold;
         text-transform: uppercase;
         padding: 2px 6px;
         border: 1.5px solid var(--border-color);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         background: var(--bg-color);
         color: var(--text-color);
         white-space: nowrap;
@@ -901,18 +901,18 @@
         margin: 0 2px;
         align-self: center;
         color: var(--text-color);
-        font-size: 0.8rem;
+        font-size: var(--font-size-sm);
     }
 
     kbd {
         font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-        font-size: 0.72rem;
+        font-size: var(--font-size-sm);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         padding: 3px 6px;
         min-width: 14px;
         text-align: center;
@@ -947,7 +947,7 @@
         padding: 10px 16px;
         border-top: 2px solid var(--border-color);
         background: var(--surface-hover-color);
-        font-size: 0.75rem;
+        font-size: var(--font-size-sm);
         color: var(--text-color);
         opacity: 0.8;
     }
@@ -966,7 +966,7 @@
     :global(mark.highlight) {
         background: rgba(253, 203, 110, 0.4);
         color: inherit;
-        border-radius: 2px;
+        border-radius: var(--radius-sm);
         padding: 0 1px;
     }
 
@@ -976,11 +976,11 @@
 
     @media (--prompt) {
         .prompt-input {
-            font-size: 16px;
+            font-size: var(--font-size-xl);
         }
 
         .custom-placeholder {
-            font-size: 16px;
+            font-size: var(--font-size-xl);
         }
 
         .prompt-container > div {

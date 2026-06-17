@@ -107,7 +107,7 @@
         padding: 6px 12px;
         box-shadow: 2px 2px 0 var(--shadow-color);
         font-family: inherit;
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: bold;
         text-transform: uppercase;
         cursor: pointer;
@@ -115,10 +115,12 @@
     }
 
     @media (hover: hover) {
-        .switcher-trigger:hover:not(:active):not(.open) {
+        .switcher-trigger:hover:not(:active):not(.open),
+        .switcher-trigger:focus-visible:not(:active):not(.open) {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0 var(--shadow-color);
             background: var(--surface-hover-color);
+            outline: none;
         }
     }
 
@@ -139,7 +141,7 @@
 
     .switcher-dropdown {
         position: absolute;
-        z-index: 1000;
+        z-index: var(--z-modal);
         list-style: none;
         margin: 0;
         padding: 4px;
@@ -191,7 +193,7 @@
         border: none;
         color: var(--text-color);
         padding: 8px 12px;
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: bold;
         text-transform: uppercase;
         text-align: left;
@@ -202,8 +204,10 @@
     }
 
     @media (hover: hover) {
-        :global(.dropdown-item:hover) {
+        :global(.dropdown-item:hover),
+        :global(.dropdown-item:focus-visible) {
             background: var(--surface-hover-color);
+            outline: none;
         }
     }
 

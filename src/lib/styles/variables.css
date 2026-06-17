@@ -1,0 +1,105 @@
+:root {
+    /* Centralized breakpoints */
+    --breakpoint-mobile: 800px;
+    --breakpoint-tablet: 850px;
+    --breakpoint-desktop: 900px;
+    --breakpoint-large-desktop: 1024px;
+    --breakpoint-prompt: 640px;
+
+    /* Base Colors - Light Theme */
+    --bg-color: #f5f0e1;
+    --text-color: #1a1a1a;
+    --border-color: #1a1a1a;
+    --shadow-color: #1a1a1a;
+
+    --surface-color: #ffffff;
+    --surface-hover-color: #faf8f5;
+
+    --accent-color: #00cec9;
+    --accent-active-color: #ffde4d;
+
+    --danger-color: #ff7675;
+    --danger-active-color: #ff4d4d;
+    --danger-text-color: #ffffff;
+
+    --muted-bg-color: #1a1a1a;
+    --muted-text-color: #f5f0e1;
+
+    --canvas-bg-color: #ffffff;
+    --disabled-bg-color: #eee;
+
+    --overlay-color: rgba(250, 248, 245, 0.85);
+    --faded-color: rgba(0, 0, 0, 0.05);
+    --faded-text-color: #777777;
+    --outline-item-border: rgba(0, 0, 0, 0.15);
+
+    /* Typography Scale */
+    --font-size-3xs: 0.5rem; /* 8px */
+    --font-size-2xs: 0.625rem; /* 10px */
+    --font-size-xs: 0.625rem; /* 10px */
+    --font-size-sm: 0.75rem; /* 12px */
+    --font-size-base: 0.875rem; /* 14px */
+    --font-size-md: 0.875rem; /* 14px */
+    --font-size-lg: 0.875rem; /* 14px */
+    --font-size-xl: 1rem; /* 16px */
+    --font-size-2xl: 1.125rem; /* 18px */
+    --font-size-3xl: 1.25rem; /* 20px */
+    --font-size-4xl: 1.5rem; /* 24px */
+    --font-size-5xl: 1.75rem; /* 28px */
+    --font-size-6xl: 2.25rem; /* 36px */
+    --font-size-7xl: 4rem; /* 64px */
+
+    /* Border Radius Scale */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-xl: 20px;
+    --radius-full: 50%;
+
+    /* Z-Index Scale */
+    --z-below: -1;
+    --z-base: 0;
+    --z-above: 1;
+    --z-1: 1;
+    --z-2: 2;
+    --z-5: 5;
+    --z-10: 10;
+    --z-20: 20;
+    --z-30: 30;
+    --z-dropdown: 50;
+    --z-sticky: 100;
+    --z-fixed: 200;
+    --z-modal-backdrop: 300;
+    --z-modal: 1000;
+    --z-toast: 9999;
+    --z-tooltip: 100000;
+}
+
+html.dark {
+    /* Base Colors - Dark Theme */
+    --bg-color: #000000;
+    --text-color: #e4e4e7;
+    --border-color: #27272a;
+    --shadow-color: #000000;
+
+    --surface-color: #09090b;
+    --surface-hover-color: #1c1c1e;
+
+    --accent-color: #a78bfa;
+    --accent-active-color: #8b5cf6;
+
+    --danger-color: #f87171;
+    --danger-active-color: #ef4444;
+    --danger-text-color: #ffffff;
+
+    --muted-bg-color: #e4e4e7;
+    --muted-text-color: #000000;
+
+    --canvas-bg-color: #000000;
+    --disabled-bg-color: #18181b;
+
+    --overlay-color: rgba(0, 0, 0, 0.85);
+    --faded-color: rgba(228, 228, 231, 0.08);
+    --faded-text-color: #a1a1aa;
+    --outline-item-border: rgba(228, 228, 231, 0.15);
+}

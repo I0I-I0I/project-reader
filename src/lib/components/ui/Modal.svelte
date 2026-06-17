@@ -90,7 +90,7 @@
 
     .modal-title {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: var(--font-size-3xl);
         font-weight: 800;
         letter-spacing: -0.5px;
         text-transform: uppercase;
@@ -100,7 +100,7 @@
     .close-btn {
         background: none;
         border: none;
-        font-size: 1.75rem;
+        font-size: var(--font-size-5xl);
         font-weight: bold;
         color: var(--text-color);
         cursor: pointer;

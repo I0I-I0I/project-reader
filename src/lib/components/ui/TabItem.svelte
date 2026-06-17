@@ -67,7 +67,7 @@
         border: none;
         color: var(--text-color);
         font-family: inherit;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -78,7 +78,7 @@
         flex: 1;
         min-width: max-content;
         position: relative;
-        z-index: 2;
+        z-index: var(--z-2);
         box-sizing: border-box;
     }
 

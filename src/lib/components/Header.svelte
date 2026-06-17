@@ -155,7 +155,7 @@
     }
 
     .title {
-        font-size: clamp(36px, 6vw, 64px);
+        font-size: clamp(var(--font-size-6xl), 6vw, var(--font-size-7xl));
         margin: 0;
         text-transform: uppercase;
         font-weight: 900;
@@ -254,7 +254,7 @@
             color: var(--text-color);
             margin-right: 12px;
             flex-shrink: 0;
-            z-index: 2;
+            z-index: var(--z-2);
             pointer-events: none;
             transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -320,7 +320,7 @@
 
     :global(.continue-btn) {
         padding: 6px 12px !important;
-        font-size: 12px !important;
+        font-size: var(--font-size-base) !important;
         height: 32px;
         box-sizing: border-box;
         display: inline-flex;

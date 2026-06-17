@@ -130,6 +130,10 @@ class UIStore {
         }
     }
 
+    get innerWidth(): number {
+        return this.#innerWidth
+    }
+
     get isCompact(): boolean {
         const isSmallScreen = this.#innerWidth <= BREAKPOINTS.TABLET
         const ua = browser ? navigator.userAgent : ""

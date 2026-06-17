@@ -81,7 +81,7 @@
         top: 0;
         bottom: 0;
         background: var(--accent-active-color);
-        z-index: 1;
+        z-index: var(--z-1);
         pointer-events: none;
         box-sizing: border-box;
     }

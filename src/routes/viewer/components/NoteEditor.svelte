@@ -129,7 +129,7 @@
 <style>
     @media (--mobile) {
         .editor-textarea {
-            font-size: 16px !important;
+            font-size: var(--font-size-xl) !important;
             height: 200px !important;
         }
     }
@@ -137,7 +137,7 @@
     :global(.modal-title) {
         font-family: Georgia, "Times New Roman", Times, serif !important;
         font-weight: 900 !important;
-        font-size: 1.5rem !important;
+        font-size: var(--font-size-4xl) !important;
     }
 
     .editor-body {
@@ -163,7 +163,7 @@
         border-bottom: 2px solid var(--border-color);
         background: var(--bg-color);
         position: relative;
-        z-index: 10;
+        z-index: var(--z-10);
     }
 
     @media (--mobile) {
@@ -181,7 +181,7 @@
     .close-btn {
         background: none;
         border: none;
-        font-size: 1.75rem;
+        font-size: var(--font-size-5xl);
         font-weight: bold;
         color: var(--text-color);
         cursor: pointer;
@@ -204,7 +204,7 @@
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
         padding: 4px 8px;
-        font-size: 10px;
+        font-size: var(--font-size-xs);
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -214,7 +214,7 @@
         margin: 0;
         margin-bottom: 8px;
         font-style: italic;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         color: var(--text-color);
         background: rgba(0, 0, 0, 0.03);
         padding: 12px 16px;
@@ -235,7 +235,7 @@
         width: 100%;
         height: 160px;
         font-family: inherit;
-        font-size: 16px;
+        font-size: var(--font-size-xl);
         font-weight: 600;
         padding: 16px;
         border: 2px solid var(--border-color);
@@ -277,7 +277,7 @@
     :global(.color-swatch) {
         width: 28px !important;
         height: 28px !important;
-        border-radius: 50% !important;
+        border-radius: var(--radius-full) !important;
         border: 2px solid var(--border-color) !important;
         cursor: pointer !important;
         transition: transform 0.1s ease !important;
@@ -328,7 +328,7 @@
     :global(.editor-btn) {
         padding: 8px 20px !important;
         font-family: inherit !important;
-        font-size: 14px !important;
+        font-size: var(--font-size-lg) !important;
         font-weight: 900 !important;
         text-transform: uppercase !important;
         cursor: pointer !important;

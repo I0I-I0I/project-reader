@@ -1,3 +1,4 @@
+import { SvelteSet } from "svelte/reactivity"
 import { browser } from "$app/environment"
 import { pushState } from "$app/navigation"
 import type { FlatHeading } from "$lib/pdf"
@@ -8,6 +9,7 @@ class ViewerStore {
     private book = $state<Book | null>(null)
     private outlineList = $state<FlatHeading[] | null>(null)
     private totalPages = $state<number>(0)
+    isOutlineLoading = $state(false)
 
     currentPage = $state(1)
     scrollPosition = $state(0)
@@ -53,6 +55,30 @@ class ViewerStore {
     set activeOutline(list: FlatHeading[] | null) {
         this.outlineList = list
     }
+
+    activeHeadings = $derived.by(() => {
+        if (!this.outlineList || this.outlineList.length === 0) return new SvelteSet<FlatHeading>()
+
+        const onCurrentPage = this.outlineList.filter((h) => h.pageNumber === this.currentPage)
+        if (onCurrentPage.length > 0) {
+            return new SvelteSet<FlatHeading>(onCurrentPage)
+        }
+
+        let precedingCandidate: FlatHeading | null = null
+        for (const heading of this.outlineList) {
+            if (heading.pageNumber !== undefined && heading.pageNumber < this.currentPage) {
+                if (!precedingCandidate || heading.pageNumber >= precedingCandidate.pageNumber!) {
+                    precedingCandidate = heading
+                }
+            }
+        }
+
+        const activeSet = new SvelteSet<FlatHeading>()
+        if (precedingCandidate) {
+            activeSet.add(precedingCandidate)
+        }
+        return activeSet
+    })
 
     get activeTotalPages() {
         return this.totalPages

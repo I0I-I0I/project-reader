@@ -47,7 +47,7 @@
 
 <style>
     .breadcrumbs-nav {
-        --font-size: clamp(24px, 6vw, 28px);
+        --font-size: clamp(var(--font-size-4xl), 6vw, var(--font-size-5xl));
         --gap: clamp(8px, 6vw, 16px);
         margin-bottom: 20px;
     }

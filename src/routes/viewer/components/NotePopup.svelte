@@ -141,19 +141,19 @@
     }
 
     .popup-page {
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: 900;
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
         border: 1px solid var(--border-color);
         padding: 2px 6px;
-        border-radius: 2px;
+        border-radius: var(--radius-sm);
     }
 
     :global(.popup-close) {
         background: none !important;
         border: none !important;
-        font-size: 18px !important;
+        font-size: var(--font-size-2xl) !important;
         font-weight: 900 !important;
         cursor: pointer !important;
         color: var(--text-color) !important;
@@ -171,7 +171,7 @@
     .popup-quote {
         margin: 0;
         font-style: italic;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         overflow-y: auto;
         color: var(--text-color);
         background: rgba(0, 0, 0, 0.04);
@@ -182,7 +182,7 @@
     }
 
     .popup-content {
-        font-size: 16px;
+        font-size: var(--font-size-xl);
         font-weight: 700;
         color: var(--text-color);
         line-height: 1.4;
@@ -200,7 +200,7 @@
     :global(.popup-btn) {
         padding: 4px 8px !important;
         font-family: inherit !important;
-        font-size: 10px !important;
+        font-size: var(--font-size-xs) !important;
         font-weight: 900 !important;
         text-transform: uppercase !important;
         cursor: pointer !important;

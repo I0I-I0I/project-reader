@@ -193,5 +193,6 @@
     "rename_bookmark": "Rename Bookmark",
     "bookmark_added": "Bookmark added",
     "bookmark_removed": "Bookmark removed",
-    "search_bookmarks_placeholder": "Search bookmarks in this book..."
+    "search_bookmarks_placeholder": "Search bookmarks in this book...",
+    "delete_bookmark_confirm": "Delete this bookmark?"
 }

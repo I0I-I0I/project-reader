@@ -502,11 +502,11 @@
         border: 2.5px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         padding: 4px 10px;
-        font-size: 10px;
+        font-size: var(--font-size-xs);
         font-weight: 900;
         letter-spacing: 0.5px;
         text-transform: uppercase;
-        z-index: 10;
+        z-index: var(--z-10);
         pointer-events: none;
         transition:
             opacity 0.2s ease,

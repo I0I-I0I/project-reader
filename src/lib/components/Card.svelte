@@ -7,7 +7,7 @@
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte"
     import { vfsStore, usePreviewUrl } from "$lib/stores/vfsStore.svelte"
-    import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
+    import type { VFSNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
@@ -369,20 +369,25 @@
     }
 
     @media (hover: hover) {
-        .card:hover {
+        .card:hover,
+        .card:focus-visible {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
             background-color: var(--surface-hover-color);
+            outline: none;
         }
 
-        .card.is-selected:hover {
+        .card.is-selected:hover,
+        .card.is-selected:focus-visible {
             box-shadow: 8px 8px 0 var(--danger-active-color);
+            outline: none;
         }
     }
 
     .card:active {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
+        border: 10px solid white;
     }
 
     .card.is-selected:active {
@@ -508,7 +513,7 @@
     }
 
     .card-title {
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 800;
         text-transform: uppercase;
         margin: 0;
@@ -525,7 +530,7 @@
     }
 
     .card-author {
-        font-size: 10.5px;
+        font-size: var(--font-size-2xs);
         font-weight: 600;
         text-transform: uppercase;
         margin: 0;
@@ -548,13 +553,13 @@
         left: 15px;
         background: var(--danger-active-color);
         color: var(--danger-text-color);
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: bold;
         padding: 4px 10px;
         transform: rotate(-10deg);
         border: 1.5px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        z-index: 10;
+        z-index: var(--z-10);
         text-transform: uppercase;
     }
 
@@ -562,7 +567,7 @@
         position: absolute;
         top: 15px;
         right: 15px;
-        z-index: 20;
+        z-index: var(--z-20);
     }
 
     :global(.menu-btn) {
@@ -578,13 +583,15 @@
     }
 
     :global(.menu-btn.open),
-    .card:hover :global(.menu-btn) {
+    .card:hover :global(.menu-btn),
+    .card:focus-visible :global(.menu-btn) {
         opacity: 1;
         pointer-events: auto;
     }
 
     @media (hover: hover) {
-        :global(.menu-btn):hover:not(:disabled):not(.open) {
+        :global(.menu-btn):hover:not(:disabled):not(.open),
+        :global(.menu-btn):focus-visible:not(:disabled):not(.open) {
             transform: translate(-1px, -1px) !important;
             box-shadow: 3px 3px 0 var(--shadow-color) !important;
         }
@@ -604,7 +611,7 @@
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
         min-width: 160px;
-        z-index: 100;
+        z-index: var(--z-sticky);
         overflow: hidden;
     }
 
@@ -620,7 +627,7 @@
         border: none;
         color: var(--text-color);
         font-family: inherit;
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: 800;
         text-transform: uppercase;
         cursor: pointer;
@@ -629,9 +636,11 @@
     }
 
     @media (hover: hover) {
-        .dropdown-menu :global(.dropdown-item):hover {
+        .dropdown-menu :global(.dropdown-item):hover,
+        .dropdown-menu :global(.dropdown-item):focus-visible {
             background-color: var(--surface-hover-color);
             color: var(--danger-active-color);
+            outline: none;
         }
     }
 
@@ -656,16 +665,18 @@
         gap: 8px;
         color: #ffffff;
         font-weight: 800;
-        z-index: 10;
+        z-index: var(--z-10);
         opacity: 0.9;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     @media (hover: hover) {
-        .card:hover .lock-overlay {
+        .card:hover .lock-overlay,
+        .card:focus-visible .lock-overlay {
             background: rgba(0, 0, 0, 0.7);
             opacity: 1;
             backdrop-filter: blur(5px);
+            outline: none;
         }
     }
 
@@ -678,14 +689,16 @@
     }
 
     @media (hover: hover) {
-        .card:hover .lock-overlay :global(.lock-icon) {
+        .card:hover .lock-overlay :global(.lock-icon),
+        .card:focus-visible .lock-overlay :global(.lock-icon) {
             transform: scale(1.15) rotate(-5deg);
+            outline: none;
         }
     }
 
     .lock-text {
         text-transform: uppercase;
-        font-size: 10px;
+        font-size: var(--font-size-xs);
         background: #1a1a1a;
         color: #ffde4d;
         border: 2px solid var(--border-color);
@@ -697,9 +710,11 @@
     }
 
     @media (hover: hover) {
-        .card:hover .lock-text {
+        .card:hover .lock-text,
+        .card:focus-visible .lock-text {
             background: var(--accent-color, #00cec9);
             color: var(--text-color, #1a1a1a);
+            outline: none;
         }
     }
 
@@ -713,7 +728,7 @@
         border-top: 2px solid var(--border-color);
         box-sizing: border-box;
         overflow: hidden;
-        z-index: 5;
+        z-index: var(--z-5);
     }
 
     .progress-bar-track {
@@ -740,7 +755,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: 900;
         text-transform: uppercase;
         color: var(--text-color);
@@ -754,11 +769,11 @@
         }
 
         .card-title {
-            font-size: 11px;
+            font-size: var(--font-size-sm);
         }
 
         .card-author {
-            font-size: 9.5px;
+            font-size: var(--font-size-2xs);
         }
 
         .card-icon :global(svg) {
@@ -769,7 +784,7 @@
         .badge {
             top: 8px;
             left: 8px;
-            font-size: 9px;
+            font-size: var(--font-size-2xs);
             padding: 2px 6px;
         }
 
@@ -790,7 +805,7 @@
 
         .dropdown-menu :global(.dropdown-item) {
             padding: 8px 10px;
-            font-size: 11px;
+            font-size: var(--font-size-sm);
         }
 
         .lock-icon {
@@ -799,7 +814,7 @@
         }
 
         .lock-text {
-            font-size: 8px;
+            font-size: var(--font-size-3xs);
             padding: 2px 4px;
             border-width: 1.5px;
             box-shadow: 1px 1px 0 var(--shadow-color);
@@ -810,7 +825,7 @@
         }
 
         .progress-text {
-            font-size: 10.5px;
+            font-size: var(--font-size-2xs);
         }
     }
 </style>

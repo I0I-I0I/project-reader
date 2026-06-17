@@ -1236,7 +1236,7 @@
         inset: 0;
         background: var(--overlay-color);
         backdrop-filter: blur(2px);
-        z-index: 10;
+        z-index: var(--z-10);
     }
 
     .pdf-image-wrapper {
@@ -1370,7 +1370,7 @@
         width: 32px;
         transform: translateX(-50%);
         pointer-events: none;
-        z-index: 5;
+        z-index: var(--z-5);
         background: linear-gradient(
             to right,
             rgba(0, 0, 0, 0) 0%,

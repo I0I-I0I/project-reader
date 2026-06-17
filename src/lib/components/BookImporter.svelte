@@ -193,7 +193,7 @@
         background: var(--surface-color, #ffffff);
         border: 2px solid var(--border-color);
         font-family: inherit;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 800;
         text-transform: uppercase;
         color: var(--text-color);
@@ -248,7 +248,7 @@
         background: var(--danger-active-color);
         border: 2.5px solid var(--border-color);
         padding: 16px;
-        border-radius: 50%;
+        border-radius: var(--radius-full);
         display: inline-flex;
         box-shadow: 3px 3px 0 var(--shadow-color);
         color: var(--danger-text-color, #ffffff);
@@ -257,7 +257,7 @@
 
     .dashed-border h3 {
         margin: 0;
-        font-size: 20px;
+        font-size: var(--font-size-3xl);
         font-weight: 900;
         letter-spacing: -0.5px;
         color: var(--text-color);
@@ -265,7 +265,7 @@
 
     .dashed-border p {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         color: var(--text-color);
         opacity: 0.8;
         max-width: 320px;
@@ -359,7 +359,7 @@
     }
 
     .card-title {
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 800;
         text-transform: uppercase;
         margin: 0;
@@ -376,7 +376,7 @@
     }
 
     .card-author {
-        font-size: 10.5px;
+        font-size: var(--font-size-2xs);
         font-weight: 600;
         text-transform: uppercase;
         margin: 0;
@@ -404,11 +404,11 @@
         }
 
         .card-title {
-            font-size: 11px;
+            font-size: var(--font-size-sm);
         }
 
         .card-author {
-            font-size: 9.5px;
+            font-size: var(--font-size-2xs);
         }
 
         .card-icon :global(svg) {
@@ -426,11 +426,11 @@
         }
 
         .dashed-border h3 {
-            font-size: 18px;
+            font-size: var(--font-size-2xl);
         }
 
         .dashed-border p {
-            font-size: 12px;
+            font-size: var(--font-size-base);
         }
 
         .upload-icon-wrapper {

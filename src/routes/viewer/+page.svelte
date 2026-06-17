@@ -25,7 +25,6 @@
     import Input from "$lib/components/ui/Input.svelte"
     import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
     import BookmarkAddKeymaps from "./components/BookmarkAddKeymaps.svelte"
-    import { browser } from "$app/environment"
     import { localizedPath } from "$lib/language"
     import { CONSTANTS, settingsStore } from "$lib/stores/settingsStore.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
@@ -619,8 +618,6 @@
     }
     const sidebars = new SidebarState()
 
-    let isShortHeight = $derived(uiStore.isShortHeight)
-    let viewportWidth = $state(0)
     let noteToDeleteId = $state<string | null>(null)
 
     let isBookmarkAddModalOpen = $state(false)
@@ -1370,43 +1367,6 @@
         getScrollContainer: () => scrollContainer,
     })
 
-    function getPageScale(dim: { width: number; height: number } | null) {
-        if (uiStore.isCompact && viewportWidth > 0 && pdf) {
-            const pageWidth = dim?.width || pdf.defaultWidth || 612
-            if (isShortHeight) {
-                return (viewportWidth / pageWidth) * (settingsStore.scale / 1.5)
-            }
-            return viewportWidth / pageWidth
-        }
-        return settingsStore.scale
-    }
-
-    function getSlideImageStyle(dim: { width: number; height: number } | null) {
-        const actualDim =
-            dim ||
-            (pdf
-                ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
-                : { width: 612, height: 792 })
-        const scale = getPageScale(actualDim)
-        const aspectRatio = `${actualDim.width} / ${actualDim.height}`
-
-        if (uiStore.isCompact && !isShortHeight) {
-            if (settingsStore.layout === "split") {
-                return `width: 50% !important; height: auto !important; aspect-ratio: ${aspectRatio} !important;`
-            }
-            return `width: 100% !important; height: auto !important; aspect-ratio: ${aspectRatio} !important;`
-        }
-
-        const w = actualDim.width * scale
-        const h = actualDim.height * scale
-        return `width: ${w}px !important; height: ${h}px !important; aspect-ratio: ${aspectRatio} !important;`
-    }
-
-    const prevImageStyle1 = $derived(getSlideImageStyle(prevPageDim1))
-    const prevImageStyle2 = $derived(getSlideImageStyle(prevPageDim2))
-    const nextImageStyle1 = $derived(getSlideImageStyle(nextPageDim1))
-    const nextImageStyle2 = $derived(getSlideImageStyle(nextPageDim2))
-
     const sliderTrackStyle = $derived(
         `transform: translate3d(calc(-33.333333% + ${swipe.swipeOffsetX}), 0, 0); transition: ${swipe.swipeTransition};`,
     )
@@ -1803,7 +1763,7 @@
                     class="note-fab"
                     style="position: fixed; left: {notesStore.activeSelection.x}px; top: {notesStore
                         .activeSelection.bottomY +
-                        12}px; transform: translate(-50%, 0); z-index: 1000;"
+                        12}px; transform: translate(-50%, 0); z-index: var(--z-modal);"
                 >
                     <button
                         class="fab-btn"
@@ -1943,7 +1903,7 @@
 
             {#if bookmarkToDeleteId}
                 <DeleteConfirmModal
-                    message="Delete this bookmark?"
+                    message={m.delete_bookmark_confirm()}
                     onConfirm={async () => {
                         if (bookmarkToDeleteId) {
                             await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
@@ -2045,7 +2005,7 @@
         top: 0;
         bottom: 0;
         width: 24px;
-        z-index: 2;
+        z-index: var(--z-2);
         cursor: pointer;
     }
 
@@ -2109,7 +2069,7 @@
         display: grid;
         grid-template-columns: repeat(2, auto);
         gap: 16px;
-        z-index: 100;
+        z-index: var(--z-sticky);
         transition:
             transform 0.2s ease,
             opacity 0.2s ease;
@@ -2190,9 +2150,9 @@
         padding: 6px 12px;
         font-family: inherit;
         font-weight: 900;
-        font-size: 14px;
-        border-radius: 20px;
-        z-index: 200;
+        font-size: var(--font-size-lg);
+        border-radius: var(--radius-xl);
+        z-index: var(--z-fixed);
         white-space: nowrap;
         pointer-events: none;
         transition:
@@ -2210,7 +2170,7 @@
             bottom: 46px;
             right: 116px;
             padding: 4px 8px;
-            font-size: 12px;
+            font-size: var(--font-size-base);
             box-shadow: 2px 2px 0 var(--shadow-color);
             border-width: 2px;
         }
@@ -2227,7 +2187,7 @@
         box-shadow: 4px 4px 0 var(--shadow-color);
         padding: 6px 12px;
         font-family: inherit;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.5px;

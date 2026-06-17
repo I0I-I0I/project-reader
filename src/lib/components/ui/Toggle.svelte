@@ -50,7 +50,7 @@
         gap: 12px;
         cursor: pointer;
         font-family: inherit;
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: 800;
         text-transform: uppercase;
         color: var(--text-color);

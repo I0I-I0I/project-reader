@@ -130,7 +130,7 @@
 <style>
     .viewer-footer {
         position: relative;
-        z-index: 10;
+        z-index: var(--z-10);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -194,7 +194,7 @@
         align-items: center;
         gap: 12px;
         font-weight: 900;
-        font-size: 15px;
+        font-size: var(--font-size-xl);
         color: var(--danger-text-color, #ffffff);
         text-shadow: 2px 2px 0 var(--shadow-color);
         text-transform: uppercase;
@@ -209,7 +209,7 @@
         box-shadow: 3px 3px 0 var(--shadow-color);
         text-align: center;
         font-family: inherit;
-        font-size: 16px;
+        font-size: var(--font-size-xl);
         font-weight: 900;
         background: var(--surface-color);
         color: var(--text-color);
@@ -266,19 +266,19 @@
 
         .btn-arrow {
             display: inline-block;
-            font-size: 18px;
+            font-size: var(--font-size-2xl);
             font-weight: 900;
         }
 
         .pagination-indicator {
-            font-size: 12px;
+            font-size: var(--font-size-base);
             gap: 4px;
         }
 
         .page-input {
             width: 44px;
             height: 28px;
-            font-size: 16px;
+            font-size: var(--font-size-xl);
             border-width: 1.5px;
             box-shadow: 1.5px 1.5px 0 var(--shadow-color);
         }
@@ -349,7 +349,7 @@
         left: 0;
         right: 0;
         height: 12px;
-        z-index: 10;
+        z-index: var(--z-10);
         display: flex;
         align-items: center;
     }

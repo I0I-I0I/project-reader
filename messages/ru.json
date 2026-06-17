@@ -193,5 +193,6 @@
     "rename_bookmark": "Переименовать закладку",
     "bookmark_added": "Закладка добавлена",
     "bookmark_removed": "Закладка удалена",
-    "search_bookmarks_placeholder": "Поиск закладок в этой книге..."
+    "search_bookmarks_placeholder": "Поиск закладок в этой книге...",
+    "delete_bookmark_confirm": "Удалить эту закладку?"
 }

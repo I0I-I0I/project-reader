@@ -35,7 +35,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 10;
+        z-index: var(--z-10);
         cursor: pointer;
         transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         background: none;
@@ -53,7 +53,7 @@
 
     kbd {
         font-family: var(--font-mono, Menlo, Monaco, Consolas, "Courier New", monospace);
-        font-size: 24px;
+        font-size: var(--font-size-4xl);
         font-weight: 900;
         text-transform: uppercase;
         background: var(--accent-active-color);

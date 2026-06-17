@@ -270,7 +270,7 @@
 
     .section-title {
         margin: 0;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 900;
         color: var(--faded-text-color);
         text-transform: uppercase;
@@ -331,7 +331,7 @@
         border: none;
         background: transparent;
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: 900;
         color: var(--text-color);
         text-align: right;
@@ -349,7 +349,7 @@
     }
 
     .percent-sign {
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: 900;
         color: var(--text-color);
         margin-left: 2px;

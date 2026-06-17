@@ -68,7 +68,7 @@
         --thickness: 2px;
         --dot-size: 6px;
         --dot-gap: 3px;
-        --font-size: 11px;
+        --font-size: var(--font-size-sm);
     }
 
     .size-md {
@@ -76,7 +76,7 @@
         --thickness: 3px;
         --dot-size: 10px;
         --dot-gap: 5px;
-        --font-size: 12px;
+        --font-size: var(--font-size-base);
     }
 
     .size-lg {
@@ -84,7 +84,7 @@
         --thickness: 4px;
         --dot-size: 14px;
         --dot-gap: 7px;
-        --font-size: 14px;
+        --font-size: var(--font-size-lg);
     }
 
     .size-xl {
@@ -92,7 +92,7 @@
         --thickness: 5px;
         --dot-size: 20px;
         --dot-gap: 9px;
-        --font-size: 16px;
+        --font-size: var(--font-size-xl);
     }
 
     .spinner-element {
@@ -105,7 +105,7 @@
         width: var(--spinner-size);
         height: var(--spinner-size);
         border: var(--thickness) solid var(--border-color);
-        border-radius: 50%;
+        border-radius: var(--radius-full);
         border-top-color: var(--danger-active-color);
         border-right-color: var(--danger-active-color);
         box-sizing: border-box;

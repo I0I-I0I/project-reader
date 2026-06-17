@@ -134,7 +134,7 @@
 
     .float-card {
         position: relative;
-        z-index: 10;
+        z-index: var(--z-10);
         background: var(--surface-color);
         border: 3px solid var(--border-color);
         box-shadow: 6px 6px 0 var(--shadow-color);
@@ -142,7 +142,7 @@
         max-width: 580px;
         display: flex;
         flex-direction: column;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         font-family: inherit;
         animation: card-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         overscroll-behavior: contain;

@@ -126,23 +126,23 @@
                 <TabItem
                     active={activeTab === "outline"}
                     onclick={() => (activeTab = "outline")}
-                    label={m.outline()}
+                    label={`${m.outline()}`}
                     Icon={MenuIcon}
-                    title={m.outline()}
+                    title={`${m.outline()}`}
                 />
                 <TabItem
                     active={activeTab === "notes"}
                     onclick={() => (activeTab = "notes")}
-                    label={m.notes_highlights()}
+                    label={`${m.notes_highlights()}`}
                     Icon={NoteIcon}
-                    title={m.notes_highlights()}
+                    title={`${m.notes_highlights()}`}
                 />
                 <TabItem
                     active={activeTab === "bookmarks"}
                     onclick={() => (activeTab = "bookmarks")}
-                    label={m.bookmarks ? m.bookmarks() : "Bookmarks"}
+                    label={`${m.bookmarks()}`}
                     Icon={BookmarkIcon}
-                    title={m.bookmarks ? m.bookmarks() : "Bookmarks"}
+                    title={`${m.bookmarks()}`}
                 />
             </Tabs>
         {:else}
@@ -191,7 +191,7 @@
         display: flex;
         flex-direction: column;
         overflow: visible;
-        z-index: 200;
+        z-index: var(--z-fixed);
         box-sizing: border-box;
     }
 
@@ -217,7 +217,7 @@
         border-bottom: 3px solid var(--border-color);
         flex-shrink: 0;
         position: relative;
-        z-index: 10;
+        z-index: var(--z-10);
         height: 56px;
         overflow: hidden;
         gap: 12px;
@@ -238,7 +238,7 @@
 
     .sidebar.right .sidebar-header h3 {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: 900;
         color: var(--text-color);
         letter-spacing: 0.5px;
@@ -288,7 +288,7 @@
             bottom: 0;
             width: 100% !important;
             height: 100%;
-            z-index: 300;
+            z-index: var(--z-modal-backdrop);
             border-left: none;
             border-right: none;
         }

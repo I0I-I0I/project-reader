@@ -43,7 +43,8 @@
         {#if isLoaded}
             <Button
                 variant="action"
-                square={true}
+                size="small"
+                square={uiStore.isCompact}
                 open={isOutlineOpen}
                 onclick={() => {
                     isOutlineOpen = !isOutlineOpen
@@ -52,6 +53,7 @@
                 tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
             >
                 <MenuIcon />
+                <span class="outline-text">{m.outline()}</span>
             </Button>
         {/if}
         <span class="file-badge">PDF</span>
@@ -111,6 +113,7 @@
             {/if}
             <Button
                 variant="action"
+                size="small"
                 square={uiStore.isCompact}
                 open={isSettingsOpen}
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}
@@ -124,13 +127,12 @@
 
         <Button
             variant="close"
-            square={uiStore.isCompact}
+            square={true}
             onclick={onClose}
             aria-label={m.close_document()}
             tooltip={m.close_document() + getShortcutHint(commandsNode, "close")}
         >
             <span class="close-icon">×</span>
-            <span class="close-text">{m.close()}</span>
         </Button>
     </div>
 </div>
@@ -163,7 +165,7 @@
         padding-right: calc(24px + env(safe-area-inset-right));
         color: var(--text-color);
         position: relative;
-        z-index: 50;
+        z-index: var(--z-dropdown);
     }
 
     .doc-info {
@@ -176,17 +178,17 @@
     .file-badge {
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 900;
         padding: 4px 10px;
-        border-radius: 2px;
+        border-radius: var(--radius-sm);
         letter-spacing: 1px;
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
     .file-name {
-        font-size: 16px;
+        font-size: var(--font-size-xl);
         font-weight: 900;
         color: var(--text-color);
         white-space: nowrap;
@@ -204,7 +206,7 @@
 
     .close-icon {
         display: inline-block;
-        font-size: 24px;
+        font-size: var(--font-size-4xl);
         font-weight: 900;
         line-height: 1;
     }
@@ -219,16 +221,16 @@
         }
 
         .file-name {
-            font-size: 12px;
+            font-size: var(--font-size-base);
         }
 
         .file-badge {
-            font-size: 9px;
+            font-size: var(--font-size-2xs);
             padding: 2px 6px;
         }
 
         .settings-text,
-        .close-text {
+        .outline-text {
             display: none;
         }
     }
@@ -242,11 +244,11 @@
         }
 
         .file-name {
-            font-size: 13px;
+            font-size: var(--font-size-md);
         }
 
         .file-badge {
-            font-size: 9px;
+            font-size: var(--font-size-2xs);
             padding: 2px 6px;
         }
     }

@@ -106,12 +106,12 @@
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 1;
+        z-index: var(--z-1);
     }
 
     .notification-text {
         position: relative;
-        z-index: 2;
+        z-index: var(--z-2);
         width: max-content;
         height: 70px;
         display: flex;
@@ -125,14 +125,14 @@
     }
 
     .line1 {
-        font-size: 18px;
+        font-size: var(--font-size-2xl);
         font-weight: 900;
         color: var(--text-color);
         line-height: 1.2;
     }
 
     .line2 {
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 900;
         color: var(--faded-text-color);
         text-transform: uppercase;

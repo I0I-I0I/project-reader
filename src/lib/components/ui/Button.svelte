@@ -107,7 +107,7 @@
         justify-content: center;
         gap: 8px;
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: bold;
         text-transform: uppercase;
         cursor: pointer;
@@ -131,14 +131,18 @@
     }
 
     @media (hover: hover) {
-        .action-btn:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .action-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .action-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             transform: translate(-1px, -1px);
             box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
             background: var(--surface-hover-color, var(--surface-hover-color, #faf8f5));
+            outline: none;
         }
 
-        .action-btn.square:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .action-btn.square:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .action-btn.square:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             background: var(--accent-color, #faf8f5);
+            outline: none;
         }
     }
 
@@ -166,7 +170,7 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        z-index: 100;
+        z-index: var(--z-sticky);
         position: relative;
         box-sizing: border-box;
         transition:
@@ -181,10 +185,12 @@
     }
 
     @media (hover: hover) {
-        .fab-btn:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .fab-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .fab-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             transform: translate(-2px, -2px);
             box-shadow: 8px 8px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
             background: var(--accent-active-color, var(--accent-active-color, #eae6d8));
+            outline: none;
         }
     }
 
@@ -213,7 +219,7 @@
         justify-content: center;
         gap: 8px;
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: bold;
         text-transform: uppercase;
         cursor: pointer;
@@ -227,10 +233,12 @@
     }
 
     @media (hover: hover) {
-        .brutalist-btn:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .brutalist-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .brutalist-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             transform: translate(-2px, -2px);
             box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
             background: var(--accent-color, var(--surface-hover-color, #faf8f5));
+            outline: none;
         }
     }
 
@@ -251,7 +259,7 @@
         justify-content: center;
         gap: 8px;
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: bold;
         text-transform: uppercase;
         cursor: pointer;
@@ -265,8 +273,10 @@
     }
 
     @media (hover: hover) {
-        .ghost-btn:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .ghost-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .ghost-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             background: var(--faded-color, var(--faded-color, rgba(0, 0, 0, 0.05)));
+            outline: none;
         }
     }
 
@@ -281,7 +291,7 @@
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         font-weight: 800;
         display: inline-flex;
         align-items: center;
@@ -301,11 +311,13 @@
     }
 
     @media (hover: hover) {
-        .close-btn:hover:not(:disabled):not(:active):not(.active):not(.open) {
+        .close-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
+        .close-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
             background: var(--danger-active-color, var(--surface-hover-color, #faf8f5));
             color: var(--danger-text-color, var(--text-color, #1a1a1a));
+            outline: none;
         }
     }
 

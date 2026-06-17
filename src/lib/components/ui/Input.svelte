@@ -44,7 +44,7 @@
     }
 
     .input-label {
-        font-size: 12px;
+        font-size: var(--font-size-base);
         font-weight: 800;
         text-transform: uppercase;
         color: var(--text-color);
@@ -56,7 +56,7 @@
         border: 2px solid var(--border-color);
         padding: 12px 16px;
         font-family: inherit;
-        font-size: 14px;
+        font-size: var(--font-size-lg);
         color: var(--text-color);
         outline: none;
         box-shadow: 3px 3px 0 var(--shadow-color);
@@ -65,7 +65,7 @@
 
     @media (max-width: 640px) {
         .input-field {
-            font-size: 16px;
+            font-size: var(--font-size-xl);
         }
     }
 
@@ -85,7 +85,7 @@
     }
 
     .error-text {
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 700;
         color: var(--error-color, #ff7675);
         text-transform: uppercase;

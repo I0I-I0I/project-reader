@@ -423,7 +423,7 @@
     .no-outline {
         padding: 24px;
         text-align: center;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 700;
         color: var(--faded-text-color);
     }
@@ -449,7 +449,7 @@
         padding: 10px 12px !important;
         padding-left: calc(12px + var(--depth) * 12px) !important;
         font-family: inherit !important;
-        font-size: 14px !important;
+        font-size: var(--font-size-lg) !important;
         font-weight: 700 !important;
         color: var(--text-color) !important;
         cursor: pointer !important;
@@ -488,10 +488,10 @@
     .heading-page {
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
-        font-size: 9px;
+        font-size: var(--font-size-2xs);
         font-weight: 900;
         padding: 2px 6px;
-        border-radius: 2px;
+        border-radius: var(--radius-sm);
         flex-shrink: 0;
         border: 1px solid var(--border-color);
     }
@@ -505,14 +505,14 @@
         align-items: center;
         flex-shrink: 0;
         box-sizing: border-box;
-        z-index: 5;
+        z-index: var(--z-5);
     }
 
     .search-input {
         width: 100%;
         padding: 12px 36px 12px 16px;
         font-family: inherit;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
@@ -534,7 +534,7 @@
 
         .search-input {
             padding: 10px 32px 10px 14px;
-            font-size: 14px;
+            font-size: var(--font-size-lg);
         }
 
         .clear-search-btn {
@@ -549,10 +549,10 @@
         transform: translateY(-50%);
         background: var(--faded-color);
         border: none;
-        border-radius: 50%;
+        border-radius: var(--radius-full);
         width: 18px;
         height: 18px;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         font-weight: 800;
         cursor: pointer;
         color: var(--text-color);
@@ -594,7 +594,7 @@
         padding: 10px 8px;
         background: var(--accent-active-color);
         border-top: 3px solid var(--border-color);
-        font-size: 9px;
+        font-size: var(--font-size-2xs);
         font-weight: 900;
         color: var(--text-color);
         text-transform: uppercase;
@@ -607,7 +607,7 @@
         background: var(--surface-color);
         border: 1.5px solid var(--border-color);
         box-shadow: 1px 1px 0 var(--shadow-color);
-        border-radius: 2px;
+        border-radius: var(--radius-sm);
         padding: 1px 4px;
         font-family: monospace;
         font-weight: 900;

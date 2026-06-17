@@ -125,7 +125,7 @@
     }
 
     .card-title {
-        font-size: 13px;
+        font-size: var(--font-size-md);
         font-weight: 800;
         text-transform: uppercase;
         margin: 0;
@@ -142,7 +142,7 @@
     }
 
     .card-author {
-        font-size: 10.5px;
+        font-size: var(--font-size-2xs);
         font-weight: 600;
         text-transform: uppercase;
         margin: 0;
@@ -166,11 +166,11 @@
         }
 
         .card-title {
-            font-size: 11px;
+            font-size: var(--font-size-sm);
         }
 
         .card-author {
-            font-size: 9.5px;
+            font-size: var(--font-size-2xs);
         }
 
         .card-icon :global(svg) {

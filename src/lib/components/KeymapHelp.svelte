@@ -267,13 +267,13 @@
 
     .key-badge {
         font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-        font-size: 0.85rem;
+        font-size: var(--font-size-base);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        border-radius: 4px;
+        border-radius: var(--radius-md);
         padding: 4px 8px;
         min-width: 20px;
         text-align: center;
@@ -286,18 +286,18 @@
         font-weight: 500;
         margin: 0 2px;
         color: var(--text-color);
-        font-size: 0.9rem;
+        font-size: var(--font-size-base);
     }
 
     .shortcut-desc {
-        font-size: 0.95rem;
+        font-size: var(--font-size-xl);
         color: var(--text-color);
         text-align: right;
         font-weight: 500;
     }
 
     .footer-hint {
-        font-size: 0.75rem;
+        font-size: var(--font-size-sm);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -319,7 +319,7 @@
         width: 100%;
         padding: 8px 36px 8px 12px;
         font-family: inherit;
-        font-size: 0.9rem;
+        font-size: var(--font-size-base);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
@@ -328,12 +328,12 @@
         outline: none;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
-        border-radius: 4px;
+        border-radius: var(--radius-md);
     }
 
     @media (max-width: 640px) {
         .search-input {
-            font-size: 16px;
+            font-size: var(--font-size-xl);
         }
     }
 
@@ -348,7 +348,7 @@
         right: 32px;
         background: none;
         border: none;
-        font-size: 20px;
+        font-size: var(--font-size-3xl);
         font-weight: 800;
         cursor: pointer;
         color: var(--text-color);
