@@ -387,13 +387,7 @@ export class CommandRegistry {
     }
 
     handleKeydown(event: KeyboardEvent) {
-        const oldActive = commandDispatcher.activeRegistry
-        commandDispatcher.activeRegistry = this
-        try {
-            commandDispatcher.handle(event)
-        } finally {
-            commandDispatcher.activeRegistry = oldActive
-        }
+        commandDispatcher.handle(event, this)
     }
 }
 
@@ -401,12 +395,44 @@ export class CommandRegistry {
 export { CommandRegistry as CommandNode }
 
 export class CommandDispatcher {
-    activeRegistry = $state.raw<CommandRegistry | null>(null)
+    #activeRegistry = $state.raw<CommandRegistry | null>(null)
+    private registryStack: CommandRegistry[] = []
 
-    handle(event: KeyboardEvent) {
-        if (!this.activeRegistry) return
+    get activeRegistry(): CommandRegistry | null {
+        return this.#activeRegistry
+    }
 
-        const match = this.activeRegistry.allCommands.find((cmd) => {
+    set activeRegistry(node: CommandRegistry | null) {
+        if (node) {
+            this.registryStack = this.registryStack.filter((n) => n !== node && !n.isDestroyed)
+            this.registryStack.push(node)
+        }
+        this.updateActiveRegistry()
+    }
+
+    removeRegistry(node: CommandRegistry) {
+        this.registryStack = this.registryStack.filter((n) => n !== node)
+        this.updateActiveRegistry()
+    }
+
+    private updateActiveRegistry() {
+        while (this.registryStack.length > 0) {
+            const top = this.registryStack[this.registryStack.length - 1]
+            if (top.isDestroyed) {
+                this.registryStack.pop()
+            } else {
+                this.#activeRegistry = top
+                return
+            }
+        }
+        this.#activeRegistry = null
+    }
+
+    handle(event: KeyboardEvent, registryOverride?: CommandRegistry | null) {
+        const active = registryOverride !== undefined ? registryOverride : this.#activeRegistry
+        if (!active) return
+
+        const match = active.allCommands.find((cmd) => {
             if (!cmd.keys) return false
 
             const isDisabled = typeof cmd.disabled === "function" ? cmd.disabled() : !!cmd.disabled
@@ -471,17 +497,12 @@ export function useCommands(shortcuts: Command[], overrideParent?: CommandRegist
         return () => {
             node.isDestroyed = true
             unregisterAll()
-            const activeCurrent = getActiveNode ? getActiveNode() : commandDispatcher.activeRegistry
-            if (activeCurrent === node || (activeCurrent && node.isAncestorOf(activeCurrent))) {
-                let targetParent = node.parent
-                while (targetParent && targetParent.isDestroyed) {
-                    targetParent = targetParent.parent
-                }
-                if (setActiveNode) {
-                    setActiveNode(targetParent)
-                } else {
-                    commandDispatcher.activeRegistry = targetParent
-                }
+            commandDispatcher.removeRegistry(node)
+            if (setActiveNode) {
+                const activeCurrent = getActiveNode
+                    ? getActiveNode()
+                    : commandDispatcher.activeRegistry
+                setActiveNode(activeCurrent)
             }
         }
     })

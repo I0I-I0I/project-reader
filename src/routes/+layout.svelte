@@ -42,7 +42,12 @@
 
     let { children } = $props()
 
-    let currentActiveNode = $state.raw<CommandNode | null>(null)
+    let rootNode: CommandNode = undefined as any
+    let rootPromptNode: PromptNode = undefined as any
+
+    let currentActiveNode = $derived(
+        commandDispatcher.activeRegistry === rootNode ? null : commandDispatcher.activeRegistry,
+    )
     let currentActivePromptNode = $state.raw<PromptNode | null>(null)
     let isHelpOpen = $state(false)
 
@@ -50,11 +55,7 @@
         return uiStore.registerModal(() => isHelpOpen)
     })
 
-    let rootNode: CommandNode
-    let rootPromptNode: PromptNode
-
     setContext("set_active_commands_node", (node: CommandNode | null) => {
-        currentActiveNode = node
         commandDispatcher.activeRegistry = node || rootNode
     })
 
