@@ -379,7 +379,6 @@
     .card:active {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
-        border: 10px solid white;
     }
 
     .card.is-selected:active {
