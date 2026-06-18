@@ -24,6 +24,7 @@
     "mark_as_read": "Mark as read",
     "mark_as_unread": "Mark as unread",
     "import_file": "Import book",
+    "importing_book": "Importing book...",
     "upload_p_text": "Select a local book to load and extract its content in real-time.",
     "choose_file": "Choose book",
     "close": "Close",

@@ -1,5 +1,6 @@
 <script lang="ts">
     import PlusIcon from "$lib/components/icons/PlusIcon.svelte"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/stores/vfsStore.svelte"
     import { useCommands } from "$lib/stores/commandsStore.svelte"
@@ -15,23 +16,30 @@
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
     let isDragging = $derived(dragCount > 0)
+    let isImporting = $state(false)
 
     async function processFiles(files: FileList | File[]) {
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i]
-            if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                continue
-            }
-            const name = file.name
-            try {
-                const id = await vfsStore.createFile(name, vfsStore.currentFolderId, file)
-                if (onimport) {
-                    const url = await vfsStore.getFileUrl(id)
-                    onimport({ url, name })
+        if (isImporting) return
+        isImporting = true
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i]
+                if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                    continue
                 }
-            } catch (err) {
-                console.error("Failed to process file:", err)
+                const name = file.name
+                try {
+                    const id = await vfsStore.createFile(name, vfsStore.currentFolderId, file)
+                    if (onimport) {
+                        const url = await vfsStore.getFileUrl(id)
+                        onimport({ url, name })
+                    }
+                } catch (err) {
+                    console.error("Failed to process file:", err)
+                }
             }
+        } finally {
+            isImporting = false
         }
     }
 
@@ -43,8 +51,9 @@
         }
     }
 
-    async function handleImportClick(event?: MouseEvent) {
+    async function handleImportClick(event?: MouseEvent | null) {
         if (event) event.stopPropagation()
+        if (isImporting) return
         if (typeof window.showOpenFilePicker === "function") {
             try {
                 const handles = await window.showOpenFilePicker({
@@ -57,20 +66,25 @@
                     multiple: true,
                 })
 
-                for (const handle of handles) {
-                    try {
-                        const id = await vfsStore.createFile(
-                            handle.name,
-                            vfsStore.currentFolderId,
-                            handle,
-                        )
-                        if (onimport) {
-                            const url = await vfsStore.getFileUrl(id)
-                            onimport({ url, name: handle.name })
+                isImporting = true
+                try {
+                    for (const handle of handles) {
+                        try {
+                            const id = await vfsStore.createFile(
+                                handle.name,
+                                vfsStore.currentFolderId,
+                                handle,
+                            )
+                            if (onimport) {
+                                const url = await vfsStore.getFileUrl(id)
+                                onimport({ url, name: handle.name })
+                            }
+                        } catch (err) {
+                            console.error("Failed to import book via handle:", err)
                         }
-                    } catch (err) {
-                        console.error("Failed to import book via handle:", err)
                     }
+                } finally {
+                    isImporting = false
                 }
             } catch (err: any) {
                 if (err.name !== "AbortError") {
@@ -112,7 +126,9 @@
             keys: "a",
             action: (e) => {
                 e.preventDefault()
-                handleImportClick(null as any)
+                if (!isImporting) {
+                    handleImportClick(null as any)
+                }
             },
             description: m.keymap_import_book(),
         },
@@ -124,6 +140,8 @@
         type="button"
         class={`card card-importer ${className}`}
         class:drag-active={isDragging}
+        class:importing={isImporting}
+        disabled={isImporting}
         onclick={handleImportClick}
         ondragenter={handleDragEnter}
         ondragleave={handleDragLeave}
@@ -132,11 +150,21 @@
     >
         <div class="card-cover-container">
             <div class="card-icon" aria-hidden="true">
-                <PlusIcon />
+                {#if isImporting}
+                    <Spinner variant="classic" size="md" />
+                {:else}
+                    <PlusIcon />
+                {/if}
             </div>
         </div>
         <div class="card-metadata">
-            <p class="card-title">{m.import_file()}</p>
+            <p class="card-title">
+                {#if isImporting}
+                    {m.importing_book()}
+                {:else}
+                    {m.import_file()}
+                {/if}
+            </p>
             <p class="card-author">&nbsp;</p>
         </div>
     </button>
@@ -144,6 +172,7 @@
     <div
         class="reader-card"
         class:drag-active={isDragging}
+        class:importing={isImporting}
         role="region"
         aria-label={m.file_drop_zone()}
         ondragenter={handleDragEnter}
@@ -154,12 +183,40 @@
         <div class="upload-zone">
             <div class="dashed-border">
                 <div class="upload-icon-wrapper" aria-hidden="true">
-                    <PlusIcon width="48" height="48" />
+                    {#if isImporting}
+                        <Spinner
+                            variant="classic"
+                            size="lg"
+                            style="--border-color: rgba(255, 255, 255, 0.2); --danger-active-color: var(--danger-text-color, #ffffff);"
+                        />
+                    {:else}
+                        <PlusIcon width="48" height="48" />
+                    {/if}
                 </div>
-                <h3>{m.import_file()}</h3>
+                <h3>
+                    {#if isImporting}
+                        {m.importing_book()}
+                    {:else}
+                        {m.import_file()}
+                    {/if}
+                </h3>
                 <p>{m.upload_p_text()}</p>
-                <button type="button" class="btn upload-btn" onclick={handleImportClick}>
-                    {m.choose_file()}
+                <button
+                    type="button"
+                    class="btn upload-btn"
+                    disabled={isImporting}
+                    onclick={handleImportClick}
+                >
+                    {#if isImporting}
+                        <Spinner
+                            variant="classic"
+                            size="sm"
+                            style="--border-color: rgba(255, 255, 255, 0.2); --danger-active-color: var(--danger-text-color, #ffffff);"
+                        />
+                        <span>{m.importing_book()}</span>
+                    {:else}
+                        {m.choose_file()}
+                    {/if}
                 </button>
             </div>
         </div>
@@ -308,14 +365,14 @@
     }
 
     @media (hover: hover) {
-        .card:hover {
+        .card:hover:not(:disabled) {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
             background-color: var(--surface-hover-color);
         }
     }
 
-    .card:active {
+    .card:active:not(:disabled) {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
     }
@@ -486,5 +543,15 @@
         border-color: var(--danger-active-color);
         background: var(--danger-active-color);
         color: var(--danger-text-color);
+    }
+
+    .card:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .reader-card.importing {
+        cursor: wait;
+        opacity: 0.85;
     }
 </style>

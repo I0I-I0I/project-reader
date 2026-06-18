@@ -26,6 +26,7 @@ class VFSStore {
     forwardHistory = $state<string[]>([])
     initialized = $state<boolean>(false)
     db = new Database()
+    uploadingFiles = $state<Array<{ id: string; name: string; parentId: string | null }>>([])
 
     // Transient Object URLs managed lazily
     previewUrls = $state<Record<string, string>>({})
@@ -350,120 +351,127 @@ class VFSStore {
         metadata: Partial<BookMetadata> = {},
     ): Promise<string> {
         const id = crypto.randomUUID()
-        const isFile = fileSource instanceof File
+        const uploadingItem = { id, name, parentId }
+        this.uploadingFiles.push(uploadingItem)
 
-        let fileObj: File | null = null
         try {
-            fileObj = isFile
-                ? (fileSource as File)
-                : await (fileSource as FileSystemFileHandle).getFile()
-        } catch (e) {
-            console.error("Failed to retrieve file object during VFS file creation:", e)
-        }
+            const isFile = fileSource instanceof File
 
-        // No manual cloning to ArrayBuffer to avoid high memory pressure.
-        // Dexie can store Blob/File objects directly.
-
-        let previewBlob: Blob | null = null
-        let totalPages: number | undefined = undefined
-        let author: string | null | undefined = undefined
-
-        if (fileObj) {
-            const tempUrl = URL.createObjectURL(fileObj)
-            const doc = new PDFDocument(tempUrl)
+            let fileObj: File | null = null
             try {
-                await doc.load(settingsStore.scale)
-                totalPages = await doc.getPageNumber()
-                author = await doc.getAuthor()
-                const page = await doc.getPage(1)
-                const pageUrl = await doc.getCanvasPage(page)
-                if (pageUrl) {
-                    try {
-                        const response = await fetch(pageUrl)
-                        previewBlob = await response.blob()
-                    } catch (e) {
-                        console.error("Failed to save preview blob during creation:", e)
-                    }
-                    URL.revokeObjectURL(pageUrl)
-                }
-            } catch (err) {
-                console.error("Failed to extract PDF preview during import:", err)
-            } finally {
-                await doc.close()
-                URL.revokeObjectURL(tempUrl)
+                fileObj = isFile
+                    ? (fileSource as File)
+                    : await (fileSource as FileSystemFileHandle).getFile()
+            } catch (e) {
+                console.error("Failed to retrieve file object during VFS file creation:", e)
             }
-        }
 
-        const now = Date.now()
+            // No manual cloning to ArrayBuffer to avoid high memory pressure.
+            // Dexie can store Blob/File objects directly.
 
-        const newFile: FileNode = {
-            id,
-            name,
-            type: "file",
-            parentId,
-            size: isFile && fileObj ? fileObj.size : isFile ? (fileSource as File).size : 0,
-            createdAt: now,
-            updatedAt: now,
-            metadata: {
-                pageNumber: 1,
-                totalPages,
-                author,
-                ...metadata,
-            },
-            isLocked: !isFile,
-        }
+            let previewBlob: Blob | null = null
+            let totalPages: number | undefined = undefined
+            let author: string | null | undefined = undefined
 
-        const fileContent: FileContent = { id }
-        if (isFile) {
-            const file = fileObj || (fileSource as File)
-            fileContent.file = new Blob([file], { type: file.type })
-        } else {
-            fileContent.handle = fileSource as FileSystemFileHandle
-        }
-
-        await this.db.transaction(
-            "rw",
-            ["books", "folders", "previews", "fileContents"],
-            async () => {
-                await this.db.files.put(newFile)
-                await this.db.fileContents.put(fileContent)
-                if (previewBlob) {
-                    await this.db.previews.put({ id, data: previewBlob })
-                }
-                if (parentId !== null) {
-                    const parent = this.nodes[parentId]
-                    if (parent && parent.type === "folder") {
-                        const updatedParent = {
-                            ...parent,
-                            childrenIds: [...parent.childrenIds, id],
-                            updatedAt: now,
+            if (fileObj) {
+                const tempUrl = URL.createObjectURL(fileObj)
+                const doc = new PDFDocument(tempUrl)
+                try {
+                    await doc.load(settingsStore.scale)
+                    totalPages = await doc.getPageNumber()
+                    author = await doc.getAuthor()
+                    const page = await doc.getPage(1)
+                    const pageUrl = await doc.getCanvasPage(page)
+                    if (pageUrl) {
+                        try {
+                            const response = await fetch(pageUrl)
+                            previewBlob = await response.blob()
+                        } catch (e) {
+                            console.error("Failed to save preview blob during creation:", e)
                         }
-                        await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
+                        URL.revokeObjectURL(pageUrl)
                     }
+                } catch (err) {
+                    console.error("Failed to extract PDF preview during import:", err)
+                } finally {
+                    await doc.close()
+                    URL.revokeObjectURL(tempUrl)
                 }
-            },
-        )
-
-        if (isFile) {
-            this.nativeFiles.set(id, fileContent.file!)
-        } else {
-            this.nativeHandles.set(id, fileContent.handle!)
-        }
-
-        this.nodes[id] = newFile
-        this.isLockedMap[id] = !isFile
-
-        if (parentId === null) {
-            this.rootIds.push(id)
-        } else {
-            const parent = this.nodes[parentId]
-            if (parent && parent.type === "folder") {
-                parent.childrenIds.push(id)
-                parent.updatedAt = now
             }
-        }
 
-        return id
+            const now = Date.now()
+
+            const newFile: FileNode = {
+                id,
+                name,
+                type: "file",
+                parentId,
+                size: isFile && fileObj ? fileObj.size : isFile ? (fileSource as File).size : 0,
+                createdAt: now,
+                updatedAt: now,
+                metadata: {
+                    pageNumber: 1,
+                    totalPages,
+                    author,
+                    ...metadata,
+                },
+                isLocked: !isFile,
+            }
+
+            const fileContent: FileContent = { id }
+            if (isFile) {
+                const file = fileObj || (fileSource as File)
+                fileContent.file = new Blob([file], { type: file.type })
+            } else {
+                fileContent.handle = fileSource as FileSystemFileHandle
+            }
+
+            await this.db.transaction(
+                "rw",
+                ["books", "folders", "previews", "fileContents"],
+                async () => {
+                    await this.db.files.put(newFile)
+                    await this.db.fileContents.put(fileContent)
+                    if (previewBlob) {
+                        await this.db.previews.put({ id, data: previewBlob })
+                    }
+                    if (parentId !== null) {
+                        const parent = this.nodes[parentId]
+                        if (parent && parent.type === "folder") {
+                            const updatedParent = {
+                                ...parent,
+                                childrenIds: [...parent.childrenIds, id],
+                                updatedAt: now,
+                            }
+                            await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
+                        }
+                    }
+                },
+            )
+
+            if (isFile) {
+                this.nativeFiles.set(id, fileContent.file!)
+            } else {
+                this.nativeHandles.set(id, fileContent.handle!)
+            }
+
+            this.nodes[id] = newFile
+            this.isLockedMap[id] = !isFile
+
+            if (parentId === null) {
+                this.rootIds.push(id)
+            } else {
+                const parent = this.nodes[parentId]
+                if (parent && parent.type === "folder") {
+                    parent.childrenIds.push(id)
+                    parent.updatedAt = now
+                }
+            }
+
+            return id
+        } finally {
+            this.uploadingFiles = this.uploadingFiles.filter((f) => f.id !== id)
+        }
     }
 
     async createFolder(name: string, parentId: string | null): Promise<string> {

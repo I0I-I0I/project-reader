@@ -1,13 +1,14 @@
 <script lang="ts">
     import type { Component } from "svelte"
     import type { HTMLButtonAttributes } from "svelte/elements"
+    import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
     import { fileNodeToBook } from "$lib/stores/viewerStore.types"
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/components/icons/CheckCircleIcon.svelte"
     import { vfsStore, usePreviewUrl } from "$lib/stores/vfsStore.svelte"
-    import type { VFSNode } from "$lib/stores/vfsStore.types"
+    import type { VFSNode, FileNode } from "$lib/stores/vfsStore.types"
     import TrashIcon from "$lib/components/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
@@ -20,38 +21,55 @@
     import { uiStore } from "$lib/stores/uiStore.svelte"
 
     interface Props extends HTMLButtonAttributes {
-        node: VFSNode
+        node?: VFSNode
+        name?: string
+        isPlaceholder?: boolean
         Icon?: Component
         class?: string
         onclick?: (e: MouseEvent) => void | Promise<void>
     }
 
-    let { node, Icon, class: className, onclick, ...props }: Props = $props()
+    let {
+        node,
+        name = "",
+        isPlaceholder = false,
+        Icon,
+        class: className,
+        onclick,
+        ...props
+    }: Props = $props()
     let isRestoring = $state(false)
     let showMenu = $state(false)
     let longPressTimeout: ReturnType<typeof setTimeout> | undefined
 
-    const isSelected = $derived(vfsStore.selectedIds.has(node.id))
-    const kind = $derived(node.type === "file" ? "book" : "folder")
-    const extension = $derived(node.type === "file" ? "pdf" : undefined)
+    const isSelected = $derived(node ? vfsStore.selectedIds.has(node.id) : false)
+    const kind = $derived(isPlaceholder ? "book" : node?.type === "file" ? "book" : "folder")
+    const extension = $derived(isPlaceholder ? "pdf" : node?.type === "file" ? "pdf" : undefined)
 
-    const preview = usePreviewUrl(() => (node.type === "file" ? node.id : ""))
-    const previewUrl = $derived(preview.url)
+    const preview = usePreviewUrl(() => (node && node.type === "file" ? node.id : ""))
+    const previewUrl = $derived(preview ? preview.url : "")
+
+    const fileNode = $derived(node && node.type === "file" ? (node as FileNode) : null)
 
     const book = $derived.by(() => {
-        if (node.type === "file") {
-            const b = fileNodeToBook(node)
+        if (!isPlaceholder && fileNode) {
+            const b = fileNodeToBook(fileNode)
             b.previewDataUrl = previewUrl
-            b.isLocked = vfsStore.isLockedMap[node.id]
+            b.isLocked = vfsStore.isLockedMap[fileNode.id]
             return b
         }
         return null
     })
 
     let progressPercent = $derived.by(() => {
-        if (node.type === "file" && node.metadata.totalPages && node.metadata.totalPages > 0) {
-            const page = node.metadata.pageNumber || 1
-            const total = node.metadata.totalPages
+        if (
+            !isPlaceholder &&
+            fileNode &&
+            fileNode.metadata.totalPages &&
+            fileNode.metadata.totalPages > 0
+        ) {
+            const page = fileNode.metadata.pageNumber || 1
+            const total = fileNode.metadata.totalPages
             return Math.min(100, Math.max(0, Math.round((page / total) * 100)))
         }
         return 0
@@ -69,11 +87,13 @@
     }
 
     const onPointerDown = (e: PointerEvent) => {
-        if (uiStore.isSelectionMode) return
+        if (!node || uiStore.isSelectionMode) return
         longPressTimeout = setTimeout(() => {
-            uiStore.isSelectionMode = true
-            vfsStore.toggleSelection(node.id)
-            if (navigator.vibrate) navigator.vibrate(50)
+            if (node) {
+                uiStore.isSelectionMode = true
+                vfsStore.toggleSelection(node.id)
+                if (navigator.vibrate) navigator.vibrate(50)
+            }
         }, 500)
     }
 
@@ -82,6 +102,7 @@
     }
 
     const handleImageError = async () => {
+        if (!node) return
         console.warn(
             `[Card] Preview image failed to load for node ${node.id}, attempting to regenerate...`,
         )
@@ -93,6 +114,7 @@
     }
 
     const onRemove = async (e: MouseEvent) => {
+        if (!node) return
         e.stopPropagation()
         showMenu = false
         uiStore.nodesToDeleteIds = [node.id]
@@ -100,6 +122,7 @@
     }
 
     const onMove = (e: MouseEvent) => {
+        if (!node) return
         e.stopPropagation()
         uiStore.nodeToMoveId = node.id
         uiStore.prompt.mode = "move"
@@ -108,6 +131,7 @@
     }
 
     const onSelect = (e: MouseEvent) => {
+        if (!node) return
         e.stopPropagation()
         uiStore.isSelectionMode = true
         vfsStore.toggleSelection(node.id)
@@ -115,6 +139,7 @@
     }
 
     const onEditMetadata = (e: MouseEvent) => {
+        if (!node) return
         e.stopPropagation()
         uiStore.nodeToEditMetadataId = node.id
         uiStore.isEditMetadataModalOpen = true
@@ -127,21 +152,21 @@
     }
 
     const isRead = $derived(
-        node.type === "file" &&
-            node.metadata.totalPages !== undefined &&
-            node.metadata.totalPages > 0 &&
-            (node.metadata.pageNumber || 1) === node.metadata.totalPages,
+        fileNode &&
+            fileNode.metadata.totalPages !== undefined &&
+            fileNode.metadata.totalPages > 0 &&
+            (fileNode.metadata.pageNumber || 1) === fileNode.metadata.totalPages,
     )
 
     const toggleReadState = async (e: MouseEvent) => {
         e.stopPropagation()
         showMenu = false
-        if (node.type !== "file") return
+        if (!fileNode) return
 
-        let total = node.metadata.totalPages
+        let total = fileNode.metadata.totalPages
         if (!total) {
             // Load metadata on the fly if it is missing
-            const url = await vfsStore.getFileUrl(node.id)
+            const url = await vfsStore.getFileUrl(fileNode.id)
             if (url) {
                 const doc = new PDFDocument(url)
                 try {
@@ -151,8 +176,8 @@
                     console.error("[Card] Failed to get total pages for toggleReadState:", err)
                 } finally {
                     await doc.close()
-                    if (vfsStore.isLockedMap[node.id]) {
-                        vfsStore.revokeFileUrl(node.id)
+                    if (vfsStore.isLockedMap[fileNode.id]) {
+                        vfsStore.revokeFileUrl(fileNode.id)
                     }
                 }
             }
@@ -162,20 +187,20 @@
             total = 1
         }
 
-        const isCurrentlyRead = (node.metadata.pageNumber || 1) === total
+        const isCurrentlyRead = (fileNode.metadata.pageNumber || 1) === total
         const targetPage = isCurrentlyRead ? 1 : total
 
         const currentBook = viewerStore.getCurrentBook()
-        if (currentBook && currentBook.id === node.id) {
+        if (currentBook && currentBook.id === fileNode.id) {
             await viewerStore.updateBook({
                 ...currentBook,
                 pageNumber: targetPage,
                 totalPages: total,
             })
         } else {
-            await vfsStore.updateFile(node.id, {
+            await vfsStore.updateFile(fileNode.id, {
                 metadata: {
-                    ...node.metadata,
+                    ...fileNode.metadata,
                     pageNumber: targetPage,
                     totalPages: total,
                 },
@@ -200,17 +225,18 @@
 <div
     class={`card ${className}`}
     class:is-selected={isSelected}
+    class:is-placeholder={isPlaceholder}
     onmouseleave={handleMouseLeave}
-    onpointerdown={onPointerDown}
-    onpointerup={onPointerUp}
-    onpointercancel={onPointerUp}
+    onpointerdown={isPlaceholder ? null : onPointerDown}
+    onpointerup={isPlaceholder ? null : onPointerUp}
+    onpointercancel={isPlaceholder ? null : onPointerUp}
 >
     <Button
         type="button"
         variant="none"
         class="card-main-button"
         onclick={handleClick}
-        disabled={isRestoring}
+        disabled={isPlaceholder || isRestoring}
         {...props}
     >
         <div class="card-cover-container">
@@ -226,7 +252,11 @@
                 </div>
             {/if}
 
-            {#if book && book.previewDataUrl}
+            {#if isPlaceholder}
+                <div class="card-icon" aria-hidden="true">
+                    <Spinner variant="classic" size="md" />
+                </div>
+            {:else if book && book.previewDataUrl}
                 <div class="card-preview" aria-hidden="true">
                     <div class="pdf-image-wrapper">
                         <img
@@ -261,20 +291,24 @@
         </div>
 
         <div class="card-metadata">
-            <p class="card-title">{node.name}</p>
-            {#if kind === "book" && book}
+            <p class="card-title">{isPlaceholder ? name : node?.name}</p>
+            {#if kind === "book"}
                 <p class="card-author">
-                    {#if book.author}
-                        {book.author}
-                    {:else}
-                        {m.unknown_author()}
+                    {#if isPlaceholder}
+                        {m.importing_book()}
+                    {:else if book}
+                        {#if book.author}
+                            {book.author}
+                        {:else}
+                            {m.unknown_author()}
+                        {/if}
                     {/if}
                 </p>
             {/if}
         </div>
     </Button>
 
-    {#if !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
+    {#if !isPlaceholder && !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
             <Button
                 variant="fab"
@@ -361,27 +395,27 @@
     }
 
     @media (hover: hover) {
-        .card:hover,
-        .card:focus-visible {
+        .card:hover:not(.is-placeholder),
+        .card:focus-visible:not(.is-placeholder) {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
             background-color: var(--surface-hover-color);
             outline: none;
         }
 
-        .card.is-selected:hover,
-        .card.is-selected:focus-visible {
+        .card.is-selected:hover:not(.is-placeholder),
+        .card.is-selected:focus-visible:not(.is-placeholder) {
             box-shadow: 8px 8px 0 var(--danger-active-color);
             outline: none;
         }
     }
 
-    .card:active {
+    .card:active:not(.is-placeholder) {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);
     }
 
-    .card.is-selected:active {
+    .card.is-selected:active:not(.is-placeholder) {
         box-shadow: 2px 2px 0 var(--danger-active-color);
     }
 
@@ -741,5 +775,14 @@
         .progress-text {
             font-size: var(--font-size-2xs);
         }
+    }
+
+    .card.is-placeholder {
+        opacity: 0.7;
+        cursor: wait;
+    }
+
+    .card.is-placeholder :global(.card-main-button) {
+        cursor: wait;
     }
 </style>

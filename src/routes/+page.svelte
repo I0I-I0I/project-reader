@@ -297,7 +297,7 @@
     {/if}
 
     <main class:selection-mode={uiStore.isSelectionMode}>
-        {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null}
+        {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null || vfsStore.uploadingFiles.some((f) => f.parentId === vfsStore.currentFolderId)}
             <ul class="card_list grid">
                 <li class="card_item">
                     <Folder class="card_inner" type="new-folder" />
@@ -319,6 +319,11 @@
                                 />
                             {/if}
                         {/if}
+                    </li>
+                {/each}
+                {#each vfsStore.uploadingFiles.filter((f) => f.parentId === vfsStore.currentFolderId) as uploading (uploading.id)}
+                    <li class="card_item">
+                        <Card class="card_inner" isPlaceholder={true} name={uploading.name} />
                     </li>
                 {/each}
                 <li class="card_item">

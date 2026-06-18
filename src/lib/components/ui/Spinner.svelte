@@ -7,6 +7,7 @@
         label?: string
         labelPosition?: "bottom" | "right"
         class?: string
+        style?: string
     }
 
     let {
