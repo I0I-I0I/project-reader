@@ -1,5 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte"
+    import { cubicOut } from "svelte/easing"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import ChevronIcon from "$lib/components/icons/ChevronIcon.svelte"
     import { createFloatingState } from "$lib/floating.svelte"
 
@@ -49,6 +51,59 @@
             document.removeEventListener("click", handleClickOutside)
         }
     })
+
+    function expandFromTrigger(node: HTMLElement, { duration = 180 } = {}) {
+        if (!settingsStore.animations) {
+            return { duration: 0 }
+        }
+
+        const triggerEl = node.parentElement?.querySelector(".switcher-trigger") as HTMLElement
+        if (!triggerEl) return {}
+
+        const triggerRect = triggerEl.getBoundingClientRect()
+        const dropdownRect = node.getBoundingClientRect()
+        const parentRect = node.parentElement!.getBoundingClientRect()
+
+        const triggerLeft = triggerRect.left - parentRect.left
+        const triggerTop = triggerRect.top - parentRect.top
+        const dropdownLeft = dropdownRect.left - parentRect.left
+        const dropdownTop = dropdownRect.top - parentRect.top
+
+        const w1 = triggerRect.width
+        const h1 = triggerRect.height
+        const w2 = dropdownRect.width
+        const h2 = dropdownRect.height
+
+        const sx = w1 / w2
+        const sy = h1 / h2
+
+        const cx1 = triggerLeft + w1 / 2
+        const cy1 = triggerTop + h1 / 2
+        const cx2 = dropdownLeft + w2 / 2
+        const cy2 = dropdownTop + h2 / 2
+
+        const dx = cx1 - cx2
+        const dy = cy1 - cy2
+
+        const isAlignCenter = node.classList.contains("align-center")
+        const baseTransform = isAlignCenter ? "translateX(-50%)" : ""
+
+        return {
+            duration,
+            easing: cubicOut,
+            css: (t: number, u: number) => {
+                const currentSx = sx + (1 - sx) * t
+                const currentSy = sy + (1 - sy) * t
+                const currentDx = dx * u
+                const currentDy = dy * u
+                return `
+                    transform-origin: center;
+                    transform: ${baseTransform} translate(${currentDx}px, ${currentDy}px) scale(${currentSx}, ${currentSy});
+                    opacity: ${t};
+                `
+            },
+        }
+    }
 </script>
 
 <div class={`switcher-wrapper ${className}`} bind:this={containerEl}>
@@ -72,6 +127,7 @@
     {#if isOpen}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <ul
+            transition:expandFromTrigger
             class="switcher-dropdown"
             class:pos-top={floating.vertical === "top"}
             class:pos-bottom={floating.vertical === "bottom"}
