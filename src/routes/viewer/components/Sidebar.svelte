@@ -128,21 +128,23 @@
                     onclick={() => (activeTab = "outline")}
                     label={`${m.outline()}`}
                     Icon={MenuIcon}
-                    title={`${m.outline()}`}
+                    tooltip={m.outline() + getShortcutHint(sidebarCommandsNode, "toggle-outline")}
                 />
                 <TabItem
                     active={activeTab === "notes"}
                     onclick={() => (activeTab = "notes")}
                     label={`${m.notes_highlights()}`}
                     Icon={NoteIcon}
-                    title={`${m.notes_highlights()}`}
+                    tooltip={m.notes_highlights() +
+                        getShortcutHint(sidebarCommandsNode, "toggle-highlights")}
                 />
                 <TabItem
                     active={activeTab === "bookmarks"}
                     onclick={() => (activeTab = "bookmarks")}
                     label={`${m.bookmarks()}`}
                     Icon={BookmarkIcon}
-                    title={`${m.bookmarks()}`}
+                    tooltip={m.bookmarks() +
+                        getShortcutHint(sidebarCommandsNode, "toggle-bookmarks")}
                 />
             </Tabs>
         {:else}
@@ -154,7 +156,7 @@
             square={true}
             onclick={onClose}
             aria-label={m.close()}
-            tooltip={`${m.close()} ${getShortcutHint(sidebarCommandsNode, "close", "close-alt")}`}
+            tooltip={m.close() + getShortcutHint(sidebarCommandsNode, "close", "close-alt")}
             class="sidebar-close-btn"
         >
             ×
