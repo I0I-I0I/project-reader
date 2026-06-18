@@ -272,7 +272,6 @@
                 </p>
             {/if}
         </div>
-
     </Button>
 
     {#if !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
@@ -646,8 +645,6 @@
         height: 16px;
     }
 
-
-
     .progress-container {
         position: absolute;
         bottom: 0;
@@ -737,8 +734,6 @@
             padding: 8px 10px;
             font-size: var(--font-size-sm);
         }
-
-
 
         .progress-container {
             height: 22px;

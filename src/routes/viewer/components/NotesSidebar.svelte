@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import { useCommands, getShortcutHint } from "$lib/stores/commandsStore.svelte"
+    import { useCommands, getShortcutHint, KeyboardHandler } from "$lib/stores/commandsStore.svelte"
     import { untrack } from "svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
@@ -287,7 +287,9 @@
         const keyPairs = [
             { down: "j", up: "k" },
             { down: "arrowdown", up: "arrowup" },
-            { down: "ctrl+n", up: "ctrl+p" },
+            KeyboardHandler.isChromiumNonMac()
+                ? { down: "ctrl+j", up: "ctrl+k" }
+                : { down: "ctrl+n", up: "ctrl+p" },
         ]
         for (const pair of keyPairs) {
             if (downKeys.includes(pair.down) && upKeys.includes(pair.up)) {

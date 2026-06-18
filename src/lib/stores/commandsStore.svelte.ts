@@ -80,6 +80,14 @@ export class KeyboardHandler {
         return /Mac|iPod|iPhone|iPad/i.test(platform) || /Macintosh/i.test(navigator.userAgent)
     }
 
+    static isChromiumNonMac(): boolean {
+        if (typeof window === "undefined") return false
+        const ua = navigator.userAgent
+        const isMac = KeyboardHandler.isMac()
+        const isChromium = /Chrome|Chromium|CriOS/i.test(ua) && !/Firefox/i.test(ua)
+        return isChromium && !isMac
+    }
+
     static normalize(keys: string): string {
         let trimmedKeys = keys.trim()
         if (trimmedKeys === "") {

@@ -13,6 +13,7 @@
         useCommands,
         type CommandNode,
         formatKeyString,
+        KeyboardHandler,
     } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
@@ -42,6 +43,7 @@
     let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
     let innerHeight = $state<number | undefined>(undefined)
+    let isChromiumNonMac = $state(false)
 
     let internalValue = $state(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
 
@@ -249,6 +251,7 @@
     }
 
     onMount(async () => {
+        isChromiumNonMac = KeyboardHandler.isChromiumNonMac()
         if (value === "") {
             value = uiStore.prompt.initialValue || ""
         }
@@ -507,7 +510,11 @@
                 </div>
                 <div class="shortcuts-help">
                     <div class="shortcut-help-item">
-                        <kbd>↑</kbd><kbd>C-n</kbd>/<kbd>↓</kbd><kbd>C-p</kbd>
+                        {#if isChromiumNonMac}
+                            <kbd>↑</kbd><kbd>C-j</kbd>/<kbd>↓</kbd><kbd>C-k</kbd>
+                        {:else}
+                            <kbd>↑</kbd><kbd>C-n</kbd>/<kbd>↓</kbd><kbd>C-p</kbd>
+                        {/if}
                         <span>{m.prompt_help_navigate()}</span>
                     </div>
                     <div class="shortcut-help-item">
