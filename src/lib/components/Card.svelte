@@ -12,7 +12,6 @@
     import NavigationIcon from "$lib/components/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/components/icons/MoreVerticalIcon.svelte"
     import FolderIcon from "$lib/components/icons/FolderIcon.svelte"
-    import LockIcon from "$lib/components/icons/LockIcon.svelte"
     import CheckIcon from "$lib/components/icons/CheckIcon.svelte"
     import EditIcon from "$lib/components/icons/EditIcon.svelte"
     import PDFDocument from "$lib/pdf"
@@ -274,12 +273,6 @@
             {/if}
         </div>
 
-        {#if kind === "book" && book && book.isLocked}
-            <div class="lock-overlay" aria-hidden="true">
-                <LockIcon class="lock-icon" />
-                <span class="lock-text">{m.restore_access()}</span>
-            </div>
-        {/if}
     </Button>
 
     {#if !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
@@ -653,70 +646,7 @@
         height: 16px;
     }
 
-    .lock-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(3px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        color: #ffffff;
-        font-weight: 800;
-        z-index: var(--z-10);
-        opacity: 0.9;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
 
-    @media (hover: hover) {
-        .card:hover .lock-overlay,
-        .card:focus-visible .lock-overlay {
-            background: rgba(0, 0, 0, 0.7);
-            opacity: 1;
-            backdrop-filter: blur(5px);
-            outline: none;
-        }
-    }
-
-    :global(.lock-icon) {
-        width: 28px;
-        height: 28px;
-        stroke: #ffde4d;
-        filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @media (hover: hover) {
-        .card:hover .lock-overlay :global(.lock-icon),
-        .card:focus-visible .lock-overlay :global(.lock-icon) {
-            transform: scale(1.15) rotate(-5deg);
-            outline: none;
-        }
-    }
-
-    .lock-text {
-        text-transform: uppercase;
-        font-size: var(--font-size-xs);
-        background: #1a1a1a;
-        color: #ffde4d;
-        border: 2px solid var(--border-color);
-        padding: 4px 8px;
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        letter-spacing: 0.5px;
-        font-weight: 900;
-        transition: all 0.1s ease;
-    }
-
-    @media (hover: hover) {
-        .card:hover .lock-text,
-        .card:focus-visible .lock-text {
-            background: var(--accent-color, #00cec9);
-            color: var(--text-color, #1a1a1a);
-            outline: none;
-        }
-    }
 
     .progress-container {
         position: absolute;
@@ -808,17 +738,7 @@
             font-size: var(--font-size-sm);
         }
 
-        .lock-icon {
-            width: 20px;
-            height: 20px;
-        }
 
-        .lock-text {
-            font-size: var(--font-size-3xs);
-            padding: 2px 4px;
-            border-width: 1.5px;
-            box-shadow: 1px 1px 0 var(--shadow-color);
-        }
 
         .progress-container {
             height: 22px;

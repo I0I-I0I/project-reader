@@ -16,7 +16,7 @@ export interface BookPreview {
 
 export interface FileContent {
     id: string
-    file?: File
+    file?: File | Blob
     handle?: FileSystemFileHandle
 }
 

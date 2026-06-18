@@ -98,6 +98,8 @@ class UIStore {
     #isNewFolderModalOpen = $state(false)
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])
+    #isRelinkModalOpen = $state(false)
+    #relinkNodeId = $state<string | null>(null)
     #innerWidth = $state(browser ? window.innerWidth : 1024)
     #isTouch = $state(false)
     #isShortHeight = $state(false)
@@ -154,6 +156,8 @@ class UIStore {
         this.#nodeToEditMetadataId = null
         this.#isSearchModeActive = false
         this.#customModalOpen = false
+        this.#isRelinkModalOpen = false
+        this.#relinkNodeId = null
     }
 
     get isSelectionMode(): boolean {
@@ -235,6 +239,22 @@ class UIStore {
         this.#nodeToEditMetadataId = value
     }
 
+    get isRelinkModalOpen(): boolean {
+        return this.#isRelinkModalOpen
+    }
+
+    set isRelinkModalOpen(value: boolean) {
+        this.#isRelinkModalOpen = value
+    }
+
+    get relinkNodeId(): string | null {
+        return this.#relinkNodeId
+    }
+
+    set relinkNodeId(value: string | null) {
+        this.#relinkNodeId = value
+    }
+
     get isShortHeight(): boolean {
         return this.#isShortHeight
     }
@@ -252,6 +272,7 @@ class UIStore {
             this.#isNewFolderModalOpen ||
             this.#isDeleteModalOpen ||
             this.#isEditMetadataModalOpen ||
+            this.#isRelinkModalOpen ||
             this.prompt.isOpen ||
             this.#customModalOpen ||
             this.#modalStates.some((getState) => getState())

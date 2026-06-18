@@ -55,7 +55,7 @@ class VFSStore {
         return descendantIds
     })
 
-    private nativeFiles = new Map<string, File>()
+    private nativeFiles = new Map<string, File | Blob>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
     private previewUrlRefs: Record<string, number> = {}
     metadataQueue = pLimit(1)
@@ -285,7 +285,7 @@ class VFSStore {
     /**
      * Lazily fetches and creates an Object URL for a file's content.
      */
-    async getFileUrl(id: string): Promise<string> {
+    async getFileUrl(id: string, requestPermission = false): Promise<string> {
         if (this.fileUrls[id]) return this.fileUrls[id]
 
         const node = this.nodes[id]
@@ -315,7 +315,10 @@ class VFSStore {
                 this.isLockedMap[id] = false
                 return url
             } else if (nativeHandle) {
-                const status = await nativeHandle.queryPermission({ mode: "read" })
+                let status = await nativeHandle.queryPermission({ mode: "read" })
+                if (status !== "granted" && requestPermission) {
+                    status = await nativeHandle.requestPermission({ mode: "read" })
+                }
                 if (status === "granted") {
                     const fileObj = await nativeHandle.getFile()
                     const url = URL.createObjectURL(fileObj)
@@ -412,7 +415,8 @@ class VFSStore {
 
         const fileContent: FileContent = { id }
         if (isFile) {
-            fileContent.file = fileObj || (fileSource as File)
+            const file = fileObj || (fileSource as File)
+            fileContent.file = new Blob([file], { type: file.type })
         } else {
             fileContent.handle = fileSource as FileSystemFileHandle
         }
@@ -649,7 +653,7 @@ class VFSStore {
 
     async restoreFileAccess(id: string): Promise<string> {
         this.revokeFileUrl(id)
-        const url = await this.getFileUrl(id)
+        const url = await this.getFileUrl(id, true)
         if (!url) throw new Error("Failed to restore file access")
 
         const node = this.nodes[id]
@@ -659,6 +663,44 @@ class VFSStore {
         }
 
         return url
+    }
+
+    async relinkFile(id: string, fileSource: File | FileSystemFileHandle): Promise<void> {
+        const isFile = fileSource instanceof File
+        let fileObj: File | null = null
+        try {
+            fileObj = isFile
+                ? (fileSource as File)
+                : await (fileSource as FileSystemFileHandle).getFile()
+        } catch (e) {
+            console.error("Failed to retrieve file object during VFS relinking:", e)
+        }
+
+        const fileContent: FileContent = { id }
+        if (isFile) {
+            const file = fileObj || (fileSource as File)
+            fileContent.file = new Blob([file], { type: file.type })
+        } else {
+            fileContent.handle = fileSource as FileSystemFileHandle
+        }
+
+        await this.db.fileContents.put(fileContent)
+
+        if (isFile) {
+            this.nativeFiles.set(id, fileContent.file!)
+            this.nativeHandles.delete(id)
+        } else {
+            this.nativeHandles.set(id, fileContent.handle!)
+            this.nativeFiles.delete(id)
+        }
+
+        const node = this.nodes[id]
+        if (node && node.type === "file") {
+            node.isLocked = false
+            this.isLockedMap[id] = false
+            node.updatedAt = Date.now()
+            await this.saveFileToDb(node)
+        }
     }
 
     private async saveFileToDb(node: FileNode): Promise<void> {

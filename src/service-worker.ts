@@ -27,10 +27,15 @@ const ASSETS = [
 self.addEventListener("install", (event) => {
     self.skipWaiting()
 
-    // Create a new cache and add all files to it
     async function addFilesToCache() {
         const cache = await caches.open(CACHE)
-        await cache.addAll(ASSETS)
+        for (const asset of ASSETS) {
+            try {
+                await cache.add(asset)
+            } catch (err) {
+                console.warn(`[Service Worker] Failed to cache asset: ${asset}`, err)
+            }
+        }
     }
 
     event.waitUntil(addFilesToCache())
