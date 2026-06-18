@@ -1,5 +1,5 @@
 import { browser } from "$app/environment"
-import { BREAKPOINTS, MEDIA_QUERIES } from "$lib/breakpoints"
+import { BREAKPOINTS } from "$lib/breakpoints"
 import type { CommandNode } from "./commandsStore.svelte"
 import { untrack } from "svelte"
 
@@ -23,6 +23,7 @@ class PromptState {
     #isOpen = $state(false)
     #values = $state<Record<string, string>>({})
     #initialSelectedIndex = $state<number | null>(null)
+    #openedWithInitialValue = $state(false)
 
     get mode(): PromptMode {
         return this.#mode
@@ -66,6 +67,14 @@ class PromptState {
         }
     }
 
+    get openedWithInitialValue(): boolean {
+        return this.#openedWithInitialValue
+    }
+
+    set openedWithInitialValue(val: boolean) {
+        this.#openedWithInitialValue = val
+    }
+
     get isOpen(): boolean {
         return this.#isOpen
     }
@@ -78,6 +87,7 @@ class PromptState {
         this.#values = {}
         this.#value = ""
         this.#initialValue = ""
+        this.#openedWithInitialValue = false
     }
 
     clearValue(mode: string) {

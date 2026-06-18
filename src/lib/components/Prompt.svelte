@@ -252,9 +252,17 @@
 
     onMount(async () => {
         isChromiumNonMac = KeyboardHandler.isChromiumNonMac()
+
+        let selectText = true
+        if (uiStore.prompt.openedWithInitialValue) {
+            uiStore.prompt.openedWithInitialValue = false
+            selectText = false
+        }
+
         if (value === "") {
             value = uiStore.prompt.initialValue || ""
         }
+        uiStore.prompt.initialValue = ""
         internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
 
         if (uiStore.prompt.initialSelectedIndex !== null) {
@@ -270,7 +278,11 @@
             promptInput.focus()
             const cleanVal = value.replace(/\u200B/g, "")
             if (cleanVal !== "") {
-                promptInput.select()
+                if (selectText) {
+                    promptInput.select()
+                } else {
+                    promptInput.setSelectionRange(cleanVal.length, cleanVal.length)
+                }
             }
         }
     })

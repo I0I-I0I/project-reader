@@ -51,11 +51,16 @@
                         class="search-input-wrapper"
                         classInput="search-input"
                         placeholder={m.header_prompt_placeholder()}
-                        oninput={() => {
+                        oninput={(e) => {
                             uiStore.prompt.mode = "global"
                             uiStore.prompt.isOpen = true
                             uiStore.prompt.initialValue = inputValue
+                            uiStore.prompt.openedWithInitialValue = true
                             inputValue = ""
+                            const inputEl = e.currentTarget as HTMLInputElement
+                            if (inputEl) {
+                                inputEl.value = ""
+                            }
                         }}
                         bind:value={inputValue}
                     />

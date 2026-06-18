@@ -389,7 +389,8 @@
                 }
                 uiStore.prompt.mode = "global"
                 uiStore.prompt.isOpen = false
-                uiStore.prompt.value = ""
+                uiStore.prompt.initialValue = ""
+                uiStore.prompt.openedWithInitialValue = false
                 uiStore.nodeToMoveId = null
             }}
         />
