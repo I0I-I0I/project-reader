@@ -123,11 +123,12 @@
         text-align: center;
     }
 
-    .action-btn.square {
-        width: 36px !important;
-        height: 36px !important;
+    .button.square {
         padding: 0 !important;
         flex-shrink: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     @media (hover: hover) {
@@ -306,10 +307,6 @@
         text-align: center;
     }
 
-    .close-btn.square {
-        padding: 0;
-    }
-
     @media (hover: hover) {
         .close-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
         .close-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
@@ -385,6 +382,9 @@
     .default-size.square {
         max-width: 36px;
         min-width: 36px;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px;
 
         :global(svg) {
             width: 24px;
@@ -394,6 +394,9 @@
         @media (--mobile) {
             max-width: 34px;
             min-width: 34px;
+            height: 34px !important;
+            min-height: 34px !important;
+            max-height: 34px;
 
             :global(svg) {
                 width: 22px;
@@ -423,10 +426,16 @@
     .large-size.square {
         max-width: 48px;
         min-width: 48px;
+        height: 48px !important;
+        min-height: 48px !important;
+        max-height: 48px;
 
         @media (--mobile) {
             max-width: 40px;
             min-width: 40px;
+            height: 40px !important;
+            min-height: 40px !important;
+            max-height: 40px;
 
             :global(svg) {
                 width: 28px;
@@ -456,6 +465,9 @@
     .small-size.square {
         max-width: 26px;
         min-width: 26px;
+        height: 26px !important;
+        min-height: 26px !important;
+        max-height: 26px;
 
         :global(svg) {
             width: 18px;
@@ -465,6 +477,9 @@
         @media (--mobile) {
             max-width: 22px;
             min-width: 22px;
+            height: 22px !important;
+            min-height: 22px !important;
+            max-height: 22px;
 
             :global(svg) {
                 width: 15px;

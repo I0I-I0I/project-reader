@@ -312,10 +312,10 @@
             return m.select_language()
         }
         if (uiStore.prompt.mode === "folders") {
-            return m.keymap_go_to_folder + "..."
+            return m.keymap_go_to_folder() + "..."
         }
         if (uiStore.prompt.mode === "bookmarks") {
-            return m.search_bookmarks + "..."
+            return m.search_bookmarks() + "..."
         }
         return m.prompt_placeholder()
     })
