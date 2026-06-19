@@ -30,7 +30,8 @@
     import PickerModeKeymaps from "$lib/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/components/PickerKey.svelte"
     import { PICKER_KEYS, generateHints } from "$lib/constants"
-    import { untrack } from "svelte"
+    import { untrack, tick } from "svelte"
+    import { settingsStore } from "$lib/stores/settingsStore.svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
 
@@ -94,8 +95,9 @@
         uiStore.isDeleteModalOpen = true
     }
 
-    async function handleNodeClick(e: MouseEvent | null, node: VFSNode) {
-        if (uiStore.isSelectionMode || e?.metaKey || e?.ctrlKey) {
+    async function handleNodeClick(e: MouseEvent | KeyboardEvent | null, node: VFSNode) {
+        const isEnter = e && (e as any).key === "Enter"
+        if (!isEnter && (uiStore.isSelectionMode || e?.metaKey || e?.ctrlKey)) {
             uiStore.isSelectionMode = true
             vfsStore.toggleSelection(node.id)
             return
@@ -135,7 +137,143 @@
         }
     }
 
+    function navigateGrid(direction: "up" | "down" | "left" | "right") {
+        const cards = Array.from(
+            document.querySelectorAll(".card_list.grid .card:not(:disabled)"),
+        ) as HTMLElement[]
+        if (cards.length === 0) return
+
+        const activeEl = document.activeElement as HTMLElement | null
+        let currentIndex = -1
+        if (activeEl) {
+            currentIndex = cards.indexOf(activeEl)
+            if (currentIndex === -1) {
+                const cardAncestor = activeEl.closest(".card") as HTMLElement | null
+                if (cardAncestor) {
+                    currentIndex = cards.indexOf(cardAncestor)
+                }
+            }
+        }
+
+        if (currentIndex === -1) {
+            if (lastFocusedCardId) {
+                const lastFocusedEl = cards.find(
+                    (c) => c.getAttribute("data-id") === lastFocusedCardId,
+                )
+                if (lastFocusedEl) {
+                    currentIndex = cards.indexOf(lastFocusedEl)
+                }
+            }
+        }
+
+        if (currentIndex === -1) {
+            if (direction === "left" || direction === "up") {
+                cards[cards.length - 1].focus()
+            } else {
+                cards[0].focus()
+            }
+            return
+        }
+
+        const cols = getGridColumns(cards)
+        let nextIndex = currentIndex
+
+        if (direction === "left") {
+            nextIndex = currentIndex - 1
+            if (nextIndex < 0) {
+                nextIndex = 0
+            }
+        } else if (direction === "right") {
+            nextIndex = currentIndex + 1
+            if (nextIndex >= cards.length) {
+                nextIndex = cards.length - 1
+            }
+        } else if (direction === "up") {
+            nextIndex = currentIndex - cols
+            if (nextIndex < 0) {
+                nextIndex = currentIndex % cols
+            }
+        } else if (direction === "down") {
+            nextIndex = currentIndex + cols
+            if (nextIndex >= cards.length) {
+                const totalRows = Math.ceil(cards.length / cols)
+                const currentRow = Math.floor(currentIndex / cols)
+                if (currentRow < totalRows - 1) {
+                    nextIndex = cards.length - 1
+                } else {
+                    nextIndex = currentIndex
+                }
+            }
+        }
+
+        if (cards[nextIndex]) {
+            cards[nextIndex].focus()
+            const behavior = settingsStore.animations ? "smooth" : "auto"
+            cards[nextIndex].scrollIntoView({ block: "nearest", behavior })
+        }
+    }
+
+    function getGridColumns(cards: HTMLElement[]): number {
+        if (cards.length <= 1) return 1
+        const firstTop = cards[0].getBoundingClientRect().top
+        for (let i = 1; i < cards.length; i++) {
+            // Use a tolerance of 20px because focused cards shift by 4px via CSS transform (translate(-4px, -4px)).
+            if (Math.abs(cards[i].getBoundingClientRect().top - firstTop) > 20) {
+                return i
+            }
+        }
+        return cards.length
+    }
+
     useCommands([
+        {
+            id: "grid-select-next",
+            keys: ["j", "arrowdown"],
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                navigateGrid("down")
+            },
+            description: m.keymap_grid_select_down(),
+            englishDescription: "Select item below",
+            category: "navigation",
+            disabled: () => uiStore.isPickingMode,
+        },
+        {
+            id: "grid-select-prev",
+            keys: ["k", "arrowup"],
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                navigateGrid("up")
+            },
+            description: m.keymap_grid_select_up(),
+            englishDescription: "Select item above",
+            category: "navigation",
+            disabled: () => uiStore.isPickingMode,
+        },
+        {
+            id: "grid-select-left",
+            keys: ["h", "arrowleft"],
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                navigateGrid("left")
+            },
+            description: m.keymap_grid_select_left(),
+            englishDescription: "Select item left",
+            category: "navigation",
+            disabled: () => uiStore.isPickingMode,
+        },
+        {
+            id: "grid-select-right",
+            keys: ["l", "arrowright"],
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                navigateGrid("right")
+            },
+            description: m.keymap_grid_select_right(),
+            englishDescription: "Select item right",
+            category: "navigation",
+            disabled: () => uiStore.isPickingMode,
+        },
         {
             id: "open-file-recursive",
             keys: "o",
@@ -219,6 +357,42 @@
         },
     ])
 
+    let lastFocusedCardId = $state<string | null>(null)
+
+    function handleCardFocus(e: FocusEvent) {
+        const card = (e.target as HTMLElement).closest(".card") as HTMLElement | null
+        if (card) {
+            const id = card.getAttribute("data-id")
+            if (id) {
+                lastFocusedCardId = id
+            }
+        }
+    }
+
+    async function restoreCardFocus() {
+        if (!lastFocusedCardId) return
+        await tick()
+        const card = document.querySelector(`.card[data-id="${lastFocusedCardId}"]`) as HTMLElement | null
+        if (card) {
+            card.focus()
+        } else {
+            // Fallback: if the card is gone (e.g. deleted), focus the first card in the list
+            const firstCard = document.querySelector(".card_list.grid .card:not(:disabled)") as HTMLElement | null
+            if (firstCard) {
+                firstCard.focus()
+            }
+        }
+    }
+
+    let wasModalOpen = false
+    $effect(() => {
+        const isModalOpen = uiStore.isModalOpen
+        if (!isModalOpen && wasModalOpen) {
+            restoreCardFocus()
+        }
+        wasModalOpen = isModalOpen
+    })
+
     $effect(() => {
         const _ = vfsStore.currentFolderId
         untrack(() => {
@@ -226,6 +400,7 @@
             uiStore.isPickingMode = false
             vfsStore.clearSelection()
             pickerKeyBuffer = ""
+            lastFocusedCardId = null
         })
     })
 
@@ -296,7 +471,7 @@
         />
     {/if}
 
-    <main class:selection-mode={uiStore.isSelectionMode}>
+    <main class:selection-mode={uiStore.isSelectionMode} onfocusin={handleCardFocus}>
         {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null || vfsStore.uploadingFiles.some((f) => f.parentId === vfsStore.currentFolderId)}
             <ul class="card_list grid">
                 <li class="card_item">
@@ -307,6 +482,7 @@
                         <Card
                             class="card_inner"
                             {node}
+                            data-id={node.id}
                             Icon={BookIcon}
                             onclick={(e) => handleNodeClick(e, node)}
                         />
@@ -414,6 +590,7 @@
 
     .card_item {
         position: relative;
+        scroll-margin-bottom: 120px;
     }
 
     :global(.card_inner) {

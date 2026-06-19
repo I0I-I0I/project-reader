@@ -26,6 +26,7 @@
     type="button"
     class={`card ${className}`}
     class:card-action={type === "new-folder"}
+    data-id={type === "new-folder" ? "new-folder" : undefined}
     onclick={handleClick}
 >
     <div class="card-cover-container">

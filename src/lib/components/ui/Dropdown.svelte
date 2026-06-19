@@ -98,6 +98,14 @@
         }
     }
 
+    function handleWindowFocusIn(e: FocusEvent) {
+        if (!isOpen) return
+        const target = e.target as HTMLElement | null
+        if (target && triggerContainer && !triggerContainer.contains(target)) {
+            isOpen = false
+        }
+    }
+
     function handleMenuClick(e: MouseEvent) {
         const target = e.target as HTMLElement
         const clickedItem = target.closest('[role="menuitem"], button, a')
@@ -196,18 +204,24 @@
                 unregisterAll()
                 commandDispatcher.removeRegistry(node)
                 if (setActiveNode) {
-                    setActiveNode(parentCommandNode)
+                    setActiveNode(commandDispatcher.activeRegistry)
                 }
             }
         } else if (!isOpen && previouslyFocusedElement) {
-            // Restore focus back to the launcher element when closing
-            previouslyFocusedElement.focus()
+            // Restore focus back to the launcher element when closing, unless focus has already moved elsewhere
+            const activeEl = document.activeElement
+            const isFocusStillInside = activeEl && triggerContainer?.contains(activeEl)
+            const isFocusLost = !activeEl || activeEl === document.body
+
+            if (isFocusStillInside || isFocusLost) {
+                previouslyFocusedElement.focus()
+            }
             previouslyFocusedElement = null
         }
     })
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} />
+<svelte:window onpointerdown={handleWindowPointerDown} onfocusin={handleWindowFocusIn} />
 
 <div
     bind:this={triggerContainer}

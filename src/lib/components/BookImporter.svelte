@@ -141,6 +141,7 @@
         class={`card card-importer ${className}`}
         class:drag-active={isDragging}
         class:importing={isImporting}
+        data-id="book-importer"
         disabled={isImporting}
         onclick={handleImportClick}
         ondragenter={handleDragEnter}

@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Component } from "svelte"
-    import type { HTMLButtonAttributes } from "svelte/elements"
+    import type { HTMLAttributes } from "svelte/elements"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import { viewerStore } from "$lib/stores/viewerStore.svelte"
@@ -21,7 +21,7 @@
     import Dropdown from "./ui/Dropdown.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
 
-    interface Props extends HTMLButtonAttributes {
+    interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
         name?: string
         isPlaceholder?: boolean
@@ -77,6 +77,9 @@
     })
 
     const handleClick = async (e: MouseEvent) => {
+        if (isPlaceholder || isRestoring) return
+        const target = e.target as HTMLElement | null
+        if (target && target.closest(".card-menu")) return
         if (onclick) {
             isRestoring = true
             try {
@@ -216,15 +219,28 @@
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (isPlaceholder) return
+        if (e.target !== e.currentTarget) return
         if (e.key === "e" || e.key === "E") {
             e.preventDefault()
             showMenu = true
         }
+        if (e.key === " ") {
+            e.preventDefault()
+            if (node) {
+                uiStore.isSelectionMode = true
+                vfsStore.toggleSelection(node.id)
+            }
+        }
+        if (e.key === "Enter") {
+            e.preventDefault()
+            handleClick(e as any)
+        }
     }
 </script>
 
-<button
-    type="button"
+<div
+    role="button"
+    tabindex={isPlaceholder || isRestoring ? -1 : 0}
     class={`card ${className}`}
     class:is-selected={isSelected}
     class:is-placeholder={isPlaceholder}
@@ -234,7 +250,6 @@
     onpointercancel={isPlaceholder ? null : onPointerUp}
     onclick={handleClick}
     onkeydown={handleKeyDown}
-    disabled={isPlaceholder || isRestoring}
     {...props}
 >
     <div class="card-cover-container">
@@ -371,7 +386,7 @@
             </Dropdown>
         </div>
     {/if}
-</button>
+</div>
 
 <style>
     .card {
