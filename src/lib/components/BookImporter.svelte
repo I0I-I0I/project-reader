@@ -372,6 +372,13 @@
         }
     }
 
+    .card:focus-visible:not(:disabled) {
+        transform: translate(-4px, -4px);
+        box-shadow: 8px 8px 0 var(--shadow-color);
+        background-color: var(--surface-hover-color);
+        outline: none;
+    }
+
     .card:active:not(:disabled) {
         transform: translate(2px, 2px);
         box-shadow: 2px 2px 0 var(--shadow-color);

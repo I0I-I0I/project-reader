@@ -125,7 +125,7 @@
 
     .action-btn.square {
         width: 36px !important;
-        min-height: 36px !important;
+        height: 36px !important;
         padding: 0 !important;
         flex-shrink: 0 !important;
     }

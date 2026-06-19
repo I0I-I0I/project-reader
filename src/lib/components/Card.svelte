@@ -18,6 +18,7 @@
     import PDFDocument from "$lib/pdf"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
     import Button from "./ui/Button.svelte"
+    import Dropdown from "./ui/Dropdown.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
 
     interface Props extends HTMLButtonAttributes {
@@ -146,11 +147,6 @@
         showMenu = false
     }
 
-    const toggleMenu = (e: MouseEvent) => {
-        e.stopPropagation()
-        showMenu = !showMenu
-    }
-
     const isRead = $derived(
         fileNode &&
             fileNode.metadata.totalPages !== undefined &&
@@ -217,12 +213,18 @@
             closeMenu()
         }
     }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (isPlaceholder) return
+        if (e.key === "e" || e.key === "E") {
+            e.preventDefault()
+            showMenu = true
+        }
+    }
 </script>
 
-<svelte:window onpointerdown={closeMenu} />
-
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
+<button
+    type="button"
     class={`card ${className}`}
     class:is-selected={isSelected}
     class:is-placeholder={isPlaceholder}
@@ -230,145 +232,146 @@
     onpointerdown={isPlaceholder ? null : onPointerDown}
     onpointerup={isPlaceholder ? null : onPointerUp}
     onpointercancel={isPlaceholder ? null : onPointerUp}
+    onclick={handleClick}
+    onkeydown={handleKeyDown}
+    disabled={isPlaceholder || isRestoring}
+    {...props}
 >
-    <Button
-        type="button"
-        variant="none"
-        class="card-main-button"
-        onclick={handleClick}
-        disabled={isPlaceholder || isRestoring}
-        {...props}
-    >
-        <div class="card-cover-container">
-            {#if kind === "book" && extension}
-                <div class="badge" aria-label="{m.file_format()}: {extension}">
-                    {extension}
-                </div>
-            {/if}
+    <div class="card-cover-container">
+        {#if kind === "book" && extension}
+            <div class="badge" aria-label="{m.file_format()}: {extension}">
+                {extension}
+            </div>
+        {/if}
 
-            {#if isSelected}
-                <div class="selection-badge">
-                    <CheckIcon />
-                </div>
-            {/if}
+        {#if isSelected}
+            <div class="selection-badge">
+                <CheckIcon />
+            </div>
+        {/if}
 
-            {#if isPlaceholder}
-                <div class="card-icon" aria-hidden="true">
-                    <Spinner variant="classic" size="md" />
+        {#if isPlaceholder}
+            <div class="card-icon" aria-hidden="true">
+                <Spinner variant="classic" size="md" />
+            </div>
+        {:else if book && book.previewDataUrl}
+            <div class="card-preview" aria-hidden="true">
+                <div class="pdf-image-wrapper">
+                    <img
+                        src={book.previewDataUrl}
+                        alt={m.cover_preview_alt()}
+                        onerror={handleImageError}
+                    />
                 </div>
-            {:else if book && book.previewDataUrl}
-                <div class="card-preview" aria-hidden="true">
-                    <div class="pdf-image-wrapper">
-                        <img
-                            src={book.previewDataUrl}
-                            alt={m.cover_preview_alt()}
-                            onerror={handleImageError}
-                        />
-                    </div>
+            </div>
+        {:else}
+            <div class="card-icon" aria-hidden="true">
+                {#if kind === "folder"}
+                    <FolderIcon />
+                {:else if Icon}
+                    <Icon />
+                {/if}
+            </div>
+        {/if}
+
+        {#if kind === "book" && book && book.totalPages && book.totalPages > 0}
+            <div class="progress-container">
+                <div class="progress-bar-track">
+                    <div
+                        class="progress-bar-fill"
+                        class:has-border={progressPercent > 0 && progressPercent < 100}
+                        style="width: {progressPercent}%"
+                    ></div>
                 </div>
-            {:else}
-                <div class="card-icon" aria-hidden="true">
-                    {#if kind === "folder"}
-                        <FolderIcon />
-                    {:else if Icon}
-                        <Icon />
+                <span class="progress-text">{progressPercent}%</span>
+            </div>
+        {/if}
+    </div>
+
+    <div class="card-metadata">
+        <p class="card-title">{isPlaceholder ? name : node?.name}</p>
+        {#if kind === "book"}
+            <p class="card-author">
+                {#if isPlaceholder}
+                    {m.importing_book()}
+                {:else if book}
+                    {#if book.author}
+                        {book.author}
+                    {:else}
+                        {m.unknown_author()}
                     {/if}
-                </div>
-            {/if}
-
-            {#if kind === "book" && book && book.totalPages && book.totalPages > 0}
-                <div class="progress-container">
-                    <div class="progress-bar-track">
-                        <div
-                            class="progress-bar-fill"
-                            class:has-border={progressPercent > 0 && progressPercent < 100}
-                            style="width: {progressPercent}%"
-                        ></div>
-                    </div>
-                    <span class="progress-text">{progressPercent}%</span>
-                </div>
-            {/if}
-        </div>
-
-        <div class="card-metadata">
-            <p class="card-title">{isPlaceholder ? name : node?.name}</p>
-            {#if kind === "book"}
-                <p class="card-author">
-                    {#if isPlaceholder}
-                        {m.importing_book()}
-                    {:else if book}
-                        {#if book.author}
-                            {book.author}
-                        {:else}
-                            {m.unknown_author()}
-                        {/if}
-                    {/if}
-                </p>
-            {/if}
-        </div>
-    </Button>
+                {/if}
+            </p>
+        {/if}
+    </div>
 
     {#if !isPlaceholder && !uiStore.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
-            <Button
-                variant="fab"
-                square={true}
-                size="large"
-                class="menu-btn"
-                open={showMenu}
-                aria-label={m.more_options ? m.more_options() : "More options"}
-                onpointerdown={(e) => e.stopPropagation()}
-                onclick={toggleMenu}
-            >
-                <MoreVerticalIcon />
-            </Button>
+            <Dropdown align="right" bind:isOpen={showMenu}>
+                {#snippet trigger(props)}
+                    <Button
+                        {...props}
+                        variant="fab"
+                        square={true}
+                        size="large"
+                        class="menu-btn"
+                        tabindex={-1}
+                        aria-label={m.more_options ? m.more_options() : "More options"}
+                        onpointerdown={(e) => e.stopPropagation()}
+                    >
+                        <MoreVerticalIcon />
+                    </Button>
+                {/snippet}
 
-            {#if showMenu}
-                <div class="dropdown-menu" onpointerdown={(e) => e.stopPropagation()}>
-                    <Button variant="none" class="dropdown-item" onclick={onSelect}>
-                        <CheckIcon class="dropdown-icon" />
-                        <span>{m.select ? m.select() : "Select"}</span>
+                <Button variant="none" class="dropdown-item" role="menuitem" onclick={onSelect}>
+                    <CheckIcon class="dropdown-icon" />
+                    <span>{m.select ? m.select() : "Select"}</span>
+                </Button>
+                <Button variant="none" class="dropdown-item" role="menuitem" onclick={onMove}>
+                    <NavigationIcon class="dropdown-icon" />
+                    <span>{m.move ? m.move() : "Move"}</span>
+                </Button>
+                {#if kind === "book"}
+                    <Button
+                        variant="none"
+                        class="dropdown-item"
+                        role="menuitem"
+                        onclick={toggleReadState}
+                    >
+                        {#if isRead}
+                            <BookOpenIcon class="dropdown-icon" />
+                            <span>{m.mark_as_unread ? m.mark_as_unread() : "Mark as unread"}</span>
+                        {:else}
+                            <CheckCircleIcon class="dropdown-icon" />
+                            <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
+                        {/if}
                     </Button>
-                    <Button variant="none" class="dropdown-item" onclick={onMove}>
-                        <NavigationIcon class="dropdown-icon" />
-                        <span>{m.move ? m.move() : "Move"}</span>
+                    <Button
+                        variant="none"
+                        class="dropdown-item"
+                        role="menuitem"
+                        onclick={onEditMetadata}
+                    >
+                        <EditIcon class="dropdown-icon" />
+                        <span>{m.edit_metadata ? m.edit_metadata() : "Edit metadata"}</span>
                     </Button>
-                    {#if kind === "book"}
-                        <Button variant="none" class="dropdown-item" onclick={toggleReadState}>
-                            {#if isRead}
-                                <BookOpenIcon class="dropdown-icon" />
-                                <span
-                                    >{m.mark_as_unread
-                                        ? m.mark_as_unread()
-                                        : "Mark as unread"}</span
-                                >
-                            {:else}
-                                <CheckCircleIcon class="dropdown-icon" />
-                                <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
-                            {/if}
-                        </Button>
-                        <Button variant="none" class="dropdown-item" onclick={onEditMetadata}>
-                            <EditIcon class="dropdown-icon" />
-                            <span>{m.edit_metadata ? m.edit_metadata() : "Edit metadata"}</span>
-                        </Button>
-                    {/if}
-                    <Button variant="none" class="dropdown-item" onclick={onRemove}>
-                        <TrashIcon class="dropdown-icon" />
-                        <span>
-                            {kind === "book"
-                                ? m.remove_book
-                                    ? m.remove_book()
-                                    : "Remove book"
-                                : m.remove_folder
-                                  ? m.remove_folder()
-                                  : "Remove folder"}
-                        </span>
-                    </Button>
-                </div>
-            {/if}
+                {/if}
+                <Button variant="none" class="dropdown-item" role="menuitem" onclick={onRemove}>
+                    <TrashIcon class="dropdown-icon" />
+                    <span>
+                        {kind === "book"
+                            ? m.remove_book
+                                ? m.remove_book()
+                                : "Remove book"
+                            : m.remove_folder
+                              ? m.remove_folder()
+                              : "Remove folder"}
+                    </span>
+                </Button>
+            </Dropdown>
         </div>
     {/if}
-</div>
+</button>
 
 <style>
     .card {
@@ -382,6 +385,15 @@
         flex-direction: column;
         user-select: none;
         -webkit-touch-callout: none;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        color: inherit;
+        align-items: stretch;
+        justify-content: flex-start;
     }
 
     .card.is-selected {
@@ -395,19 +407,27 @@
     }
 
     @media (hover: hover) {
-        .card:hover:not(.is-placeholder),
-        .card:focus-visible:not(.is-placeholder) {
+        .card:hover:not(.is-placeholder) {
             transform: translate(-4px, -4px);
             box-shadow: 8px 8px 0 var(--shadow-color);
             background-color: var(--surface-hover-color);
-            outline: none;
         }
 
-        .card.is-selected:hover:not(.is-placeholder),
-        .card.is-selected:focus-visible:not(.is-placeholder) {
+        .card.is-selected:hover:not(.is-placeholder) {
             box-shadow: 8px 8px 0 var(--danger-active-color);
-            outline: none;
         }
+    }
+
+    .card:focus-visible:not(.is-placeholder) {
+        transform: translate(-4px, -4px);
+        box-shadow: 8px 8px 0 var(--shadow-color);
+        background-color: var(--surface-hover-color);
+        outline: none;
+    }
+
+    .card.is-selected:focus-visible:not(.is-placeholder) {
+        box-shadow: 8px 8px 0 var(--danger-active-color);
+        outline: none;
     }
 
     .card:active:not(.is-placeholder) {
@@ -417,28 +437,6 @@
 
     .card.is-selected:active:not(.is-placeholder) {
         box-shadow: 2px 2px 0 var(--danger-active-color);
-    }
-
-    .card :global(.card-main-button) {
-        background: transparent;
-        border: none;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: flex-start;
-        padding: 0;
-        cursor: pointer;
-        font-family: inherit;
-        text-align: left;
-        color: inherit;
-        box-sizing: border-box;
-    }
-
-    .card :global(.card-main-button):hover,
-    .card :global(.card-main-button):focus-visible {
-        z-index: auto;
     }
 
     .card-cover-container {
@@ -628,56 +626,6 @@
         box-shadow: 1px 1px 0 var(--shadow-color) !important;
     }
 
-    .dropdown-menu {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        min-width: 160px;
-        z-index: var(--z-sticky);
-        overflow: hidden;
-    }
-
-    .dropdown-menu :global(.dropdown-item) {
-        width: 100%;
-        padding: 10px 12px;
-        display: grid;
-        grid-template-columns: 24px 1fr;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 12px;
-        background: transparent;
-        border: none;
-        color: var(--text-color);
-        font-family: inherit;
-        font-size: var(--font-size-base);
-        font-weight: 800;
-        text-transform: uppercase;
-        cursor: pointer;
-        text-align: left;
-        transition: background-color 0.1s ease;
-    }
-
-    @media (hover: hover) {
-        .dropdown-menu :global(.dropdown-item):hover,
-        .dropdown-menu :global(.dropdown-item):focus-visible {
-            background-color: var(--surface-hover-color);
-            color: var(--danger-active-color);
-            outline: none;
-        }
-    }
-
-    .dropdown-menu :global(.dropdown-item):active {
-        background-color: var(--surface-hover-color);
-    }
-
-    :global(.dropdown-icon) {
-        width: 16px;
-        height: 16px;
-    }
-
     .progress-container {
         position: absolute;
         bottom: 0;
@@ -756,16 +704,6 @@
         :global(.menu-btn) {
             opacity: 1;
             pointer-events: auto;
-        }
-
-        .dropdown-menu {
-            min-width: 140px;
-            box-shadow: 2px 2px 0 var(--shadow-color);
-        }
-
-        .dropdown-menu :global(.dropdown-item) {
-            padding: 8px 10px;
-            font-size: var(--font-size-sm);
         }
 
         .progress-container {

@@ -140,6 +140,7 @@
         box-shadow: 6px 6px 0 var(--shadow-color);
         width: 100%;
         max-width: 580px;
+        max-height: 100%;
         display: flex;
         flex-direction: column;
         border-radius: var(--radius-md);
