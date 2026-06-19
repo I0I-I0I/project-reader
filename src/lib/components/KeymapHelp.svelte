@@ -62,13 +62,13 @@
             event.preventDefault()
             contentElement?.scrollBy({
                 top: 80,
-                behavior: settingsStore.animations ? "smooth" : "auto",
+                behavior: !event.repeat && settingsStore.animations ? "smooth" : "auto",
             })
         } else if (event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")) {
             event.preventDefault()
             contentElement?.scrollBy({
                 top: -80,
-                behavior: settingsStore.animations ? "smooth" : "auto",
+                behavior: !event.repeat && settingsStore.animations ? "smooth" : "auto",
             })
         }
     }
@@ -113,7 +113,7 @@
                     e.preventDefault()
                     contentElement?.scrollBy({
                         top: 80,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
                 },
             },
@@ -125,7 +125,7 @@
                     e.preventDefault()
                     contentElement?.scrollBy({
                         top: -80,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
                 },
             },
@@ -137,7 +137,7 @@
                     e.preventDefault()
                     contentElement?.scrollBy({
                         top: 200,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
                 },
             },
@@ -149,7 +149,7 @@
                     e.preventDefault()
                     contentElement?.scrollBy({
                         top: -200,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
                 },
             },

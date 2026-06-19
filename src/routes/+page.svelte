@@ -19,7 +19,6 @@
     import DeleteConfirmModal from "$lib/components/DeleteConfirmModal.svelte"
     import EditBookMetadataModal from "$lib/components/EditBookMetadataModal.svelte"
     import RelinkModal from "$lib/components/RelinkModal.svelte"
-    import SelectionKeymaps from "$lib/components/SelectionKeymaps.svelte"
     import { useCommands } from "$lib/stores/commandsStore.svelte"
     import { page } from "$app/state"
     import { goto } from "$app/navigation"
@@ -33,7 +32,7 @@
     import { untrack, tick } from "svelte"
     import { settingsStore } from "$lib/stores/settingsStore.svelte"
 
-    let pickingMode = $state<"startSelection" | "openFileFolder">("openFileFolder")
+    let pickingMode = $state<"startSelection" | "openFileFolder" | "focusCard">("openFileFolder")
 
     const currentNodes = $derived(vfsStore.sortedCurrentNodes)
 
@@ -96,7 +95,7 @@
     }
 
     async function handleNodeClick(e: MouseEvent | KeyboardEvent | null, node: VFSNode) {
-        const isEnter = e && (e as any).key === "Enter"
+        const isEnter = e && e instanceof KeyboardEvent && e.key === "Enter"
         if (!isEnter && (uiStore.isSelectionMode || e?.metaKey || e?.ctrlKey)) {
             uiStore.isSelectionMode = true
             vfsStore.toggleSelection(node.id)
@@ -134,10 +133,21 @@
         } else if (pickingMode === "openFileFolder") {
             handleNodeClick(null as any, node)
             uiStore.isPickingMode = false
+        } else if (pickingMode === "focusCard") {
+            tick().then(() => {
+                const el = document.querySelector(
+                    `.card[data-id="${node.id}"]`,
+                ) as HTMLElement | null
+                if (el) {
+                    el.focus()
+                    lastFocusedCardId = node.id
+                }
+            })
+            uiStore.isPickingMode = false
         }
     }
 
-    function navigateGrid(direction: "up" | "down" | "left" | "right") {
+    function navigateGrid(direction: "up" | "down" | "left" | "right", event?: KeyboardEvent) {
         const cards = Array.from(
             document.querySelectorAll(".card_list.grid .card:not(:disabled)"),
         ) as HTMLElement[]
@@ -155,60 +165,85 @@
             }
         }
 
-        if (currentIndex === -1) {
-            if (lastFocusedCardId) {
-                const lastFocusedEl = cards.find(
-                    (c) => c.getAttribute("data-id") === lastFocusedCardId,
-                )
-                if (lastFocusedEl) {
-                    currentIndex = cards.indexOf(lastFocusedEl)
-                }
+        // Helper to check if a card is currently visible in the viewport
+        const isCardVisible = (card: HTMLElement) => {
+            const rect = card.getBoundingClientRect()
+            return rect.bottom > 0 && rect.top < window.innerHeight
+        }
+
+        // If the focused card is scrolled out of view, treat it as if we have no focus.
+        if (currentIndex !== -1 && !isCardVisible(cards[currentIndex])) {
+            currentIndex = -1
+        }
+
+        // If no active element is a visible card, try the lastFocusedCardId ONLY if it is still visible.
+        if (currentIndex === -1 && lastFocusedCardId) {
+            const lastFocusedEl = cards.find((c) => c.getAttribute("data-id") === lastFocusedCardId)
+            if (lastFocusedEl && isCardVisible(lastFocusedEl)) {
+                currentIndex = cards.indexOf(lastFocusedEl)
             }
         }
 
-        if (currentIndex === -1) {
-            if (direction === "left" || direction === "up") {
-                cards[cards.length - 1].focus()
-            } else {
-                cards[0].focus()
-            }
-            return
-        }
-
-        const cols = getGridColumns(cards)
         let nextIndex = currentIndex
 
-        if (direction === "left") {
-            nextIndex = currentIndex - 1
-            if (nextIndex < 0) {
-                nextIndex = 0
-            }
-        } else if (direction === "right") {
-            nextIndex = currentIndex + 1
-            if (nextIndex >= cards.length) {
-                nextIndex = cards.length - 1
-            }
-        } else if (direction === "up") {
-            nextIndex = currentIndex - cols
-            if (nextIndex < 0) {
-                nextIndex = currentIndex % cols
-            }
-        } else if (direction === "down") {
-            nextIndex = currentIndex + cols
-            if (nextIndex >= cards.length) {
-                const totalRows = Math.ceil(cards.length / cols)
-                const currentRow = Math.floor(currentIndex / cols)
-                if (currentRow < totalRows - 1) {
+        if (currentIndex === -1) {
+            // Find all cards currently visible in the viewport
+            const visibleIndices = cards
+                .map((card, index) => ({ card, index }))
+                .filter(({ card }) => isCardVisible(card))
+                .map(({ index }) => index)
+
+            if (visibleIndices.length > 0) {
+                if (direction === "left" || direction === "up") {
+                    // Focus the last visible card on screen when going backward
+                    nextIndex = visibleIndices[visibleIndices.length - 1]
+                } else {
+                    // Focus the first visible card on screen when going forward
+                    nextIndex = visibleIndices[0]
+                }
+            } else {
+                // Fallback to absolute boundaries if absolutely nothing is visible
+                if (direction === "left" || direction === "up") {
                     nextIndex = cards.length - 1
                 } else {
+                    nextIndex = 0
+                }
+            }
+        } else {
+            const cols = getGridColumns(cards)
+            if (direction === "left") {
+                nextIndex = currentIndex - 1
+                if (nextIndex < 0) {
+                    nextIndex = 0
+                }
+            } else if (direction === "right") {
+                nextIndex = currentIndex + 1
+                if (nextIndex >= cards.length) {
+                    nextIndex = cards.length - 1
+                }
+            } else if (direction === "up") {
+                nextIndex = currentIndex - cols
+                if (nextIndex < 0) {
                     nextIndex = currentIndex
+                }
+            } else if (direction === "down") {
+                nextIndex = currentIndex + cols
+                if (nextIndex >= cards.length) {
+                    const totalRows = Math.ceil(cards.length / cols)
+                    const currentRow = Math.floor(currentIndex / cols)
+                    if (currentRow < totalRows - 1) {
+                        nextIndex = cards.length - 1
+                    } else {
+                        nextIndex = currentIndex
+                    }
                 }
             }
         }
 
         if (cards[nextIndex]) {
-            cards[nextIndex].focus()
-            const behavior = settingsStore.animations ? "smooth" : "auto"
+            cards[nextIndex].focus({ preventScroll: true })
+            const isRepeat = event?.repeat || false
+            const behavior = !isRepeat && settingsStore.animations ? "smooth" : "auto"
             cards[nextIndex].scrollIntoView({ block: "nearest", behavior })
         }
     }
@@ -231,7 +266,7 @@
             keys: ["j", "arrowdown"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                navigateGrid("down")
+                navigateGrid("down", event)
             },
             description: m.keymap_grid_select_down(),
             englishDescription: "Select item below",
@@ -243,7 +278,7 @@
             keys: ["k", "arrowup"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                navigateGrid("up")
+                navigateGrid("up", event)
             },
             description: m.keymap_grid_select_up(),
             englishDescription: "Select item above",
@@ -255,7 +290,7 @@
             keys: ["h", "arrowleft"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                navigateGrid("left")
+                navigateGrid("left", event)
             },
             description: m.keymap_grid_select_left(),
             englishDescription: "Select item left",
@@ -267,7 +302,7 @@
             keys: ["l", "arrowright"],
             action: (event: KeyboardEvent) => {
                 event.preventDefault()
-                navigateGrid("right")
+                navigateGrid("right", event)
             },
             description: m.keymap_grid_select_right(),
             englishDescription: "Select item right",
@@ -299,13 +334,33 @@
             category: "menu",
         },
         {
-            id: "open-new-folder-modal",
+            id: "toggle-select-all-or-new-folder",
             keys: "shift+a",
-            action: () => (uiStore.isNewFolderModalOpen = true),
-            description: m.new_folder(),
-            englishDescription: m.new_folder({}, { locale: "en" }),
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                if (uiStore.isSelectionMode) {
+                    if (allSelected) {
+                        vfsStore.clearSelection()
+                    } else {
+                        vfsStore.selectAll(currentNodes.map((n) => n.id))
+                    }
+                } else {
+                    uiStore.isNewFolderModalOpen = true
+                }
+            },
+            get description() {
+                return uiStore.isSelectionMode ? m.select_all() : m.new_folder()
+            },
+            get englishDescription() {
+                return uiStore.isSelectionMode ? "Select all" : m.new_folder({}, { locale: "en" })
+            },
+            subtitle: () => {
+                if (uiStore.isSelectionMode) {
+                    return allSelected ? m.deselect_all() : m.select_all()
+                }
+                return m.new_folder()
+            },
             category: "commands",
-            subtitle: () => m.new_folder(),
         },
         {
             id: "pick-file-to-open",
@@ -319,6 +374,18 @@
             },
             description: m.pick_file_to_open(),
             englishDescription: m.pick_file_to_open({}, { locale: "en" }),
+            category: "commands",
+        },
+        {
+            id: "pick-file-to-focus",
+            keys: "v",
+            action: () => {
+                pickingMode = "focusCard"
+                pickerKeyBuffer = ""
+                uiStore.isPickingMode = true
+            },
+            description: m.pick_file_to_focus(),
+            englishDescription: m.pick_file_to_focus({}, { locale: "en" }),
             category: "commands",
         },
         {
@@ -355,6 +422,76 @@
             englishDescription: m.keymap_up_folder({}, { locale: "en" }),
             category: "navigation",
         },
+        {
+            id: "continue-reading",
+            keys: "shift+c",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                const currentBook = viewerStore.getCurrentBook()
+                if (currentBook) {
+                    goto(localizedPath("/viewer"))
+                }
+            },
+            description: m.keymap_continue_reading(),
+            englishDescription: m.keymap_continue_reading({}, { locale: "en" }),
+            category: "navigation",
+            disabled: () => !viewerStore.getCurrentBook() || uiStore.isPickingMode,
+        },
+        {
+            id: "exit-selection-mode",
+            keys: ["escape", "ctrl+c", "ctrl+["],
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                if (uiStore.isPickingMode) {
+                    uiStore.isPickingMode = false
+                    return
+                }
+                uiStore.isSelectionMode = false
+                vfsStore.clearSelection()
+            },
+            allowInInputs: true,
+            description: m.keymap_exit_selection_mode(),
+            category: "commands",
+            disabled: () => !uiStore.isSelectionMode,
+        },
+        {
+            id: "close-alt",
+            keys: "q",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                uiStore.isSelectionMode = false
+                vfsStore.clearSelection()
+            },
+            description: m.keymap_exit_selection_mode(),
+            allowInInputs: false,
+            disabled: () => !uiStore.isSelectionMode,
+        },
+        {
+            id: "move-selected",
+            keys: "shift+m",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                if (vfsStore.selectedIds.size > 0) {
+                    uiStore.nodeToMoveId = null
+                    uiStore.prompt.mode = "move"
+                    uiStore.prompt.isOpen = true
+                }
+            },
+            description: m.move(),
+            category: "commands",
+            disabled: () => !uiStore.isSelectionMode,
+        },
+        {
+            id: "delete-selected-shortcut",
+            keys: "shift+d",
+            action: (event: KeyboardEvent) => {
+                event.preventDefault()
+                handleBulkDelete()
+            },
+            description: m.delete_selected(),
+            category: "commands",
+            disabled: () => !uiStore.isSelectionMode,
+        },
     ])
 
     let lastFocusedCardId = $state<string | null>(null)
@@ -372,12 +509,16 @@
     async function restoreCardFocus() {
         if (!lastFocusedCardId) return
         await tick()
-        const card = document.querySelector(`.card[data-id="${lastFocusedCardId}"]`) as HTMLElement | null
+        const card = document.querySelector(
+            `.card[data-id="${lastFocusedCardId}"]`,
+        ) as HTMLElement | null
         if (card) {
             card.focus()
         } else {
             // Fallback: if the card is gone (e.g. deleted), focus the first card in the list
-            const firstCard = document.querySelector(".card_list.grid .card:not(:disabled)") as HTMLElement | null
+            const firstCard = document.querySelector(
+                ".card_list.grid .card:not(:disabled)",
+            ) as HTMLElement | null
             if (firstCard) {
                 firstCard.focus()
             }
@@ -512,7 +653,6 @@
     </main>
 
     {#if uiStore.isSelectionMode}
-        <SelectionKeymaps {currentNodes} {allSelected} {handleBulkDelete} />
         <div class="selection-bar">
             <div class="selection-actions">
                 <Button
@@ -564,8 +704,8 @@
                     uiStore.prompt.mode = "global"
                     uiStore.prompt.isOpen = true
                 }}
-                aria-label={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
-                title={m.keymap_prompt ? m.keymap_prompt() : "Open Command Prompt"}
+                aria-label={m.keymap_prompt()}
+                title={m.keymap_prompt()}
             >
                 <TerminalIcon />
             </button>

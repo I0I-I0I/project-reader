@@ -47,7 +47,7 @@ export function getFoldersPromptItems(): SearchItem[] {
     if (vfsStore.currentFolderId !== null) {
         list.push({
             id: "folder-root",
-            title: m.root ? m.root() : "ROOT",
+            title: m.root(),
             englishTitle: m.root ? m.root({}, { locale: "en" }) : "ROOT",
             category: "navigation",
             action: () => {
@@ -388,7 +388,7 @@ export function getBookmarksPromptItems(): SearchItem[] {
         list.push({
             id: `bookmark-${bookmark.id}`,
             title: bookmark.name,
-            subtitle: `${bookName} / ${m.page ? m.page() : "Page"} ${bookmark.pageNumber}`,
+            subtitle: `${bookName} / ${m.page()} ${bookmark.pageNumber}`,
             category: "bookmarks",
             bookId: bookmark.bookId,
             action: async () => {

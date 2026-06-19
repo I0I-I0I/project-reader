@@ -95,8 +95,8 @@
                     variant="action"
                     square={true}
                     onclick={onBookmarkClick}
-                    aria-label={m.remove_bookmark ? m.remove_bookmark() : "Remove Bookmark"}
-                    tooltip={`${m.remove_bookmark ? m.remove_bookmark() : "Remove Bookmark"}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                    aria-label={m.remove_bookmark()}
+                    tooltip={`${m.remove_bookmark()}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
                 >
                     <BookmarkIcon />
                 </Button>
@@ -105,8 +105,8 @@
                     variant="action"
                     square={true}
                     onclick={onBookmarkClick}
-                    aria-label={m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}
-                    tooltip={`${m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                    aria-label={m.add_bookmark()}
+                    tooltip={`${m.add_bookmark()}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
                 >
                     <BookmarkPlusIcon />
                 </Button>

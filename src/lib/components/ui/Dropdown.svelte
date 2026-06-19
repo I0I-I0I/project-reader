@@ -77,7 +77,7 @@
     function getMenuItems(): HTMLElement[] {
         if (!menuElement) return []
         return Array.from(
-            menuElement.querySelectorAll('[role="menuitem"], button, a'),
+            menuElement.querySelectorAll(':scope > [role="menuitem"], :scope > button, :scope > a'),
         ) as HTMLElement[]
     }
 

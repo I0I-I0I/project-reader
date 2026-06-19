@@ -130,10 +130,10 @@
         {
             id: "scroll-down",
             keys: ["arrowdown", "j"],
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 window.scrollBy({
                     top: window.innerHeight * 0.2,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
+                    behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                 })
             },
             description: m.keymap_scroll_down(),
@@ -143,10 +143,10 @@
         {
             id: "scroll-up",
             keys: ["arrowup", "k"],
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 window.scrollBy({
                     top: -window.innerHeight * 0.2,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
+                    behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                 })
             },
             description: m.keymap_scroll_up(),
@@ -156,10 +156,10 @@
         {
             id: "scroll-page-down",
             keys: ["pagedown", "d"],
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 window.scrollBy({
                     top: window.innerHeight * 0.6,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
+                    behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                 })
             },
             description: m.keymap_scroll_down(),
@@ -169,10 +169,10 @@
         {
             id: "scroll-page-up",
             keys: ["pageup", "u"],
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 window.scrollBy({
                     top: -window.innerHeight * 0.6,
-                    behavior: settingsStore.animations ? "smooth" : "auto",
+                    behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                 })
             },
             description: m.keymap_scroll_up(),
@@ -187,7 +187,7 @@
                 uiStore.prompt.mode = "bookmarks"
                 uiStore.prompt.isOpen = true
             },
-            description: m.search_bookmarks ? m.search_bookmarks() : "Search bookmarks",
+            description: m.search_bookmarks(),
             englishDescription: "Search bookmarks",
             category: "menu",
         },
@@ -300,22 +300,22 @@
             return m.enter_page_number()
         }
         if (uiStore.prompt.mode === "move") {
-            return m.move_to ? m.move_to() : "Move to..."
+            return m.move_to()
         }
         if (uiStore.prompt.mode === "theme") {
-            return m.select_theme ? m.select_theme() : "SELECT THEME"
+            return m.select_theme()
         }
         if (uiStore.prompt.mode === "layout") {
-            return m.select_layout ? m.select_layout() : "SELECT LAYOUT"
+            return m.select_layout()
         }
         if (uiStore.prompt.mode === "language") {
-            return m.select_language ? m.select_language() : "SELECT LANGUAGE"
+            return m.select_language()
         }
         if (uiStore.prompt.mode === "folders") {
-            return m.keymap_go_to_folder ? m.keymap_go_to_folder() + "..." : "Go to folder..."
+            return m.keymap_go_to_folder + "..."
         }
         if (uiStore.prompt.mode === "bookmarks") {
-            return m.search_bookmarks ? m.search_bookmarks() + "..." : "Search bookmarks..."
+            return m.search_bookmarks + "..."
         }
         return m.prompt_placeholder()
     })

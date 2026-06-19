@@ -126,14 +126,12 @@
                 <TabItem
                     active={activeTab === "outline"}
                     onclick={() => (activeTab = "outline")}
-                    label={`${m.outline()}`}
                     Icon={MenuIcon}
                     tooltip={m.outline() + getShortcutHint(sidebarCommandsNode, "toggle-outline")}
                 />
                 <TabItem
                     active={activeTab === "notes"}
                     onclick={() => (activeTab = "notes")}
-                    label={`${m.notes_highlights()}`}
                     Icon={NoteIcon}
                     tooltip={m.notes_highlights() +
                         getShortcutHint(sidebarCommandsNode, "toggle-highlights")}
@@ -141,7 +139,6 @@
                 <TabItem
                     active={activeTab === "bookmarks"}
                     onclick={() => (activeTab = "bookmarks")}
-                    label={`${m.bookmarks()}`}
                     Icon={BookmarkIcon}
                     tooltip={m.bookmarks() +
                         getShortcutHint(sidebarCommandsNode, "toggle-bookmarks")}

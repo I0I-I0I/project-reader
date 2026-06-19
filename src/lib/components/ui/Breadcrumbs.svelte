@@ -15,7 +15,7 @@
 </script>
 
 {#if breadcrumbs.length > 0}
-    <nav aria-label={m.breadcrumb ? m.breadcrumb() : "Breadcrumbs"} class="breadcrumbs-nav">
+    <nav aria-label={m.breadcrumb()} class="breadcrumbs-nav">
         <ol class="breadcrumbs-list">
             {#each breadcrumbs as segment, idx (segment.id || "root")}
                 <li class="breadcrumb-item">

@@ -290,12 +290,12 @@
             description: m.keymap_scroll_down(),
             englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
             category: "navigation",
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
                         top: window.innerHeight * 0.2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
             },
         },
@@ -305,12 +305,12 @@
             description: m.keymap_scroll_up(),
             englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
             category: "navigation",
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
                         top: -window.innerHeight * 0.2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
             },
         },
@@ -320,13 +320,13 @@
             description: m.keymap_scroll_page_down(),
             englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
             category: "navigation",
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 const currentHeight = window.innerHeight
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
                         top: currentHeight / 2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
             },
         },
@@ -336,13 +336,13 @@
             description: m.keymap_scroll_page_up(),
             englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
             category: "navigation",
-            action: () => {
+            action: (event?: KeyboardEvent) => {
                 const currentHeight = window.innerHeight
                 const pane = getScrollContainer()
                 if (pane)
                     pane.scrollBy({
                         top: currentHeight / -2,
-                        behavior: settingsStore.animations ? "smooth" : "auto",
+                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
                     })
             },
         },
@@ -454,7 +454,7 @@
         {
             id: "open-search",
             keys: "/",
-            description: m.keymap_search ? m.keymap_search() : "Search PDF",
+            description: m.keymap_search(),
             englishDescription: m.keymap_search
                 ? m.keymap_search({}, { locale: "en" })
                 : "Search PDF",
@@ -490,7 +490,7 @@
         {
             id: "close-search",
             keys: ["escape", "ctrl+c", "ctrl+["],
-            description: m.prompt_close_aria ? m.prompt_close_aria() : "Close search",
+            description: m.prompt_close_aria(),
             englishDescription: "Close search",
             category: "commands",
             action: (event: KeyboardEvent) => {
@@ -517,7 +517,7 @@
         {
             id: "next-search-match",
             keys: "n",
-            description: m.keymap_next_match ? m.keymap_next_match() : "Next match",
+            description: m.keymap_next_match(),
             englishDescription: m.keymap_next_match
                 ? m.keymap_next_match({}, { locale: "en" })
                 : "Next match",
@@ -530,7 +530,7 @@
         {
             id: "prev-search-match",
             keys: "shift+n",
-            description: m.keymap_prev_match ? m.keymap_prev_match() : "Previous match",
+            description: m.keymap_prev_match(),
             englishDescription: m.keymap_prev_match
                 ? m.keymap_prev_match({}, { locale: "en" })
                 : "Previous match",
@@ -660,14 +660,14 @@
                 bookmarkToDeleteId = currentPageBookmark.id
             }
         } else {
-            bookmarkName = `${m.page ? m.page() : "Page"} ${currentPage}`
+            bookmarkName = `${m.page()} ${currentPage}`
             isBookmarkAddModalOpen = true
         }
     }
 
     async function handleConfirmAddBookmark() {
         if (!currentBookId) return
-        const defaultName = `${m.page ? m.page() : "Page"} ${currentPage}`
+        const defaultName = `${m.page()} ${currentPage}`
         const nameToUse = bookmarkName.trim() || defaultName
         await bookmarksStore.addBookmark(currentBookId, currentPage, nameToUse)
         isBookmarkAddModalOpen = false
@@ -1667,8 +1667,8 @@
                                         uiStore.prompt.mode = "search"
                                         uiStore.prompt.isOpen = true
                                     }}
-                                    aria-label={m.keymap_search ? m.keymap_search() : "Search PDF"}
-                                    tooltip={`${m.keymap_search ? m.keymap_search() : "Search PDF"}${getShortcutHint(commandsNode, "open-search")}`}
+                                    aria-label={m.keymap_search()}
+                                    tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "open-search")}`}
                                 >
                                     <SearchIcon />
                                 </Button>
@@ -1868,7 +1868,7 @@
                 />
                 <Modal
                     onClose={() => (isBookmarkAddModalOpen = false)}
-                    title={m.add_bookmark ? m.add_bookmark() : "Add Bookmark"}
+                    title={m.add_bookmark()}
                     autofocusClose={false}
                 >
                     <div class="modal-form">
@@ -1877,7 +1877,7 @@
                             placeholder={m.bookmark_name_placeholder
                                 ? m.bookmark_name_placeholder()
                                 : "Bookmark name..."}
-                            label={m.bookmark_page ? m.bookmark_page() : "Bookmark this page"}
+                            label={m.bookmark_page()}
                             bind:value={bookmarkName}
                             onkeydown={(e) => {
                                 if (e.key === "Enter") {
@@ -1888,13 +1888,13 @@
                         />
                         <div class="modal-actions">
                             <Button variant="brutalist" onclick={handleConfirmAddBookmark}>
-                                {m.add_bookmark ? m.add_bookmark() : "Add"}
+                                {m.add_bookmark()}
                             </Button>
                             <Button
                                 variant="ghost"
                                 onclick={() => (isBookmarkAddModalOpen = false)}
                             >
-                                {m.cancel ? m.cancel() : "Cancel"}
+                                {m.cancel()}
                             </Button>
                         </div>
                     </div>

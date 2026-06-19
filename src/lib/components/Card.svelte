@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Component } from "svelte"
+    import { getContext, type Component } from "svelte"
     import type { HTMLAttributes } from "svelte/elements"
     import Spinner from "$lib/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
@@ -20,6 +20,11 @@
     import Button from "./ui/Button.svelte"
     import Dropdown from "./ui/Dropdown.svelte"
     import { uiStore } from "$lib/stores/uiStore.svelte"
+    import {
+        useCommands,
+        getShortcutHint,
+        type CommandNode,
+    } from "$lib/stores/commandsStore.svelte"
 
     interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
@@ -42,6 +47,71 @@
     let isRestoring = $state(false)
     let showMenu = $state(false)
     let longPressTimeout: ReturnType<typeof setTimeout> | undefined
+    let isFocused = $state(false)
+
+    const getActiveNode = getContext<(() => CommandNode | null) | undefined>(
+        "get_active_commands_node",
+    )
+    const setActiveNode = getContext<((node: CommandNode | null) => void) | undefined>(
+        "set_active_commands_node",
+    )
+
+    const commandsNode = useCommands([
+        {
+            id: "toggle-menu",
+            keys: "e",
+            action: (e) => {
+                e.preventDefault()
+                showMenu = true
+            },
+            description: m.more_options(),
+            disabled: () => !isFocused || isPlaceholder,
+        },
+        {
+            id: "select-card",
+            keys: "space",
+            action: (e) => {
+                e.preventDefault()
+                if (node) {
+                    uiStore.isSelectionMode = true
+                    vfsStore.toggleSelection(node.id)
+                }
+            },
+            description: m.select ? m.select() : "Select",
+            disabled: () => !isFocused || isPlaceholder,
+        },
+        {
+            id: "open-card",
+            keys: "enter",
+            action: (e) => {
+                e.preventDefault()
+                handleClick(e as any)
+            },
+            description: "Open",
+            disabled: () => !isFocused || isPlaceholder || isRestoring,
+        },
+    ])
+
+    const handleFocus = () => {
+        isFocused = true
+        if (showMenu) return
+        if (uiStore.isPickingMode) return
+        if (setActiveNode) {
+            setActiveNode(commandsNode)
+        }
+    }
+
+    const handleFocusOut = (e: FocusEvent) => {
+        const currentTarget = e.currentTarget as HTMLElement
+        const relatedTarget = e.relatedTarget as HTMLElement | null
+        if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
+            return
+        }
+        isFocused = false
+        if (setActiveNode && getActiveNode && getActiveNode() === commandsNode) {
+            setActiveNode(commandsNode.parent)
+        }
+    }
 
     const isSelected = $derived(node ? vfsStore.selectedIds.has(node.id) : false)
     const kind = $derived(isPlaceholder ? "book" : node?.type === "file" ? "book" : "folder")
@@ -216,26 +286,6 @@
             closeMenu()
         }
     }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (isPlaceholder) return
-        if (e.target !== e.currentTarget) return
-        if (e.key === "e" || e.key === "E") {
-            e.preventDefault()
-            showMenu = true
-        }
-        if (e.key === " ") {
-            e.preventDefault()
-            if (node) {
-                uiStore.isSelectionMode = true
-                vfsStore.toggleSelection(node.id)
-            }
-        }
-        if (e.key === "Enter") {
-            e.preventDefault()
-            handleClick(e as any)
-        }
-    }
 </script>
 
 <div
@@ -249,7 +299,8 @@
     onpointerup={isPlaceholder ? null : onPointerUp}
     onpointercancel={isPlaceholder ? null : onPointerUp}
     onclick={handleClick}
-    onkeydown={handleKeyDown}
+    onfocusin={handleFocus}
+    onfocusout={handleFocusOut}
     {...props}
 >
     <div class="card-cover-container">
@@ -331,7 +382,8 @@
                         size="large"
                         class="menu-btn"
                         tabindex={-1}
-                        aria-label={m.more_options ? m.more_options() : "More options"}
+                        aria-label={m.more_options()}
+                        tooltip={`${m.more_options()}${getShortcutHint(commandsNode, "toggle-menu")}`}
                         onpointerdown={(e) => e.stopPropagation()}
                     >
                         <MoreVerticalIcon />
@@ -340,11 +392,11 @@
 
                 <Button variant="none" class="dropdown-item" role="menuitem" onclick={onSelect}>
                     <CheckIcon class="dropdown-icon" />
-                    <span>{m.select ? m.select() : "Select"}</span>
+                    <span>{m.select()}</span>
                 </Button>
                 <Button variant="none" class="dropdown-item" role="menuitem" onclick={onMove}>
                     <NavigationIcon class="dropdown-icon" />
-                    <span>{m.move ? m.move() : "Move"}</span>
+                    <span>{m.move()}</span>
                 </Button>
                 {#if kind === "book"}
                     <Button
@@ -355,10 +407,10 @@
                     >
                         {#if isRead}
                             <BookOpenIcon class="dropdown-icon" />
-                            <span>{m.mark_as_unread ? m.mark_as_unread() : "Mark as unread"}</span>
+                            <span>{m.mark_as_unread()}</span>
                         {:else}
                             <CheckCircleIcon class="dropdown-icon" />
-                            <span>{m.mark_as_read ? m.mark_as_read() : "Mark as read"}</span>
+                            <span>{m.mark_as_read()}</span>
                         {/if}
                     </Button>
                     <Button
@@ -368,7 +420,7 @@
                         onclick={onEditMetadata}
                     >
                         <EditIcon class="dropdown-icon" />
-                        <span>{m.edit_metadata ? m.edit_metadata() : "Edit metadata"}</span>
+                        <span>{m.edit_metadata()}</span>
                     </Button>
                 {/if}
                 <Button variant="none" class="dropdown-item" role="menuitem" onclick={onRemove}>

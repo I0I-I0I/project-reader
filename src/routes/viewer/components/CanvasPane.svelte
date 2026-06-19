@@ -111,7 +111,7 @@
     useCommands([
         {
             keys: "=",
-            description: m.keymap_zoom_to_fit ? m.keymap_zoom_to_fit() : "Zoom to fit",
+            description: m.keymap_zoom_to_fit(),
             category: "settings",
             action: () => {
                 fitToWidth()

@@ -40,7 +40,7 @@
     </div>
     <div class="card-metadata">
         <p class="card-title">
-            {type === "new-folder" ? (m.new_folder ? m.new_folder() : "New Folder") : "Folder"}
+            {type === "new-folder" ? m.new_folder() : "Folder"}
         </p>
         {#if type === "new-folder"}
             <p class="card-author">&nbsp;</p>

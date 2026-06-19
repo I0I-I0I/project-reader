@@ -17,6 +17,9 @@
         if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
             return true
         }
+        if (!isViewer && vfsStore.uploadingFiles.length > 0) {
+            return true
+        }
         return false
     })
 
@@ -28,16 +31,24 @@
         if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
             return `${searchStore.currentMatchIndex + 1} / ${searchStore.matches.length}`
         }
+        if (!isViewer && vfsStore.uploadingFiles.length > 0) {
+            return `${vfsStore.uploadingFiles.length}`
+        }
         return ""
     })
 
     let textLine2 = $derived.by(() => {
         const isViewer = page.url.pathname.includes("/viewer")
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
-            return m.selected_label ? m.selected_label().toUpperCase() : "SELECTED"
+            return m.selected_label()
         }
         if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
-            return m.matched_label ? m.matched_label().toUpperCase() : "MATCHED"
+            return m.matched_label()
+        }
+        if (!isViewer && vfsStore.uploadingFiles.length > 0) {
+            return m.importing_book
+                ? m.importing_book().replace("...", "").trim().toUpperCase()
+                : "IMPORTING"
         }
         return ""
     })

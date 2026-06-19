@@ -18,6 +18,12 @@
     import Button from "./ui/Button.svelte"
     import BookOpenIcon from "$lib/components/icons/BookOpenIcon.svelte"
     import { getLocalizedCurrentHref, switchLanguage, type AppLocale } from "$lib/language"
+    import { getContext } from "svelte"
+    import {
+        COMMANDS_CONTEXT_KEY,
+        type CommandNode,
+        getShortcutHint,
+    } from "$lib/stores/commandsStore.svelte"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
@@ -36,6 +42,7 @@
     )
 
     const currentBook = $derived(viewerStore.getCurrentBook())
+    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
 </script>
 
 <header>
@@ -73,9 +80,9 @@
                     href={resolve(localizeHref("/viewer") as any)}
                     class="continue-btn"
                     aria-label={m.continue_reading()}
+                    tooltip={`${m.continue_reading()}${getShortcutHint(commandsNode, "continue-reading")}`}
                 >
                     <BookOpenIcon class="switcher-icon" />
-                    <span class="continue-text">{m.continue_reading()}</span>
                 </Button>
             {/if}
 
