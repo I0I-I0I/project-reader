@@ -43,7 +43,7 @@
         {#if isLoaded}
             <Button
                 variant="action"
-                size="small"
+                size={uiStore.isCompact ? "default" : "small"}
                 square={uiStore.isCompact}
                 open={isOutlineOpen}
                 onclick={() => {
@@ -113,7 +113,7 @@
             {/if}
             <Button
                 variant="action"
-                size="small"
+                size={uiStore.isCompact ? "default" : "small"}
                 square={uiStore.isCompact}
                 open={isSettingsOpen}
                 onclick={() => (isSettingsOpen = !isSettingsOpen)}

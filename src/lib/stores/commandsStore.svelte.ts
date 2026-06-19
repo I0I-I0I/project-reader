@@ -466,11 +466,27 @@ export const commandDispatcher = new CommandDispatcher()
 
 export const COMMANDS_CONTEXT_KEY = Symbol("commands-context")
 
-export function useCommands(shortcuts: Command[], overrideParent?: CommandRegistry | null) {
+export function useCommands(
+    shortcuts: Command[],
+    overrideParent?: CommandRegistry | null,
+    options?: { registerOnParent?: boolean },
+) {
     const parentNode =
         overrideParent !== undefined
             ? overrideParent
             : getContext<CommandRegistry>(COMMANDS_CONTEXT_KEY)
+
+    if (options?.registerOnParent) {
+        onMount(() => {
+            if (!parentNode) return
+            const unregisterAll = parentNode.registerAll(shortcuts)
+            return () => {
+                unregisterAll()
+            }
+        })
+        return parentNode as CommandRegistry
+    }
+
     const node = new CommandRegistry(parentNode)
     setContext(COMMANDS_CONTEXT_KEY, node)
 

@@ -121,18 +121,22 @@
         }
     }
 
-    useCommands([
-        {
-            keys: "a",
-            action: (e) => {
-                e.preventDefault()
-                if (!isImporting) {
-                    handleImportClick(null as any)
-                }
+    useCommands(
+        [
+            {
+                keys: "a",
+                action: (e) => {
+                    e.preventDefault()
+                    if (!isImporting) {
+                        handleImportClick(null as any)
+                    }
+                },
+                description: m.keymap_import_book(),
             },
-            description: m.keymap_import_book(),
-        },
-    ])
+        ],
+        undefined,
+        { registerOnParent: true },
+    )
 </script>
 
 {#if variant === "card"}
