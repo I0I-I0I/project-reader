@@ -17,7 +17,6 @@
     } from "$lib/stores/commandsStore.svelte"
     import type { SearchItem } from "$lib/stores/promptStore.svelte"
     import SearchIcon from "./icons/SearchIcon.svelte"
-    import BookItemIcon from "./icons/BookItemIcon.svelte"
     import PromptBookPreview from "./PromptBookPreview.svelte"
     import CommandIcon from "./icons/CommandIcon.svelte"
     import SettingsItemIcon from "./icons/SettingsItemIcon.svelte"

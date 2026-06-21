@@ -494,7 +494,7 @@
 
     {#if noteToDeleteId}
         <DeleteConfirmModal
-            message="Delete this highlight and note?"
+            message={m.delete_higlight_note()}
             onConfirm={() => {
                 if (noteToDeleteId) {
                     notesStore.deleteNote(noteToDeleteId)

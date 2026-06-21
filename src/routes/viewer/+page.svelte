@@ -109,9 +109,12 @@
                             searchStore.addToHistory(queryText)
 
                             searchStore.currentMatchIndex = i
+                            const startPage = searchStore.searchStartPage
+                            const isDifferentPage =
+                                startPage !== null && match.pageNumber !== startPage
                             if (viewerStore.goToPage) {
                                 viewerStore.goToPage(match.pageNumber, {
-                                    isJump: opts?.asJump ?? false,
+                                    isJump: isDifferentPage,
                                 })
                             }
                             uiStore.isSearchModeActive = true
@@ -1848,7 +1851,7 @@
 
             {#if noteToDeleteId}
                 <DeleteConfirmModal
-                    message="Delete this highlight and note?"
+                    message={m.delete_higlight_note()}
                     onConfirm={() => {
                         if (noteToDeleteId) {
                             notesStore.deleteNote(noteToDeleteId)

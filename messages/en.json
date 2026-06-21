@@ -206,5 +206,6 @@
     "relink_modal_description": "Cannot open \"{name}\". The file may have been moved, renamed, or needs access permission. Please locate the file to restore access.",
     "locate_file": "Locate File",
     "relink_warning": "The selected file name \"{newName}\" does not match the original book name \"{originalName}\". Are you sure you want to associate this book with the selected file?",
-    "relink_failed": "Failed to relink the file. Please try again."
+    "relink_failed": "Failed to relink the file. Please try again.",
+    "delete_higlight_note": "Delete this highlight and note?"
 }
