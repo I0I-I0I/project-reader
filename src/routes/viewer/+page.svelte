@@ -795,21 +795,19 @@
                 activeBook.pageNumber = cPage
                 activeBook.scrollPosition = sPos
 
-                // Keep browser history state in sync with current position (e.g. on scroll)
-                if (typeof window !== "undefined" && !viewerStore.isRestoringHistory) {
-                    const state = {
-                        _pdfjump: true,
-                        page: cPage,
-                        scrollPosition: sPos,
-                        bookId: activeBook.id,
-                    }
-                    viewerStore.lastSetPageState = state
-                    replaceState("", state)
-                }
-
-                // Debounce the persistent DB update
+                // Debounce the persistent DB update and history update
                 if (updateTimeout) clearTimeout(updateTimeout)
                 updateTimeout = setTimeout(() => {
+                    if (typeof window !== "undefined" && !viewerStore.isRestoringHistory) {
+                        const state = {
+                            _pdfjump: true,
+                            page: cPage,
+                            scrollPosition: sPos,
+                            bookId: activeBook.id,
+                        }
+                        viewerStore.lastSetPageState = state
+                        replaceState("", state)
+                    }
                     viewerStore.updateBook({
                         ...activeBook,
                         pageNumber: cPage,

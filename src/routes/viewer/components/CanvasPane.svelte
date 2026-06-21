@@ -394,12 +394,12 @@
 
                     if (
                         foundPage !== currentPage ||
-                        Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30
+                        Math.abs(currentScrollTop - lastUpdatedScrollTop) > 150
                     ) {
                         shouldUpdate = true
                     }
                 } else {
-                    if (Math.abs(currentScrollTop - lastUpdatedScrollTop) > 30) {
+                    if (Math.abs(currentScrollTop - lastUpdatedScrollTop) > 150) {
                         shouldUpdate = true
                     }
                 }

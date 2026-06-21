@@ -69,13 +69,13 @@ export default class PDFDocument implements DocumentInterface {
     private pageCache = new Map<number, string>()
     private isMobile = false
     private get maxPageCacheSize(): number {
-        return this.isMobile ? 4 : 10
+        return this.isMobile ? 8 : 16
     }
     private renderedQuality: number | null = null
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyPromises = new Map<number, Promise<pdfjs.PDFPageProxy>>()
     private get maxPageProxyCacheSize(): number {
-        return this.isMobile ? 4 : 10
+        return this.isMobile ? 8 : 16
     }
     private outlineCache: FlatHeading[] | null = null
 
