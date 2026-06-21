@@ -760,15 +760,10 @@
         bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        background: var(--surface-color);
-        border: 3px solid var(--border-color);
-        box-shadow: 6px 6px 0 var(--shadow-color);
         padding: 12px 24px;
         display: flex;
         align-items: center;
-        gap: 32px;
         z-index: var(--z-modal);
-        min-width: 400px;
         max-width: 90vw;
         box-sizing: border-box;
     }
@@ -778,7 +773,7 @@
         align-items: stretch;
         gap: 12px;
         flex: 1;
-        justify-content: flex-end;
+        justify-content: center;
     }
 
     .selection-actions :global(.button) {
