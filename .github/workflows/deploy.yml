@@ -21,7 +21,7 @@ jobs:
                   host: ${{ secrets.REMOTE_HOST }}
                   username: ${{ secrets.REMOTE_USER }}
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  source: ".,!node_modules/**,!.svelte-kit/**,!build/**"
+                  source: ".,!node_modules/**,!.svelte-kit/**,!dist/**"
                   target: "~/apps/project-reader"
 
             - name: Execute Docker Compose on Server
