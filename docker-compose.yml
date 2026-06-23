@@ -1,28 +1,19 @@
 services:
-    app:
+    caddy:
         build: .
-        container_name: project-reader
+        container_name: project-reader-caddy
         restart: always
+        volumes:
+            - caddy_data:/data
+            - caddy_config:/config
+        networks:
+            - default
+            - proxy-net
         logging:
             driver: "json-file"
             options:
                 max-size: "10m"
                 max-file: "3"
-
-    caddy:
-        image: caddy:2-alpine
-        container_name: project-reader-caddy
-        restart: always
-        # No ports exposed to the host! Communicates purely internally on the Docker network.
-        volumes:
-            - ./Caddyfile:/etc/caddy/Caddyfile
-            - caddy_data:/data
-            - caddy_config:/config
-        depends_on:
-            - app
-        networks:
-            - default
-            - proxy-net
 
 networks:
     proxy-net:

@@ -151,15 +151,16 @@ The project is fully containerized and configured for reliable, resource-efficie
 
 ### Docker Multi-Stage Build
 
-The `Dockerfile` employs a lightweight, secure multi-stage pipeline:
+The `Dockerfile` employs a lightweight, high-performance multi-stage pipeline:
 
-1. **Build Stage**: Uses `node:22` to install dependencies and compile the SvelteKit bundle.
-2. **Runtime Stage**: Employs a slimmed `node:22-slim` image keeping the final image minimal. Serves the application with high-performance NodeJS servers under user group execution mappings.
+1. **Build Stage**: Uses `node:24-alpine` to install dependencies and compile the static SvelteKit bundle.
+2. **Runtime Stage**: Employs `caddy:2-alpine` to serve static pages and assets directly with extreme efficiency (sub-10MB memory usage) and native client-side routing fallback.
 
 ### Proxy & Security Integration
 
-A preconfigured `Caddyfile` handles local and production serving:
+A preconfigured `Caddyfile` handles serving static assets and proxy integration:
 
+- Native high-performance file serving with client-side SPA routing fallback.
 - Modern content encodings using **Gzip** and **Zstd** compression.
 - Rigid HTTP security profiles including strict `X-Frame-Options`, `X-Content-Type-Options`, and `HSTS` headers.
 - Fully prepared to hook into docker networks via `docker-compose.yml`.

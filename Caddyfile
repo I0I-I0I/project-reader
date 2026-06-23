@@ -1,5 +1,9 @@
 :80 {
-    reverse_proxy app:3000
+    root * /srv
+    file_server
+
+    # SPA routing fallback for client-side navigation
+    try_files {path} /200.html
 
     # Modern compression
     encode gzip zstd

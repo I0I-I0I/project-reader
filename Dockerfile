@@ -1,4 +1,4 @@
-FROM node:24 AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
@@ -10,22 +10,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm prune --prod --ignore-scripts
 
-FROM node:24-slim AS runtime
+FROM caddy:2-alpine AS runtime
 
-WORKDIR /app
+COPY --from=build /app/dist /srv
+COPY Caddyfile /etc/caddy/Caddyfile
 
-COPY --from=build --chown=node:node /app/dist ./dist
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/package.json ./package.json
-COPY --from=build --chown=node:node /app/server.js ./server.js
-
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3000
-
-USER node
-
-EXPOSE 3000
-CMD ["node", "server.js"]
+EXPOSE 80
