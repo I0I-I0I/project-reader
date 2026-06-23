@@ -1,27 +1,27 @@
 <script lang="ts">
-    import { settingsStore } from "$lib/stores/settingsStore.svelte"
+    import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { onMount, setContext, untrack } from "svelte"
-    import { viewerStore } from "$lib/stores/viewerStore.svelte"
-    import { vfsStore } from "$lib/stores/vfsStore.svelte"
-    import { searchStore } from "$lib/stores/searchStore.svelte"
+    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
+    import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
+    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
     import {
         type CommandNode,
         useCommands,
         commandDispatcher,
-    } from "$lib/stores/commandsStore.svelte"
+    } from "$lib/features/prompt/stores/commandsStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import KeymapHelp from "$lib/components/KeymapHelp.svelte"
-    import Prompt from "$lib/components/Prompt.svelte"
-    import { uiStore } from "$lib/stores/uiStore.svelte"
-    import FloatingNotification from "$lib/components/FloatingNotification.svelte"
+    import KeymapHelp from "$lib/features/prompt/components/KeymapHelp.svelte"
+    import Prompt from "$lib/features/prompt/components/Prompt.svelte"
+    import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import FloatingNotification from "$lib/core/components/FloatingNotification.svelte"
     import {
         type PromptNode,
         usePrompt,
         type SearchItem,
         type PromptProvider,
-    } from "$lib/stores/promptStore.svelte"
+    } from "$lib/features/prompt/stores/promptStore.svelte"
     import { getLocale, localizeHref } from "$lib/paraglide/runtime"
-    import { getLanguageName } from "$lib/locale"
+    import { getLanguageName } from "$lib/core/language/locale"
     import { page, updated } from "$app/state"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
@@ -35,10 +35,10 @@
         getFilesPromptItems,
         getCommandsPromptItems,
         getBookmarksPromptItems,
-    } from "$lib/stores/promptProviders.svelte"
-    import { bookmarksStore } from "$lib/stores/bookmarksStore.svelte"
-    import "$lib/styles/variables.css"
-    import "$lib/styles/global.css"
+    } from "$lib/features/prompt/stores/promptProviders.svelte"
+    import { bookmarksStore } from "$lib/features/viewer/stores/bookmarksStore.svelte"
+    import "$lib/core/styles/variables.css"
+    import "$lib/core/styles/global.css"
 
     let { children } = $props()
 

@@ -1,0 +1,95 @@
+<script lang="ts">
+    import { useCommands, type CommandNode } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
+    import * as m from "$lib/paraglide/messages"
+    import { getContext } from "svelte"
+
+    interface Props {
+        currentNodes: any[]
+        allSelected: boolean
+        handleBulkDelete: () => Promise<void>
+    }
+
+    let { currentNodes, allSelected, handleBulkDelete }: Props = $props()
+
+    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
+    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+
+    const parentNode =
+        uiStore.isPickingMode && uiStore.pickerCommandsNode
+            ? uiStore.pickerCommandsNode
+            : activeNodeBeforeOpen
+
+    useCommands(
+        [
+            {
+                id: "exit-selection-mode",
+                keys: ["escape", "ctrl+c", "ctrl+["],
+                action: (event) => {
+                    event.preventDefault()
+                    if (uiStore.isPickingMode) {
+                        uiStore.isPickingMode = false
+                        return
+                    }
+                    uiStore.isSelectionMode = false
+                    vfsStore.clearSelection()
+                },
+                allowInInputs: true,
+                description: m.keymap_exit_selection_mode(),
+                category: "commands",
+            },
+            {
+                id: "close-alt",
+                keys: "q",
+                action: (event) => {
+                    event.preventDefault()
+                    uiStore.isSelectionMode = false
+                    vfsStore.clearSelection()
+                },
+                description: m.keymap_exit_selection_mode(),
+                allowInInputs: false,
+            },
+            {
+                id: "move-selected",
+                keys: "shift+m",
+                action: (event) => {
+                    event.preventDefault()
+                    if (vfsStore.selectedIds.size > 0) {
+                        uiStore.nodeToMoveId = null
+                        uiStore.prompt.mode = "move"
+                        uiStore.prompt.isOpen = true
+                    }
+                },
+                description: m.move(),
+                category: "commands",
+            },
+            {
+                id: "delete-selected-shortcut",
+                keys: "shift+d",
+                action: (event) => {
+                    event.preventDefault()
+                    handleBulkDelete()
+                },
+                description: m.delete_selected(),
+                category: "commands",
+            },
+            {
+                id: "toggle-select-all",
+                keys: "shift+a",
+                action: (event) => {
+                    event.preventDefault()
+                    if (allSelected) {
+                        vfsStore.clearSelection()
+                    } else {
+                        vfsStore.selectAll(currentNodes.map((n) => n.id))
+                    }
+                },
+                description: m.select_all(),
+                subtitle: () => (allSelected ? m.deselect_all() : m.select_all()),
+                category: "commands",
+            },
+        ],
+        parentNode,
+    )
+</script>
