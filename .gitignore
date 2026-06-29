@@ -1,6 +1,7 @@
 node_modules/
 tmp/
 .agents/
+Project Reader/
 
 # Output
 .output
