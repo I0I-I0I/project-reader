@@ -335,7 +335,6 @@
         border: none;
         background: transparent;
         font-family: inherit;
-        font-size: var(--font-size-lg);
         font-weight: 900;
         color: var(--text-color);
         text-align: right;

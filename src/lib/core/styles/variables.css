@@ -49,6 +49,8 @@
     --font-size-6xl: 2.25rem; /* 36px */
     --font-size-7xl: 4rem; /* 64px */
 
+    --font-size-input: 1.125rem; /* 18px */
+
     /* Border Radius Scale */
     --radius-sm: 2px;
     --radius-md: 4px;

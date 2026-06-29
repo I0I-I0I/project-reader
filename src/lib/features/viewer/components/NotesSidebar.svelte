@@ -539,7 +539,6 @@
         width: 100%;
         padding: 12px 36px 12px 16px;
         font-family: inherit;
-        font-size: var(--font-size-md);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
@@ -779,7 +778,6 @@
 
         .search-input {
             padding: 10px 32px 10px 14px;
-            font-size: var(--font-size-lg);
         }
 
         .clear-search-btn {

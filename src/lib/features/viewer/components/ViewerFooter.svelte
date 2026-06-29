@@ -209,7 +209,6 @@
         box-shadow: 3px 3px 0 var(--shadow-color);
         text-align: center;
         font-family: inherit;
-        font-size: var(--font-size-xl);
         font-weight: 900;
         background: var(--surface-color);
         color: var(--text-color);
@@ -278,7 +277,6 @@
         .page-input {
             width: 44px;
             height: 28px;
-            font-size: var(--font-size-xl);
             border-width: 1.5px;
             box-shadow: 1.5px 1.5px 0 var(--shadow-color);
         }

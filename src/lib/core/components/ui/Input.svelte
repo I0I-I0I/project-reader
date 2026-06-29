@@ -56,17 +56,10 @@
         border: 2px solid var(--border-color);
         padding: 12px 16px;
         font-family: inherit;
-        font-size: var(--font-size-lg);
         color: var(--text-color);
         outline: none;
         box-shadow: 3px 3px 0 var(--shadow-color);
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @media (max-width: 640px) {
-        .input-field {
-            font-size: var(--font-size-xl);
-        }
     }
 
     .input-field:focus {

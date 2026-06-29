@@ -319,7 +319,6 @@
         width: 100%;
         padding: 8px 36px 8px 12px;
         font-family: inherit;
-        font-size: var(--font-size-base);
         font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);

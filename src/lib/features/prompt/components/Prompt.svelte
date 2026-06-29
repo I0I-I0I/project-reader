@@ -637,10 +637,6 @@
     }
 
     @media (--prompt) {
-        .prompt-input {
-            font-size: var(--font-size-xl);
-        }
-
         .custom-placeholder {
             font-size: var(--font-size-xl);
         }
