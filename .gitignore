@@ -1,7 +1,6 @@
 node_modules/
 tmp/
 .agents/
-Project Reader/
 
 # Output
 .output
@@ -10,9 +9,6 @@ Project Reader/
 .wrangler
 /.svelte-kit
 /dist
-/project-reader
-*.so
-*.so.tmp-*
 
 # OS
 .DS_Store
