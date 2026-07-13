@@ -28,6 +28,7 @@
         "@sveltejs/mcp": "^0.1.24",
         "@sveltejs/vite-plugin-svelte": "^7.0.0",
         "@types/node": "^22",
+        "@vitejs/plugin-basic-ssl": "^2.3.0",
         "oxfmt": "^0.51.0",
         "oxlint": "^1.66.0",
         "postcss": "^8.5.15",
