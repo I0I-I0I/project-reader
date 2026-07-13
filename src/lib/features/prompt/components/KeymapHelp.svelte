@@ -6,9 +6,9 @@
         type CommandNode,
         KeyboardHandler,
     } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
 
     interface Props {
         onClose: () => void
@@ -170,8 +170,9 @@
     {#snippet children()}
         {#if keymaps.length > 0}
             <div class="modal-search">
-                <input
-                    bind:this={searchInputRef}
+                <Input
+                    unstyled
+                    bind:ref={searchInputRef}
                     type="text"
                     bind:value={searchQuery}
                     placeholder="{m.keymap_search_shortcuts()} (/)"
@@ -315,7 +316,7 @@
         box-sizing: border-box;
     }
 
-    .search-input {
+    .modal-search :global(.search-input) {
         width: 100%;
         padding: 8px 36px 8px 12px;
         font-family: inherit;
@@ -331,12 +332,12 @@
     }
 
     @media (max-width: 640px) {
-        .search-input {
+        .modal-search :global(.search-input) {
             font-size: var(--font-size-xl);
         }
     }
 
-    .search-input:focus-visible {
+    .modal-search :global(.search-input:focus-visible) {
         transform: translate(-1px, -1px);
         box-shadow: 3px 3px 0 var(--shadow-color);
         border-color: var(--border-color);

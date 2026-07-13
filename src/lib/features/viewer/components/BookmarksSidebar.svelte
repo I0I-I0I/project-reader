@@ -53,7 +53,6 @@
 
     let currentBook = $derived(viewerStore.getCurrentBook())
     let currentBookId = $derived(currentBook?.id)
-    let currentPage = $derived(viewerStore.currentPage)
 
     let filteredBookmarks = $derived(
         bookmarksStore.bookmarks
@@ -142,10 +141,9 @@
     })
 
     $effect(() => {
-        const _ = selectedIndex
-        const __ = filteredBookmarks.length
+        const selection = [selectedIndex, filteredBookmarks.length]
         untrack(() => {
-            scrollSelectedIntoView()
+            if (selection.length === 2) scrollSelectedIntoView()
         })
     })
 
@@ -389,8 +387,9 @@
 
 {#snippet sidebarContent()}
     <div class="sidebar-search">
-        <input
-            bind:this={searchInputRef}
+        <Input
+            unstyled
+            bind:ref={searchInputRef}
             type="text"
             bind:value={searchQuery}
             placeholder={`${m.search_bookmarks_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-bookmarks")}`}
@@ -575,7 +574,7 @@
         z-index: var(--z-5);
     }
 
-    .search-input {
+    .sidebar-search :global(.search-input) {
         width: 100%;
         padding: 12px 36px 12px 16px;
         font-family: inherit;
@@ -588,7 +587,7 @@
         box-sizing: border-box;
     }
 
-    .search-input:focus {
+    .sidebar-search :global(.search-input:focus) {
         background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
         box-shadow: inset 4px 0 0 var(--accent-color);
     }
@@ -796,7 +795,7 @@
             padding: 0;
         }
 
-        .search-input {
+        .sidebar-search :global(.search-input) {
             padding: 10px 32px 10px 14px;
         }
 

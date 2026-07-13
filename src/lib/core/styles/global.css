@@ -85,7 +85,3 @@ body {
     bottom: 100%;
     border-color: transparent transparent var(--muted-bg-color, #1a1a1a) transparent;
 }
-
-input {
-    font-size: var(--font-size-input);
-}

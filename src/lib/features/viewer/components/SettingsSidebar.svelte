@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import PlusIcon from "$lib/core/components/icons/PlusIcon.svelte"
     import MinusIcon from "$lib/core/components/icons/MinusIcon.svelte"
     import SinglePageIcon from "$lib/core/components/icons/SinglePageIcon.svelte"
@@ -115,7 +116,8 @@
                     <MinusIcon />
                 </Button>
                 <div class="scale-input-container">
-                    <input
+                    <Input
+                        unstyled
                         type="number"
                         value={Math.round(settingsStore.scale * 100)}
                         onchange={handleScaleChange}
@@ -139,7 +141,8 @@
                 </Button>
             </div>
             <div class="slider-container">
-                <input
+                <Input
+                    unstyled
                     type="range"
                     min={Math.round(CONSTANTS.minScale * 100)}
                     max={Math.round(CONSTANTS.maxScale * 100)}
@@ -186,7 +189,8 @@
             </Button>
         </div>
         <div class="slider-container">
-            <input
+            <Input
+                unstyled
                 type="range"
                 min={CONSTANTS.minQuality}
                 max={CONSTANTS.maxQuality}
@@ -330,7 +334,7 @@
         box-shadow: 3px 3px 0 var(--shadow-color);
     }
 
-    .scale-input {
+    .scale-input-container :global(.scale-input) {
         width: 36px;
         border: none;
         background: transparent;
@@ -345,8 +349,8 @@
         -moz-appearance: textfield;
     }
 
-    .scale-input::-webkit-outer-spin-button,
-    .scale-input::-webkit-inner-spin-button {
+    .scale-input-container :global(.scale-input::-webkit-outer-spin-button),
+    .scale-input-container :global(.scale-input::-webkit-inner-spin-button) {
         -webkit-appearance: none;
         margin: 0;
     }
@@ -374,7 +378,7 @@
         margin-top: 4px;
     }
 
-    .sidebar-slider {
+    .slider-container :global(.sidebar-slider) {
         width: 100%;
         height: 8px;
         appearance: none;
@@ -386,7 +390,7 @@
         box-sizing: border-box;
     }
 
-    .sidebar-slider::-webkit-slider-thumb {
+    .slider-container :global(.sidebar-slider::-webkit-slider-thumb) {
         appearance: none;
         -webkit-appearance: none;
         width: 12px;
@@ -398,11 +402,11 @@
         transition: transform 0.1s ease;
     }
 
-    .sidebar-slider::-webkit-slider-thumb:hover {
+    .slider-container :global(.sidebar-slider::-webkit-slider-thumb:hover) {
         transform: scale(1.1);
     }
 
-    .sidebar-slider::-moz-range-thumb {
+    .slider-container :global(.sidebar-slider::-moz-range-thumb) {
         width: 12px;
         height: 18px;
         background: var(--accent-active-color);
@@ -413,7 +417,7 @@
         transition: transform 0.1s ease;
     }
 
-    .sidebar-slider::-moz-range-thumb:hover {
+    .slider-container :global(.sidebar-slider::-moz-range-thumb:hover) {
         transform: scale(1.1);
     }
 </style>

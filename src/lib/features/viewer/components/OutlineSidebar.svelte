@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Spinner from "$lib/core/components/ui/Spinner.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import type { FlatHeading } from "$lib/core/pdf/pdf"
     import {
         useCommands,
@@ -127,10 +128,9 @@
     })
 
     $effect(() => {
-        const _ = selectedIndex
-        const __ = filteredOutlineList.length
+        const selection = [selectedIndex, filteredOutlineList.length]
         untrack(() => {
-            scrollSelectedIntoView()
+            if (selection.length === 2) scrollSelectedIntoView()
         })
     })
 
@@ -320,8 +320,9 @@
 {#snippet sidebarContent()}
     {#if outlineList && outlineList.length > 0}
         <div class="sidebar-search">
-            <input
-                bind:this={searchInputRef}
+            <Input
+                unstyled
+                bind:ref={searchInputRef}
                 type="text"
                 bind:value={searchQuery}
                 placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-headings")}`}
@@ -514,7 +515,7 @@
         z-index: var(--z-5);
     }
 
-    .search-input {
+    .sidebar-search :global(.search-input) {
         width: 100%;
         padding: 12px 36px 12px 16px;
         font-family: inherit;
@@ -527,7 +528,7 @@
         box-sizing: border-box;
     }
 
-    .search-input:focus {
+    .sidebar-search :global(.search-input:focus) {
         background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
         box-shadow: inset 4px 0 0 var(--accent-color);
     }
@@ -537,7 +538,7 @@
             padding: 0;
         }
 
-        .search-input {
+        .sidebar-search :global(.search-input) {
             padding: 10px 32px 10px 14px;
         }
 

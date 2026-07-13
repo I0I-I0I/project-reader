@@ -1,5 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import {
         useCommands,
         getShortcutHint,
@@ -106,10 +107,9 @@
     })
 
     $effect(() => {
-        const _ = selectedIndex
-        const __ = filteredNotes.length
+        const selection = [selectedIndex, filteredNotes.length]
         untrack(() => {
-            scrollSelectedIntoView()
+            if (selection.length === 2) scrollSelectedIntoView()
         })
     })
 
@@ -373,8 +373,9 @@
 
 {#snippet sidebarContent()}
     <div class="sidebar-search">
-        <input
-            bind:this={searchInputRef}
+        <Input
+            unstyled
+            bind:ref={searchInputRef}
             type="text"
             bind:value={searchQuery}
             placeholder={`${m.search_notes_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
@@ -535,7 +536,7 @@
         z-index: var(--z-5);
     }
 
-    .search-input {
+    .sidebar-search :global(.search-input) {
         width: 100%;
         padding: 12px 36px 12px 16px;
         font-family: inherit;
@@ -548,7 +549,7 @@
         box-sizing: border-box;
     }
 
-    .search-input:focus {
+    .sidebar-search :global(.search-input:focus) {
         background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
         box-shadow: inset 4px 0 0 var(--accent-color);
     }
@@ -776,7 +777,7 @@
             padding: 0;
         }
 
-        .search-input {
+        .sidebar-search :global(.search-input) {
             padding: 10px 32px 10px 14px;
         }
 

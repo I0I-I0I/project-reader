@@ -6,6 +6,8 @@
         value?: string | number
         errors?: string[]
         classInput?: string
+        ref?: HTMLInputElement | null
+        unstyled?: boolean
     }
 
     let {
@@ -14,17 +16,20 @@
         errors = [],
         class: className = "",
         classInput,
+        ref = $bindable(null),
+        unstyled = false,
         ...props
     }: Props = $props()
 </script>
 
-<div class="input-group {className || ''}">
+<div class={`input-group ${!unstyled ? className : ""} ${unstyled ? "unstyled" : ""}`}>
     {#if label}
         <label class="input-label" for={props.id}>{label}</label>
     {/if}
     <input
-        class={`input-field ${classInput}`}
-        class:has-error={errors.length > 0}
+        bind:this={ref}
+        class={!unstyled ? `input-field ${classInput ?? ""}` : className}
+        class:has-error={!unstyled && errors.length > 0}
         bind:value
         {...props}
     />
@@ -41,6 +46,14 @@
         flex-direction: column;
         gap: 8px;
         width: 100%;
+    }
+
+    .input-group.unstyled {
+        display: contents;
+    }
+
+    input {
+        font-size: var(--font-size-input);
     }
 
     .input-label {

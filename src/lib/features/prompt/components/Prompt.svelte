@@ -2,6 +2,7 @@
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
     import Float from "$lib/core/components/ui/Float.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import {
@@ -54,7 +55,7 @@
     let isInitialValue = true
     let hasManuallySelected = $state(uiStore.prompt.initialSelectedIndex !== null)
     $effect(() => {
-        const query = value
+        if (typeof value !== "string") return
         untrack(() => {
             if (isInitialValue) {
                 isInitialValue = false
@@ -280,7 +281,8 @@
                 {#if value === ""}
                     <span class="custom-placeholder">{placeholder}</span>
                 {/if}
-                <input
+                <Input
+                    unstyled
                     class="prompt-input"
                     type="search"
                     enterkeyhint="go"
@@ -503,7 +505,7 @@
         transform: scale(1.15) rotate(8deg);
     }
 
-    .prompt-input {
+    .input-wrapper :global(.prompt-input) {
         flex: 1;
         background: transparent;
         border: none;
@@ -514,7 +516,7 @@
         padding: 0;
     }
 
-    .prompt-input::placeholder {
+    .input-wrapper :global(.prompt-input::placeholder) {
         color: var(--text-color);
         opacity: 0.4;
     }

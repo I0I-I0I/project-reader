@@ -1,6 +1,7 @@
 <script lang="ts">
     import PlusIcon from "$lib/core/components/icons/PlusIcon.svelte"
     import Spinner from "$lib/core/components/ui/Spinner.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
     import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
@@ -228,8 +229,9 @@
     </div>
 {/if}
 
-<input
-    bind:this={fileInput}
+<Input
+    unstyled
+    bind:ref={fileInput}
     type="file"
     accept=".pdf"
     multiple

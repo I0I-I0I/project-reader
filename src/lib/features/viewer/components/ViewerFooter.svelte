@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
@@ -42,7 +43,8 @@
 <div class="viewer-footer" role="toolbar" aria-label={m.viewer_footer()}>
     {#if uiStore.isCompact}
         <div class="mobile-scrub-bar">
-            <input
+            <Input
+                unstyled
                 type="range"
                 min="1"
                 max={totalPages}
@@ -77,7 +79,8 @@
 
     <div class="pagination-indicator">
         <span class="page-label">{m.page()}</span>
-        <input
+        <Input
+            unstyled
             type="number"
             inputmode="numeric"
             pattern="[0-9]*"
@@ -94,7 +97,8 @@
 
     {#if !uiStore.isCompact}
         <div class="scrubber-container">
-            <input
+            <Input
+                unstyled
                 type="range"
                 min="1"
                 max={totalPages}
@@ -202,7 +206,7 @@
         flex-shrink: 0;
     }
 
-    .page-input {
+    .pagination-indicator :global(.page-input) {
         width: 65px;
         height: 38px;
         border: 2.5px solid var(--border-color);
@@ -218,11 +222,11 @@
             background-color 0.1s ease;
     }
 
-    .page-input:focus-visible {
+    .pagination-indicator :global(.page-input:focus-visible) {
         border-color: var(--accent-color);
     }
 
-    .page-input:disabled {
+    .pagination-indicator :global(.page-input:disabled) {
         background: var(--disabled-bg-color);
         cursor: not-allowed;
     }
@@ -274,7 +278,7 @@
             gap: 4px;
         }
 
-        .page-input {
+        .pagination-indicator :global(.page-input) {
             width: 44px;
             height: 28px;
             border-width: 1.5px;
@@ -297,7 +301,7 @@
         align-items: center;
     }
 
-    .footer-scrubber {
+    .scrubber-container :global(.footer-scrubber) {
         width: 100%;
         height: 10px;
         appearance: none;
@@ -309,7 +313,7 @@
         box-sizing: border-box;
     }
 
-    .footer-scrubber::-webkit-slider-thumb {
+    .scrubber-container :global(.footer-scrubber::-webkit-slider-thumb) {
         appearance: none;
         -webkit-appearance: none;
         width: 14px;
@@ -321,11 +325,11 @@
         transition: transform 0.1s ease;
     }
 
-    .footer-scrubber::-webkit-slider-thumb:hover {
+    .scrubber-container :global(.footer-scrubber::-webkit-slider-thumb:hover) {
         transform: scale(1.1);
     }
 
-    .footer-scrubber::-moz-range-thumb {
+    .scrubber-container :global(.footer-scrubber::-moz-range-thumb) {
         width: 14px;
         height: 22px;
         background: var(--accent-active-color);
@@ -336,7 +340,7 @@
         transition: transform 0.1s ease;
     }
 
-    .footer-scrubber::-moz-range-thumb:hover {
+    .scrubber-container :global(.footer-scrubber::-moz-range-thumb:hover) {
         transform: scale(1.1);
     }
 
@@ -352,7 +356,7 @@
         align-items: center;
     }
 
-    .mobile-scrubber {
+    .mobile-scrub-bar :global(.mobile-scrubber) {
         position: absolute;
         inset: 0;
         width: 100%;

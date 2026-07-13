@@ -2,6 +2,7 @@
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
+    import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
@@ -92,8 +93,9 @@
     </div>
 </Modal>
 
-<input
-    bind:this={fileInput}
+<Input
+    unstyled
+    bind:ref={fileInput}
     type="file"
     accept=".pdf"
     onchange={handleFileChange}
