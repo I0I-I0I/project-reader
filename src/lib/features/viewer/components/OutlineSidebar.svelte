@@ -8,9 +8,10 @@
         getShortcutHint,
         KeyboardHandler,
     } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import { untrack } from "svelte"
+    import { MediaQuery } from "svelte/reactivity"
     import Button from "$lib/core/components/ui/Button.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { resolveSelectionIndex } from "$lib/core/state/listSelection"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
 
@@ -31,8 +32,9 @@
     }>()
 
     let searchQuery = $state("")
-    let selectedIndex = $state(-1)
-    let searchInputRef = $state<HTMLInputElement | undefined>()
+    let manualSelectedIndex = $state<number | null>(null)
+    const phoneQuery = new MediaQuery("(max-width: 480px)")
+    let searchInputRef = $state<HTMLInputElement | null>(null)
 
     let filteredOutlineList = $derived(
         outlineList
@@ -56,14 +58,31 @@
         }
     }
 
+    let selectedIndex = $derived.by(() => {
+        const activeIndex = filteredOutlineList.findIndex((heading: FlatHeading) =>
+            activeHeadings.has(heading),
+        )
+        const automaticIndex = phoneQuery.current
+            ? -1
+            : searchQuery
+              ? 0
+              : activeIndex === -1
+                ? 0
+                : activeIndex
+        return resolveSelectionIndex(
+            manualSelectedIndex,
+            filteredOutlineList.length,
+            automaticIndex,
+        )
+    })
+
     function navigateSelection(direction: "next" | "prev") {
         if (filteredOutlineList.length === 0) return
-        if (direction === "next") {
-            selectedIndex = (selectedIndex + 1) % filteredOutlineList.length
-        } else {
-            selectedIndex =
-                (selectedIndex - 1 + filteredOutlineList.length) % filteredOutlineList.length
-        }
+        manualSelectedIndex =
+            direction === "next"
+                ? (selectedIndex + 1) % filteredOutlineList.length
+                : (selectedIndex - 1 + filteredOutlineList.length) % filteredOutlineList.length
+        scrollSelectedIntoView()
     }
 
     function handleSearchKeydown(event: KeyboardEvent) {
@@ -90,49 +109,9 @@
         })
     }
 
-    let lastQuery = ""
-
-    $effect(() => {
-        if (isOutlineLoading || !filteredOutlineList || filteredOutlineList.length === 0) return
-
-        const currentQuery = searchQuery
-        untrack(() => {
-            const isPhone = typeof window !== "undefined" && window.innerWidth <= 480
-            if (isPhone) {
-                if (selectedIndex === -1) {
-                    lastQuery = currentQuery
-                } else if (currentQuery !== lastQuery) {
-                    lastQuery = currentQuery
-                    selectedIndex = -1
-                }
-            } else {
-                if (selectedIndex === -1) {
-                    const index = filteredOutlineList.findIndex((h: FlatHeading) =>
-                        activeHeadings.has(h),
-                    )
-                    selectedIndex = index !== -1 ? index : 0
-                    lastQuery = currentQuery
-                } else if (currentQuery !== lastQuery) {
-                    lastQuery = currentQuery
-                    if (currentQuery !== "") {
-                        selectedIndex = 0
-                    } else {
-                        const index = filteredOutlineList.findIndex((h: FlatHeading) =>
-                            activeHeadings.has(h),
-                        )
-                        selectedIndex = index !== -1 ? index : 0
-                    }
-                }
-            }
-        })
-    })
-
-    $effect(() => {
-        const selection = [selectedIndex, filteredOutlineList.length]
-        untrack(() => {
-            if (selection.length === 2) scrollSelectedIntoView()
-        })
-    })
+    function queryChanged() {
+        manualSelectedIndex = null
+    }
 
     const sidebarCommandsNode = useCommands([
         {
@@ -295,26 +274,24 @@
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
 
-    $effect(() => {
-        if (
-            !isOutlineLoading &&
-            outlineList &&
-            outlineList.length > 0 &&
-            contentRef &&
-            !hasScrolledInitially
-        ) {
-            requestAnimationFrame(() => {
-                if (!contentRef) return
-                const activeElements = contentRef.querySelectorAll(".outline-item.active")
-                if (activeElements.length > 0) {
-                    activeElements[activeElements.length - 1].scrollIntoView({
+    function trackOutlineSelection(_index: number, _items: FlatHeading[], loading: boolean) {
+        return (content: HTMLElement) => {
+            const frame = requestAnimationFrame(() => {
+                if (!hasScrolledInitially && !loading) {
+                    const activeElements = content.querySelectorAll(".outline-item.active")
+                    activeElements.item(activeElements.length - 1)?.scrollIntoView({
                         block: "center",
                     })
+                    hasScrolledInitially = true
+                    return
                 }
-                hasScrolledInitially = true
+                content
+                    .querySelector(".outline-item.selected")
+                    ?.scrollIntoView({ block: "nearest" })
             })
+            return () => cancelAnimationFrame(frame)
         }
-    })
+    }
 </script>
 
 {#snippet sidebarContent()}
@@ -325,6 +302,7 @@
                 bind:ref={searchInputRef}
                 type="text"
                 bind:value={searchQuery}
+                oninput={queryChanged}
                 placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-headings")}`}
                 class="search-input"
                 onkeydown={handleSearchKeydown}
@@ -334,6 +312,7 @@
                     class="clear-search-btn"
                     onclick={() => {
                         searchQuery = ""
+                        queryChanged()
                         searchInputRef?.focus()
                     }}
                     aria-label={m.clear_search_aria()}
@@ -344,7 +323,11 @@
         </div>
     {/if}
 
-    <div class="sidebar-content" bind:this={contentRef}>
+    <div
+        class="sidebar-content"
+        bind:this={contentRef}
+        {@attach trackOutlineSelection(selectedIndex, filteredOutlineList, isOutlineLoading)}
+    >
         {#if isOutlineLoading}
             <div class="outline-loader">
                 <Spinner variant="dots" size="sm" label="" />
@@ -357,7 +340,7 @@
             <div class="no-outline">{m.no_matching_headings()}</div>
         {:else}
             <nav class="outline-nav">
-                {#each filteredOutlineList as heading, index}
+                {#each filteredOutlineList as heading, index (heading)}
                     <Button
                         variant="none"
                         size="none"
@@ -366,7 +349,7 @@
                             : ''} {index === selectedIndex ? 'selected' : ''}"
                         onclick={() => {
                             selectHeading(heading)
-                            selectedIndex = index
+                            manualSelectedIndex = index
                         }}
                         disabled={heading.pageNumber === undefined}
                         style="--depth: {heading.depth}"
@@ -386,7 +369,7 @@
         <div class="sidebar-footer-hint">
             {#if navigateShortcuts.length > 0}
                 <span class="hint-item">
-                    {#each navigateShortcuts as pair, i}
+                    {#each navigateShortcuts as pair, i (pair.display)}
                         {#if i > 0},
                         {/if}<kbd>{pair.display}</kbd>
                     {/each}

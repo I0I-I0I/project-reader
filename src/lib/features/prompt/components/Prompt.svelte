@@ -4,6 +4,7 @@
     import Float from "$lib/core/components/ui/Float.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import { findNearestPageIndex, resolveSelectionIndex } from "$lib/core/state/listSelection"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import {
         KeyboardHandler,
@@ -15,7 +16,7 @@
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import Fuse from "fuse.js"
-    import { getContext, onMount, tick, untrack } from "svelte"
+    import { getContext, onMount, tick } from "svelte"
     import { flip } from "svelte/animate"
     import { fade } from "svelte/transition"
 
@@ -34,72 +35,27 @@
         placeholder = m.prompt_placeholder(),
     }: Props = $props()
 
-    let selectedIndex = $state(0)
     let resultsContainerRef = $state<HTMLDivElement | null>(null)
     let innerHeight = $state<number | undefined>(undefined)
     let isChromiumNonMac = $state(false)
+    let manualSelectedIndex = $state<number | null>(uiStore.prompt.initialSelectedIndex)
 
-    let internalValue = $state(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
-
-    $effect(() => {
-        const val = value
-        untrack(() => {
-            if (val === "") {
-                internalValue = "\u200B"
-            } else {
-                internalValue = val.replace(/\u200B/g, "")
-            }
-        })
-    })
-
-    let isInitialValue = true
-    let hasManuallySelected = $state(uiStore.prompt.initialSelectedIndex !== null)
-    $effect(() => {
-        if (typeof value !== "string") return
-        untrack(() => {
-            if (isInitialValue) {
-                isInitialValue = false
-                return
-            }
-            selectedIndex = 0
-            hasManuallySelected = false
-        })
-    })
-
-    $effect(() => {
-        const results = searchResults
-        const mode = uiStore.prompt.mode
-        untrack(() => {
-            if (mode === "search" && !hasManuallySelected && results.length > 0) {
-                const currentBook = viewerStore.getCurrentBook()
-                const startPage = searchStore.searchStartPage ?? currentBook?.pageNumber ?? 1
-
-                let nearestIdx = 0
-                let minDistance = Infinity
-                for (let i = 0; i < results.length; i++) {
-                    const pageNum = results[i].item.pageNumber
-                    if (pageNum !== undefined) {
-                        const dist = Math.abs(pageNum - startPage)
-                        if (dist < minDistance) {
-                            minDistance = dist
-                            nearestIdx = i
-                        }
-                    }
-                }
-                if (selectedIndex !== nearestIdx) {
-                    selectedIndex = nearestIdx
-                    scrollToSelected()
-                }
-            }
-        })
-    })
+    let internalValue = $derived(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
 
     async function scrollToSelected() {
         await tick()
         if (!resultsContainerRef) return
         const selectedEl = resultsContainerRef.querySelector(".result-item.selected") as HTMLElement
-        if (selectedEl) {
-            selectedEl.scrollIntoView({ block: "nearest" })
+        selectedEl?.scrollIntoView({ block: "nearest" })
+    }
+
+    function trackSelectedResult(_index: number, _results: unknown[]) {
+        return (container: HTMLElement) => {
+            const frame = requestAnimationFrame(() => {
+                const selectedEl = container.querySelector(".result-item.selected") as HTMLElement
+                selectedEl?.scrollIntoView({ block: "nearest" })
+            })
+            return () => cancelAnimationFrame(frame)
         }
     }
 
@@ -140,8 +96,25 @@
         }))
     })
 
+    let selectedIndex = $derived.by(() => {
+        const automaticIndex =
+            uiStore.prompt.mode === "search"
+                ? findNearestPageIndex(
+                      searchResults.map(({ item }) => item),
+                      searchStore.searchStartPage ?? viewerStore.getCurrentBook()?.pageNumber ?? 1,
+                  )
+                : 0
+        return resolveSelectionIndex(manualSelectedIndex, searchResults.length, automaticIndex)
+    })
+
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+
+    function publishSearchQuery(query: string) {
+        if (uiStore.prompt.mode !== "search") return
+        searchStore.setQuery(query)
+        if (query.trim()) uiStore.isSearchModeActive = true
+    }
 
     function handleSelection(item: SearchItem, opts?: { asJump?: boolean }) {
         item.action(opts)
@@ -175,8 +148,7 @@
                 action: (event) => {
                     if (searchResults.length === 0) return
                     event.preventDefault()
-                    selectedIndex = (selectedIndex + 1) % searchResults.length
-                    hasManuallySelected = true
+                    manualSelectedIndex = (selectedIndex + 1) % searchResults.length
                     scrollToSelected()
                 },
                 description: "",
@@ -188,9 +160,8 @@
                 action: (event) => {
                     if (searchResults.length === 0) return
                     event.preventDefault()
-                    selectedIndex =
+                    manualSelectedIndex =
                         (selectedIndex - 1 + searchResults.length) % searchResults.length
-                    hasManuallySelected = true
                     scrollToSelected()
                 },
                 description: "",
@@ -229,8 +200,14 @@
         uiStore.prompt.initialValue = ""
         internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
 
+        if (uiStore.prompt.mode === "search") {
+            searchStore.startIndexing()
+            searchStore.searchStartPage = viewerStore.getCurrentBook()?.pageNumber ?? 1
+            publishSearchQuery(value)
+        }
+
         if (uiStore.prompt.initialSelectedIndex !== null) {
-            selectedIndex = uiStore.prompt.initialSelectedIndex
+            manualSelectedIndex = uiStore.prompt.initialSelectedIndex
             await tick()
             scrollToSelected()
         }
@@ -297,6 +274,7 @@
                         : undefined}
                     oninput={(e) => {
                         const raw = e.currentTarget.value
+                        manualSelectedIndex = null
                         if (raw === "") {
                             if (
                                 value === "" &&
@@ -307,11 +285,14 @@
                             }
                             internalValue = "\u200B"
                             value = ""
+                            publishSearchQuery("")
                         } else if (raw === "\u200B") {
                             value = ""
+                            publishSearchQuery("")
                         } else {
                             const cleaned = raw.replace(/\u200B/g, "")
                             value = cleaned
+                            publishSearchQuery(cleaned)
                         }
                     }}
                 />
@@ -329,6 +310,7 @@
                 role="listbox"
                 aria-label={m.prompt_search_aria()}
                 bind:this={resultsContainerRef}
+                {@attach trackSelectedResult(selectedIndex, searchResults)}
             >
                 {#if searchResults.length > 0}
                     {#each searchResults as { item, matches }, i (item.id)}

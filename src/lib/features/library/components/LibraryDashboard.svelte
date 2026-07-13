@@ -22,6 +22,7 @@
     import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
     import { page } from "$app/state"
     import { goto } from "$app/navigation"
+    import { resolve } from "$app/paths"
     import { localizedPath } from "$lib/core/language/language"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { fileNodeToBook } from "$lib/features/viewer/stores/viewerStore.types"
@@ -30,7 +31,7 @@
     import PickerKey from "$lib/features/prompt/components/PickerKey.svelte"
     import { PICKER_KEYS, generateHints } from "$lib/features/library/utils/constants"
     import { navigateGrid } from "$lib/features/library/utils/gridNavigation"
-    import { untrack, tick } from "svelte"
+    import { tick, untrack } from "svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
 
     let pickingMode = $state<"startSelection" | "openFileFolder" | "focusCard">("openFileFolder")
@@ -60,6 +61,13 @@
 
         if (vfsStore.currentFolderId !== resolvedId) {
             vfsStore.currentFolderId = resolvedId
+            untrack(() => {
+                uiStore.isSelectionMode = false
+                uiStore.isPickingMode = false
+                vfsStore.clearSelection()
+                pickerKeyBuffer = ""
+                lastFocusedCardId = null
+            })
         }
     })
 
@@ -106,7 +114,7 @@
         vfsStore.clearForwardHistory()
         if (node.type === "folder") {
             const path = vfsStore.getFolderPath(node.id)
-            goto(localizedPath("/") + `?folder=${encodeURIComponent(path)}`)
+            goto(resolve((localizedPath("/") + `?folder=${encodeURIComponent(path)}`) as any))
         } else {
             try {
                 let fileNode = node as FileNode
@@ -118,7 +126,7 @@
 
                 // setCurrentBook will handle fetching the full URL lazily
                 await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                goto(localizedPath("/viewer"))
+                goto(resolve(localizedPath("/viewer") as any))
             } catch (err) {
                 console.error("[+page] Failed to open book:", err)
                 uiStore.relinkNodeId = node.id
@@ -299,9 +307,14 @@
                         const parentId = currentFolder.parentId
                         if (parentId) {
                             const path = vfsStore.getFolderPath(parentId)
-                            goto(localizedPath("/") + `?folder=${encodeURIComponent(path)}`)
+                            goto(
+                                resolve(
+                                    (localizedPath("/") +
+                                        `?folder=${encodeURIComponent(path)}`) as any,
+                                ),
+                            )
                         } else {
-                            goto(localizedPath("/"))
+                            goto(resolve(localizedPath("/") as any))
                         }
                     }
                 }
@@ -317,7 +330,7 @@
                 event.preventDefault()
                 const currentBook = viewerStore.getCurrentBook()
                 if (currentBook) {
-                    goto(localizedPath("/viewer"))
+                    goto(resolve(localizedPath("/viewer") as any))
                 }
             },
             description: m.keymap_continue_reading(),
@@ -420,17 +433,6 @@
             restoreCardFocus()
         }
         wasModalOpen = isModalOpen
-    })
-
-    $effect(() => {
-        const _ = vfsStore.currentFolderId
-        untrack(() => {
-            uiStore.isSelectionMode = false
-            uiStore.isPickingMode = false
-            vfsStore.clearSelection()
-            pickerKeyBuffer = ""
-            lastFocusedCardId = null
-        })
     })
 
     $effect(() => {

@@ -10,6 +10,7 @@
     import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
     import { goto, replaceState } from "$app/navigation"
     import { page } from "$app/state"
+    import { resolve } from "$app/paths"
 
     import ViewerHeader from "$lib/features/viewer/components/ViewerHeader.svelte"
     import Sidebar from "$lib/features/viewer/components/Sidebar.svelte"
@@ -85,6 +86,8 @@
                             category: "navigation",
                             action: () => {
                                 uiStore.prompt.value = historyQuery
+                                searchStore.setQuery(historyQuery)
+                                uiStore.isSearchModeActive = true
                             },
                         })
                     }
@@ -206,26 +209,6 @@
     }
 
     usePrompt(viewerPromptProvider)
-
-    $effect(() => {
-        if (uiStore.prompt.mode === "search" && uiStore.prompt.isOpen) {
-            searchStore.startIndexing()
-            const currentBook = viewerStore.getCurrentBook()
-            searchStore.searchStartPage = currentBook ? currentBook.pageNumber : 1
-        }
-    })
-
-    $effect(() => {
-        if (uiStore.prompt.mode === "search") {
-            const query = uiStore.prompt.value
-            untrack(() => {
-                searchStore.setQuery(query)
-                if (query.trim() !== "") {
-                    uiStore.isSearchModeActive = true
-                }
-            })
-        }
-    })
 
     const commandsNode = useCommands([
         {
@@ -633,9 +616,7 @@
     }
     const sidebars = new SidebarState()
 
-    $effect(() => {
-        return viewerUIStore.registerWithGlobalUI()
-    })
+    onMount(() => viewerUIStore.registerWithGlobalUI())
 
     let currentBookId = $derived(currentBook?.id)
     let currentPage = $derived(viewerStore.currentPage)
@@ -661,7 +642,7 @@
                 viewerUIStore.bookmarkToDeleteId = currentPageBookmark.id
             }
         } else {
-            viewerUIStore.isBookmarkAddModalOpen = true
+            viewerUIStore.openBookmarkAddModal(`${m.page()} ${currentPage}`)
         }
     }
 
@@ -691,7 +672,7 @@
     onMount(() => {
         vfsStore.clearForwardHistory()
         if (vfsStore.initialized && !viewerStore.getCurrentBook()) {
-            goto(localizedPath("/"))
+            goto(resolve(localizedPath("/") as any))
             return
         }
 
@@ -722,7 +703,7 @@
         if (vfsStore.initialized) {
             const currentBook = viewerStore.getCurrentBook()
             if (!currentBook || currentBook.isLocked) {
-                goto(localizedPath("/"))
+                goto(resolve(localizedPath("/") as any))
             }
         }
     })
@@ -899,7 +880,7 @@
                     if (!canceled) {
                         isLoaded = false
                         viewerStore.setCurrentBook(null)
-                        goto(localizedPath("/"))
+                        goto(resolve(localizedPath("/") as any))
                     }
                 }
             }
@@ -1239,9 +1220,9 @@
 
         if (parentId) {
             const folderPath = vfsStore.getFolderPath(parentId)
-            goto(localizedPath("/") + `?folder=${encodeURIComponent(folderPath)}`)
+            goto(resolve((localizedPath("/") + `?folder=${encodeURIComponent(folderPath)}`) as any))
         } else {
-            goto(localizedPath("/"))
+            goto(resolve(localizedPath("/") as any))
         }
     }
 
@@ -1291,12 +1272,11 @@
         }
     }
 
-    let viewerBodyElement = $state<HTMLDivElement | null>(null)
-    const swipe = createSwipeState(() => viewerBodyElement, {
+    const swipe = createSwipeState({
         enabled: () =>
             uiStore.isCompact && !uiStore.isModalOpen && !sidebars.left && !sidebars.settings,
         disabledByLayout: () => settingsStore.layout === "scroll",
-        canSwipe: (direction) => {
+        canSwipe: (direction: "left" | "right") => {
             const step = settingsStore.layout === "split" ? 2 : 1
             if (direction === "right") {
                 // going next (swiping left)
@@ -1309,7 +1289,7 @@
                 return viewerStore.currentPage > 1
             }
         },
-        onSwipeComplete: (direction) => {
+        onSwipeComplete: (direction: "left" | "right") => {
             const step = settingsStore.layout === "split" ? 2 : 1
             let targetPage = viewerStore.currentPage
             if (direction === "right") {
@@ -1435,7 +1415,7 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                    bind:this={viewerBodyElement}
+                    {@attach swipe.attach}
                     class="viewer-body"
                     onclick={(args) => {
                         if (uiStore.isToolbarsVisible) {

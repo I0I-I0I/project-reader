@@ -47,13 +47,10 @@
         ],
         activeNodeBeforeOpen,
     )
-    let textareaRef = $state<HTMLTextAreaElement | undefined>()
-
-    $effect(() => {
-        if (textareaRef) {
-            textareaRef.focus()
-        }
-    })
+    function focusEditor(textarea: HTMLTextAreaElement) {
+        const frame = requestAnimationFrame(() => textarea.focus())
+        return () => cancelAnimationFrame(frame)
+    }
 </script>
 
 {#snippet header()}
@@ -73,7 +70,7 @@
         </blockquote>
 
         <textarea
-            bind:this={textareaRef}
+            {@attach focusEditor}
             class="editor-textarea"
             placeholder="Write your note here..."
             bind:value={editorState.noteContent}

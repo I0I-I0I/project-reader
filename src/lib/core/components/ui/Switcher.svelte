@@ -18,39 +18,30 @@
     let isOpen = $state(false)
     let containerEl = $state<HTMLElement | null>(null)
 
-    const floating = createFloatingState(() => containerEl, {
+    const floating = createFloatingState({
         defaultHorizontal: () => align,
         defaultVertical: "bottom",
     })
+    const attachFloating = (
+        floating as typeof floating & {
+            attach: (node: HTMLElement) => void | (() => void)
+        }
+    ).attach
 
     function toggleDropdown() {
         isOpen = !isOpen
+        if (isOpen) floating.update()
     }
 
     function close() {
         isOpen = false
     }
 
-    $effect(() => {
-        if (isOpen) {
-            floating.update()
+    function handleClickOutside(event: MouseEvent) {
+        if (isOpen && containerEl && !containerEl.contains(event.target as Node)) {
+            isOpen = false
         }
-    })
-
-    $effect(() => {
-        if (!isOpen) return
-
-        function handleClickOutside(event: MouseEvent) {
-            if (containerEl && !containerEl.contains(event.target as Node)) {
-                isOpen = false
-            }
-        }
-
-        document.addEventListener("click", handleClickOutside)
-        return () => {
-            document.removeEventListener("click", handleClickOutside)
-        }
-    })
+    }
 
     function expandFromTrigger(node: HTMLElement, { duration = 180 } = {}) {
         if (!settingsStore.animations) {
@@ -106,7 +97,9 @@
     }
 </script>
 
-<div class={`switcher-wrapper ${className}`} bind:this={containerEl}>
+<svelte:document onclick={handleClickOutside} />
+
+<div class={`switcher-wrapper ${className}`} bind:this={containerEl} {@attach attachFloating}>
     <button
         class="switcher-trigger"
         class:open={isOpen}

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext } from "svelte"
+    import { getContext, onMount } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Float from "$lib/core/components/ui/Float.svelte"
@@ -26,9 +26,7 @@
     const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
     const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
 
-    $effect(() => {
-        return uiStore.registerModal(() => true)
-    })
+    onMount(() => uiStore.registerModal(() => true))
 
     const popupCommandsNode = useCommands(
         [

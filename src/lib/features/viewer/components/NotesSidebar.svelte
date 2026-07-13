@@ -6,8 +6,9 @@
         getShortcutHint,
         KeyboardHandler,
     } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import { untrack } from "svelte"
+    import { MediaQuery } from "svelte/reactivity"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { resolveSelectionIndex } from "$lib/core/state/listSelection"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
     import TrashIcon from "$lib/core/components/icons/TrashIcon.svelte"
@@ -20,8 +21,9 @@
     }>()
 
     let searchQuery = $state("")
-    let selectedIndex = $state(-1)
-    let searchInputRef = $state<HTMLInputElement | undefined>()
+    let manualSelectedIndex = $state<number | null>(null)
+    const phoneQuery = new MediaQuery("(max-width: 480px)")
+    let searchInputRef = $state<HTMLInputElement | null>(null)
     let contentRef = $state<HTMLElement | undefined>()
     let noteToDeleteId = $state<string | null>(null)
     let isSearchFocused = $state(false)
@@ -46,13 +48,21 @@
         }
     }
 
+    let selectedIndex = $derived(
+        resolveSelectionIndex(
+            manualSelectedIndex,
+            filteredNotes.length,
+            phoneQuery.current ? -1 : 0,
+        ),
+    )
+
     function navigateSelection(direction: "next" | "prev") {
         if (filteredNotes.length === 0) return
-        if (direction === "next") {
-            selectedIndex = (selectedIndex + 1) % filteredNotes.length
-        } else {
-            selectedIndex = (selectedIndex - 1 + filteredNotes.length) % filteredNotes.length
-        }
+        manualSelectedIndex =
+            direction === "next"
+                ? (selectedIndex + 1) % filteredNotes.length
+                : (selectedIndex - 1 + filteredNotes.length) % filteredNotes.length
+        scrollSelectedIntoView()
     }
 
     function handleSearchKeydown(event: KeyboardEvent) {
@@ -79,39 +89,15 @@
         })
     }
 
-    let lastQuery = ""
+    function queryChanged() {
+        manualSelectedIndex = null
+    }
 
-    $effect(() => {
-        if (!filteredNotes || filteredNotes.length === 0) return
-
-        const currentQuery = searchQuery
-        untrack(() => {
-            const isPhone = typeof window !== "undefined" && window.innerWidth <= 480
-            if (isPhone) {
-                if (selectedIndex === -1) {
-                    lastQuery = currentQuery
-                } else if (currentQuery !== lastQuery) {
-                    lastQuery = currentQuery
-                    selectedIndex = -1
-                }
-            } else {
-                if (selectedIndex === -1) {
-                    selectedIndex = 0
-                    lastQuery = currentQuery
-                } else if (currentQuery !== lastQuery) {
-                    lastQuery = currentQuery
-                    selectedIndex = 0
-                }
-            }
-        })
-    })
-
-    $effect(() => {
-        const selection = [selectedIndex, filteredNotes.length]
-        untrack(() => {
-            if (selection.length === 2) scrollSelectedIntoView()
-        })
-    })
+    function trackSelection(_index: number, _notes: UserNote[]) {
+        return (_content: HTMLElement) => {
+            scrollSelectedIntoView()
+        }
+    }
 
     const sidebarCommandsNode = useCommands([
         {
@@ -378,6 +364,7 @@
             bind:ref={searchInputRef}
             type="text"
             bind:value={searchQuery}
+            oninput={queryChanged}
             placeholder={`${m.search_notes_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
             class="search-input"
             onkeydown={handleSearchKeydown}
@@ -393,6 +380,7 @@
                 class="clear-search-btn"
                 onclick={() => {
                     searchQuery = ""
+                    queryChanged()
                     searchInputRef?.focus()
                 }}
                 aria-label={m.clear_search_aria()}
@@ -402,7 +390,11 @@
         {/if}
     </div>
 
-    <div class="sidebar-content" bind:this={contentRef}>
+    <div
+        class="sidebar-content"
+        bind:this={contentRef}
+        {@attach trackSelection(selectedIndex, filteredNotes)}
+    >
         {#if notesStore.notes.length === 0}
             <div class="no-notes">
                 {m.no_notes()}
@@ -419,13 +411,13 @@
                         tabindex="0"
                         onclick={() => {
                             selectNote(note)
-                            selectedIndex = index
+                            manualSelectedIndex = index
                         }}
                         onkeydown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault()
                                 selectNote(note)
-                                selectedIndex = index
+                                manualSelectedIndex = index
                             }
                         }}
                     >

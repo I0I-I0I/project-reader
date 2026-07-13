@@ -7,8 +7,10 @@
         "dev": "vite dev",
         "build": "vite build",
         "preview": "vite preview",
+        "test": "vitest run",
         "prepare": "svelte-kit sync || echo ''",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:effects": "node scripts/check-effects.mjs",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "lint": "oxfmt --check . && oxlint .",
         "format": "oxfmt --write ."
@@ -36,7 +38,8 @@
         "svelte": "^5.55.2",
         "svelte-check": "^4.4.6",
         "typescript": "^6.0.2",
-        "vite": "^8.0.7"
+        "vite": "^8.0.7",
+        "vitest": "^4.1.10"
     },
     "packageManager": "pnpm@11.12.0+sha512.820a6fbd0d9f04c226638002aead1e45340a9139dd5dc077c1d83ef44aa2481c8eb6637b4c9aa696a3c7e35ba818e49cf27213e5f2b91138d09b7a3e26e898ba"
 }

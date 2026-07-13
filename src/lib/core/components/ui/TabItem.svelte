@@ -24,23 +24,22 @@
         class: className = "",
     }: Props = $props()
 
-    let element = $state<HTMLElement | null>(null)
-
-    $effect(() => {
-        if (active && element) {
+    function scrollActiveIntoView(isActive: boolean) {
+        return (element: HTMLElement) => {
+            if (!isActive) return
             element.scrollIntoView({
                 behavior: "smooth",
                 block: "nearest",
                 inline: "nearest",
             })
         }
-    })
+    }
 
     const displayTooltip = $derived(tooltip || title)
 </script>
 
 <button
-    bind:this={element}
+    {@attach scrollActiveIntoView(active)}
     class="tab-item {className}"
     class:active
     {onclick}

@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import { bookmarksStore } from "$lib/features/viewer/stores/bookmarksStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
@@ -25,24 +24,16 @@
         const defaultName = `${m.page()} ${currentPage}`
         const nameToUse = viewerUIStore.bookmarkName.trim() || defaultName
         await bookmarksStore.addBookmark(currentBookId, currentPage, nameToUse)
-        viewerUIStore.isBookmarkAddModalOpen = false
-        viewerUIStore.bookmarkName = ""
+        viewerUIStore.closeBookmarkAddModal()
     }
 
-    $effect(() => {
-        if (viewerUIStore.isBookmarkAddModalOpen) {
-            viewerUIStore.bookmarkName = `${m.page()} ${currentPage}`
-            tick().then(() => {
-                const input = document.getElementById(
-                    "header-bookmark-name-input",
-                ) as HTMLInputElement | null
-                if (input) {
-                    input.focus()
-                    input.select()
-                }
-            })
-        }
-    })
+    function focusBookmarkName(input: HTMLInputElement) {
+        const frame = requestAnimationFrame(() => {
+            input.focus()
+            input.select()
+        })
+        return () => cancelAnimationFrame(frame)
+    }
 </script>
 
 {#if notesStore.activePopup}
@@ -118,16 +109,17 @@
 {#if viewerUIStore.isBookmarkAddModalOpen}
     <BookmarkAddKeymaps
         onConfirm={handleConfirmAddBookmark}
-        onCancel={() => (viewerUIStore.isBookmarkAddModalOpen = false)}
+        onCancel={() => viewerUIStore.closeBookmarkAddModal()}
     />
     <Modal
-        onClose={() => (viewerUIStore.isBookmarkAddModalOpen = false)}
+        onClose={() => viewerUIStore.closeBookmarkAddModal()}
         title={m.add_bookmark()}
         autofocusClose={false}
     >
         <div class="modal-form">
             <Input
                 id="header-bookmark-name-input"
+                attachment={focusBookmarkName}
                 placeholder={m.bookmark_name_placeholder
                     ? m.bookmark_name_placeholder()
                     : "Bookmark name..."}
@@ -144,10 +136,7 @@
                 <Button variant="brutalist" onclick={handleConfirmAddBookmark}>
                     {m.add_bookmark()}
                 </Button>
-                <Button
-                    variant="ghost"
-                    onclick={() => (viewerUIStore.isBookmarkAddModalOpen = false)}
-                >
+                <Button variant="ghost" onclick={() => viewerUIStore.closeBookmarkAddModal()}>
                     {m.cancel()}
                 </Button>
             </div>

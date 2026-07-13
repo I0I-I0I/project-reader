@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { untrack } from "svelte"
-
     let {
         checked = $bindable(false),
         label = "",
@@ -15,19 +13,21 @@
         onchange?: (checked: boolean) => void
     }>()
 
-    $effect(() => {
-        const val = checked
-        untrack(() => {
-            if (onchange) {
-                onchange(val)
-            }
-        })
-    })
+    function handleChange() {
+        onchange?.(checked)
+    }
 </script>
 
 <div class="toggle-container" class:disabled>
     <label for={id} class="toggle-label-wrapper">
-        <input type="checkbox" {id} bind:checked {disabled} class="toggle-input" />
+        <input
+            type="checkbox"
+            {id}
+            bind:checked
+            {disabled}
+            class="toggle-input"
+            onchange={handleChange}
+        />
         <span class="toggle-track">
             <span class="toggle-thumb"></span>
         </span>

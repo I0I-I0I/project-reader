@@ -23,9 +23,8 @@
     import { getLocale, localizeHref } from "$lib/paraglide/runtime"
     import { getLanguageName } from "$lib/core/language/locale"
     import { page, updated } from "$app/state"
-    import { goto } from "$app/navigation"
+    import { afterNavigate, goto } from "$app/navigation"
     import { resolve } from "$app/paths"
-    import { browser } from "$app/environment"
     import {
         getFoldersPromptItems,
         getMovePromptItems,
@@ -51,9 +50,7 @@
     let currentActivePromptNode = $state.raw<PromptNode | null>(null)
     let isHelpOpen = $state(false)
 
-    $effect(() => {
-        return uiStore.registerModal(() => isHelpOpen)
-    })
+    onMount(() => uiStore.registerModal(() => isHelpOpen))
 
     setContext("set_active_commands_node", (node: CommandNode | null) => {
         commandDispatcher.activeRegistry = node || rootNode
@@ -213,24 +210,16 @@
         }
     })
 
-    $effect(() => {
-        // Clear/initialize search input whenever the prompt mode changes
-        const _mode = uiStore.prompt.mode
-        untrack(() => {
-            if (uiStore.prompt.initialValue) {
-                uiStore.prompt.value = uiStore.prompt.initialValue
-                uiStore.prompt.initialValue = ""
-            }
-        })
-    })
-
-    $effect(() => {
-        const url = page.url
-        if (browser) {
-            if (url.pathname === "/" || url.pathname === "/viewer") {
-                const fullPath = url.pathname + url.search
-                localStorage.setItem("last_visited_url", fullPath)
-            }
+    afterNavigate(({ to }) => {
+        if (!to) return
+        const { pathname, search } = to.url
+        if (
+            pathname === "/" ||
+            pathname === "/viewer" ||
+            pathname === "/en" ||
+            pathname === "/en/viewer"
+        ) {
+            localStorage.setItem("last_visited_url", pathname + search)
         }
     })
 

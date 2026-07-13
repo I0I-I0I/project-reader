@@ -10,42 +10,56 @@
 
     let { children, class: className = "", activeValue }: Props = $props()
 
-    let containerEl = $state<HTMLElement | null>(null)
     let indicatorStyle = $state("opacity: 0;")
     let isInitialized = $state(false)
 
-    $effect(() => {
-        const _ = activeValue
+    function trackIndicator(_activeValue: unknown) {
+        return (container: HTMLElement) => {
+            let initializeFrame = 0
 
-        function updatePosition() {
-            const activeItem = containerEl?.querySelector(".tab-item.active") as HTMLElement | null
-            if (activeItem && containerEl) {
-                const left = activeItem.offsetLeft
-                const width = activeItem.offsetWidth
-                indicatorStyle = `left: ${left}px; width: ${width}px; opacity: 1;`
-
-                if (!isInitialized) {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            isInitialized = true
+            function updatePosition() {
+                const activeItem = container.querySelector(".tab-item.active") as HTMLElement | null
+                if (activeItem) {
+                    indicatorStyle = `left: ${activeItem.offsetLeft}px; width: ${activeItem.offsetWidth}px; opacity: 1;`
+                    if (!isInitialized && !initializeFrame) {
+                        initializeFrame = requestAnimationFrame(() => {
+                            initializeFrame = requestAnimationFrame(() => {
+                                isInitialized = true
+                                initializeFrame = 0
+                            })
                         })
-                    })
+                    }
+                } else {
+                    indicatorStyle = "opacity: 0;"
                 }
-            } else {
-                indicatorStyle = `opacity: 0;`
+            }
+
+            const resizeObserver = new ResizeObserver(updatePosition)
+            resizeObserver.observe(container)
+            for (const child of container.children) resizeObserver.observe(child)
+
+            const mutationObserver = new MutationObserver(() => {
+                for (const child of container.children) resizeObserver.observe(child)
+                updatePosition()
+            })
+            mutationObserver.observe(container, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ["class"],
+            })
+            updatePosition()
+
+            return () => {
+                resizeObserver.disconnect()
+                mutationObserver.disconnect()
+                if (initializeFrame) cancelAnimationFrame(initializeFrame)
             }
         }
-
-        updatePosition()
-
-        window.addEventListener("resize", updatePosition)
-        return () => {
-            window.removeEventListener("resize", updatePosition)
-        }
-    })
+    }
 </script>
 
-<div class="tabs-list {className}" bind:this={containerEl}>
+<div class="tabs-list {className}" {@attach trackIndicator(activeValue)}>
     <div
         class="active-indicator"
         class:animated={settingsStore.animations && isInitialized}

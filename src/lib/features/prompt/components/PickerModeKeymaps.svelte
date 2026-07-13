@@ -6,7 +6,7 @@
     } from "$lib/features/prompt/stores/commandsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { getContext, untrack } from "svelte"
+    import { getContext, onMount, untrack } from "svelte"
     import { SvelteSet } from "svelte/reactivity"
     import type { VFSNode } from "$lib/core/vfs/vfsStore.types"
 
@@ -63,7 +63,7 @@
 
     const node = useCommands(baseCommands, activeNodeBeforeOpen)
 
-    $effect(() => {
+    onMount(() => {
         uiStore.pickerCommandsNode = node
         return () => {
             if (uiStore.pickerCommandsNode === node) {

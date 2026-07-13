@@ -51,7 +51,7 @@ export interface SwipeOptions {
     edgeThreshold?: number
 }
 
-export function createSwipeState(elementGetter: () => HTMLElement | null, options: SwipeOptions) {
+export function createSwipeState(options: SwipeOptions) {
     let swipeOffsetX = $state("0px")
     let swipeTransition = $state("none")
     let isTransitioning = $state(false)
@@ -310,24 +310,25 @@ export function createSwipeState(elementGetter: () => HTMLElement | null, option
         swipeState = "undecided"
     }
 
-    $effect(() => {
-        const el = elementGetter()
-        if (!el) return
-
-        const opts = { passive: false }
-        el.addEventListener("touchstart", handleTouchStart, opts)
-        el.addEventListener("touchmove", handleTouchMove, opts)
-        el.addEventListener("touchend", handleTouchEnd, opts)
+    function attach(element: HTMLElement) {
+        const listenerOptions = { passive: false }
+        element.addEventListener("touchstart", handleTouchStart, listenerOptions)
+        element.addEventListener("touchmove", handleTouchMove, listenerOptions)
+        element.addEventListener("touchend", handleTouchEnd, listenerOptions)
 
         return () => {
-            el.removeEventListener("touchstart", handleTouchStart)
-            el.removeEventListener("touchmove", handleTouchMove)
-            el.removeEventListener("touchend", handleTouchEnd)
-            if (swipeTimeoutId) {
-                clearTimeout(swipeTimeoutId)
-            }
+            element.removeEventListener("touchstart", handleTouchStart)
+            element.removeEventListener("touchmove", handleTouchMove)
+            element.removeEventListener("touchend", handleTouchEnd)
+            if (swipeTimeoutId) clearTimeout(swipeTimeoutId)
+            swipeTimeoutId = null
+            pendingPageTurnAction = null
+            isTransitioning = false
+            swipeOffsetX = "0px"
+            swipeTransition = "none"
+            swipeState = "undecided"
         }
-    })
+    }
 
     return {
         get swipeOffsetX() {
@@ -339,5 +340,6 @@ export function createSwipeState(elementGetter: () => HTMLElement | null, option
         get isTransitioning() {
             return isTransitioning
         },
+        attach,
     }
 }

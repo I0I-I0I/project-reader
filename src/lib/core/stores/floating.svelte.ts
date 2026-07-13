@@ -1,12 +1,18 @@
+interface FloatingOptions {
+    verticalThreshold?: number
+    horizontalThreshold?: number
+    defaultVertical?: "top" | "bottom" | (() => "top" | "bottom")
+    defaultHorizontal?: "left" | "right" | "center" | (() => "left" | "right" | "center")
+}
+
 export function createFloatingState(
-    anchorGetter: () => HTMLElement | null,
-    options: {
-        verticalThreshold?: number
-        horizontalThreshold?: number
-        defaultVertical?: "top" | "bottom" | (() => "top" | "bottom")
-        defaultHorizontal?: "left" | "right" | "center" | (() => "left" | "right" | "center")
-    } = {},
+    anchorGetterOrOptions: (() => HTMLElement | null) | FloatingOptions = {},
+    suppliedOptions: FloatingOptions = {},
 ) {
+    const anchorGetter =
+        typeof anchorGetterOrOptions === "function" ? anchorGetterOrOptions : () => null
+    const options =
+        typeof anchorGetterOrOptions === "function" ? suppliedOptions : anchorGetterOrOptions
     const getVal = <T>(valOrFn: T | (() => T)): T => {
         return typeof valOrFn === "function" ? (valOrFn as () => T)() : valOrFn
     }
@@ -17,13 +23,13 @@ export function createFloatingState(
     let horizontal = $state<"left" | "right" | "center">(
         options.defaultHorizontal !== undefined ? getVal(options.defaultHorizontal) : "center",
     )
+    let anchor: HTMLElement | null = null
 
     function updatePosition() {
-        if (typeof window === "undefined") return
+        const currentAnchor = anchor ?? anchorGetter()
+        if (typeof window === "undefined" || !currentAnchor) return
 
-        const anchor = anchorGetter()
-        if (!anchor) return
-        const rect = anchor.getBoundingClientRect()
+        const rect = currentAnchor.getBoundingClientRect()
         const viewportWidth = window.innerWidth
 
         const vThreshold = options.verticalThreshold ?? 120
@@ -56,10 +62,8 @@ export function createFloatingState(
         }
     }
 
-    $effect(() => {
-        const anchor = anchorGetter()
-        if (!anchor) return
-
+    function attach(node: HTMLElement) {
+        anchor = node
         updatePosition()
 
         window.addEventListener("resize", updatePosition)
@@ -68,8 +72,9 @@ export function createFloatingState(
         return () => {
             window.removeEventListener("resize", updatePosition)
             window.removeEventListener("scroll", updatePosition, { capture: true })
+            if (anchor === node) anchor = null
         }
-    })
+    }
 
     return {
         get vertical() {
@@ -79,5 +84,6 @@ export function createFloatingState(
             return horizontal
         },
         update: updatePosition,
+        attach,
     }
 }

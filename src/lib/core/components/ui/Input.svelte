@@ -1,4 +1,5 @@
 <script lang="ts">
+    import type { Attachment } from "svelte/attachments"
     import type { HTMLInputAttributes } from "svelte/elements"
 
     interface Props extends HTMLInputAttributes {
@@ -7,6 +8,7 @@
         errors?: string[]
         classInput?: string
         ref?: HTMLInputElement | null
+        attachment?: Attachment<HTMLInputElement>
         unstyled?: boolean
     }
 
@@ -17,6 +19,7 @@
         class: className = "",
         classInput,
         ref = $bindable(null),
+        attachment,
         unstyled = false,
         ...props
     }: Props = $props()
@@ -28,13 +31,14 @@
     {/if}
     <input
         bind:this={ref}
+        {@attach attachment}
         class={!unstyled ? `input-field ${classInput ?? ""}` : className}
         class:has-error={!unstyled && errors.length > 0}
         bind:value
         {...props}
     />
     {#if errors.length > 0}
-        {#each errors as error}
+        {#each errors as error (error)}
             <span class="error-text">{error}</span>
         {/each}
     {/if}

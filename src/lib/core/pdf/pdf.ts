@@ -2,6 +2,7 @@ import * as pdfjs from "pdfjs-dist"
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import type { TextContent } from "pdfjs-dist/types/src/display/api"
 import { BREAKPOINTS } from "$lib/core/stores/breakpoints"
+import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
 
 export class Page {
     constructor(public pageNumber: number) {}
@@ -89,7 +90,7 @@ export default class PDFDocument implements DocumentInterface {
         }
     }
 
-    async load(_quality: number = 1): Promise<PDFDocument> {
+    async load(_quality: number = settingsStore.quality): Promise<PDFDocument> {
         try {
             // Allow PDF.js to stream the document using range requests
             const loadingTask = pdfjs.getDocument({ url: this.url })
@@ -288,7 +289,11 @@ export default class PDFDocument implements DocumentInterface {
         return resolvedHeadings
     }
 
-    async getCanvasPage(page: Page, quality: number = 1, signal?: AbortSignal): Promise<string> {
+    async getCanvasPage(
+        page: Page,
+        quality: number = settingsStore.quality,
+        signal?: AbortSignal,
+    ): Promise<string> {
         const pdfDoc = this.getRequiredPdfDoc()
 
         if (this.renderedQuality !== null && this.renderedQuality !== quality) {

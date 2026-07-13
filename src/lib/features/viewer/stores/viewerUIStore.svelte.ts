@@ -80,6 +80,11 @@ class ViewerUIStore {
         this.isBookmarkAddModalOpen = true
     }
 
+    closeBookmarkAddModal() {
+        this.isBookmarkAddModalOpen = false
+        this.bookmarkName = ""
+    }
+
     registerWithGlobalUI() {
         return uiStore.registerModal(() => this.isAnyModalOpen)
     }

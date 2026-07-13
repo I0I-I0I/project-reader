@@ -22,7 +22,8 @@
     import { browser } from "$app/environment"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import ScrollPage from "./ScrollPage.svelte"
-    import { untrack } from "svelte"
+    import { onDestroy, untrack } from "svelte"
+    import { MediaQuery } from "svelte/reactivity"
     import { MEDIA_QUERIES } from "$lib/core/stores/breakpoints"
     import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
     import { ViewerLinkService } from "./ViewerLinkService"
@@ -192,7 +193,8 @@
     let pageDimensions = $state.raw<{ width: number; height: number }[]>([])
     let scrollTop = $state(0)
     let containerHeight = $state(0)
-    let isMobile = $state(false)
+    const mobileQuery = new MediaQuery(MEDIA_QUERIES.DESKTOP)
+    let isMobile = $derived(mobileQuery.current)
 
     let fallbackPageDim1 = $state<{ width: number; height: number } | null>(null)
     let fallbackPageDim2 = $state<{ width: number; height: number } | null>(null)
@@ -208,19 +210,6 @@
     let textLayer2RenderCount = $state(0)
     let cachedSpanRanges1: SpanRange[] | null = null
     let cachedSpanRanges2: SpanRange[] | null = null
-
-    $effect(() => {
-        const mediaQuery = window.matchMedia(MEDIA_QUERIES.DESKTOP)
-        isMobile = mediaQuery.matches
-
-        const handler = (e: MediaQueryListEvent) => {
-            isMobile = e.matches
-        }
-        mediaQuery.addEventListener("change", handler)
-        return () => {
-            mediaQuery.removeEventListener("change", handler)
-        }
-    })
 
     $effect(() => {
         if (!pdf || layoutMode === "scroll") return
@@ -302,12 +291,10 @@
     let scrollEndTimeout: ReturnType<typeof setTimeout> | undefined
     let rafId: number | null = null
 
-    $effect(() => {
-        return () => {
-            if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
-            if (rafId !== null) cancelAnimationFrame(rafId)
-            if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
-        }
+    onDestroy(() => {
+        if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+        if (rafId !== null) cancelAnimationFrame(rafId)
+        if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
     })
 
     function findPageAtOffset(offset: number): number {

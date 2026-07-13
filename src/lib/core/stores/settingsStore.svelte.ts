@@ -17,6 +17,7 @@ interface Constants {
     minScale: number
     maxQuality: number
     minQuality: number
+    defaultQuality: number
 }
 
 export const CONSTANTS: Constants = {
@@ -24,12 +25,13 @@ export const CONSTANTS: Constants = {
     minScale: 0.25,
     maxQuality: 5,
     minQuality: 1,
+    defaultQuality: 3,
 }
 
 export const DEFAULT_SETTINGS: Settings = {
     layout: "scroll",
     scale: 1.5,
-    quality: 3,
+    quality: CONSTANTS.defaultQuality,
     theme: "system",
     language: "ru",
     animations: true,
@@ -53,10 +55,6 @@ class SettingsStore {
                     console.error("Failed to parse settings from localStorage", e)
                 }
             } else {
-                // Auto-detect optimal quality based on device pixel ratio (capped at 2)
-                const dpr = window.devicePixelRatio || 1
-                this.settings.quality = Math.min(Math.max(Math.floor(dpr), 1), 2)
-
                 this.theme = (localStorage.getItem("theme") as Theme) || "system"
 
                 const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
@@ -92,7 +90,11 @@ class SettingsStore {
             if (typeof parsed.animations === "boolean") {
                 sanitized.animations = parsed.animations
             }
-            if (typeof parsed.quality === "number" && parsed.quality >= 1 && parsed.quality <= 5) {
+            if (
+                typeof parsed.quality === "number" &&
+                parsed.quality >= CONSTANTS.minQuality &&
+                parsed.quality <= CONSTANTS.maxQuality
+            ) {
                 sanitized.quality = parsed.quality
             }
         }
