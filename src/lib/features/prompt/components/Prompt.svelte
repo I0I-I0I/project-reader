@@ -1,25 +1,24 @@
 <script lang="ts">
-    import { onMount, getContext, untrack, tick } from "svelte"
-    import { fade, fly } from "svelte/transition"
-    import { flip } from "svelte/animate"
-    import Fuse from "fuse.js"
+    import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
+    import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
     import Float from "$lib/core/components/ui/Float.svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import {
+        KeyboardHandler,
+        useCommands,
+        type CommandNode,
+    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import type { SearchItem } from "$lib/features/prompt/stores/promptStore.svelte"
     import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import {
-        useCommands,
-        type CommandNode,
-        formatKeyString,
-        KeyboardHandler,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import type { SearchItem } from "$lib/features/prompt/stores/promptStore.svelte"
-    import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
-    import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
-    import PromptItem from "./PromptItem.svelte"
+    import Fuse from "fuse.js"
+    import { getContext, onMount, tick, untrack } from "svelte"
+    import { flip } from "svelte/animate"
+    import { fade } from "svelte/transition"
 
+    import PromptItem from "./PromptItem.svelte"
     interface Props {
         onClose: () => void
         value: string

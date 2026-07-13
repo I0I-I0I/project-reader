@@ -4,7 +4,7 @@
     import Spinner from "$lib/core/components/ui/Spinner.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { untrack, onMount, onDestroy, tick } from "svelte"
+    import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
     import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
@@ -23,6 +23,7 @@
     import { viewerUIStore } from "$lib/features/viewer/stores/viewerUIStore.svelte"
     import { localizedPath } from "$lib/core/language/language"
     import { CONSTANTS, settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import { stepAndClampScale } from "$lib/core/utils/zoom"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
     import { useCommands, getShortcutHint } from "$lib/features/prompt/stores/commandsStore.svelte"
@@ -105,7 +106,7 @@
                         subtitle: context,
                         category: "navigation",
                         pageNumber: match.pageNumber,
-                        action: (opts) => {
+                        action: () => {
                             searchStore.addToHistory(queryText)
 
                             searchStore.currentMatchIndex = i
@@ -271,7 +272,12 @@
                     scale: Math.round(settingsStore.scale * 100),
                 }),
             action: () => {
-                settingsStore.scale = Math.min(settingsStore.scale + 0.1, CONSTANTS.maxScale)
+                settingsStore.scale = stepAndClampScale(
+                    settingsStore.scale,
+                    1,
+                    CONSTANTS.minScale,
+                    CONSTANTS.maxScale,
+                )
             },
         },
         {
@@ -285,7 +291,12 @@
                     scale: Math.round(settingsStore.scale * 100),
                 }),
             action: () => {
-                settingsStore.scale = Math.max(settingsStore.scale - 0.1, CONSTANTS.minScale)
+                settingsStore.scale = stepAndClampScale(
+                    settingsStore.scale,
+                    -1,
+                    CONSTANTS.minScale,
+                    CONSTANTS.maxScale,
+                )
             },
         },
         {

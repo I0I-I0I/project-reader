@@ -3,7 +3,11 @@
     import * as pdfjs from "pdfjs-dist"
     import Spinner from "$lib/core/components/ui/Spinner.svelte"
     import type PDFDocument from "$lib/core/pdf/pdf"
-    import { CONSTANTS, settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import {
+        CONSTANTS,
+        DEFAULT_SETTINGS,
+        settingsStore,
+    } from "$lib/core/stores/settingsStore.svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
     import {
@@ -60,6 +64,11 @@
 
     function fitToWidth() {
         if (!pdf || containerWidth <= 0) return
+        if (uiStore.isCompact) {
+            settingsStore.scale = DEFAULT_SETTINGS.scale
+            return
+        }
+
         const defaultWidth = pdf.defaultWidth || 612
         const horizontalPadding = containerWidth < 900 ? 32 : 80
 
@@ -119,24 +128,25 @@
         },
     ])
 
-    const effectiveScale = $derived.by(() => {
-        if (uiStore.isCompact && containerWidth > 0 && pdf) {
-            const defaultWidth = pdf.defaultWidth || 612
-            if (isShortHeight) {
-                return (containerWidth / defaultWidth) * (scale / 1.5)
-            }
-            return containerWidth / defaultWidth
+    function compactZoomMultiplier(targetScale = scale) {
+        return targetScale / DEFAULT_SETTINGS.scale
+    }
+
+    function getScrollPageScale(dim: { width: number; height: number }, targetScale = scale) {
+        if (uiStore.isCompact && containerWidth > 0) {
+            return (containerWidth / dim.width) * compactZoomMultiplier(targetScale)
         }
-        return scale
-    })
+        return targetScale
+    }
 
     const pageScale1 = $derived.by(() => {
         if (uiStore.isCompact && containerWidth > 0 && pdf) {
             const pageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
-            if (isShortHeight) {
-                return (containerWidth / pageWidth) * (scale / 1.5)
+            if (layoutMode === "split") {
+                const secondPageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
+                return (containerWidth / (pageWidth + secondPageWidth)) * compactZoomMultiplier()
             }
-            return containerWidth / pageWidth
+            return (containerWidth / pageWidth) * compactZoomMultiplier()
         }
         return scale
     })
@@ -144,22 +154,17 @@
     const pageScale2 = $derived.by(() => {
         if (uiStore.isCompact && containerWidth > 0 && pdf) {
             const pageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
-            if (isShortHeight) {
-                return (containerWidth / pageWidth) * (scale / 1.5)
+            if (layoutMode === "split") {
+                const firstPageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
+                return (containerWidth / (firstPageWidth + pageWidth)) * compactZoomMultiplier()
             }
-            return containerWidth / pageWidth
+            return (containerWidth / pageWidth) * compactZoomMultiplier()
         }
         return scale
     })
 
-    function getPageHeight(dim: { width: number; height: number }) {
-        if (uiStore.isCompact && containerWidth > 0) {
-            if (isShortHeight) {
-                return containerWidth * (dim.height / dim.width) * (scale / 1.5)
-            }
-            return containerWidth * (dim.height / dim.width)
-        }
-        return dim.height * scale
+    function getPageHeight(dim: { width: number; height: number }, targetScale = scale) {
+        return dim.height * getScrollPageScale(dim, targetScale)
     }
 
     const wrapperStyle1 = $derived.by(() => {
@@ -301,6 +306,7 @@
         return () => {
             if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
             if (rafId !== null) cancelAnimationFrame(rafId)
+            if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
         }
     })
 
@@ -329,6 +335,7 @@
         currentContainerHeight: number,
         scrollHeight: number,
     ) {
+        void scrollHeight
         scrollTop = currentScrollTop
         containerHeight = currentContainerHeight
         lastUpdatedScrollTop = currentScrollTop
@@ -472,39 +479,164 @@
         return range
     })
 
+    type ZoomAnchor = {
+        page: number
+        vertical: number
+        horizontal: number
+    }
+
     let lastScale = $state(-1)
+    let zoomRestoreRaf: number | null = null
+    let pendingZoomAnchor: ZoomAnchor | null = null
+
+    function getOffsetsAtScale(targetScale: number) {
+        const offsets: number[] = []
+        let currentOffset = 0
+        for (const dim of pageDimensions) {
+            offsets.push(currentOffset)
+            currentOffset += getPageHeight(dim, targetScale) + PAGE_GAP
+        }
+        return offsets
+    }
+
+    function findPageAtScaledOffset(offset: number, offsets: number[], targetScale: number) {
+        for (let index = 0; index < offsets.length; index += 1) {
+            if (
+                offset <
+                offsets[index] + getPageHeight(pageDimensions[index], targetScale) + PAGE_GAP
+            ) {
+                return index + 1
+            }
+        }
+        return Math.max(1, offsets.length)
+    }
+
+    $effect(() => {
+        const currentScale = scale
+        const offsets = pageOffsets
+        const targetPage = currentPage
+
+        untrack(() => {
+            if (lastScale === -1) {
+                lastScale = currentScale
+                return
+            }
+            if (!container || !hasRestoredScroll || currentScale === lastScale) return
+
+            const oldScale = lastScale
+            let anchor = pendingZoomAnchor
+            if (!anchor) {
+                if (layoutMode === "scroll" && pageDimensions.length > 0) {
+                    const oldOffsets = getOffsetsAtScale(oldScale)
+                    const viewportCenter = scrollTop + container.clientHeight / 2
+                    const page = findPageAtScaledOffset(viewportCenter, oldOffsets, oldScale)
+                    const pageHeight = getPageHeight(pageDimensions[page - 1], oldScale)
+                    const oldContentWidth = Math.max(
+                        container.clientWidth,
+                        ...pageDimensions.map(
+                            (dim) => dim.width * getScrollPageScale(dim, oldScale),
+                        ),
+                    )
+                    anchor = {
+                        page,
+                        vertical: (viewportCenter - oldOffsets[page - 1]) / pageHeight,
+                        horizontal:
+                            oldContentWidth > container.clientWidth
+                                ? container.scrollLeft / (oldContentWidth - container.clientWidth)
+                                : 0.5,
+                    }
+                } else {
+                    const scaleRatio = currentScale / oldScale
+                    const oldWidth = Math.max(
+                        container.clientWidth,
+                        container.scrollWidth / scaleRatio,
+                    )
+                    const oldHeight = Math.max(
+                        container.clientHeight,
+                        container.scrollHeight / scaleRatio,
+                    )
+                    anchor = {
+                        page: targetPage,
+                        vertical:
+                            oldHeight > container.clientHeight
+                                ? (container.scrollTop + container.clientHeight / 2) / oldHeight
+                                : 0.5,
+                        horizontal:
+                            oldWidth > container.clientWidth
+                                ? container.scrollLeft / (oldWidth - container.clientWidth)
+                                : 0.5,
+                    }
+                }
+            }
+
+            pendingZoomAnchor = anchor
+            lastScale = currentScale
+            isAutoScrolling = true
+            if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
+
+            if (layoutMode === "scroll" && offsets.length > 0 && pageDimensions[anchor.page - 1]) {
+                const pageTop = offsets[anchor.page - 1]
+                const pageHeight = getPageHeight(pageDimensions[anchor.page - 1])
+                const targetTop = Math.max(
+                    0,
+                    pageTop + anchor.vertical * pageHeight - container.clientHeight / 2,
+                )
+                scrollTop = targetTop
+                lastUpdatedScrollTop = targetTop
+                currentPage = anchor.page
+                lastObservedPage = anchor.page
+                scrollPosition = (targetTop - pageTop) / pageHeight
+            }
+
+            zoomRestoreRaf = requestAnimationFrame(() => {
+                if (!container || !pendingZoomAnchor) return
+                const latestAnchor = pendingZoomAnchor
+                let targetTop: number
+                if (
+                    layoutMode === "scroll" &&
+                    pageOffsets.length > 0 &&
+                    pageDimensions[latestAnchor.page - 1]
+                ) {
+                    const pageTop = pageOffsets[latestAnchor.page - 1]
+                    const pageHeight = getPageHeight(pageDimensions[latestAnchor.page - 1])
+                    targetTop =
+                        pageTop + latestAnchor.vertical * pageHeight - container.clientHeight / 2
+                } else {
+                    targetTop =
+                        latestAnchor.vertical * container.scrollHeight - container.clientHeight / 2
+                }
+                const maxLeft = Math.max(0, container.scrollWidth - container.clientWidth)
+                container.scrollTo({
+                    top: Math.max(0, targetTop),
+                    left: latestAnchor.horizontal * maxLeft,
+                    behavior: "auto",
+                })
+                syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
+                pendingZoomAnchor = null
+                zoomRestoreRaf = null
+                isAutoScrolling = false
+            })
+        })
+    })
+
     $effect(() => {
         if (layoutMode !== "scroll") return
         const targetPage = currentPage
-        const currentScale = effectiveScale
         const offsets = pageOffsets
 
         untrack(() => {
-            if (!hasRestoredScroll) return
-            if (lastScale === -1) {
-                lastScale = currentScale
-            }
-            const scaleChanged = currentScale !== lastScale
-            if (!container || offsets.length === 0) return
-            if (targetPage === lastObservedPage && !scaleChanged) return
+            if (!hasRestoredScroll || !container || offsets.length === 0) return
+            if (pendingZoomAnchor || targetPage === lastObservedPage) return
 
             const targetOffset = offsets[targetPage - 1]
-            const behavior =
-                settingsStore.animations && lastObservedPage !== -1 && !scaleChanged
-                    ? "smooth"
-                    : "auto"
+            const behavior = settingsStore.animations && lastObservedPage !== -1 ? "smooth" : "auto"
 
             isAutoScrolling = true
-            container.scrollTo({
-                top: targetOffset,
-                behavior,
-            })
+            container.scrollTo({ top: targetOffset, behavior })
             scrollTop = targetOffset
             lastObservedPage = targetPage
-            lastScale = currentScale
 
             if (autoScrollTimeout) clearTimeout(autoScrollTimeout)
-
             if (behavior === "smooth") {
                 autoScrollTimeout = setTimeout(() => {
                     isAutoScrolling = false
@@ -512,21 +644,19 @@
                 }, AUTO_SCROLL_TIMEOUT_MS)
             } else {
                 requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        isAutoScrolling = false
-                        syncScrollStateFallback()
-                    })
+                    isAutoScrolling = false
+                    syncScrollStateFallback()
                 })
             }
         })
     })
 
     $effect(() => {
-        const _pdf = pdf
-        const _layout = layoutMode
+        void pdf
+        void layoutMode
         // Track currentPage only for single/split layouts.
         // In scroll layout, the user scrolling changes currentPage, so resetting here would hijack the scroll.
-        const _page = layoutMode !== "scroll" ? currentPage : null
+        if (layoutMode !== "scroll") void currentPage
         untrack(() => {
             hasRestoredScroll = false
         })
@@ -537,7 +667,7 @@
         if (layoutMode === "scroll" && pageOffsets.length === 0) return
 
         // Register currentPage as a dependency ONLY when NOT in scroll layout
-        const _page = layoutMode !== "scroll" ? currentPage : null
+        if (layoutMode !== "scroll") void currentPage
 
         untrack(() => {
             if (hasRestoredScroll) return
@@ -717,7 +847,7 @@
         }
     })
 
-    function highlightPage(pageNumber: number, textContainer: HTMLElement, cacheKey: 1 | 2) {
+    function highlightPage(pageNumber: number, cacheKey: 1 | 2) {
         const matches = searchStore.matches.filter((m) => m.pageNumber === pageNumber)
         const ranges: Range[] = []
 
@@ -787,13 +917,13 @@
     $effect(() => {
         if (!renderLayers || layoutMode === "scroll") return
 
-        const count = textLayer1RenderCount
-        const matches = searchStore.matches
+        void textLayer1RenderCount
+        void searchStore.matches
         const pageNo = currentPage
 
         untrack(() => {
             if (textLayer1 && pdf && !isPageLoading) {
-                highlightPage(pageNo, textLayer1, 1)
+                highlightPage(pageNo, 1)
             }
         })
         return () => {
@@ -806,13 +936,13 @@
     $effect(() => {
         if (!renderLayers || layoutMode !== "split") return
 
-        const count = textLayer2RenderCount
-        const matches = searchStore.matches
+        void textLayer2RenderCount
+        void searchStore.matches
         const pageNo = currentPage + 1
 
         untrack(() => {
             if (textLayer2 && pdf && !isPageLoading) {
-                highlightPage(pageNo, textLayer2, 2)
+                highlightPage(pageNo, 2)
             }
         })
         return () => {
@@ -822,7 +952,7 @@
         }
     })
 
-    function highlightNotes(pageNo: number, textContainer: HTMLElement, cacheKey: 1 | 2) {
+    function highlightNotes(pageNo: number, cacheKey: 1 | 2) {
         const pageNotes = notesStore.notes.filter((n) => n.pageNumber === pageNo)
         const noteRanges: { noteId: string; range: Range; color: string }[] = []
 
@@ -872,13 +1002,13 @@
     $effect(() => {
         if (!renderLayers || layoutMode === "scroll") return
 
-        const count = textLayer1RenderCount
-        const notes = notesStore.notes // reactive dependency
+        void textLayer1RenderCount
+        void notesStore.notes
         const pageNo = currentPage
 
         untrack(() => {
             if (textLayer1 && pdf && !isPageLoading) {
-                highlightNotes(pageNo, textLayer1, 1)
+                highlightNotes(pageNo, 1)
             }
         })
         return () => {
@@ -891,13 +1021,13 @@
     $effect(() => {
         if (!renderLayers || layoutMode !== "split") return
 
-        const count = textLayer2RenderCount
-        const notes = notesStore.notes // reactive dependency
+        void textLayer2RenderCount
+        void notesStore.notes
         const pageNo = currentPage + 1
 
         untrack(() => {
             if (textLayer2 && pdf && !isPageLoading) {
-                highlightNotes(pageNo, textLayer2, 2)
+                highlightNotes(pageNo, 2)
             }
         })
         return () => {
@@ -1040,14 +1170,9 @@
                 <ScrollPage
                     {pdf}
                     pageNumber={i + 1}
-                    scale={uiStore.isCompact
-                        ? (containerWidth / pageDimensions[i].width) *
-                          (isShortHeight ? scale / 1.5 : 1)
-                        : scale}
+                    scale={getScrollPageScale(pageDimensions[i])}
                     offsetY={pageOffsets[i]}
-                    width={uiStore.isCompact
-                        ? containerWidth * (isShortHeight ? scale / 1.5 : 1)
-                        : pageDimensions[i].width * scale}
+                    width={pageDimensions[i].width * getScrollPageScale(pageDimensions[i])}
                     height={getPageHeight(pageDimensions[i])}
                 />
             {/each}
@@ -1119,6 +1244,7 @@
     class:mobile-full-width={uiStore.isCompact && !isShortHeight}
     class:single-layout={layoutMode === "single"}
     class:compact-mode={uiStore.isCompact}
+    class:animations-enabled={settingsStore.animations}
 >
     <div
         class="canvas-frame"
@@ -1244,11 +1370,14 @@
         box-shadow: 12px 12px 0 var(--shadow-color);
         display: inline-flex;
         position: relative;
-        transition:
-            width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-            height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-            transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         transform-origin: top center;
+    }
+
+    .canvas-pane.animations-enabled .pdf-image-wrapper {
+        transition:
+            width 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+            height 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.16s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .pdf-image {
@@ -1301,15 +1430,7 @@
     .canvas-pane.mobile-full-width .pdf-image-wrapper {
         border-width: 0;
         box-shadow: none;
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: var(--aspect-ratio) !important;
         border-bottom: none !important;
-    }
-
-    .canvas-pane.mobile-full-width .pdf-image {
-        width: 100% !important;
-        height: auto !important;
     }
 
     .canvas-pane.mobile-full-width .pages-container:not(.split-mode) {
@@ -1328,14 +1449,12 @@
     }
 
     .canvas-pane.mobile-full-width .book-spread {
-        width: 100% !important;
         border-width: 0;
         border-bottom: none;
         box-shadow: none;
     }
 
     .canvas-pane.mobile-full-width .book-spread .pdf-image-wrapper {
-        width: 50% !important;
         border-bottom: none !important;
     }
 
@@ -1381,6 +1500,12 @@
             rgba(0, 0, 0, 0.05) 70%,
             rgba(0, 0, 0, 0) 100%
         );
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-pane.animations-enabled .pdf-image-wrapper {
+            transition: none;
+        }
     }
 
     :global(html.dark) .book-spine {

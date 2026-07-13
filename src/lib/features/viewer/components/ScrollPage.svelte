@@ -472,25 +472,11 @@
         padding: 0;
     }
 
-    .scroll-page.mobile-full-width .page-container {
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: var(--aspect-ratio) !important;
-    }
-
     .scroll-page.mobile-full-width .pdf-image-wrapper,
     .scroll-page.mobile-full-width .placeholder {
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: var(--aspect-ratio) !important;
         border-width: 0;
         border-bottom: 2px solid var(--border-color) !important;
         box-shadow: none;
-    }
-
-    .scroll-page.mobile-full-width .pdf-image {
-        width: 100% !important;
-        height: auto !important;
     }
 
     .scroll-page-badge {

@@ -29,7 +29,7 @@ export const CONSTANTS: Constants = {
 export const DEFAULT_SETTINGS: Settings = {
     layout: "scroll",
     scale: 1.5,
-    quality: 2,
+    quality: 3,
     theme: "system",
     language: "ru",
     animations: true,

@@ -8,6 +8,7 @@
     import BookmarkPlusIcon from "$lib/core/components/icons/BookmarkPlusIcon.svelte"
     import BookmarkIcon from "$lib/core/components/icons/BookmarkIcon.svelte"
     import { CONSTANTS, settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import { stepAndClampScale } from "$lib/core/utils/zoom"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { getContext } from "svelte"
     import {
@@ -34,61 +35,72 @@
         onClose: () => void
     }>()
 
-    let isShortHeight = $derived(uiStore.isShortHeight)
     const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
+    let canZoomOut = $derived(settingsStore.scale > CONSTANTS.minScale)
+    let canZoomIn = $derived(settingsStore.scale < CONSTANTS.maxScale)
 </script>
+
+{#snippet outlineButton()}
+    <Button
+        variant="action"
+        size={uiStore.isCompact ? "default" : "small"}
+        square={uiStore.isCompact}
+        open={isOutlineOpen}
+        onclick={() => (isOutlineOpen = !isOutlineOpen)}
+        aria-label={m.outline()}
+        tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
+    >
+        <MenuIcon />
+        <span class="outline-text">{m.outline()}</span>
+    </Button>
+{/snippet}
 
 <div class="viewer-header">
     <div class="doc-info">
-        {#if isLoaded}
-            <Button
-                variant="action"
-                size={uiStore.isCompact ? "default" : "small"}
-                square={uiStore.isCompact}
-                open={isOutlineOpen}
-                onclick={() => {
-                    isOutlineOpen = !isOutlineOpen
-                }}
-                aria-label={m.outline()}
-                tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
-            >
-                <MenuIcon />
-                <span class="outline-text">{m.outline()}</span>
-            </Button>
+        {#if isLoaded && !uiStore.isCompact}
+            {@render outlineButton()}
         {/if}
         <span class="file-badge">PDF</span>
         <span class="file-name" title={name}>{name || "document.pdf"}</span>
     </div>
-    <div class="header-actions">
-        {#if isLoaded}
-            {#if !uiStore.isCompact || isShortHeight}
-                <Button
-                    variant="action"
-                    square={true}
-                    onclick={() =>
-                        (settingsStore.scale = Math.max(
-                            settingsStore.scale - 0.1,
-                            CONSTANTS.minScale,
-                        ))}
-                    aria-label={m.zoom_out()}
-                    tooltip={m.zoom_out() + getShortcutHint(commandsNode, "zoom-out")}
-                >
-                    <MinusIcon />
-                </Button>
-                <Button
-                    variant="action"
-                    square={true}
-                    onclick={() =>
-                        (settingsStore.scale = Math.min(
-                            settingsStore.scale + 0.1,
-                            CONSTANTS.maxScale,
-                        ))}
-                    aria-label={m.zoom_in()}
-                    tooltip={m.zoom_in() + getShortcutHint(commandsNode, "zoom-in")}
-                >
-                    <PlusIcon />
-                </Button>
+
+    {#if isLoaded}
+        <div class="header-actions">
+            {#if uiStore.isCompact}
+                {@render outlineButton()}
             {/if}
+            <Button
+                variant="action"
+                square={true}
+                disabled={!canZoomOut}
+                onclick={() =>
+                    (settingsStore.scale = stepAndClampScale(
+                        settingsStore.scale,
+                        -1,
+                        CONSTANTS.minScale,
+                        CONSTANTS.maxScale,
+                    ))}
+                aria-label={m.zoom_out()}
+                tooltip={m.zoom_out() + getShortcutHint(commandsNode, "zoom-out")}
+            >
+                <MinusIcon />
+            </Button>
+            <Button
+                variant="action"
+                square={true}
+                disabled={!canZoomIn}
+                onclick={() =>
+                    (settingsStore.scale = stepAndClampScale(
+                        settingsStore.scale,
+                        1,
+                        CONSTANTS.minScale,
+                        CONSTANTS.maxScale,
+                    ))}
+                aria-label={m.zoom_in()}
+                tooltip={m.zoom_in() + getShortcutHint(commandsNode, "zoom-in")}
+            >
+                <PlusIcon />
+            </Button>
             {#if isBookmarked}
                 <Button
                     class="remove-bookmark-btn"
@@ -123,8 +135,10 @@
                 <SettingsIcon />
                 <span class="settings-text">{m.settings()}</span>
             </Button>
-        {/if}
+        </div>
+    {/if}
 
+    <div class="close-action">
         <Button
             variant="close"
             square={true}
@@ -150,6 +164,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
         background: var(--accent-active-color);
         background-image: repeating-linear-gradient(
             45deg,
@@ -168,14 +183,30 @@
         z-index: var(--z-dropdown);
     }
 
-    .doc-info {
+    .doc-info,
+    .header-actions,
+    .close-action {
         display: flex;
         align-items: center;
+    }
+
+    .doc-info {
         gap: 16px;
         min-width: 0;
+        flex: 1;
+    }
+
+    .header-actions {
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .close-action {
+        flex-shrink: 0;
     }
 
     .file-badge {
+        flex-shrink: 0;
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
         font-size: var(--font-size-sm);
@@ -188,6 +219,7 @@
     }
 
     .file-name {
+        min-width: 0;
         font-size: var(--font-size-xl);
         font-weight: 900;
         color: var(--text-color);
@@ -196,12 +228,6 @@
         text-overflow: ellipsis;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-
-    .header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
     }
 
     .close-icon {
@@ -213,11 +239,35 @@
 
     @media (--mobile) {
         .viewer-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-rows: auto auto;
+            gap: 6px 8px;
             padding: 8px 12px;
             padding-top: calc(8px + env(safe-area-inset-top));
             padding-left: calc(12px + env(safe-area-inset-left));
             padding-right: calc(12px + env(safe-area-inset-right));
             border-bottom-width: 2px;
+        }
+
+        .doc-info {
+            grid-column: 1;
+            grid-row: 1;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .close-action {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .header-actions {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            justify-content: space-between;
+            gap: 4px;
+            min-width: 0;
         }
 
         .file-name {
@@ -235,7 +285,7 @@
         }
     }
 
-    @media (max-height: 500px) {
+    @media (max-height: 500px) and (min-width: 801px) {
         .viewer-header {
             padding: 6px 16px;
             padding-top: calc(6px + env(safe-area-inset-top));
@@ -245,11 +295,6 @@
 
         .file-name {
             font-size: var(--font-size-md);
-        }
-
-        .file-badge {
-            font-size: var(--font-size-2xs);
-            padding: 2px 6px;
         }
     }
 

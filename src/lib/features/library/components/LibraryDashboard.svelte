@@ -652,7 +652,7 @@
         display: flex;
         align-items: center;
         z-index: var(--z-modal);
-        max-width: 90vw;
+        max-width: 90dvw;
         box-sizing: border-box;
     }
 
