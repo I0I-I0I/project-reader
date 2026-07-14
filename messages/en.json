@@ -79,6 +79,7 @@
     "keymap_jump_back": "Jump back",
     "keymap_jump_forward": "Jump forward",
     "keymap_open_jumplist": "Open jumplist",
+    "prompt_help_history": "History",
     "jumplist": "Jumplist",
     "jumplist_empty": "No jumps yet",
     "keymap_goto_page": "Goto page",

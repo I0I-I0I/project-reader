@@ -36,6 +36,7 @@ type PromptFrame = {
     manualSelectedIndex: number | null
     currentHistoryIndex: number | null
     retainedQueriesLocal: string[]
+    draftQuery: string
 }
 
 class PromptStore implements PromptService {
@@ -50,6 +51,7 @@ class PromptStore implements PromptService {
     private lastQuery: string = ""
     currentHistoryIndex: number | null = null
     retainedQueriesLocal: string[] = []
+    private draftQuery: string = ""
 
     constructor() {
         this.restoreQueryHistory()
@@ -151,12 +153,9 @@ class PromptStore implements PromptService {
             }
 
             const retainedQueries = this.retainedQueries.get(this.session.request.id) ?? []
-            const lastQuery = this.getLastQuery()
             this.retainedQueriesLocal = [...retainedQueries]
-            if (this.retainedQueriesLocal.at(-1) !== lastQuery) {
-                this.retainedQueriesLocal.push(lastQuery)
-            }
-            this.currentHistoryIndex = this.retainedQueriesLocal.length - 1
+            this.currentHistoryIndex = this.retainedQueriesLocal.length
+            this.draftQuery = this.query
             void this.refreshItems()
         })
     }
@@ -164,7 +163,7 @@ class PromptStore implements PromptService {
     close() {
         if (this.query === "") {
             this.setLastQuery(this.query)
-        } else if (this.currentHistoryIndex === this.retainedQueriesLocal.length - 1) {
+        } else if (this.currentHistoryIndex === this.retainedQueriesLocal.length) {
             this.setLastQuery(this.query)
         }
 
@@ -197,6 +196,7 @@ class PromptStore implements PromptService {
             manualSelectedIndex: this.manualSelectedIndex,
             currentHistoryIndex: this.currentHistoryIndex,
             retainedQueriesLocal: [...this.retainedQueriesLocal],
+            draftQuery: this.draftQuery,
         }
         this.suspendedFrames.push(frame)
         this.session = null
@@ -216,12 +216,21 @@ class PromptStore implements PromptService {
         this.manualSelectedIndex = frame.manualSelectedIndex
         this.currentHistoryIndex = frame.currentHistoryIndex
         this.retainedQueriesLocal = [...frame.retainedQueriesLocal]
+        this.draftQuery = frame.draftQuery
     }
 
     setQuery(query: string) {
+        this.applyQuery(query, true)
+    }
+
+    private applyQuery(query: string, resetHistoryIndex: boolean) {
         const session = this.session
         const snapshot = this.snapshot
         if (!session || !snapshot) return
+        if (resetHistoryIndex) {
+            this.draftQuery = query
+            this.currentHistoryIndex = this.retainedQueriesLocal.length
+        }
         this.manualSelectedIndex = null
         this.query = query
         this.snapshot = { ...snapshot, query, selectedIndex: -1 }
@@ -260,10 +269,12 @@ class PromptStore implements PromptService {
 
         if (session.request.rememberQuery && this.query !== "") {
             const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
-            if (retainedQueries.at(-1) !== this.query && this.query !== "") {
-                retainedQueries.push(this.query)
-            }
-            this.retainedQueries.set(session.request.id, retainedQueries.slice(-MAX_QUERY_HISTORY))
+            if (retainedQueries.at(-1) !== this.query) retainedQueries.push(this.query)
+            const nextRetainedQueries = retainedQueries.slice(-MAX_QUERY_HISTORY)
+            this.retainedQueries.set(session.request.id, nextRetainedQueries)
+            this.retainedQueriesLocal = [...nextRetainedQueries]
+            this.currentHistoryIndex = this.retainedQueriesLocal.length
+            this.draftQuery = this.query
             this.persistQueryHistory()
         }
 
@@ -289,22 +300,25 @@ class PromptStore implements PromptService {
 
     historyForward(): void {
         if (!this.snapshot || this.currentHistoryIndex === null) return
-        const nextIndex = Math.min(
-            this.currentHistoryIndex + 1,
-            this.retainedQueriesLocal.length - 1,
-        )
-        if (nextIndex < 0 || nextIndex === this.currentHistoryIndex) return
+        const nextIndex = Math.min(this.currentHistoryIndex + 1, this.retainedQueriesLocal.length)
+        if (nextIndex === this.currentHistoryIndex) return
         this.currentHistoryIndex = nextIndex
-        this.setQuery(this.retainedQueriesLocal[nextIndex])
+        const nextItem =
+            nextIndex === this.retainedQueriesLocal.length
+                ? this.draftQuery
+                : this.retainedQueriesLocal[nextIndex]
+        if (nextItem !== this.query) this.applyQuery(nextItem, false)
     }
 
     historyBack(): void {
         if (!this.snapshot || this.currentHistoryIndex === null) return
-        const nextIndex = Math.max(this.currentHistoryIndex - 1, 0)
-        if (nextIndex >= this.retainedQueriesLocal.length || nextIndex === this.currentHistoryIndex)
-            return
+        let nextIndex = this.currentHistoryIndex - 1
+        while (nextIndex >= 0 && this.retainedQueriesLocal[nextIndex] === this.query) {
+            nextIndex -= 1
+        }
+        if (nextIndex < 0) return
         this.currentHistoryIndex = nextIndex
-        this.setQuery(this.retainedQueriesLocal[nextIndex])
+        this.applyQuery(this.retainedQueriesLocal[nextIndex], false)
     }
 
     private async refreshItems() {

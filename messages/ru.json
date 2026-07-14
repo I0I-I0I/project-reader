@@ -112,6 +112,7 @@
     "prompt_help_select": "Выбрать",
     "prompt_help_close": "Закрыть",
     "prompt_options_load_failed": "Не удалось загрузить варианты",
+    "prompt_help_history": "История",
     "search_history": "История поиска",
     "search_history_empty": "История поиска пуста",
     "clear_search_history": "Очистить историю поиска",

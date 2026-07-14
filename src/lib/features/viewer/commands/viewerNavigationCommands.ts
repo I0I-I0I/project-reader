@@ -2,10 +2,7 @@ import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloa
 import { defineCommands } from "$lib/features/commands/commands.types"
 import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
 import type { PromptService } from "$lib/features/prompt/prompt.types"
-import {
-    buildGotoPageItems,
-    parsePage,
-} from "$lib/features/viewer/commands/viewerPromptItems"
+import { buildGotoPageItems, parsePage } from "$lib/features/viewer/commands/viewerPromptItems"
 import * as m from "$lib/paraglide/messages"
 
 export interface ViewerNavigationPort {

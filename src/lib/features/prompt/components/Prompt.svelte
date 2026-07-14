@@ -152,7 +152,9 @@
                         {/each}
                         {m.prompt_help_navigate()}
                     </span>
-                    <span class="key-group"><kbd>A-n</kbd> <kbd>A-p</kbd> History</span>
+                    <span class="key-group"
+                        ><kbd>A-n</kbd> <kbd>A-p</kbd> {m.prompt_help_history()}</span
+                    >
                     <span class="key-group"><kbd>↵</kbd> {m.prompt_help_select()}</span>
                     <span class="key-group"><kbd>esc</kbd> {m.prompt_help_close()}</span>
                 </span>

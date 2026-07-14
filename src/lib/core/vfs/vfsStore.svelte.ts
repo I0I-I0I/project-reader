@@ -125,8 +125,7 @@ export class VFSStore {
         if (!browser || this.initialized) return Promise.resolve()
         if (this.initializationPromise) return this.initializationPromise
 
-        let initialization: Promise<void>
-        initialization = (async () => {
+        const initialization = (async () => {
             try {
                 // Only load metadata on startup; previews and Object URLs remain lazy.
                 const [allFolders, allFiles] = await Promise.all([
@@ -152,14 +151,15 @@ export class VFSStore {
             } catch (err) {
                 this.initialized = false
                 console.error("VFS initialization failed:", err)
-            } finally {
-                if (this.initializationPromise === initialization) {
-                    this.initializationPromise = null
-                }
             }
         })()
 
         this.initializationPromise = initialization
+        void initialization.finally(() => {
+            if (this.initializationPromise === initialization) {
+                this.initializationPromise = null
+            }
+        })
         return initialization
     }
 

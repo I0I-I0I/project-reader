@@ -38,7 +38,7 @@ describe("promptStore", () => {
         expect(promptStore.getQuery()).toBe("latest")
     })
 
-    it("navigates remembered queries from newest to oldest", async () => {
+    it("navigates backward and forward through remembered queries", async () => {
         const remember = async (query: string) => {
             promptStore.open({
                 id: "query-history",
@@ -62,7 +62,6 @@ describe("promptStore", () => {
             onQueryChange,
         })
 
-        promptStore.historyBack()
         expect(promptStore.getQuery()).toBe("second")
         promptStore.historyBack()
         expect(promptStore.getQuery()).toBe("first")
@@ -72,11 +71,37 @@ describe("promptStore", () => {
         expect(promptStore.getQuery()).toBe("second")
         promptStore.historyForward()
         expect(promptStore.getQuery()).toBe("second")
-        expect(onQueryChange.mock.calls.map(([query]) => query)).toEqual([
-            "second",
-            "first",
-            "second",
-        ])
+        expect(onQueryChange.mock.calls.map(([query]) => query)).toEqual(["first", "second"])
+    })
+
+    it("restores the current draft after navigating forward through history", async () => {
+        const remember = async (query: string) => {
+            void promptStore.open({
+                id: "draft-history",
+                initialQuery: query,
+                rememberQuery: true,
+                filter: "none",
+                items: () => [{ id: "item", label: "Item", value: "item" }],
+            })
+            await flush()
+            await promptStore.selectCurrent()
+        }
+        await remember("first")
+        await remember("second")
+
+        void promptStore.open({
+            id: "draft-history",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+        promptStore.setQuery("current draft")
+        expect(promptStore.currentHistoryIndex).toBe(promptStore.retainedQueriesLocal.length)
+
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("second")
+        promptStore.historyForward()
+        expect(promptStore.getQuery()).toBe("current draft")
     })
 
     it("restores the last query when an empty initial query is provided", async () => {
@@ -102,7 +127,7 @@ describe("promptStore", () => {
         expect(promptStore.getQuery()).toBe("remember me")
     })
 
-    it("resets local history when reopening a request whose latest query is unchanged", async () => {
+    it("keeps selected history when reopening with a different draft", async () => {
         const remember = async (id: string, query: string) => {
             promptStore.open({
                 id,
@@ -128,8 +153,32 @@ describe("promptStore", () => {
 
         promptStore.historyBack()
         expect(promptStore.getQuery()).toBe("alpha")
+    })
+
+    it("adds only selected queries to retained history", async () => {
+        const selected = promptStore.open({
+            id: "selected-history-only",
+            initialQuery: "selected",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+        await flush()
+        await promptStore.selectCurrent()
+        await selected
+
+        promptStore.open({
+            id: "selected-history-only",
+            initialQuery: "unselected draft",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+        promptStore.setQuery("edited but unselected")
+
+        expect(promptStore.retainedQueriesLocal).toEqual(["selected"])
         promptStore.historyBack()
-        expect(promptStore.getQuery()).toBe("alpha")
+        expect(promptStore.getQuery()).toBe("selected")
     })
 
     it("closes an open request before invoking its default selection callback", async () => {
