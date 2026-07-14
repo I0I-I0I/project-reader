@@ -39,18 +39,13 @@
     import ChevronIcon from "$lib/core/components/icons/ChevronIcon.svelte"
     import { createSwipeState } from "$lib/features/viewer/stores/swipe.svelte"
     import { settingsCommands } from "$lib/core/commands/settingsCommands"
-    import { createViewerCommands } from "$lib/features/viewer/commands/viewerCommandsFactory"
+    import { createViewerNavigationCommands } from "$lib/features/viewer/commands/viewerNavigationCommands"
+    import { createViewerSearchCommands } from "$lib/features/viewer/commands/viewerSearchCommands"
+    import { createViewerDisplayCommands } from "$lib/features/viewer/commands/viewerDisplayCommands"
+    import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
     import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
     import { viewerSettingsCommands } from "$lib/features/viewer/commands/viewerSettingsCommands"
-    import {
-        closeViewerSearch,
-        selectViewerSearchResult,
-    } from "$lib/features/viewer/commands/viewerPromptFlows"
     import { createViewerBookmarkCommands } from "$lib/features/viewer/commands/viewerBookmarkCommandFactory"
-    import {
-        openScopedViewerPagePrompt,
-        openScopedViewerSearchPrompt,
-    } from "$lib/features/viewer/commands/viewerScopedPromptFlows"
 
     let commandsNode = $state.raw<CommandScope>(undefined as any)
     let scrollContainer = $state<HTMLElement | null>(null)
@@ -63,47 +58,88 @@
         return scrollContainer
     }
 
-    const viewerTypedCommands = createViewerCommands({
-        isBookmarkToggleBlocked: () =>
-            viewerUIStore.isBookmarkAddModalOpen || viewerUIStore.bookmarkToDeleteId !== null,
-        // Resolve directly from stores so the eager command-label check cannot hit a derived TDZ.
-        isCurrentPageBookmarked: () => {
-            const bookId = viewerStore.getCurrentBook()?.id
-            return bookId
-                ? bookmarksStore.bookmarks.some(
-                      (bookmark) =>
-                          bookmark.bookId === bookId &&
-                          bookmark.pageNumber === viewerStore.currentPage,
-                  )
-                : false
+    const viewerNavigationCommands = createViewerNavigationCommands({
+        prompt: promptStore,
+        scope: {
+            onDestroy: (callback) => commandsNode.onDestroy(callback),
+            get isDestroyed() {
+                return commandsNode.isDestroyed
+            },
         },
-        toggleBookmark: () => handleBookmarkHeaderClick(),
-        closeViewer: () => {
-            if (notesStore.editingNote || notesStore.activePopup) {
-                notesStore.editingNote = null
-                notesStore.editorCoords = null
-                notesStore.activePopup = null
-                return
-            }
-            const book = viewerStore.getCurrentBook()
-            if (book) vfsStore.pushForwardHistory(book.id)
-            handleClose()
+        viewer: {
+            getCurrentPage: () => viewerStore.currentPage,
+            getTotalPages: () => viewerStore.activeTotalPages,
+            goToPage: (pageNumber, options) => viewerStore.goToPage?.(pageNumber, options),
+            nextPage: () => nextPage(),
+            previousPage: () => prevPage(),
+            close: () => {
+                if (notesStore.editingNote || notesStore.activePopup) {
+                    notesStore.editingNote = null
+                    notesStore.editorCoords = null
+                    notesStore.activePopup = null
+                    return
+                }
+                const book = viewerStore.getCurrentBook()
+                if (book) vfsStore.pushForwardHistory(book.id)
+                handleClose()
+            },
+            scroll: (payload) => {
+                if (!payload) return
+                const pane = getScrollContainer()
+                if (!pane) return
+                const amount =
+                    payload.amount === "page" ? window.innerHeight / 2 : window.innerHeight * 0.2
+                pane.scrollBy({
+                    top: payload.direction === "up" ? -amount : amount,
+                    behavior: !payload.repeated && settingsStore.animations ? "smooth" : "auto",
+                })
+            },
         },
-        nextPage: () => nextPage(),
-        previousPage: () => prevPage(),
-        goToPage: (pageNumber, isJump) => {
-            const targetPage = Math.min(
-                Math.max(1, pageNumber),
-                Math.max(1, viewerStore.activeTotalPages),
-            )
-            viewerStore.goToPage?.(targetPage, { isJump })
+    })
+
+    const viewerSearchCommands = createViewerSearchCommands({
+        prompt: promptStore,
+        scope: { onDestroy: (callback) => commandsNode.onDestroy(callback) },
+        viewer: {
+            getCurrentPage: () => viewerStore.currentPage,
+            goToPage: (pageNumber, options) => viewerStore.goToPage?.(pageNumber, options),
         },
-        openPagePrompt: () => openScopedViewerPagePrompt(commandsNode),
-        openSearchPrompt: () => openScopedViewerSearchPrompt(commandsNode),
-        selectSearchResult: selectViewerSearchResult,
-        closeSearch: closeViewerSearch,
-        nextSearchResult: () => searchStore.next(),
-        previousSearchResult: () => searchStore.prev(),
+        search: {
+            get query() {
+                return searchStore.query
+            },
+            get matches() {
+                return searchStore.matches
+            },
+            get currentMatchIndex() {
+                return searchStore.currentMatchIndex
+            },
+            get searchHistory() {
+                return searchStore.searchHistory
+            },
+            get isActive() {
+                return searchStore.isActive
+            },
+            get isIndexing() {
+                return searchStore.isIndexing
+            },
+            get isSearching() {
+                return searchStore.isSearching
+            },
+            startIndexing: () => searchStore.startIndexing(),
+            begin: (startPage) => searchStore.begin(startPage),
+            setQuery: (query) => searchStore.setQuery(query),
+            selectMatch: (query, matchIndex) => searchStore.selectMatch(query, matchIndex),
+            next: () => searchStore.next(),
+            previous: () => searchStore.previous(),
+            close: () => searchStore.close(),
+            clearHistory: () => searchStore.clearHistory(),
+            onMatchesChanged: (listener) => searchStore.onMatchesChanged(listener),
+            pageText: (pageNumber) => searchStore.pageTexts.get(pageNumber)?.original ?? "",
+        },
+    })
+
+    const viewerDisplayCommands = createViewerDisplayCommands({
         toggleOutline: () => (sidebars.outline = !sidebars.outline),
         toggleSettings: () => (sidebars.settings = !sidebars.settings),
         toggleNotes: () => (sidebars.notes = !sidebars.notes),
@@ -116,20 +152,39 @@
             }
             await document.documentElement.requestFullscreen()
         },
-        scroll: (payload) => {
-            if (!payload) return
-            const pane = getScrollContainer()
-            if (!pane) return
-            const amount =
-                payload.amount === "page" ? window.innerHeight / 2 : window.innerHeight * 0.2
-            pane.scrollBy({
-                top: payload.direction === "up" ? -amount : amount,
-                behavior: !payload.repeated && settingsStore.animations ? "smooth" : "auto",
-            })
-        },
     })
 
-    const viewerBookmarkCommands = createViewerBookmarkCommands(() => commandsNode)
+    const viewerBookmarkCommands = createViewerBookmarkCommands({
+        prompt: promptStore,
+        scope: { onDestroy: (callback) => commandsNode.onDestroy(callback) },
+        bookmarks: {
+            list: () => bookmarksStore.bookmarks,
+            resolveBookName: (bookId) => vfsStore.nodes[bookId]?.name ?? m.unknown_book(),
+            open: async (bookmarkId) => {
+                const bookmark = bookmarksStore.bookmarks.find(({ id }) => id === bookmarkId)
+                if (!bookmark) return
+                const result = await commandsStore.execute("viewer.open", {
+                    bookId: bookmark.bookId,
+                })
+                if (result.status === "executed") {
+                    viewerStore.goToPage?.(bookmark.pageNumber, { isJump: true })
+                }
+            },
+            isToggleBlocked: () =>
+                viewerUIStore.isBookmarkAddModalOpen || viewerUIStore.bookmarkToDeleteId !== null,
+            isCurrentPageBookmarked: () => {
+                const bookId = viewerStore.getCurrentBook()?.id
+                return bookId
+                    ? bookmarksStore.bookmarks.some(
+                          (bookmark) =>
+                              bookmark.bookId === bookId &&
+                              bookmark.pageNumber === viewerStore.currentPage,
+                      )
+                    : false
+            },
+            toggleCurrentPage: () => handleBookmarkHeaderClick(),
+        },
+    })
     const viewerMutationCommands = createViewerMutationCommands({
         addBookmark: async (payload: { page?: number; name?: string } | undefined) => {
             if (payload?.name && currentBookId) {
@@ -209,7 +264,7 @@
     })
 
     commandsNode = useCommands([
-        viewerTypedCommands["viewer.bookmark.toggle-page"],
+        viewerBookmarkCommands["viewer.bookmark.toggle-page"],
         viewerBookmarkCommands["viewer.bookmark.open"],
         viewerMutationCommands["viewer.bookmark.add"]!,
         {
@@ -241,26 +296,27 @@
         viewerSettingsCommands.zoomOut,
         viewerSettingsCommands.qualityIn,
         viewerSettingsCommands.qualityOut,
-        viewerTypedCommands["viewer.scroll"],
-        viewerTypedCommands["viewer.page.next"],
-        viewerTypedCommands["viewer.page.previous"],
-        viewerTypedCommands["viewer.sidebar.outline.toggle"],
-        viewerTypedCommands["viewer.sidebar.settings.toggle"],
-        viewerTypedCommands["viewer.sidebar.notes.toggle"],
-        viewerTypedCommands["viewer.sidebar.bookmarks.toggle"],
-        viewerTypedCommands["viewer.close"],
-        viewerTypedCommands["viewer.toolbar.toggle"],
-        viewerTypedCommands["viewer.fullscreen.toggle"],
-        viewerTypedCommands["viewer.page.go-to"],
-        viewerTypedCommands["viewer.search"],
+        viewerNavigationCommands["viewer.scroll"],
+        viewerNavigationCommands["viewer.page.next"],
+        viewerNavigationCommands["viewer.page.previous"],
+        viewerDisplayCommands["viewer.sidebar.outline.toggle"],
+        viewerDisplayCommands["viewer.sidebar.settings.toggle"],
+        viewerDisplayCommands["viewer.sidebar.notes.toggle"],
+        viewerDisplayCommands["viewer.sidebar.bookmarks.toggle"],
+        viewerNavigationCommands["viewer.close"],
+        viewerDisplayCommands["viewer.toolbar.toggle"],
+        viewerDisplayCommands["viewer.fullscreen.toggle"],
+        viewerNavigationCommands["viewer.page.go-to"],
+        viewerSearchCommands["viewer.search"],
         {
-            ...viewerTypedCommands["viewer.search.close"],
+            ...viewerSearchCommands["viewer.search.close"],
             keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,
-            disabled: () => !uiStore.isSearchModeActive,
+            disabled: () => !searchStore.isActive,
         },
-        viewerTypedCommands["viewer.search.next"],
-        viewerTypedCommands["viewer.search.previous"],
+        viewerSearchCommands["viewer.search.next"],
+        viewerSearchCommands["viewer.search.previous"],
+        viewerSearchCommands["viewer.search.history.clear"],
     ])
 
     const currentBook = $derived(viewerStore.getCurrentBook())
@@ -549,7 +605,12 @@
 
     $effect(() => {
         const currentUrl = url
-        if (!currentUrl) {
+        const bookId = currentBookId
+        untrack(() => {
+            searchStore.reset()
+            if (promptStore.snapshot?.request.id === "viewer-search") promptStore.close()
+        })
+        if (!currentUrl || !bookId) {
             untrack(() => {
                 isLoaded = false
                 pdf = null
@@ -586,7 +647,7 @@
                             viewerStore.currentPage = 1
                         }
                         isLoaded = true
-                        searchStore.initPdf(doc)
+                        searchStore.initPdf({ pdf: doc, bookId })
 
                         const currentBook = viewerStore.getCurrentBook()
                         if (currentBook && currentBook.totalPages !== pagesCount) {
@@ -1276,7 +1337,7 @@
                             </div>
                         {/if}
 
-                        {#if isLoaded && uiStore.isSearchModeActive}
+                        {#if isLoaded && searchStore.isActive}
                             {#if searchStore.matches.length > 0}
                                 <div
                                     class="search-match-badge {!uiStore.isToolbarsVisible
@@ -1368,7 +1429,7 @@
                             </Button>
                         {/if}
 
-                        {#if isLoaded && !uiStore.isSearchModeActive}
+                        {#if isLoaded && !searchStore.isActive}
                             <Button
                                 size="large"
                                 variant="fab"

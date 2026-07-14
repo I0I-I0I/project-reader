@@ -51,9 +51,9 @@ describe("settings commands", () => {
 
         const execution = commandsStore.execute("settings.language")
         await new Promise((resolve) => setTimeout(resolve, 0))
-        expect(
-            promptStore.snapshot?.options.find(({ value }) => value === "ru")?.englishLabel,
-        ).toBe("Russian")
+        expect(promptStore.snapshot?.items.find(({ value }) => value === "ru")?.englishLabel).toBe(
+            "Russian",
+        )
         promptStore.close()
         await execution
     })
@@ -68,7 +68,7 @@ describe("settings commands", () => {
         expect(promptStore.snapshot?.request.id).toBe("settings.theme")
 
         const darkIndex =
-            promptStore.snapshot?.options.findIndex(({ value }) => value === "dark") ?? -1
+            promptStore.snapshot?.items.findIndex(({ value }) => value === "dark") ?? -1
         if (darkIndex > 0) promptStore.moveSelection(darkIndex)
         await promptStore.selectCurrent()
         await execution

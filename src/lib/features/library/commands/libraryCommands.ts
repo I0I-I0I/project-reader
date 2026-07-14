@@ -8,7 +8,7 @@ import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
 import type { FileNode, FolderNode } from "$lib/core/vfs/vfsStore.types"
 import { defineCommands } from "$lib/features/commands/commands.types"
 import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
-import type { PromptOption } from "$lib/features/prompt/prompt.types"
+import type { PromptItem } from "$lib/features/prompt/prompt.types"
 import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
 import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
 import { fileNodeToBook } from "$lib/features/viewer/stores/viewerStore.types"
@@ -42,7 +42,7 @@ async function openBook(bookId: string): Promise<void> {
     await goto(resolve(localizedPath("/viewer") as any))
 }
 
-function bookOptions(recursive: boolean): PromptOption<string>[] {
+function bookItems(recursive: boolean): PromptItem<string>[] {
     let files = [...vfsStore.allFiles].sort((a, b) => b.updatedAt - a.updatedAt)
     if (recursive && vfsStore.currentFolderId !== null) {
         const descendantIds = vfsStore.currentFolderDescendantIds
@@ -67,10 +67,10 @@ function bookOptions(recursive: boolean): PromptOption<string>[] {
     })
 }
 
-function folderOptions(): PromptOption<string | null>[] {
-    const options: PromptOption<string | null>[] = []
+function folderItems(): PromptItem<string | null>[] {
+    const items: PromptItem<string | null>[] = []
     if (vfsStore.currentFolderId !== null) {
-        options.push({
+        items.push({
             id: "folder-root",
             label: m.root(),
             englishLabel: m.root({}, { locale: "en" }),
@@ -82,14 +82,14 @@ function folderOptions(): PromptOption<string | null>[] {
         (node): node is FolderNode =>
             node.type === "folder" && node.id !== vfsStore.currentFolderId,
     )) {
-        options.push({
+        items.push({
             id: `folder-${folder.id}`,
             label: vfsStore.getNodePath(folder.id),
             category: "navigation",
             value: folder.id,
         })
     }
-    return options
+    return items
 }
 
 function collectInvalidMoveTargets(nodeIds: string[]): Set<string> {
@@ -111,10 +111,10 @@ function collectInvalidMoveTargets(nodeIds: string[]): Set<string> {
     return invalid
 }
 
-function moveTargetOptions(nodeIds: string[]): PromptOption<string | null>[] {
-    const options: PromptOption<string | null>[] = []
+function moveTargetItems(nodeIds: string[]): PromptItem<string | null>[] {
+    const items: PromptItem<string | null>[] = []
     if (nodeIds.some((id) => vfsStore.nodes[id]?.parentId !== null)) {
-        options.push({
+        items.push({
             id: "folder-root",
             label: m.root(),
             englishLabel: m.root({}, { locale: "en" }),
@@ -128,7 +128,7 @@ function moveTargetOptions(nodeIds: string[]): PromptOption<string | null>[] {
     )) {
         const alreadyThere = nodeIds.every((id) => vfsStore.nodes[id]?.parentId === folder.id)
         if (!alreadyThere && !invalid.has(folder.id)) {
-            options.push({
+            items.push({
                 id: `folder-${folder.id}`,
                 label: vfsStore.getNodePath(folder.id),
                 value: folder.id,
@@ -136,7 +136,7 @@ function moveTargetOptions(nodeIds: string[]): PromptOption<string | null>[] {
             })
         }
     }
-    return options
+    return items
 }
 
 async function moveNodes(nodeIds: string[], targetFolderId: string | null): Promise<void> {
@@ -166,7 +166,7 @@ export const libraryCommands = defineCommands({
             }
             const bookId = await promptStore.choose({
                 id: "library-books",
-                options: bookOptions(false),
+                items: () => bookItems(false),
                 filter: "fuzzy",
             })
             if (bookId) await commandsStore.execute("viewer.open", { bookId })
@@ -195,7 +195,7 @@ export const libraryCommands = defineCommands({
             }
             const bookId = await promptStore.choose({
                 id: "library-books-recursive",
-                options: bookOptions(true),
+                items: () => bookItems(true),
                 filter: "fuzzy",
             })
             if (bookId) {
@@ -262,7 +262,7 @@ export const libraryCommands = defineCommands({
             }
             const folderId = await promptStore.choose({
                 id: "library-folders",
-                options: folderOptions(),
+                items: folderItems,
                 filter: "fuzzy",
             })
             if (folderId !== undefined) {
@@ -380,7 +380,7 @@ export const libraryCommands = defineCommands({
             if (!payload || !("targetFolderId" in payload)) {
                 targetFolderId = await promptStore.choose({
                     id: "library-move-target",
-                    options: moveTargetOptions(nodeIds),
+                    items: () => moveTargetItems(nodeIds),
                     filter: "fuzzy",
                 })
                 if (targetFolderId === undefined) return
@@ -425,21 +425,22 @@ export const libraryCommands = defineCommands({
         palette: false,
         run: async (payload) => {
             if (!payload?.nodeId) return
+            const nodeId = payload.nodeId
             if (!("targetFolderId" in payload)) {
                 const targetFolderId = await promptStore.choose({
                     id: "library-move-target",
-                    options: moveTargetOptions([payload.nodeId]),
+                    items: () => moveTargetItems([nodeId]),
                     filter: "fuzzy",
                 })
                 if (targetFolderId !== undefined) {
                     await commandsStore.execute("library.node.move", {
-                        nodeId: payload.nodeId,
+                        nodeId,
                         targetFolderId,
                     })
                 }
                 return
             }
-            await moveNodes([payload.nodeId], payload.targetFolderId ?? null)
+            await moveNodes([nodeId], payload.targetFolderId ?? null)
         },
     },
     "library.node.delete": {

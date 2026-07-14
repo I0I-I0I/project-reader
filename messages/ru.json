@@ -114,6 +114,7 @@
     "prompt_options_load_failed": "Не удалось загрузить варианты",
     "search_history": "История поиска",
     "search_history_empty": "История поиска пуста",
+    "clear_search_history": "Очистить историю поиска",
     "enter_page_number": "Введите номер страницы:",
     "show_toolbars": "Показать панели инструментов",
     "hide_toolbars": "Скрыть панели инструментов",

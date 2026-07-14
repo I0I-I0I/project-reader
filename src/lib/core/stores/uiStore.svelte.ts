@@ -4,7 +4,6 @@ import { untrack } from "svelte"
 
 class UIStore {
     #isToolbarsVisible = $state(true)
-    #isSearchModeActive = $state(false)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
     #isNewFolderModalOpen = $state(false)
@@ -66,7 +65,6 @@ class UIStore {
         this.#nodeToMoveId = null
         this.#isEditMetadataModalOpen = false
         this.#nodeToEditMetadataId = null
-        this.#isSearchModeActive = false
         this.#customModalOpen = false
         this.#isRelinkModalOpen = false
         this.#relinkNodeId = null
@@ -163,14 +161,6 @@ class UIStore {
 
     get isShortHeight(): boolean {
         return this.#isShortHeight
-    }
-
-    get isSearchModeActive(): boolean {
-        return this.#isSearchModeActive
-    }
-
-    set isSearchModeActive(value: boolean) {
-        this.#isSearchModeActive = value
     }
 
     get isModalOpen(): boolean {

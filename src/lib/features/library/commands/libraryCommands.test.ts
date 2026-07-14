@@ -95,7 +95,7 @@ describe("library commands", () => {
         await new Promise((resolve) => setTimeout(resolve, 0))
 
         expect(promptStore.snapshot?.request.id).toBe("library-folders")
-        expect(promptStore.snapshot?.options.map(({ value }) => value)).toContain(null)
+        expect(promptStore.snapshot?.items.map(({ value }) => value)).toContain(null)
 
         promptStore.close()
         await choosing
@@ -112,9 +112,9 @@ describe("library commands", () => {
         const executing = scope.execute("library.selection.move", { nodeIds: ["book"] })
         await new Promise((resolve) => setTimeout(resolve, 0))
         expect(promptStore.snapshot?.request.id).toBe("library-move-target")
-        expect(
-            promptStore.snapshot?.options.find(({ value }) => value === null)?.englishLabel,
-        ).toBe(m.root({}, { locale: "en" }))
+        expect(promptStore.snapshot?.items.find(({ value }) => value === null)?.englishLabel).toBe(
+            m.root({}, { locale: "en" }),
+        )
         await promptStore.selectCurrent()
         await executing
 
@@ -204,7 +204,7 @@ describe("library commands", () => {
         await new Promise((resolve) => setTimeout(resolve, 0))
 
         expect(promptStore.snapshot?.request.id).toBe("library-move-target")
-        expect(promptStore.snapshot?.options.map(({ value }) => value)).toContain(null)
+        expect(promptStore.snapshot?.items.map(({ value }) => value)).toContain(null)
 
         promptStore.close()
         await choosing

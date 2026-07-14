@@ -79,7 +79,7 @@
                     role="combobox"
                     aria-autocomplete="list"
                     aria-controls="prompt-results-list"
-                    aria-expanded={snapshot.options.length > 0}
+                    aria-expanded={snapshot.items.length > 0}
                     aria-activedescendant={snapshot.selectedIndex >= 0
                         ? `prompt-result-${snapshot.selectedIndex}`
                         : undefined}
@@ -100,8 +100,8 @@
                 role="listbox"
                 aria-label={m.prompt_search_aria()}
             >
-                {#if snapshot.options.length > 0}
-                    {#each snapshot.options as item, index (item.id)}
+                {#if snapshot.items.length > 0}
+                    {#each snapshot.items as item, index (item.id)}
                         <PromptItem
                             id={`prompt-result-${index}`}
                             {item}
@@ -133,7 +133,7 @@
             </div>
 
             <footer>
-                <span>{snapshot.options.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
+                <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
                 <span
                     ><kbd>↑</kbd><kbd>↓</kbd>
                     {m.prompt_help_navigate()} · <kbd>↵</kbd>

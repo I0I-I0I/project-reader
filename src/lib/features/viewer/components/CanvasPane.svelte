@@ -1133,7 +1133,7 @@
     })
 
     $effect(() => {
-        if (!uiStore.isSearchModeActive || promptStore.isOpen) return
+        if (!searchStore.isActive || promptStore.isOpen) return
 
         const activeRange = searchStore.activeRange
         if (activeRange && container) {

@@ -38,7 +38,27 @@
     onMount(() => uiStore.registerModal(() => isHelpOpen))
     onMount(() => uiStore.registerModal(() => promptStore.isOpen))
 
-    const rootBookmarkCommands = createViewerBookmarkCommands(() => rootNode)
+    const rootBookmarkCommands = createViewerBookmarkCommands({
+        prompt: promptStore,
+        scope: { onDestroy: (callback) => rootNode.onDestroy(callback) },
+        bookmarks: {
+            list: () => bookmarksStore.bookmarks,
+            resolveBookName: (bookId) => vfsStore.nodes[bookId]?.name ?? m.unknown_book(),
+            open: async (bookmarkId) => {
+                const bookmark = bookmarksStore.bookmarks.find(({ id }) => id === bookmarkId)
+                if (!bookmark) return
+                const result = await commandsStore.execute("viewer.open", {
+                    bookId: bookmark.bookId,
+                })
+                if (result.status === "executed") {
+                    viewerStore.goToPage?.(bookmark.pageNumber, { isJump: true })
+                }
+            },
+            isToggleBlocked: () => true,
+            isCurrentPageBookmarked: () => false,
+            toggleCurrentPage: () => undefined,
+        },
+    })
     rootNode = useCommands([
         {
             id: "prompt.open",

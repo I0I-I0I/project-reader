@@ -10,7 +10,7 @@ describe("promptStore", () => {
     it("returns a typed choice and closes by default", async () => {
         const choice = promptStore.choose({
             id: "theme",
-            options: [{ id: "dark", label: "Dark", value: "dark" as const }],
+            items: () => [{ id: "dark", label: "Dark", value: "dark" as const }],
         })
         await flush()
 
@@ -26,7 +26,7 @@ describe("promptStore", () => {
         })
         const closed = promptStore.open({
             id: "commands",
-            options: [{ id: "next", label: "Next page", value: "viewer.page.next" }],
+            items: () => [{ id: "next", label: "Next page", value: "viewer.page.next" }],
             onSelect,
         })
         await flush()
@@ -41,7 +41,7 @@ describe("promptStore", () => {
         const closed = promptStore.open({
             id: "search",
             closeOnSelect: false,
-            options: [{ id: "history", label: "query", value: "query" }],
+            items: () => [{ id: "history", label: "query", value: "query" }],
             onSelect,
         })
         await flush()
@@ -55,18 +55,18 @@ describe("promptStore", () => {
     it("cancels a chooser when another request replaces it", async () => {
         const first = promptStore.choose({
             id: "first",
-            options: [{ id: "one", label: "One", value: 1 }],
+            items: () => [{ id: "one", label: "One", value: 1 }],
         })
         const second = promptStore.choose({
             id: "second",
-            options: [{ id: "two", label: "Two", value: 2 }],
+            items: () => [{ id: "two", label: "Two", value: 2 }],
         })
         await expect(first).resolves.toBeUndefined()
         promptStore.close()
         await expect(second).resolves.toBeUndefined()
     })
 
-    it("discards stale asynchronous option results", async () => {
+    it("discards stale asynchronous item results", async () => {
         let resolveFirst!: (value: { id: string; label: string; value: string }[]) => void
         const source = vi.fn((query: string) => {
             if (query === "old") {
@@ -77,56 +77,57 @@ describe("promptStore", () => {
             return Promise.resolve([{ id: query, label: query, value: query }])
         })
 
-        void promptStore.open({ id: "async", initialQuery: "old", filter: "none", options: source })
+        void promptStore.open({ id: "async", initialQuery: "old", filter: "none", items: source })
+        expect(promptStore.snapshot?.isLoading).toBe(true)
         promptStore.setQuery("new")
         await flush()
-        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["new"])
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["new"])
 
         resolveFirst([{ id: "old", label: "old", value: "old" }])
         await flush()
-        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["new"])
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["new"])
     })
 
-    it("preserves the selected option when external results refresh", async () => {
-        let options = [
+    it("preserves the selected item when external results refresh", async () => {
+        let items = [
             { id: "one", label: "One", value: 1 },
             { id: "two", label: "Two", value: 2 },
         ]
-        void promptStore.open({ id: "refresh", filter: "none", options: () => options })
+        void promptStore.open({ id: "refresh", filter: "none", items: () => items })
         await flush()
         promptStore.moveSelection(1)
-        expect(promptStore.snapshot?.options[promptStore.snapshot.selectedIndex]?.id).toBe("two")
+        expect(promptStore.snapshot?.items[promptStore.snapshot.selectedIndex]?.id).toBe("two")
 
-        options = [{ id: "zero", label: "Zero", value: 0 }, ...options]
+        items = [{ id: "zero", label: "Zero", value: 0 }, ...items]
         promptStore.refresh()
         await flush()
-        expect(promptStore.snapshot?.options[promptStore.snapshot.selectedIndex]?.id).toBe("two")
+        expect(promptStore.snapshot?.items[promptStore.snapshot.selectedIndex]?.id).toBe("two")
     })
 
-    it("exposes async option failures and clears loading", async () => {
-        const onOptionsError = vi.fn()
+    it("exposes async item failures and clears loading", async () => {
+        const onItemsError = vi.fn()
         void promptStore.open({
             id: "failing-options",
-            options: async () => {
+            items: async () => {
                 throw new Error("load failed")
             },
             errorLabel: "Could not load",
-            onOptionsError,
+            onItemsError,
         })
         await flush()
 
         expect(promptStore.snapshot?.isLoading).toBe(false)
         expect(promptStore.snapshot?.errorLabel).toBe("Could not load")
-        expect(onOptionsError).toHaveBeenCalledWith(expect.any(Error))
+        expect(onItemsError).toHaveBeenCalledWith(expect.any(Error))
     })
 
-    it("clears loading even when the options error callback throws", async () => {
+    it("clears loading even when the items error callback throws", async () => {
         void promptStore.open({
             id: "throwing-error-callback",
-            options: async () => {
+            items: async () => {
                 throw new Error("load failed")
             },
-            onOptionsError: () => {
+            onItemsError: () => {
                 throw new Error("callback failed")
             },
         })
@@ -136,18 +137,38 @@ describe("promptStore", () => {
         expect(promptStore.snapshot?.errorLabel).toBe(m.prompt_options_load_failed())
     })
 
+    it("does not apply stale async errors after the query changes", async () => {
+        let rejectFirst!: (error: Error) => void
+        const items = (query: string) => {
+            if (query === "old") {
+                return new Promise<never[]>((_, reject) => {
+                    rejectFirst = reject
+                })
+            }
+            return Promise.resolve([{ id: "new", label: "New", value: "new" }])
+        }
+        void promptStore.open({ id: "stale-query-error", initialQuery: "old", items })
+        promptStore.setQuery("new")
+        await flush()
+        rejectFirst(new Error("stale"))
+        await flush()
+
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["new"])
+        expect(promptStore.snapshot?.errorLabel).toBeUndefined()
+    })
+
     it("does not apply stale async errors to replacement requests", async () => {
         let rejectFirst!: (error: Error) => void
         void promptStore.open({
             id: "stale-error",
-            options: () =>
+            items: () =>
                 new Promise<never[]>((_, reject) => {
                     rejectFirst = reject
                 }),
         })
         void promptStore.open({
             id: "replacement",
-            options: [{ id: "ok", label: "OK", value: "ok" }],
+            items: () => [{ id: "ok", label: "OK", value: "ok" }],
         })
         rejectFirst(new Error("stale"))
         await flush()
@@ -156,11 +177,11 @@ describe("promptStore", () => {
         expect(promptStore.snapshot?.errorLabel).toBeUndefined()
     })
 
-    it("clears a prior option error after a successful refresh", async () => {
+    it("clears a prior item error after a successful refresh", async () => {
         let shouldFail = true
         void promptStore.open({
             id: "recovering-options",
-            options: async () => {
+            items: async () => {
                 if (shouldFail) throw new Error("failed")
                 return [{ id: "ok", label: "OK", value: "ok" }]
             },
@@ -171,14 +192,14 @@ describe("promptStore", () => {
         await flush()
 
         expect(promptStore.snapshot?.errorLabel).toBeUndefined()
-        expect(promptStore.snapshot?.options).toHaveLength(1)
+        expect(promptStore.snapshot?.items).toHaveLength(1)
     })
 
-    it("finds a localized option by its English alias", async () => {
+    it("finds a localized item by its English alias", async () => {
         void promptStore.open({
             id: "localized-alias",
             initialQuery: "import book",
-            options: [
+            items: () => [
                 {
                     id: "import",
                     label: "Импортировать книгу",
@@ -191,17 +212,17 @@ describe("promptStore", () => {
         })
         await flush()
 
-        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["import"])
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["import"])
         promptStore.setQuery("импортировать")
         await flush()
-        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["import"])
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["import"])
     })
 
     it("parses free-form submissions", async () => {
         const result = promptStore.choose({
             id: "page",
             initialQuery: "12",
-            options: [],
+            items: () => [],
             parseQuery: (query) => Number(query),
         })
         await flush()

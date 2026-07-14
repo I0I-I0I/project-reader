@@ -30,7 +30,7 @@ export class PDFRenderer {
     private renderController: AbortController | null = null
     private outlineController: AbortController | null = null
 
-    async load(url: string) {
+    async load(url: string, bookId: string) {
         if (!url) {
             this.close()
             return
@@ -43,7 +43,7 @@ export class PDFRenderer {
             this.pdf = doc
             this.totalPages = await doc.getPageNumber()
             this.isLoaded = true
-            searchStore.initPdf(doc)
+            searchStore.initPdf({ pdf: doc, bookId })
             return doc
         } catch (err) {
             this.isLoaded = false

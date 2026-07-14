@@ -114,6 +114,7 @@
     "prompt_options_load_failed": "Failed to load options",
     "search_history": "Search history",
     "search_history_empty": "No search history yet",
+    "clear_search_history": "Clear search history",
     "enter_page_number": "Enter page number:",
     "show_toolbars": "Show toolbars",
     "hide_toolbars": "Hide toolbars",

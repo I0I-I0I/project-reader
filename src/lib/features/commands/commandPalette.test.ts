@@ -25,8 +25,8 @@ describe("command palette adapter", () => {
 
         const closed = openCommandPalette(scope)
         await new Promise((resolve) => setTimeout(resolve, 0))
-        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["viewer.page.next"])
-        expect(promptStore.snapshot?.options[0]).toMatchObject({
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["viewer.page.next"])
+        expect(promptStore.snapshot?.items[0]).toMatchObject({
             label: "Следующая страница",
             englishLabel: "Next page",
         })
@@ -101,6 +101,6 @@ describe("command palette adapter", () => {
 
         void openCommandPalette(scope)
         await new Promise((resolve) => setTimeout(resolve, 0))
-        expect(promptStore.snapshot?.options).toEqual([])
+        expect(promptStore.snapshot?.items).toEqual([])
     })
 })

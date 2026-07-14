@@ -1,6 +1,6 @@
 import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
 import { commandsStore, formatKeyString } from "$lib/features/commands/commandsStore.svelte"
-import { promptStore, type PromptOption } from "$lib/features/prompt/stores/promptStore.svelte"
+import { promptStore, type PromptItem } from "$lib/features/prompt/stores/promptStore.svelte"
 import * as m from "$lib/paraglide/messages"
 
 export async function openCommandPalette(
@@ -17,7 +17,7 @@ export async function openCommandPalette(
         keymap?: string | string[]
         execute: () => Promise<void>
     }
-    const options: PromptOption<PaletteChoice>[] = commands.map((command) => {
+    const items: PromptItem<PaletteChoice>[] = commands.map((command) => {
         const keymap = Array.isArray(command.keymap)
             ? command.keymap.map(formatKeyString)
             : command.keymap
@@ -44,7 +44,7 @@ export async function openCommandPalette(
     const request = {
         id: "command-palette",
         initialQuery,
-        options,
+        items: () => items,
         filter: "fuzzy" as const,
         parseQuery: (query: string): PaletteChoice | undefined => {
             const pageNumber = Number(query.trim())

@@ -1,6 +1,14 @@
 import type { Component } from "svelte"
 
-export interface PromptOption<T> {
+export interface PromptItemPresentation {
+    kind?: string
+    // Renderers own their application-specific prop contracts.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    leading?: Component<any>
+    leadingProps?: Record<string, unknown>
+}
+
+export interface PromptItem<T> {
     id: string
     label: string
     englishLabel?: string
@@ -9,14 +17,10 @@ export interface PromptOption<T> {
     category?: string
     keymap?: string | string[]
     value: T
-    presentation?: {
-        kind?: string
-        // Renderers own their application-specific prop contracts.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        leading?: Component<any>
-        leadingProps?: Record<string, unknown>
-    }
+    presentation?: PromptItemPresentation
 }
+
+export type PromptItems<T> = (query: string) => PromptItem<T>[] | Promise<PromptItem<T>[]>
 
 export type PromptSelectionBehavior = "close" | "keep-open"
 
@@ -29,11 +33,11 @@ export interface PromptRequest<T> {
     id: string
     placeholder?: string
     initialQuery?: string
-    options: PromptOption<T>[] | ((query: string) => PromptOption<T>[] | Promise<PromptOption<T>[]>)
+    items: PromptItems<T>
     filter?: "fuzzy" | "none"
     closeOnSelect?: boolean
     rememberQuery?: boolean
-    initialSelection?: (options: PromptOption<T>[]) => number
+    initialSelection?: (items: PromptItem<T>[]) => number
     onQueryChange?: (query: string) => void
     parseQuery?: (query: string) => T | undefined
     onSelect?: (
@@ -43,14 +47,24 @@ export interface PromptRequest<T> {
     loadingLabel?: string
     emptyLabel?: string
     errorLabel?: string
-    onOptionsError?: (error: unknown) => void
+    onItemsError?: (error: unknown) => void
 }
 
 export interface PromptSnapshot<T = unknown> {
     request: PromptRequest<T>
     query: string
-    options: PromptOption<T>[]
+    items: PromptItem<T>[]
     selectedIndex: number
     isLoading: boolean
     errorLabel?: string
+}
+
+export interface PromptService {
+    open<T>(request: PromptRequest<T>): Promise<void>
+    choose<T>(request: PromptRequest<T>): Promise<T | undefined>
+    close(): void
+    setQuery(query: string): void
+    refresh(): void
+    readonly snapshot: PromptSnapshot | null
+    readonly isOpen: boolean
 }

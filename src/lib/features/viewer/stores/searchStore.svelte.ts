@@ -5,6 +5,10 @@ import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
 import type PDFDocument from "$lib/core/pdf/pdf"
 import { browser } from "$app/environment"
 import { untrack } from "svelte"
+import {
+    LocalSearchHistoryRepository,
+    type SearchHistoryRepository,
+} from "$lib/features/viewer/stores/searchHistoryRepository"
 
 export interface SearchMatch {
     pageNumber: number
@@ -12,7 +16,7 @@ export interface SearchMatch {
     end: number
 }
 
-class SearchStore {
+export class SearchStore {
     query = $state("")
     matches = $state.raw<SearchMatch[]>([])
     private _currentMatchIndex = $state(-1)
@@ -24,6 +28,7 @@ class SearchStore {
         this.updateCSSHighlights()
     }
 
+    isActive = $state(false)
     isIndexing = $state(false)
     isSearching = $state(false)
     pageTexts = new SvelteMap<number, { original: string; lower: string }>()
@@ -31,42 +36,41 @@ class SearchStore {
     searchHistory = $state<string[]>([])
     searchStartPage = $state<number | null>(null)
 
-    constructor() {
-        if (browser) {
-            try {
-                const stored = localStorage.getItem("search_history")
-                if (stored) {
-                    this.searchHistory = JSON.parse(stored)
-                }
-            } catch (e) {
-                console.error("[SearchStore] Failed to load search history:", e)
-            }
-        }
+    private readonly historyRepository: SearchHistoryRepository
+    private currentPdf: PDFDocument | null = null
+    private currentBookId: string | null = null
+
+    constructor(
+        historyRepository: SearchHistoryRepository = new LocalSearchHistoryRepository(
+            browser ? localStorage : null,
+        ),
+    ) {
+        this.historyRepository = historyRepository
     }
 
     addToHistory(q: string) {
+        const bookId = this.currentBookId
         const trimmed = q.trim()
-        if (!trimmed) return
+        if (!bookId || !trimmed) return
 
         const filtered = this.searchHistory.filter(
-            (item) => item.toLowerCase() !== trimmed.toLowerCase(),
+            (item) => item.toLocaleLowerCase() !== trimmed.toLocaleLowerCase(),
         )
         this.searchHistory = [trimmed, ...filtered].slice(0, 10)
-
-        if (browser) {
-            try {
-                localStorage.setItem("search_history", JSON.stringify(this.searchHistory))
-            } catch (e) {
-                console.error("[SearchStore] Failed to save search history:", e)
-            }
-        }
+        this.historyRepository.save(bookId, this.searchHistory)
     }
 
-    private currentPdf: PDFDocument | null = null
+    clearHistory() {
+        const bookId = this.currentBookId
+        if (!bookId) return
+        this.searchHistory = []
+        this.historyRepository.clear(bookId)
+    }
     private pageRanges = new SvelteMap<number, Range[]>()
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
     private worker: Worker | null = null
+    private searchRequestId = 0
     private matchesChangedListeners = new Set<() => void>()
 
     onMatchesChanged(listener: () => void) {
@@ -78,16 +82,20 @@ class SearchStore {
         for (const listener of this.matchesChangedListeners) listener()
     }
 
-    initPdf(pdf: PDFDocument) {
-        if (this.currentPdf === pdf) return
+    initPdf({ pdf, bookId }: { pdf: PDFDocument; bookId: string }) {
+        if (this.currentPdf === pdf && this.currentBookId === bookId) return
         this.currentPdf = pdf
+        this.currentBookId = bookId
+        this.searchRequestId += 1
 
+        this.isActive = false
         this.query = ""
         this.matches = []
         this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.searchStartPage = null
         this.isSearching = false
+        this.searchHistory = this.historyRepository.load(bookId)
         this.pageTexts.clear()
         this.pageRanges.clear()
         this.updateCSSHighlights()
@@ -113,17 +121,20 @@ class SearchStore {
         if (!this.currentPdf || this.isIndexing || this.pageTexts.size > 0) return
 
         const pdf = this.currentPdf
-        const currentBook = viewerStore.getCurrentBook()
-        if (!currentBook) return
-
-        const bookId = currentBook.id
+        const bookId = this.currentBookId
+        if (!bookId) return
         this.isIndexing = true
         const totalPages = pdf.pagesCount
 
         try {
             // 1. Try to load from IndexedDB first
             const cachedTexts = await vfsStore.db.indexedTexts.getByBookId(bookId)
-            if (cachedTexts && cachedTexts.length > 0 && this.currentPdf === pdf) {
+            if (
+                cachedTexts &&
+                cachedTexts.length === totalPages &&
+                this.currentPdf === pdf &&
+                this.currentBookId === bookId
+            ) {
                 const tempMap = new Map<number, { original: string; lower: string }>()
                 for (const record of cachedTexts) {
                     tempMap.set(record.pageNumber, {
@@ -148,7 +159,7 @@ class SearchStore {
                 const pageNum = i
                 tasks.push(
                     limit(async () => {
-                        if (this.currentPdf !== pdf) return
+                        if (this.currentPdf !== pdf || this.currentBookId !== bookId) return
                         const textContent = await pdf.getTextContent(pageNum, true)
                         const text = textContent.items.map((item: any) => item.str).join("")
                         const lower = text.toLowerCase()
@@ -166,14 +177,18 @@ class SearchStore {
             await Promise.all(tasks)
 
             // Batch update the reactive map once all tasks are complete
-            if (this.currentPdf === pdf) {
+            if (this.currentPdf === pdf && this.currentBookId === bookId) {
                 for (const [pageNum, text] of localTexts) {
                     this.pageTexts.set(pageNum, text)
                 }
             }
 
             // 3. Persist the extracted text in IndexedDB in batch
-            if (this.currentPdf === pdf && recordsToSave.length > 0) {
+            if (
+                this.currentPdf === pdf &&
+                this.currentBookId === bookId &&
+                recordsToSave.length > 0
+            ) {
                 const dbRecords = recordsToSave.map((r) => ({
                     id: `${bookId}_${r.pageNumber}`,
                     bookId,
@@ -185,14 +200,19 @@ class SearchStore {
         } catch (e) {
             console.error("[SearchStore] Failed to index PDF:", e)
         } finally {
-            if (this.currentPdf === pdf) {
+            if (this.currentPdf === pdf && this.currentBookId === bookId) {
                 this.isIndexing = false
                 if (this.query.trim()) this.setQuery(this.query)
             }
         }
     }
 
+    begin(startPage: number) {
+        this.searchStartPage = startPage
+    }
+
     setQuery(newQuery: string) {
+        this.searchRequestId += 1
         this.query = newQuery
 
         if (this.searchTimeoutId) {
@@ -207,6 +227,7 @@ class SearchStore {
 
         const trimmed = newQuery.trim()
         if (!trimmed) {
+            this.isActive = false
             this.matches = []
             this.notifyMatchesChanged()
             this._currentMatchIndex = -1
@@ -216,7 +237,9 @@ class SearchStore {
             return
         }
 
+        this.isActive = true
         this.isSearching = true
+        if (this.isIndexing || this.pageTexts.size === 0) return
         this.searchTimeoutId = setTimeout(() => {
             this.runWorkerSearch(trimmed)
         }, 150)
@@ -225,13 +248,25 @@ class SearchStore {
     private async runWorkerSearch(q: string) {
         if (!browser) return
 
-        if (!this.worker) {
-            const SearchWorker = (await import("$lib/searchWorker?worker")).default
-            this.worker = new SearchWorker()
-        }
-
+        const pdf = this.currentPdf
+        const bookId = this.currentBookId
+        const searchId = this.searchRequestId
         const controller = new AbortController()
         this.currentSearchAbortController = controller
+
+        if (!this.worker) {
+            const SearchWorker = (await import("$lib/searchWorker?worker")).default
+            if (
+                controller.signal.aborted ||
+                this.currentPdf !== pdf ||
+                this.currentBookId !== bookId ||
+                this.query.trim() !== q ||
+                this.searchRequestId !== searchId
+            ) {
+                return
+            }
+            this.worker = new SearchWorker()
+        }
 
         this.matches = []
         this.notifyMatchesChanged()
@@ -245,10 +280,19 @@ class SearchStore {
         }
 
         this.worker.onmessage = (e) => {
-            if (controller.signal.aborted) return
+            if (
+                controller.signal.aborted ||
+                this.currentPdf !== pdf ||
+                this.currentBookId !== bookId ||
+                this.query.trim() !== q ||
+                this.searchRequestId !== searchId
+            ) {
+                return
+            }
             const { type, payload } = e.data
             if (type === "results") {
-                const { matches, isPartial } = payload
+                const { matches, isPartial, searchId: resultSearchId } = payload
+                if (resultSearchId !== searchId) return
                 this.matches = matches
                 this.notifyMatchesChanged()
 
@@ -273,8 +317,18 @@ class SearchStore {
                 query: q,
                 pageTexts: pageTextsObj,
                 searchStartPage: this.searchStartPage ?? 1,
+                searchId,
             },
         })
+    }
+
+    selectMatch(query: string, matchIndex: number): SearchMatch | undefined {
+        const match = this.matches[matchIndex]
+        if (!match) return undefined
+        this.addToHistory(query)
+        this.currentMatchIndex = matchIndex
+        this.isActive = true
+        return match
     }
 
     next() {
@@ -283,11 +337,20 @@ class SearchStore {
         this.goToCurrentMatch()
     }
 
-    prev() {
+    previous() {
         if (this.matches.length === 0) return
         this.currentMatchIndex =
             (this.currentMatchIndex - 1 + this.matches.length) % this.matches.length
         this.goToCurrentMatch()
+    }
+
+    prev() {
+        this.previous()
+    }
+
+    close() {
+        this.isActive = false
+        this.setQuery("")
     }
 
     private goToCurrentMatch() {
@@ -407,13 +470,17 @@ class SearchStore {
     }
 
     reset() {
+        this.searchRequestId += 1
         this.currentPdf = null
+        this.currentBookId = null
+        this.isActive = false
         this.query = ""
         this.matches = []
         this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.searchStartPage = null
         this.isSearching = false
+        this.searchHistory = []
         this.pageTexts.clear()
         this.pageRanges.clear()
         this.isIndexing = false

@@ -6,11 +6,11 @@
     import MenuIcon from "$lib/core/components/icons/MenuIcon.svelte"
     import NavigationIcon from "$lib/core/components/icons/NavigationIcon.svelte"
     import SettingsIcon from "$lib/core/components/icons/SettingsIcon.svelte"
-    import type { PromptOption } from "$lib/features/prompt/prompt.types"
+    import type { PromptItem } from "$lib/features/prompt/prompt.types"
 
     interface Props {
         id: string
-        item: PromptOption<unknown>
+        item: PromptItem<unknown>
         isSelected: boolean
         onclick: () => void
     }

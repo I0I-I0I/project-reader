@@ -10,12 +10,12 @@ import {
 import { stepAndClampScale } from "$lib/core/utils/zoom"
 import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
 import { defineCommands } from "$lib/features/commands/commands.types"
-import { promptStore, type PromptOption } from "$lib/features/prompt/stores/promptStore.svelte"
+import { promptStore, type PromptItem } from "$lib/features/prompt/stores/promptStore.svelte"
 import * as m from "$lib/paraglide/messages"
 import { getLocale } from "$lib/paraglide/runtime"
 import type { Locale } from "$lib/features/commands/appCommandPayloads"
 
-const themeOptions = (): PromptOption<Theme>[] => [
+const themeItems = (): PromptItem<Theme>[] => [
     {
         id: "theme-light",
         label: m.light(),
@@ -42,7 +42,7 @@ const themeOptions = (): PromptOption<Theme>[] => [
     },
 ]
 
-const layoutOptions = (): PromptOption<Layout>[] => [
+const layoutItems = (): PromptItem<Layout>[] => [
     {
         id: "layout-single",
         label: m.single_page(),
@@ -69,7 +69,7 @@ const layoutOptions = (): PromptOption<Layout>[] => [
     },
 ]
 
-const languageOptions = (): PromptOption<Locale>[] =>
+const languageItems = (): PromptItem<Locale>[] =>
     (["ru", "en"] as const).map((locale) => ({
         id: `language-${locale}`,
         label: getLanguageName(locale),
@@ -103,7 +103,7 @@ export const settingsCommands = defineCommands({
             const selected = await promptStore.choose({
                 id: "settings.theme",
                 placeholder: m.select_theme(),
-                options: themeOptions(),
+                items: themeItems,
             })
             if (selected !== undefined) {
                 await commandsStore.execute("settings.theme", { value: selected })
@@ -124,7 +124,7 @@ export const settingsCommands = defineCommands({
             const selected = await promptStore.choose({
                 id: "settings.layout",
                 placeholder: m.select_layout(),
-                options: layoutOptions(),
+                items: layoutItems,
             })
             if (selected !== undefined) {
                 await commandsStore.execute("settings.layout", { value: selected })
@@ -145,7 +145,7 @@ export const settingsCommands = defineCommands({
             const selected = await promptStore.choose({
                 id: "settings.language",
                 placeholder: m.select_language(),
-                options: languageOptions(),
+                items: languageItems,
             })
             if (selected !== undefined) {
                 await commandsStore.execute("settings.language", { value: selected })

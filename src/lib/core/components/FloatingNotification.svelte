@@ -14,7 +14,7 @@
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
             return true
         }
-        if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
+        if (isViewer && searchStore.isActive && searchStore.matches.length > 0) {
             return true
         }
         if (!isViewer && vfsStore.uploadingFiles.length > 0) {
@@ -28,7 +28,7 @@
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
             return `${vfsStore.selectedIds.size}`
         }
-        if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
+        if (isViewer && searchStore.isActive && searchStore.matches.length > 0) {
             return `${searchStore.currentMatchIndex + 1} / ${searchStore.matches.length}`
         }
         if (!isViewer && vfsStore.uploadingFiles.length > 0) {
@@ -42,7 +42,7 @@
         if (!isViewer && uiStore.isSelectionMode && vfsStore.selectedIds.size > 0) {
             return m.selected_label()
         }
-        if (isViewer && uiStore.isSearchModeActive && searchStore.matches.length > 0) {
+        if (isViewer && searchStore.isActive && searchStore.matches.length > 0) {
             return m.matched_label()
         }
         if (!isViewer && vfsStore.uploadingFiles.length > 0) {

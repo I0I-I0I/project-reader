@@ -19,10 +19,12 @@ self.onmessage = async (e: MessageEvent) => {
             query,
             pageTexts,
             searchStartPage = 1,
+            searchId,
         } = payload as {
             query: string
             pageTexts: Record<number, PageText> | Map<number, PageText>
             searchStartPage: number
+            searchId: number
         }
 
         const qLower = query.toLowerCase()
@@ -66,12 +68,15 @@ self.onmessage = async (e: MessageEvent) => {
             if (now - lastUpdateTime > 100) {
                 self.postMessage({
                     type: "results",
-                    payload: { matches: [...matches], isPartial: true },
+                    payload: { matches: [...matches], isPartial: true, searchId },
                 })
                 lastUpdateTime = now
             }
         }
 
-        self.postMessage({ type: "results", payload: { matches, isPartial: false } })
+        self.postMessage({
+            type: "results",
+            payload: { matches, isPartial: false, searchId },
+        })
     }
 }

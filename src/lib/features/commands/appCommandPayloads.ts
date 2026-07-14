@@ -67,6 +67,7 @@ export interface AppCommandPayloads {
     "viewer.search.close": undefined
     "viewer.search.next": undefined
     "viewer.search.previous": undefined
+    "viewer.search.history.clear": undefined
     "viewer.bookmark.toggle-page": undefined
     "viewer.bookmark.open": { bookmarkId?: string } | undefined
     "viewer.bookmark.add": { page?: number; name?: string } | undefined
