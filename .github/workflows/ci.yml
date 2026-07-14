@@ -1,0 +1,51 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - master
+    pull_request:
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+    quality:
+        name: Tests, checks, formatting, and linting
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Run tests
+              run: pnpm test
+
+            - name: Run Svelte checks
+              run: pnpm check
+
+            - name: Check formatting
+              run: pnpm exec oxfmt --check .
+
+            - name: Run linter
+              run: pnpm exec oxlint .
