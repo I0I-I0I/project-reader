@@ -14,6 +14,7 @@ function promptService(): PromptService & { snapshot: PromptSnapshot | null } {
     return {
         snapshot: null,
         isOpen: false,
+        query: "",
         open: vi.fn(async () => undefined) as PromptService["open"],
         choose: vi.fn(async () => undefined) as PromptService["choose"],
         close: vi.fn(),

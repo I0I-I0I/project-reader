@@ -44,6 +44,7 @@ export async function openCommandPalette(
     const request = {
         id: "command-palette",
         initialQuery,
+        rememberQuery: true,
         items: () => items,
         filter: "fuzzy" as const,
         parseQuery: (query: string): PaletteChoice | undefined => {

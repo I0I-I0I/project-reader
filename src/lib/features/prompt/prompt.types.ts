@@ -67,4 +67,5 @@ export interface PromptService {
     refresh(): void
     readonly snapshot: PromptSnapshot | null
     readonly isOpen: boolean
+    query: string
 }

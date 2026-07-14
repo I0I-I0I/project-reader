@@ -9,6 +9,12 @@ export type ScrollDirection = "up" | "down"
  */
 export interface AppCommandPayloads {
     "prompt.open": { initialQuery?: string } | undefined
+    "prompt.close": undefined
+    "prompt.next": undefined
+    "prompt.previous": undefined
+    "prompt.select": undefined
+    "prompt.history.back": undefined
+    "prompt.history.forward": undefined
     "help.toggle": undefined
     "settings.theme": { value?: Theme } | undefined
     "settings.layout": { value?: Layout } | undefined

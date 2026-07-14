@@ -2,8 +2,9 @@
     import Float from "$lib/core/components/ui/Float.svelte"
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
+    import { useCommands } from "$lib/features/commands/commandsStore.svelte"
+    import { createPromptCommands } from "$lib/features/prompt/promptCommands"
     import type { PromptSnapshot } from "$lib/features/prompt/prompt.types"
-    import { resolvePromptKeyAction } from "$lib/features/prompt/promptKeyboard"
     import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { tick } from "svelte"
@@ -31,23 +32,27 @@
         selected?.scrollIntoView({ block: "nearest" })
     }
 
-    function handleKeydown(event: KeyboardEvent) {
-        event.stopPropagation()
-        const action = resolvePromptKeyAction(event)
-        if (!action) return
-
-        event.preventDefault()
-        if (action === "close") {
-            promptStore.close()
-        } else if (action === "next") {
+    const promptCommands = createPromptCommands({
+        close: () => promptStore.close(),
+        next: () => {
             promptStore.moveSelection(1)
             void scrollToSelection()
-        } else if (action === "previous") {
+        },
+        previous: () => {
             promptStore.moveSelection(-1)
             void scrollToSelection()
-        } else {
-            void promptStore.selectCurrent()
-        }
+        },
+        select: () => promptStore.selectCurrent(),
+        historyBack: () => promptStore.historyBack(),
+        historyForward: () => promptStore.historyForward(),
+    })
+    const promptCommandScope = useCommands(Object.values(promptCommands), undefined, {
+        keyboardBoundary: true,
+    })
+
+    function handleKeydown(event: KeyboardEvent) {
+        event.stopPropagation()
+        promptCommandScope.handleKeydown(event)
     }
 </script>
 

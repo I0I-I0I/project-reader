@@ -59,6 +59,7 @@
             toggleCurrentPage: () => undefined,
         },
     })
+
     rootNode = useCommands([
         {
             id: "prompt.open",

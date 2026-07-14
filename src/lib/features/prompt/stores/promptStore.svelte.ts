@@ -30,9 +30,15 @@ type Session = {
 class PromptStore implements PromptService {
     snapshot = $state.raw<PromptSnapshot | null>(null)
     private session: Session | null = null
-    private retainedQueries = new Map<string, string>()
+    private retainedQueries = new Map<string, string[]>()
     private requestVersion = 0
     private manualSelectedIndex: number | null = null
+    query: string = ""
+    currentHistoryIndex: number | null = null
+
+    getQuery(): string {
+        return this.query
+    }
 
     get isOpen() {
         return this.snapshot !== null
@@ -47,11 +53,16 @@ class PromptStore implements PromptService {
     }
 
     private start<T>(request: PromptRequest<T>, kind: SessionKind): Promise<unknown> {
+        this.currentHistoryIndex = null
         this.cancelCurrent()
-        const query =
-            request.initialQuery ??
-            (request.rememberQuery ? this.retainedQueries.get(request.id) : undefined) ??
-            ""
+        this.query = ""
+
+        if (request.initialQuery) {
+            this.query = request.initialQuery
+        } else if (request.rememberQuery) {
+            const retainedQueriesItems = this.retainedQueries.get(request.id) ?? [""]
+            this.query = retainedQueriesItems[retainedQueriesItems.length - 1]
+        }
 
         return new Promise<unknown>((resolve) => {
             this.session = {
@@ -63,16 +74,17 @@ class PromptStore implements PromptService {
             this.manualSelectedIndex = null
             this.snapshot = {
                 request: request as ErasedRequest,
-                query,
+                query: this.query,
                 items: [],
                 selectedIndex: -1,
                 isLoading: true,
             }
-            void this.refreshItems(query)
+            void this.refreshItems()
         })
     }
 
     close() {
+        this.currentHistoryIndex = null
         this.cancelCurrent()
     }
 
@@ -82,9 +94,6 @@ class PromptStore implements PromptService {
         if (!session) {
             this.snapshot = null
             return
-        }
-        if (session.request.rememberQuery && this.snapshot) {
-            this.retainedQueries.set(session.request.id, this.snapshot.query)
         }
         this.session = null
         this.snapshot = null
@@ -96,14 +105,15 @@ class PromptStore implements PromptService {
         const snapshot = this.snapshot
         if (!session || !snapshot) return
         this.manualSelectedIndex = null
+        this.query = query
         this.snapshot = { ...snapshot, query, selectedIndex: -1 }
         session.request.onQueryChange?.(query)
-        void this.refreshItems(query)
+        void this.refreshItems()
     }
 
     refresh() {
         if (!this.snapshot) return
-        void this.refreshItems(this.snapshot.query)
+        void this.refreshItems()
     }
 
     moveSelection(offset: number) {
@@ -131,6 +141,12 @@ class PromptStore implements PromptService {
             return
         }
 
+        if (session.request.rememberQuery && this.snapshot && this.query !== "") {
+            const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
+            retainedQueries.push(this.query)
+            this.retainedQueries.set(session.request.id, retainedQueries)
+        }
+
         const controls = {
             close: () => this.close(),
             setQuery: (query: string) => this.setQuery(query),
@@ -140,7 +156,59 @@ class PromptStore implements PromptService {
         if (!closeBeforeSelect && behavior === "close") this.close()
     }
 
-    private async refreshItems(query: string) {
+    historyForward(): void {
+        const session = this.session
+        if (!session) {
+            this.snapshot = null
+            return
+        }
+        if (!this.snapshot) {
+            return
+        }
+
+        const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
+        if (this.currentHistoryIndex === null || this.currentHistoryIndex === undefined) {
+            this.currentHistoryIndex = retainedQueries.length - 1
+        }
+
+        if (this.currentHistoryIndex >= retainedQueries.length - 1) {
+            this.currentHistoryIndex = retainedQueries.length - 1
+            return
+        }
+        this.currentHistoryIndex += 1
+
+        this.query = retainedQueries[this.currentHistoryIndex]
+        this.snapshot.query = this.query
+        this.refreshItems()
+    }
+
+    historyBack(): void {
+        const session = this.session
+        if (!session) {
+            this.snapshot = null
+            return
+        }
+        if (!this.snapshot) {
+            return
+        }
+
+        const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
+        if (this.currentHistoryIndex === null || this.currentHistoryIndex === undefined) {
+            this.currentHistoryIndex = retainedQueries.length - 1
+        }
+
+        if (this.currentHistoryIndex <= 0) {
+            this.currentHistoryIndex = 0
+            return
+        }
+        this.currentHistoryIndex -= 1
+
+        this.query = retainedQueries[this.currentHistoryIndex]
+        this.snapshot.query = this.query
+        this.refreshItems()
+    }
+
+    private async refreshItems() {
         const session = this.session
         const snapshot = this.snapshot
         if (!session || !snapshot) return
@@ -151,7 +219,7 @@ class PromptStore implements PromptService {
 
         let resolved: PromptItem<unknown>[]
         try {
-            resolved = await Promise.resolve(provider(query))
+            resolved = await Promise.resolve(provider(this.query))
         } catch (error) {
             if (version !== this.requestVersion || session !== this.session || !this.snapshot)
                 return
@@ -173,9 +241,9 @@ class PromptStore implements PromptService {
         session.sourceItems = resolved
 
         let items = resolved
-        if (session.request.filter !== "none" && query.trim()) {
+        if (session.request.filter !== "none" && this.query.trim()) {
             items = new Fuse(resolved, PROMPT_FUSE_OPTIONS)
-                .search(query.trim())
+                .search(this.query.trim())
                 .map(({ item }) => item)
         }
 

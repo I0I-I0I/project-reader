@@ -20,6 +20,24 @@ describe("promptStore", () => {
         expect(promptStore.isOpen).toBe(false)
     })
 
+    it("exposes and retains the current query after selection", async () => {
+        const closed = promptStore.open({
+            id: "query-state",
+            initialQuery: "previous",
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+
+        expect(promptStore.snapshot?.query).toBe("previous")
+        promptStore.setQuery("latest")
+        expect(promptStore.snapshot?.query).toBe("latest")
+        await flush()
+        await promptStore.selectCurrent()
+
+        await expect(closed).resolves.toBeUndefined()
+        expect(promptStore.getLastQuery()).toBe("latest")
+    })
+
     it("closes an open request before invoking its default selection callback", async () => {
         const onSelect = vi.fn(() => {
             expect(promptStore.isOpen).toBe(false)
