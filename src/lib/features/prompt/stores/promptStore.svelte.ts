@@ -7,6 +7,9 @@ import type {
 } from "$lib/features/prompt/prompt.types"
 import * as m from "$lib/paraglide/messages"
 
+const QUERY_HISTORY_STORAGE_KEY = "project-reader.prompt-query-history"
+const MAX_QUERY_HISTORY = 50
+
 const PROMPT_FUSE_OPTIONS = {
     keys: [
         { name: "label", weight: 0.7 },
@@ -48,8 +51,50 @@ class PromptStore implements PromptService {
     currentHistoryIndex: number | null = null
     retainedQueriesLocal: string[] = []
 
+    constructor() {
+        this.restoreQueryHistory()
+    }
+
+    private restoreQueryHistory(): void {
+        if (typeof localStorage === "undefined") return
+        try {
+            const stored = JSON.parse(localStorage.getItem(QUERY_HISTORY_STORAGE_KEY) ?? "null")
+            if (!stored || typeof stored !== "object") return
+            if (typeof stored.lastQuery === "string") this.lastQuery = stored.lastQuery
+            if (!stored.retainedQueries || typeof stored.retainedQueries !== "object") return
+
+            for (const [requestId, queries] of Object.entries(stored.retainedQueries)) {
+                if (!Array.isArray(queries)) continue
+                const validQueries = queries.filter(
+                    (query): query is string => typeof query === "string" && query !== "",
+                )
+                if (validQueries.length > 0) {
+                    this.retainedQueries.set(requestId, validQueries.slice(-MAX_QUERY_HISTORY))
+                }
+            }
+        } catch {
+            // Ignore malformed or inaccessible persisted history.
+        }
+    }
+
+    private persistQueryHistory(): void {
+        if (typeof localStorage === "undefined") return
+        try {
+            localStorage.setItem(
+                QUERY_HISTORY_STORAGE_KEY,
+                JSON.stringify({
+                    lastQuery: this.lastQuery,
+                    retainedQueries: Object.fromEntries(this.retainedQueries),
+                }),
+            )
+        } catch {
+            // Prompt interactions should continue when storage is unavailable.
+        }
+    }
+
     setLastQuery(query: string): void {
-        if (query !== "") this.lastQuery = query
+        this.lastQuery = query
+        this.persistQueryHistory()
     }
 
     getLastQuery(): string {
@@ -108,7 +153,7 @@ class PromptStore implements PromptService {
             const retainedQueries = this.retainedQueries.get(this.session.request.id) ?? []
             const lastQuery = this.getLastQuery()
             this.retainedQueriesLocal = [...retainedQueries]
-            if (lastQuery !== "" && this.retainedQueriesLocal.at(-1) !== lastQuery) {
+            if (this.retainedQueriesLocal.at(-1) !== lastQuery) {
                 this.retainedQueriesLocal.push(lastQuery)
             }
             this.currentHistoryIndex = this.retainedQueriesLocal.length - 1
@@ -117,9 +162,12 @@ class PromptStore implements PromptService {
     }
 
     close() {
-        if (this.currentHistoryIndex === this.retainedQueriesLocal.length - 1) {
+        if (this.query === "") {
+            this.setLastQuery(this.query)
+        } else if (this.currentHistoryIndex === this.retainedQueriesLocal.length - 1) {
             this.setLastQuery(this.query)
         }
+
         this.currentHistoryIndex = null
         this.cancelFlow()
     }
@@ -212,8 +260,11 @@ class PromptStore implements PromptService {
 
         if (session.request.rememberQuery && this.query !== "") {
             const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
-            if (retainedQueries.at(-1) !== this.query) retainedQueries.push(this.query)
-            this.retainedQueries.set(session.request.id, retainedQueries)
+            if (retainedQueries.at(-1) !== this.query && this.query !== "") {
+                retainedQueries.push(this.query)
+            }
+            this.retainedQueries.set(session.request.id, retainedQueries.slice(-MAX_QUERY_HISTORY))
+            this.persistQueryHistory()
         }
 
         const closeBeforeSelect = session.request.closeOnSelect !== false
