@@ -1,13 +1,15 @@
 <script lang="ts">
-    import { onMount, getContext, tick } from "svelte"
+    import { onMount, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { useCommands, type CommandNode } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import { updateLibraryBookMetadata } from "$lib/features/library/commands/libraryMetadataExecution"
 
     interface Props {
         nodeId: string
@@ -27,34 +29,28 @@
         pageNumber?: string[]
     }>({})
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope
 
-    useCommands(
-        [
-            {
-                id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                action: (event) => {
-                    event.preventDefault()
-                    handleClose()
-                },
-                description: m.cancel(),
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: "q",
-                action: (event) => {
-                    event.preventDefault()
-                    handleClose()
-                },
-                description: m.cancel(),
-                allowInInputs: false,
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+    const modalCommands = defineCommands({
+        "modal.confirm": {
+            id: "modal.confirm",
+            keymap: "enter",
+            label: () => m.save(),
+            category: "commands",
+            allowInInputs: true,
+            run: handleSave,
+        },
+        "modal.cancel": {
+            id: "modal.cancel",
+            keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
+            label: () => m.cancel(),
+            category: "commands",
+            allowInInputs: true,
+            run: handleClose,
+        },
+    })
+
+    const commandsNode = useModalCommands(Object.values(modalCommands), activeNodeBeforeOpen)
 
     onMount(async () => {
         if (node && node.type === "file") {
@@ -102,28 +98,12 @@
             document.activeElement.blur()
         }
 
-        uiStore.isEditMetadataModalOpen = false
-
-        if (node && node.type === "file") {
-            const currentBook = viewerStore.getCurrentBook()
-            if (currentBook && currentBook.id === nodeId) {
-                await viewerStore.updateBook({
-                    ...currentBook,
-                    name: name.trim(),
-                    pageNumber,
-                    author: author.trim() || null,
-                })
-            } else {
-                await vfsStore.updateFile(nodeId, {
-                    name: name.trim(),
-                    metadata: {
-                        ...node.metadata,
-                        author: author.trim() || null,
-                        pageNumber,
-                    },
-                })
-            }
-        }
+        await updateLibraryBookMetadata({
+            nodeId,
+            name: name.trim(),
+            author: author.trim() || null,
+            pageNumber,
+        })
     }
 
     function handleClose() {
@@ -134,14 +114,19 @@
     }
 </script>
 
-<Modal onClose={handleClose} title={m.edit_book_metadata()} autofocusClose={false}>
+<Modal
+    onClose={() => void commandsNode.execute("modal.cancel")}
+    title={m.edit_book_metadata()}
+    autofocusClose={false}
+>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class="modal-form"
         onkeydown={(e) => {
             if (e.key === "Enter") {
                 e.preventDefault()
-                handleSave()
+                e.stopPropagation()
+                void commandsNode.execute("modal.confirm")
             }
         }}
     >
@@ -169,8 +154,12 @@
             errors={errors.pageNumber}
         />
         <div class="modal-actions">
-            <Button variant="brutalist" onclick={handleSave}>{m.save()}</Button>
-            <Button variant="ghost" onclick={handleClose}>{m.cancel()}</Button>
+            <Button variant="brutalist" onclick={() => void commandsNode.execute("modal.confirm")}
+                >{m.save()}</Button
+            >
+            <Button variant="ghost" onclick={() => void commandsNode.execute("modal.cancel")}
+                >{m.cancel()}</Button
+            >
         </div>
     </div>
 </Modal>

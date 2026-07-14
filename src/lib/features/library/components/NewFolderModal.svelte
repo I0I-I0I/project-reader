@@ -1,14 +1,16 @@
 <script lang="ts">
-    import { onMount, getContext, tick } from "svelte"
+    import { onMount, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
-    import { useCommands, type CommandNode } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
 
     interface Props {
-        onCreate?: (name: string) => void
+        onCreate?: (name: string) => void | Promise<void>
     }
 
     const { onCreate }: Props = $props()
@@ -16,34 +18,28 @@
     let folderName = $state("")
     let errors = $state<string[]>([])
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope
 
-    useCommands(
-        [
-            {
-                id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                action: (event) => {
-                    event.preventDefault()
-                    handleClose()
-                },
-                description: m.cancel(),
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: "q",
-                action: (event) => {
-                    event.preventDefault()
-                    handleClose()
-                },
-                description: m.cancel(),
-                allowInInputs: false,
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+    const modalCommands = defineCommands({
+        "modal.confirm": {
+            id: "modal.confirm",
+            keymap: "enter",
+            label: () => m.create(),
+            category: "commands",
+            allowInInputs: true,
+            run: handleCreate,
+        },
+        "modal.cancel": {
+            id: "modal.cancel",
+            keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
+            label: () => m.cancel(),
+            category: "commands",
+            allowInInputs: true,
+            run: handleClose,
+        },
+    })
+
+    const commandsNode = useModalCommands(Object.values(modalCommands), activeNodeBeforeOpen)
 
     onMount(async () => {
         folderName = ""
@@ -71,7 +67,7 @@
         return true
     }
 
-    function handleCreate() {
+    async function handleCreate() {
         if (folderName.length <= 0) {
             errors = [m.folder_name_required()]
             return
@@ -85,7 +81,7 @@
         uiStore.isNewFolderModalOpen = false
 
         if (onCreate) {
-            onCreate(folderName)
+            await onCreate(folderName)
         }
     }
     function handleClose() {
@@ -107,14 +103,19 @@
             onkeydown={(e) => {
                 if (e.key === "Enter") {
                     e.preventDefault()
-                    handleCreate()
+                    e.stopPropagation()
+                    void commandsNode.execute("modal.confirm")
                 }
             }}
             {errors}
         />
         <div class="modal-actions">
-            <Button variant="brutalist" onclick={handleCreate}>{m.create()}</Button>
-            <Button variant="ghost" onclick={handleClose}>{m.cancel()}</Button>
+            <Button variant="brutalist" onclick={() => void commandsNode.execute("modal.confirm")}
+                >{m.create()}</Button
+            >
+            <Button variant="ghost" onclick={() => void commandsNode.execute("modal.cancel")}
+                >{m.cancel()}</Button
+            >
         </div>
     </div>
 </Modal>

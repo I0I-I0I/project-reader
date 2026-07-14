@@ -7,7 +7,7 @@
     import { untrack, onMount, onDestroy } from "svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+    import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
     import { goto, replaceState } from "$app/navigation"
     import { page } from "$app/state"
     import { resolve } from "$app/paths"
@@ -23,23 +23,36 @@
     import ViewerModals from "$lib/features/viewer/components/ViewerModals.svelte"
     import { viewerUIStore } from "$lib/features/viewer/stores/viewerUIStore.svelte"
     import { localizedPath } from "$lib/core/language/language"
-    import { CONSTANTS, settingsStore } from "$lib/core/stores/settingsStore.svelte"
-    import { stepAndClampScale } from "$lib/core/utils/zoom"
+    import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { cubicInOut } from "svelte/easing"
-    import { useCommands, getShortcutHint } from "$lib/features/prompt/stores/commandsStore.svelte"
     import {
-        usePrompt,
-        type PromptProvider,
-        type SearchItem,
-    } from "$lib/features/prompt/stores/promptStore.svelte"
+        useCommands,
+        getShortcutHint,
+        commandsStore,
+        type CommandScope,
+    } from "$lib/features/commands/commandsStore.svelte"
     import TerminalIcon from "$lib/core/components/icons/TerminalIcon.svelte"
     import MinimizeIcon from "$lib/core/components/icons/MinimizeIcon.svelte"
     import MaximizeIcon from "$lib/core/components/icons/MaximizeIcon.svelte"
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import ChevronIcon from "$lib/core/components/icons/ChevronIcon.svelte"
     import { createSwipeState } from "$lib/features/viewer/stores/swipe.svelte"
+    import { settingsCommands } from "$lib/core/commands/settingsCommands"
+    import { createViewerCommands } from "$lib/features/viewer/commands/viewerCommandsFactory"
+    import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
+    import { viewerSettingsCommands } from "$lib/features/viewer/commands/viewerSettingsCommands"
+    import {
+        closeViewerSearch,
+        selectViewerSearchResult,
+    } from "$lib/features/viewer/commands/viewerPromptFlows"
+    import { createViewerBookmarkCommands } from "$lib/features/viewer/commands/viewerBookmarkCommandFactory"
+    import {
+        openScopedViewerPagePrompt,
+        openScopedViewerSearchPrompt,
+    } from "$lib/features/viewer/commands/viewerScopedPromptFlows"
 
+    let commandsNode = $state.raw<CommandScope>(undefined as any)
     let scrollContainer = $state<HTMLElement | null>(null)
 
     onMount(() => {
@@ -50,494 +63,191 @@
         return scrollContainer
     }
 
-    function getMatchContext(text: string, start: number, end: number, contextLen = 40) {
-        const contextStart = Math.max(0, start - contextLen)
-        const contextEnd = Math.min(text.length, end + contextLen)
-        let context = text.slice(contextStart, contextEnd)
-        if (contextStart > 0) context = "..." + context
-        if (contextEnd < text.length) context = context + "..."
-        return context
-    }
-
-    const viewerPromptProvider: PromptProvider = ({ value, mode }) => {
-        const cleanValue = value.replace(/\u200B/g, "")
-        const list: SearchItem[] = []
-        const activeTotalPages = viewerStore.activeTotalPages
-
-        if (mode === "search") {
-            const queryText = cleanValue.trim()
-            if (queryText === "") {
-                if (searchStore.searchHistory.length === 0) {
-                    list.push({
-                        id: "search-history-empty",
-                        title: m.search_history_empty
-                            ? m.search_history_empty()
-                            : "No search history yet",
-                        englishTitle: "No search history yet",
-                        category: "navigation",
-                        action: () => {},
-                    })
-                } else {
-                    for (let i = 0; i < searchStore.searchHistory.length; i++) {
-                        const historyQuery = searchStore.searchHistory[i]
-                        list.push({
-                            id: `search-history-${i}`,
-                            title: historyQuery,
-                            category: "navigation",
-                            action: () => {
-                                uiStore.prompt.value = historyQuery
-                                searchStore.setQuery(historyQuery)
-                                uiStore.isSearchModeActive = true
-                            },
-                        })
-                    }
-                }
-            } else {
-                const matches = searchStore.matches
-                // Limit suggestions in prompt dropdown to 200 to avoid crash/lag
-                const limit = 200
-                const count = Math.min(matches.length, limit)
-                for (let i = 0; i < count; i++) {
-                    const match = matches[i]
-                    const pageText = searchStore.pageTexts.get(match.pageNumber)
-                    const text = pageText ? pageText.original : ""
-                    const context = getMatchContext(text, match.start, match.end)
-
-                    list.push({
-                        id: `search-match-${i}`,
-                        title: `${m.page()} ${match.pageNumber}`,
-                        subtitle: context,
-                        category: "navigation",
-                        pageNumber: match.pageNumber,
-                        action: () => {
-                            searchStore.addToHistory(queryText)
-
-                            searchStore.currentMatchIndex = i
-                            const startPage = searchStore.searchStartPage
-                            const isDifferentPage =
-                                startPage !== null && match.pageNumber !== startPage
-                            if (viewerStore.goToPage) {
-                                viewerStore.goToPage(match.pageNumber, {
-                                    isJump: isDifferentPage,
-                                })
-                            }
-                            uiStore.isSearchModeActive = true
-                            uiStore.prompt.isOpen = false
-                        },
-                    })
-                }
+    const viewerTypedCommands = createViewerCommands({
+        isBookmarkToggleBlocked: () =>
+            viewerUIStore.isBookmarkAddModalOpen || viewerUIStore.bookmarkToDeleteId !== null,
+        toggleBookmark: () => handleBookmarkHeaderClick(),
+        closeViewer: () => {
+            if (notesStore.editingNote || notesStore.activePopup) {
+                notesStore.editingNote = null
+                notesStore.editorCoords = null
+                notesStore.activePopup = null
+                return
             }
-        } else if (mode === "page") {
-            const num = parseInt(cleanValue.trim(), 10)
-            const targetPage =
-                !isNaN(num) && num >= 1 ? (num > activeTotalPages ? activeTotalPages : num) : null
-
-            if (targetPage !== null) {
-                list.push({
-                    id: `nav-page-single`,
-                    title: `${m.keymap_goto_page()} ${targetPage}`,
-                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${targetPage}`,
-                    subtitle: m.jump_page_desc({
-                        page: targetPage,
-                        total: activeTotalPages,
-                    }),
-                    englishSubtitle: m.jump_page_desc(
-                        { page: targetPage, total: activeTotalPages },
-                        { locale: "en" },
-                    ),
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(targetPage, { isJump: true })
-                        }
-                        uiStore.prompt.mode = "global"
-                        uiStore.prompt.isOpen = false
-                    },
-                })
-            } else {
-                const currentBook = viewerStore.getCurrentBook()
-                const currentPageNum = currentBook?.pageNumber || 1
-                list.push({
-                    id: `nav-page-placeholder`,
-                    title: `${m.keymap_goto_page()}...`,
-                    englishTitle: `Go to page...`,
-                    subtitle: m.jump_page_desc({
-                        page: currentPageNum,
-                        total: activeTotalPages,
-                    }),
-                    englishSubtitle: `Jump to a page (1-${activeTotalPages})`,
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(currentPageNum, {
-                                isJump: true,
-                            })
-                        }
-                        uiStore.prompt.mode = "global"
-                        uiStore.prompt.isOpen = false
-                    },
-                })
+            const book = viewerStore.getCurrentBook()
+            if (book) vfsStore.pushForwardHistory(book.id)
+            handleClose()
+        },
+        nextPage: () => nextPage(),
+        previousPage: () => prevPage(),
+        goToPage: (pageNumber, isJump) => {
+            const targetPage = Math.min(
+                Math.max(1, pageNumber),
+                Math.max(1, viewerStore.activeTotalPages),
+            )
+            viewerStore.goToPage?.(targetPage, { isJump })
+        },
+        openPagePrompt: () => openScopedViewerPagePrompt(commandsNode),
+        openSearchPrompt: () => openScopedViewerSearchPrompt(commandsNode),
+        selectSearchResult: selectViewerSearchResult,
+        closeSearch: closeViewerSearch,
+        nextSearchResult: () => searchStore.next(),
+        previousSearchResult: () => searchStore.prev(),
+        toggleOutline: () => (sidebars.outline = !sidebars.outline),
+        toggleSettings: () => (sidebars.settings = !sidebars.settings),
+        toggleNotes: () => (sidebars.notes = !sidebars.notes),
+        toggleBookmarks: () => (sidebars.bookmarks = !sidebars.bookmarks),
+        toggleToolbar: () => (uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible),
+        toggleFullscreen: async () => {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen()
+                return
             }
-        } else if (mode === "global") {
-            const num = parseInt(cleanValue.trim(), 10)
-            if (!isNaN(num) && activeTotalPages > 0 && num >= 1 && num <= activeTotalPages) {
-                list.push({
-                    id: `nav-page-${num}`,
-                    title: `${m.keymap_goto_page()} ${num}`,
-                    englishTitle: `${m.keymap_goto_page({}, { locale: "en" })} ${num}`,
-                    subtitle: m.jump_page_desc({
-                        page: num,
-                        total: activeTotalPages,
-                    }),
-                    englishSubtitle: m.jump_page_desc(
-                        { page: num, total: activeTotalPages },
-                        { locale: "en" },
-                    ),
-                    category: "navigation",
-                    action: () => {
-                        if (viewerStore.goToPage) {
-                            viewerStore.goToPage(num, { isJump: true })
-                        }
-                        uiStore.prompt.mode = "global"
-                        uiStore.prompt.isOpen = false
-                    },
-                })
+            await document.documentElement.requestFullscreen()
+        },
+        scroll: (payload) => {
+            if (!payload) return
+            const pane = getScrollContainer()
+            if (!pane) return
+            const amount =
+                payload.amount === "page" ? window.innerHeight / 2 : window.innerHeight * 0.2
+            pane.scrollBy({
+                top: payload.direction === "up" ? -amount : amount,
+                behavior: !payload.repeated && settingsStore.animations ? "smooth" : "auto",
+            })
+        },
+    })
+
+    const viewerBookmarkCommands = createViewerBookmarkCommands(() => commandsNode)
+    const viewerMutationCommands = createViewerMutationCommands({
+        addBookmark: async (payload: { page?: number; name?: string } | undefined) => {
+            if (payload?.name && currentBookId) {
+                await bookmarksStore.addBookmark(
+                    currentBookId,
+                    payload.page ?? viewerStore.currentPage,
+                    payload.name,
+                )
+                viewerUIStore.closeBookmarkAddModal()
+                return
             }
-        }
+            viewerUIStore.openBookmarkAddModal(
+                `${m.page()} ${payload?.page ?? viewerStore.currentPage}`,
+            )
+        },
+        editBookmark: async (payload: { bookmarkId?: string; name?: string } | undefined) => {
+            if (payload?.bookmarkId && payload.name?.trim()) {
+                await bookmarksStore.updateBookmark(payload.bookmarkId, payload.name.trim())
+            }
+        },
+        deleteBookmark: async (
+            payload: { bookmarkId?: string; confirmed?: boolean } | undefined,
+        ) => {
+            const bookmarkId = payload?.bookmarkId ?? currentPageBookmark?.id
+            if (!bookmarkId) return
+            if (!payload?.confirmed) {
+                viewerUIStore.bookmarkToDeleteId = bookmarkId
+                return
+            }
+            await bookmarksStore.deleteBookmark(bookmarkId)
+            viewerUIStore.bookmarkToDeleteId = null
+        },
+        addNote: () => {
+            const selection = notesStore.activeSelection
+            if (!selection) return
+            notesStore.editingNote = {
+                isNew: true,
+                bookId: selection.bookId,
+                pageNumber: selection.pageNumber,
+                start: selection.start,
+                end: selection.end,
+                text: selection.text,
+                color: "yellow",
+                noteContent: "",
+            }
+            notesStore.editorCoords = { x: selection.x, y: selection.y }
+            notesStore.activeSelection = null
+        },
+        editNote: (payload: { noteId?: string; x?: number; y?: number } | undefined) => {
+            const noteId = payload?.noteId ?? notesStore.activePopup?.note.id
+            const note = notesStore.notes.find(({ id }) => id === noteId)
+            if (!note) return
+            notesStore.editingNote = note
+            notesStore.editorCoords = {
+                x: payload?.x ?? window.innerWidth / 2,
+                y: payload?.y ?? window.innerHeight / 2,
+            }
+            notesStore.activePopup = null
+        },
+        saveNote: () => saveCurrentNote(),
+        deleteNote: async (payload: { noteId?: string; confirmed?: boolean } | undefined) => {
+            const noteId =
+                payload?.noteId ??
+                notesStore.activePopup?.note.id ??
+                (notesStore.editingNote && "id" in notesStore.editingNote
+                    ? notesStore.editingNote.id
+                    : undefined)
+            if (!noteId) return
+            if (!payload?.confirmed) {
+                viewerUIStore.noteToDeleteId = noteId
+                notesStore.activePopup = null
+                return
+            }
+            await notesStore.deleteNote(noteId)
+            viewerUIStore.noteToDeleteId = null
+        },
+    })
 
-        return list
-    }
-
-    usePrompt(viewerPromptProvider)
-
-    const commandsNode = useCommands([
+    commandsNode = useCommands([
+        viewerTypedCommands["viewer.bookmark.toggle-page"],
+        viewerBookmarkCommands["viewer.bookmark.open"],
+        viewerMutationCommands["viewer.bookmark.add"]!,
         {
-            id: "toggle-bookmark-page",
-            keys: "b",
-            description: "Bookmark Page / Delete Bookmark",
-            englishDescription: "Bookmark Page / Delete Bookmark",
-            category: "commands",
+            ...viewerMutationCommands["viewer.bookmark.delete"]!,
+            disabled: () => !currentPageBookmark && !viewerUIStore.bookmarkToDeleteId,
+        },
+        {
+            ...viewerMutationCommands["viewer.note.add"]!,
+            disabled: () => !notesStore.activeSelection,
+        },
+        {
+            ...viewerMutationCommands["viewer.note.edit"]!,
+            disabled: () => !notesStore.activePopup,
+        },
+        {
+            ...viewerMutationCommands["viewer.note.save"]!,
+            disabled: () => !notesStore.editingNote,
+        },
+        {
+            ...viewerMutationCommands["viewer.note.delete"]!,
             disabled: () =>
-                viewerUIStore.isBookmarkAddModalOpen || viewerUIStore.bookmarkToDeleteId !== null,
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                handleBookmarkHeaderClick()
-            },
+                !notesStore.activePopup &&
+                !viewerUIStore.noteToDeleteId &&
+                !(notesStore.editingNote && "id" in notesStore.editingNote),
         },
 
+        { ...settingsCommands["settings.layout"], keymap: "shift+l" },
+        viewerSettingsCommands.zoomIn,
+        viewerSettingsCommands.zoomOut,
+        viewerTypedCommands["viewer.scroll"],
+        viewerTypedCommands["viewer.page.next"],
+        viewerTypedCommands["viewer.page.previous"],
+        viewerTypedCommands["viewer.sidebar.outline.toggle"],
+        viewerTypedCommands["viewer.sidebar.settings.toggle"],
+        viewerTypedCommands["viewer.sidebar.notes.toggle"],
+        viewerTypedCommands["viewer.sidebar.bookmarks.toggle"],
+        viewerTypedCommands["viewer.close"],
+        viewerTypedCommands["viewer.toolbar.toggle"],
+        viewerTypedCommands["viewer.fullscreen.toggle"],
+        viewerTypedCommands["viewer.page.go-to"],
+        viewerTypedCommands["viewer.search"],
         {
-            keys: "shift+l",
-            description: m.keymap_toggle_layouts(),
-            englishDescription: m.keymap_toggle_layouts({}, { locale: "en" }),
-            category: "settings",
-            subtitle: () => {
-                const layoutNames = {
-                    single: m.single_page(),
-                    split: m.split_pages(),
-                    scroll: m.scroll_pages(),
-                }
-                return `${m.layout()}: ${layoutNames[settingsStore.layout]}`
-            },
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "layout"
-                uiStore.prompt.isOpen = true
-            },
-        },
-        {
-            id: "zoom-in",
-            keys: "+",
-            description: m.keymap_zoom_in(),
-            englishDescription: m.keymap_zoom_in({}, { locale: "en" }),
-            category: "settings",
-            subtitle: () =>
-                m.scale_subtitle({
-                    scale: Math.round(settingsStore.scale * 100),
-                }),
-            action: () => {
-                settingsStore.scale = stepAndClampScale(
-                    settingsStore.scale,
-                    1,
-                    CONSTANTS.minScale,
-                    CONSTANTS.maxScale,
-                )
-            },
-        },
-        {
-            id: "zoom-out",
-            keys: "-",
-            description: m.keymap_zoom_out(),
-            englishDescription: m.keymap_zoom_out({}, { locale: "en" }),
-            category: "settings",
-            subtitle: () =>
-                m.scale_subtitle({
-                    scale: Math.round(settingsStore.scale * 100),
-                }),
-            action: () => {
-                settingsStore.scale = stepAndClampScale(
-                    settingsStore.scale,
-                    -1,
-                    CONSTANTS.minScale,
-                    CONSTANTS.maxScale,
-                )
-            },
-        },
-        {
-            id: "scroll-down",
-            keys: ["j", "arrowdown"],
-            description: m.keymap_scroll_down(),
-            englishDescription: m.keymap_scroll_down({}, { locale: "en" }),
-            category: "navigation",
-            action: (event?: KeyboardEvent) => {
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: window.innerHeight * 0.2,
-                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-up",
-            keys: ["k", "arrowup"],
-            description: m.keymap_scroll_up(),
-            englishDescription: m.keymap_scroll_up({}, { locale: "en" }),
-            category: "navigation",
-            action: (event?: KeyboardEvent) => {
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: -window.innerHeight * 0.2,
-                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-page-down",
-            keys: ["d", "pagedown"],
-            description: m.keymap_scroll_page_down(),
-            englishDescription: m.keymap_scroll_page_down({}, { locale: "en" }),
-            category: "navigation",
-            action: (event?: KeyboardEvent) => {
-                const currentHeight = window.innerHeight
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: currentHeight / 2,
-                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "scroll-page-up",
-            keys: ["u", "pageup"],
-            description: m.keymap_scroll_page_up(),
-            englishDescription: m.keymap_scroll_page_up({}, { locale: "en" }),
-            category: "navigation",
-            action: (event?: KeyboardEvent) => {
-                const currentHeight = window.innerHeight
-                const pane = getScrollContainer()
-                if (pane)
-                    pane.scrollBy({
-                        top: currentHeight / -2,
-                        behavior: !event?.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-            },
-        },
-        {
-            id: "next-page",
-            keys: ["space", "arrowright"],
-            description: m.keymap_next_page(),
-            englishDescription: m.keymap_next_page({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                nextPage()
-            },
-        },
-        {
-            id: "prev-page",
-            keys: ["shift+space", "arrowleft"],
-            description: m.keymap_prev_page(),
-            englishDescription: m.keymap_prev_page({}, { locale: "en" }),
-            category: "navigation",
-            action: () => {
-                prevPage()
-            },
-        },
-        {
-            id: "toggle-outline",
-            keys: "shift+o",
-            description: m.keymap_toggle_outline(),
-            englishDescription: m.keymap_toggle_outline({}, { locale: "en" }),
-            category: "commands",
-            action: () => {
-                sidebars.outline = !sidebars.outline
-            },
-        },
-        {
-            id: "toggle-settings",
-            keys: "shift+s",
-            description: m.keymap_toggle_settings(),
-            englishDescription: m.keymap_toggle_settings({}, { locale: "en" }),
-            category: "commands",
-            action: () => {
-                sidebars.settings = !sidebars.settings
-            },
-        },
-        {
-            id: "toggle-highlights",
-            keys: "shift+h",
-            description: m.keymap_toggle_notes(),
-            englishDescription: m.keymap_toggle_notes({}, { locale: "en" }),
-            category: "commands",
-            action: () => {
-                sidebars.notes = !sidebars.notes
-            },
-        },
-        {
-            id: "toggle-bookmarks",
-            keys: "shift+b",
-            description: m.keymap_toggle_bookmarks
-                ? m.keymap_toggle_bookmarks()
-                : "Toggle bookmarks",
-            englishDescription: "Toggle bookmarks",
-            category: "commands",
-            action: () => {
-                sidebars.bookmarks = !sidebars.bookmarks
-            },
-        },
-        {
-            id: "close",
-            keys: "q",
-            description: m.keymap_close_viewer(),
-            englishDescription: m.keymap_close_viewer({}, { locale: "en" }),
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                if (notesStore.editingNote || notesStore.activePopup) {
-                    event.preventDefault()
-                    notesStore.editingNote = null
-                    notesStore.editorCoords = null
-                    notesStore.activePopup = null
-                    return
-                }
-                const book = viewerStore.getCurrentBook()
-                if (book) {
-                    vfsStore.pushForwardHistory(book.id)
-                }
-                handleClose()
-            },
-        },
-        {
-            id: "hide-toolbar",
-            keys: "shift+m",
-            description: m.keymap_hide_toolbars(),
-            englishDescription: m.keymap_hide_toolbars({}, { locale: "en" }),
-            category: "commands",
-            action: () => {
-                uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
-            },
-        },
-        {
-            id: "goto-page",
-            keys: "g",
-            description: m.keymap_goto_page(),
-            englishDescription: m.keymap_goto_page({}, { locale: "en" }),
-            category: "menu",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "page"
-                uiStore.prompt.isOpen = true
-            },
-        },
-        {
-            id: "open-search",
-            keys: "/",
-            description: m.keymap_search(),
-            englishDescription: m.keymap_search
-                ? m.keymap_search({}, { locale: "en" })
-                : "Search PDF",
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "search"
-                uiStore.prompt.isOpen = true
-            },
-        },
-        {
-            id: "save-note",
-            keys: ["ctrl+enter"],
-            description: "Save Active Note",
+            ...viewerTypedCommands["viewer.search.close"],
+            keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,
-            disabled: () => !notesStore.editingNote,
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                saveCurrentNote()
-            },
+            disabled: () => !uiStore.isSearchModeActive,
         },
-        {
-            id: "save-note-alt",
-            keys: ["enter"],
-            description: "Save Active Note",
-            allowInInputs: false,
-            disabled: () => !notesStore.editingNote,
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                saveCurrentNote()
-            },
-        },
-        {
-            id: "close-search",
-            keys: ["escape", "ctrl+c", "ctrl+["],
-            description: m.prompt_close_aria(),
-            englishDescription: "Close search",
-            category: "commands",
-            action: (event: KeyboardEvent) => {
-                if (notesStore.editingNote || notesStore.activePopup) {
-                    if (event.key === "c" && event.ctrlKey) {
-                        const selection = window.getSelection()?.toString()
-                        if (selection) return
-                    }
-                    event.preventDefault()
-                    notesStore.editingNote = null
-                    notesStore.editorCoords = null
-                    notesStore.activePopup = null
-                    return
-                }
-
-                if (uiStore.isSearchModeActive) {
-                    uiStore.isSearchModeActive = false
-                    searchStore.setQuery("")
-                    uiStore.prompt.clearValue("search")
-                }
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "next-search-match",
-            keys: "n",
-            description: m.keymap_next_match(),
-            englishDescription: m.keymap_next_match
-                ? m.keymap_next_match({}, { locale: "en" })
-                : "Next match",
-            category: "navigation",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                searchStore.next()
-            },
-        },
-        {
-            id: "prev-search-match",
-            keys: "shift+n",
-            description: m.keymap_prev_match(),
-            englishDescription: m.keymap_prev_match
-                ? m.keymap_prev_match({}, { locale: "en" })
-                : "Previous match",
-            category: "navigation",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                searchStore.prev()
-            },
-        },
+        viewerTypedCommands["viewer.search.next"],
+        viewerTypedCommands["viewer.search.previous"],
     ])
 
     const currentBook = $derived(viewerStore.getCurrentBook())
@@ -1260,15 +970,15 @@
         const ratio = clientX / width
 
         if (ratio < 0.05) {
-            sidebars.outline = true
+            void commandsStore.execute("viewer.sidebar.outline.toggle")
         } else if (ratio < 0.35) {
-            prevPage()
+            void commandsStore.execute("viewer.page.previous")
         } else if (ratio < 0.65) {
-            uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
+            void commandsStore.execute("viewer.toolbar.toggle")
         } else if (ratio < 0.95) {
-            nextPage()
+            void commandsStore.execute("viewer.page.next")
         } else {
-            sidebars.settings = true
+            void commandsStore.execute("viewer.sidebar.settings.toggle")
         }
     }
 
@@ -1305,7 +1015,10 @@
                     targetPage = 1
                 }
             }
-            viewerStore.goToPage(targetPage)
+            void commandsStore.execute("viewer.page.go-to", {
+                page: targetPage,
+                isJump: false,
+            })
         },
         ignoredSelectors: [
             "button",
@@ -1406,8 +1119,6 @@
                             bind:isOutlineOpen={sidebars.left}
                             bind:isSettingsOpen={sidebars.settings}
                             isBookmarked={isCurrentPageBookmarked}
-                            onBookmarkClick={handleBookmarkHeaderClick}
-                            onClose={handleClose}
                         />
                     </div>
                 {/if}
@@ -1575,10 +1286,10 @@
                                     class="viewer-fab-btn fab-prev-search"
                                     onclick={(e) => {
                                         e.stopPropagation()
-                                        searchStore.prev()
+                                        void commandsStore.execute("viewer.search.previous")
                                     }}
                                     aria-label={m.keymap_prev_match()}
-                                    tooltip={`${m.keymap_prev_match()}${getShortcutHint(commandsNode, "prev-search-match")}`}
+                                    tooltip={`${m.keymap_prev_match()}${getShortcutHint(commandsNode, "viewer.search.previous")}`}
                                 >
                                     <ChevronIcon style="transform: rotate(180deg);" />
                                 </Button>
@@ -1589,12 +1300,10 @@
                                     class="viewer-fab-btn fab-close-search"
                                     onclick={(e) => {
                                         e.stopPropagation()
-                                        uiStore.isSearchModeActive = false
-                                        searchStore.setQuery("")
-                                        uiStore.prompt.clearValue("search")
+                                        void commandsStore.execute("viewer.search.close")
                                     }}
                                     aria-label={m.prompt_close_aria()}
-                                    tooltip={`${m.prompt_close_aria()}${getShortcutHint(commandsNode, "close-search")}`}
+                                    tooltip={`${m.prompt_close_aria()}${getShortcutHint(commandsNode, "viewer.search.close")}`}
                                 >
                                     ✕
                                 </Button>
@@ -1605,10 +1314,10 @@
                                     class="viewer-fab-btn fab-next-search"
                                     onclick={(e) => {
                                         e.stopPropagation()
-                                        searchStore.next()
+                                        void commandsStore.execute("viewer.search.next")
                                     }}
                                     aria-label={m.keymap_next_match()}
-                                    tooltip={`${m.keymap_next_match()}${getShortcutHint(commandsNode, "next-search-match")}`}
+                                    tooltip={`${m.keymap_next_match()}${getShortcutHint(commandsNode, "viewer.search.next")}`}
                                 >
                                     <ChevronIcon />
                                 </Button>
@@ -1619,11 +1328,10 @@
                                     class="viewer-fab-btn fab-search"
                                     onclick={(e) => {
                                         e.stopPropagation()
-                                        uiStore.prompt.mode = "search"
-                                        uiStore.prompt.isOpen = true
+                                        void commandsStore.execute("viewer.search")
                                     }}
                                     aria-label={m.keymap_search()}
-                                    tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "open-search")}`}
+                                    tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "viewer.search")}`}
                                 >
                                     <SearchIcon />
                                 </Button>
@@ -1638,11 +1346,10 @@
                                     : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    uiStore.prompt.mode = "search"
-                                    uiStore.prompt.isOpen = true
+                                    void commandsStore.execute("viewer.search")
                                 }}
                                 aria-label={m.keymap_search()}
-                                tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "open-search")}`}
+                                tooltip={`${m.keymap_search()}${getShortcutHint(commandsNode, "viewer.search")}`}
                             >
                                 <SearchIcon />
                             </Button>
@@ -1656,13 +1363,12 @@
                                 class="viewer-fab-btn fab-prompt {!uiStore.isToolbarsVisible
                                     ? 'hidden-toolbars'
                                     : ''}"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    uiStore.prompt.mode = "global"
-                                    uiStore.prompt.isOpen = true
+                                onclick={(event) => {
+                                    event.stopPropagation()
+                                    void commandsStore.execute("prompt.open")
                                 }}
                                 aria-label={m.keymap_prompt()}
-                                tooltip={`${m.keymap_prompt()}${getShortcutHint(commandsNode, "open-prompt")}`}
+                                tooltip={`${m.keymap_prompt()}${getShortcutHint(commandsNode, "prompt.open")}`}
                             >
                                 <TerminalIcon />
                             </Button>
@@ -1675,12 +1381,12 @@
                                     class="viewer-fab-btn fab-toggle"
                                     onclick={(e) => {
                                         e.stopPropagation()
-                                        uiStore.isToolbarsVisible = !uiStore.isToolbarsVisible
+                                        void commandsStore.execute("viewer.toolbar.toggle")
                                     }}
                                     aria-label={uiStore.isToolbarsVisible
                                         ? m.hide_toolbars()
                                         : m.show_toolbars()}
-                                    tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "hide-toolbar")}`}
+                                    tooltip={`${uiStore.isToolbarsVisible ? m.hide_toolbars() : m.show_toolbars()}${getShortcutHint(commandsNode, "viewer.toolbar.toggle")}`}
                                 >
                                     {#if uiStore.isToolbarsVisible}
                                         <MinimizeIcon />
@@ -1701,12 +1407,9 @@
                         }}
                     >
                         <ViewerFooter
-                            bind:currentPage={viewerStore.currentPage}
-                            bind:scrollPosition={viewerStore.scrollPosition}
+                            currentPage={viewerStore.currentPage}
                             {totalPages}
                             {isPageLoading}
-                            {nextPage}
-                            {prevPage}
                         />
                     </div>
                 {/if}
@@ -1722,23 +1425,7 @@
                 >
                     <button
                         class="fab-btn"
-                        onclick={() => {
-                            const sel = notesStore.activeSelection
-                            if (sel) {
-                                notesStore.editingNote = {
-                                    isNew: true,
-                                    bookId: sel.bookId,
-                                    pageNumber: sel.pageNumber,
-                                    start: sel.start,
-                                    end: sel.end,
-                                    text: sel.text,
-                                    color: "yellow",
-                                    noteContent: "",
-                                }
-                                notesStore.editorCoords = { x: sel.x, y: sel.y }
-                                notesStore.activeSelection = null
-                            }
-                        }}
+                        onclick={() => void commandsStore.execute("viewer.note.add")}
                     >
                         <NoteIcon width="16" height="16" />
                         <span>{m.add_note()}</span>

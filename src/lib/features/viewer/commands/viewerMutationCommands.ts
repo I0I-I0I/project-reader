@@ -1,0 +1,69 @@
+import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
+import { defineCommands } from "$lib/features/commands/commands.types"
+import * as m from "$lib/paraglide/messages"
+
+type MutationContext = {
+    addBookmark: (payload: AppCommandPayloads["viewer.bookmark.add"]) => void | Promise<void>
+    editBookmark: (payload: AppCommandPayloads["viewer.bookmark.edit"]) => void | Promise<void>
+    deleteBookmark: (payload: AppCommandPayloads["viewer.bookmark.delete"]) => void | Promise<void>
+    addNote: (payload: AppCommandPayloads["viewer.note.add"]) => void | Promise<void>
+    editNote: (payload: AppCommandPayloads["viewer.note.edit"]) => void | Promise<void>
+    saveNote: (payload: AppCommandPayloads["viewer.note.save"]) => void | Promise<void>
+    deleteNote: (payload: AppCommandPayloads["viewer.note.delete"]) => void | Promise<void>
+}
+
+export function createViewerMutationCommands(context: MutationContext) {
+    return defineCommands({
+        "viewer.bookmark.add": {
+            id: "viewer.bookmark.add",
+            label: () => m.add_bookmark(),
+            englishLabel: () => "Add bookmark",
+            category: "bookmarks",
+            run: context.addBookmark,
+        },
+        "viewer.bookmark.edit": {
+            id: "viewer.bookmark.edit",
+            label: () => m.edit_bookmark(),
+            englishLabel: () => "Edit bookmark",
+            category: "bookmarks",
+            run: context.editBookmark,
+        },
+        "viewer.bookmark.delete": {
+            id: "viewer.bookmark.delete",
+            label: () => m.remove_bookmark(),
+            englishLabel: () => "Delete bookmark",
+            category: "bookmarks",
+            run: context.deleteBookmark,
+        },
+        "viewer.note.add": {
+            id: "viewer.note.add",
+            label: () => m.add_note(),
+            englishLabel: () => "Add note",
+            category: "commands",
+            run: context.addNote,
+        },
+        "viewer.note.edit": {
+            id: "viewer.note.edit",
+            label: () => m.edit_note(),
+            englishLabel: () => "Edit note",
+            category: "commands",
+            run: context.editNote,
+        },
+        "viewer.note.save": {
+            id: "viewer.note.save",
+            label: () => m.save(),
+            englishLabel: () => "Save note",
+            category: "commands",
+            keymap: "ctrl+enter",
+            allowInInputs: true,
+            run: context.saveNote,
+        },
+        "viewer.note.delete": {
+            id: "viewer.note.delete",
+            label: () => m.delete(),
+            englishLabel: () => "Delete note",
+            category: "commands",
+            run: context.deleteNote,
+        },
+    })
+}

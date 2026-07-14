@@ -1,110 +1,12 @@
 import { browser } from "$app/environment"
 import { BREAKPOINTS } from "$lib/core/stores/breakpoints"
-import type { CommandNode } from "$lib/features/prompt/stores/commandsStore.svelte"
 import { untrack } from "svelte"
 
-type PromptMode =
-    | "global"
-    | "files"
-    | "page"
-    | "move"
-    | "theme"
-    | "layout"
-    | "language"
-    | "files-recursive"
-    | "folders"
-    | "search"
-    | "bookmarks"
-
-class PromptState {
-    #mode = $state<PromptMode>("global")
-    #value = $state("")
-    #initialValue = $state("")
-    #isOpen = $state(false)
-    #values = $state<Record<string, string>>({})
-    #initialSelectedIndex = $state<number | null>(null)
-    #openedWithInitialValue = $state(false)
-
-    get mode(): PromptMode {
-        return this.#mode
-    }
-
-    set mode(val: PromptMode) {
-        if (this.#mode !== val) {
-            this.#values[this.#mode] = this.#value
-            this.#mode = val
-            this.#value = this.#values[val] || ""
-            this.#initialSelectedIndex = null
-        }
-    }
-
-    get initialSelectedIndex(): number | null {
-        return this.#initialSelectedIndex
-    }
-
-    set initialSelectedIndex(val: number | null) {
-        this.#initialSelectedIndex = val
-    }
-
-    get value(): string {
-        return this.#value
-    }
-
-    set value(val: string) {
-        this.#value = val
-        this.#values[this.#mode] = val
-    }
-
-    get initialValue(): string {
-        return this.#initialValue
-    }
-
-    set initialValue(val: string) {
-        this.#initialValue = val
-        if (val) {
-            this.#value = val
-            this.#values[this.#mode] = val
-        }
-    }
-
-    get openedWithInitialValue(): boolean {
-        return this.#openedWithInitialValue
-    }
-
-    set openedWithInitialValue(val: boolean) {
-        this.#openedWithInitialValue = val
-    }
-
-    get isOpen(): boolean {
-        return this.#isOpen
-    }
-
-    set isOpen(val: boolean) {
-        this.#isOpen = val
-    }
-
-    clearValues() {
-        this.#values = {}
-        this.#value = ""
-        this.#initialValue = ""
-        this.#openedWithInitialValue = false
-    }
-
-    clearValue(mode: string) {
-        this.#values[mode] = ""
-        if (this.#mode === mode) {
-            this.#value = ""
-        }
-    }
-}
-
 class UIStore {
-    pickerCommandsNode = $state<CommandNode | null>(null)
     #isToolbarsVisible = $state(true)
     #isSearchModeActive = $state(false)
     #isSelectionMode = $state(false)
     #isPickingMode = $state(false)
-    prompt = new PromptState()
     #isNewFolderModalOpen = $state(false)
     #isDeleteModalOpen = $state(false)
     #nodesToDeleteIds = $state<string[]>([])
@@ -176,13 +78,7 @@ class UIStore {
 
     set isSelectionMode(value: boolean) {
         this.#isSelectionMode = value
-        if (!value) {
-            this.#isPickingMode = false
-            if (this.prompt.mode === "move") {
-                this.prompt.isOpen = false
-                this.prompt.mode = "global"
-            }
-        }
+        if (!value) this.#isPickingMode = false
     }
 
     get isToolbarsVisible(): boolean {
@@ -283,7 +179,6 @@ class UIStore {
             this.#isDeleteModalOpen ||
             this.#isEditMetadataModalOpen ||
             this.#isRelinkModalOpen ||
-            this.prompt.isOpen ||
             this.#customModalOpen ||
             this.#modalStates.some((getState) => getState())
         )

@@ -5,11 +5,11 @@
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { fileNodeToBook } from "$lib/features/viewer/stores/viewerStore.types"
-    import { goto } from "$app/navigation"
-    import { localizedPath } from "$lib/core/language/language"
     import type { FileNode } from "$lib/core/vfs/vfsStore.types"
+    import { relinkLibraryNode } from "$lib/features/library/commands/libraryRelinkExecution"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
 
     let fileInput = $state<HTMLInputElement | null>(null)
     const nodeId = $derived(uiStore.relinkNodeId)
@@ -21,29 +21,7 @@
     }
 
     async function handleRelink(fileSource: File | FileSystemFileHandle) {
-        if (!node) return
-
-        const originalName = node.name
-        const newName = fileSource.name
-
-        if (originalName && newName && originalName !== newName) {
-            const warning = m.relink_warning({ newName, originalName })
-            const confirmed = confirm(warning)
-            if (!confirmed) return
-        }
-
-        try {
-            await vfsStore.relinkFile(node.id, fileSource)
-            uiStore.isRelinkModalOpen = false
-            uiStore.relinkNodeId = null
-
-            // Open the book directly
-            await viewerStore.setCurrentBook(fileNodeToBook(node))
-            goto(localizedPath("/viewer"))
-        } catch (err) {
-            console.error("Failed to relink file:", err)
-            alert(m.relink_failed())
-        }
+        if (node) await relinkLibraryNode(node.id, fileSource)
     }
 
     async function handleLocateClick() {
@@ -79,16 +57,35 @@
             handleRelink(files[0])
         }
     }
+
+    const activeNodeBeforeOpen = commandsStore.activeScope
+    const modalCommands = defineCommands({
+        "modal.cancel": {
+            id: "modal.cancel",
+            label: () => m.cancel(),
+            category: "commands",
+            keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
+            allowInInputs: true,
+            run: handleClose,
+        },
+    })
+    const commandsNode = useModalCommands(Object.values(modalCommands), activeNodeBeforeOpen)
 </script>
 
-<Modal onClose={handleClose} title={m.relink_modal_title()} autofocusClose={false}>
+<Modal
+    onClose={() => void commandsNode.execute("modal.cancel")}
+    title={m.relink_modal_title()}
+    autofocusClose={false}
+>
     <div class="relink-modal-content">
         <p class="description-text">
             {m.relink_modal_description({ name: node ? node.name : "" })}
         </p>
         <div class="modal-actions">
             <Button variant="brutalist" onclick={handleLocateClick}>{m.locate_file()}</Button>
-            <Button variant="ghost" onclick={handleClose}>{m.cancel()}</Button>
+            <Button variant="ghost" onclick={() => void commandsNode.execute("modal.cancel")}>
+                {m.cancel()}
+            </Button>
         </div>
     </div>
 </Modal>

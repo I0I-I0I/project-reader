@@ -1,6 +1,6 @@
 import PDFDocument, { Page, type FlatHeading } from "./pdf"
 import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
-import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
 import { uiStore } from "$lib/core/stores/uiStore.svelte"
 
 export class PDFRenderer {
@@ -149,7 +149,12 @@ export class PDFRenderer {
                         pImg2 = await this.pdf!.getCanvasPage(prevPage2, quality, signal)
                         pDim2 = await this.pdf!.getPageDimension(prevPageNo + 1)
                     }
-                } catch {}
+                } catch {
+                    pImg1 = null
+                    pImg2 = null
+                    pDim1 = null
+                    pDim2 = null
+                }
             }
 
             let nImg1: string | null = null,
@@ -170,7 +175,12 @@ export class PDFRenderer {
                             nDim2 = await this.pdf!.getPageDimension(nextPageNo + 1)
                         }
                     }
-                } catch {}
+                } catch {
+                    nImg1 = null
+                    nImg2 = null
+                    nDim1 = null
+                    nDim2 = null
+                }
             }
 
             if (!signal.aborted) {
@@ -194,7 +204,10 @@ export class PDFRenderer {
                 try {
                     const page = new Page(nextPageNo)
                     await this.pdf.getCanvasPage(page, quality, signal)
-                } catch {}
+                } catch {
+                    if (signal.aborted) break
+                    continue
+                }
             }
         }
     }

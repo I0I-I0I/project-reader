@@ -1,0 +1,14 @@
+import { defineCommands } from "$lib/features/commands/commands.types"
+import * as m from "$lib/paraglide/messages"
+
+export function createViewerFitWidthCommand(fitToWidth: () => void) {
+    return defineCommands({
+        "viewer.zoom.fit-width": {
+            id: "viewer.zoom.fit-width",
+            keymap: "=",
+            label: () => m.keymap_zoom_to_fit(),
+            category: "settings",
+            run: fitToWidth,
+        },
+    })["viewer.zoom.fit-width"]!
+}

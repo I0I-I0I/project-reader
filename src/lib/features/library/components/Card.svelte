@@ -1,9 +1,8 @@
 <script lang="ts">
-    import { getContext, type Component } from "svelte"
+    import { type Component } from "svelte"
     import type { HTMLAttributes } from "svelte/elements"
     import Spinner from "$lib/core/components/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { fileNodeToBook } from "$lib/features/viewer/stores/viewerStore.types"
     import BookOpenIcon from "$lib/core/components/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/core/components/icons/CheckCircleIcon.svelte"
@@ -15,16 +14,20 @@
     import FolderIcon from "$lib/core/components/icons/FolderIcon.svelte"
     import CheckIcon from "$lib/core/components/icons/CheckIcon.svelte"
     import EditIcon from "$lib/core/components/icons/EditIcon.svelte"
-    import PDFDocument from "$lib/core/pdf/pdf"
-    import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Dropdown from "$lib/core/components/ui/Dropdown.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import {
-        useCommands,
+        commandsStore,
         getShortcutHint,
-        type CommandNode,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        type CommandScope,
+    } from "$lib/features/commands/commandsStore.svelte"
+    import { useLibraryCardCommands } from "$lib/features/library/commands/useLibraryCardCommands.svelte"
+    import {
+        requestLibraryNodeDelete,
+        requestLibraryNodeMove,
+    } from "$lib/features/library/commands/libraryNodeExecution"
+    import { toggleLibraryBookReadState } from "$lib/features/library/commands/libraryReadStateExecution"
 
     interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
@@ -47,58 +50,49 @@
     let isRestoring = $state(false)
     let showMenu = $state(false)
     let longPressTimeout: ReturnType<typeof setTimeout> | undefined
-    let isFocused = $state(false)
 
-    const getActiveNode = getContext<(() => CommandNode | null) | undefined>(
-        "get_active_commands_node",
-    )
-    const setActiveNode = getContext<((node: CommandNode | null) => void) | undefined>(
-        "set_active_commands_node",
-    )
-
-    const commandsNode = useCommands([
-        {
-            id: "toggle-menu",
-            keys: "e",
-            action: (e) => {
-                e.preventDefault()
-                showMenu = true
-            },
-            description: m.more_options(),
-            disabled: () => !isFocused || isPlaceholder,
+    let commandsNode = $state.raw<CommandScope>(undefined as any)
+    commandsNode = useLibraryCardCommands({
+        getNodeId: () => node?.id,
+        isExecutable: () => !isPlaceholder && !isRestoring,
+        setMenuOpen: (open: boolean) => {
+            showMenu = open
         },
-        {
-            id: "select-card",
-            keys: "space",
-            action: (e) => {
-                e.preventDefault()
-                if (node) {
-                    uiStore.isSelectionMode = true
-                    vfsStore.toggleSelection(node.id)
-                }
-            },
-            description: m.select ? m.select() : "Select",
-            disabled: () => !isFocused || isPlaceholder,
+        openNode: async ({ nodeId }) => {
+            if (!nodeId) return
+            const target = vfsStore.nodes[nodeId]
+            if (target?.type === "folder") {
+                await commandsNode.parent?.execute("library.folder.open", {
+                    folderId: nodeId,
+                })
+            } else {
+                await commandsNode.parent?.execute("viewer.open", { bookId: nodeId })
+            }
         },
-        {
-            id: "open-card",
-            keys: "enter",
-            action: (e) => {
-                e.preventDefault()
-                handleClick(e as any)
-            },
-            description: "Open",
-            disabled: () => !isFocused || isPlaceholder || isRestoring,
+        toggleSelection: async (payload) => {
+            await commandsNode.parent?.execute("library.selection.toggle", payload)
         },
-    ])
+        moveNode: async (payload) => {
+            await commandsNode.parent?.execute("library.node.move", payload)
+        },
+        deleteNode: async (payload) => {
+            await commandsNode.parent?.execute("library.node.delete", payload)
+        },
+        editMetadata: async (payload) => {
+            await commandsNode.parent?.execute("library.node.edit-metadata", payload)
+        },
+        toggleReadState: async (payload) => {
+            await commandsNode.parent?.execute("library.book.read-state.toggle", payload)
+        },
+        relink: async (payload) => {
+            await commandsNode.parent?.execute("library.node.relink", payload)
+        },
+    })
 
     const handleFocus = () => {
-        isFocused = true
         if (showMenu) return
         if (uiStore.isPickingMode) return
-        if (setActiveNode) {
-            setActiveNode(commandsNode)
-        }
+        commandsStore.activate(commandsNode)
     }
 
     const handleFocusOut = (e: FocusEvent) => {
@@ -107,9 +101,8 @@
         if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
             return
         }
-        isFocused = false
-        if (setActiveNode && getActiveNode && getActiveNode() === commandsNode) {
-            setActiveNode(commandsNode.parent)
+        if (commandsStore.activeScope === commandsNode) {
+            commandsStore.deactivate(commandsNode)
         }
     }
 
@@ -160,12 +153,11 @@
         }
     }
 
-    const onPointerDown = (e: PointerEvent) => {
+    const onPointerDown = () => {
         if (!node || uiStore.isSelectionMode) return
         longPressTimeout = setTimeout(() => {
             if (node) {
-                uiStore.isSelectionMode = true
-                vfsStore.toggleSelection(node.id)
+                void commandsNode.execute("library.selection.toggle", { nodeId: node.id })
                 if (navigator.vibrate) navigator.vibrate(50)
             }
         }, 500)
@@ -187,37 +179,26 @@
         }
     }
 
-    const onRemove = async (e: MouseEvent) => {
-        if (!node) return
-        e.stopPropagation()
-        showMenu = false
-        uiStore.nodesToDeleteIds = [node.id]
-        uiStore.isDeleteModalOpen = true
+    const onRemove = (event: MouseEvent) => {
+        event.stopPropagation()
+        if (node) void requestLibraryNodeDelete(node.id)
     }
 
-    const onMove = (e: MouseEvent) => {
-        if (!node) return
-        e.stopPropagation()
-        uiStore.nodeToMoveId = node.id
-        uiStore.prompt.mode = "move"
-        uiStore.prompt.isOpen = true
-        showMenu = false
+    const onMove = (event: MouseEvent) => {
+        event.stopPropagation()
+        if (node) void requestLibraryNodeMove(node.id)
     }
 
-    const onSelect = (e: MouseEvent) => {
+    const onSelect = (event: MouseEvent) => {
+        event.stopPropagation()
         if (!node) return
-        e.stopPropagation()
-        uiStore.isSelectionMode = true
-        vfsStore.toggleSelection(node.id)
-        showMenu = false
+        void commandsNode.execute("library.selection.toggle", { nodeId: node.id })
     }
 
-    const onEditMetadata = (e: MouseEvent) => {
+    const onEditMetadata = (event: MouseEvent) => {
+        event.stopPropagation()
         if (!node) return
-        e.stopPropagation()
-        uiStore.nodeToEditMetadataId = node.id
-        uiStore.isEditMetadataModalOpen = true
-        showMenu = false
+        void commandsNode.execute("library.node.edit-metadata", { nodeId: node.id })
     }
 
     const isRead = $derived(
@@ -227,54 +208,10 @@
             (fileNode.metadata.pageNumber || 1) === fileNode.metadata.totalPages,
     )
 
-    const toggleReadState = async (e: MouseEvent) => {
-        e.stopPropagation()
-        showMenu = false
+    const toggleReadState = (event: MouseEvent) => {
+        event.stopPropagation()
         if (!fileNode) return
-
-        let total = fileNode.metadata.totalPages
-        if (!total) {
-            // Load metadata on the fly if it is missing
-            const url = await vfsStore.getFileUrl(fileNode.id)
-            if (url) {
-                const doc = new PDFDocument(url)
-                try {
-                    await doc.load(settingsStore.scale)
-                    total = await doc.getPageNumber()
-                } catch (err) {
-                    console.error("[Card] Failed to get total pages for toggleReadState:", err)
-                } finally {
-                    await doc.close()
-                    if (vfsStore.isLockedMap[fileNode.id]) {
-                        vfsStore.revokeFileUrl(fileNode.id)
-                    }
-                }
-            }
-        }
-
-        if (!total) {
-            total = 1
-        }
-
-        const isCurrentlyRead = (fileNode.metadata.pageNumber || 1) === total
-        const targetPage = isCurrentlyRead ? 1 : total
-
-        const currentBook = viewerStore.getCurrentBook()
-        if (currentBook && currentBook.id === fileNode.id) {
-            await viewerStore.updateBook({
-                ...currentBook,
-                pageNumber: targetPage,
-                totalPages: total,
-            })
-        } else {
-            await vfsStore.updateFile(fileNode.id, {
-                metadata: {
-                    ...fileNode.metadata,
-                    pageNumber: targetPage,
-                    totalPages: total,
-                },
-            })
-        }
+        void toggleLibraryBookReadState(fileNode.id)
     }
 
     const closeMenu = () => {
@@ -383,7 +320,7 @@
                         class="menu-btn"
                         tabindex={-1}
                         aria-label={m.more_options()}
-                        tooltip={`${m.more_options()}${getShortcutHint(commandsNode, "toggle-menu")}`}
+                        tooltip={`${m.more_options()}${getShortcutHint(commandsNode, "library.card.menu.toggle")}`}
                         onpointerdown={(e) => e.stopPropagation()}
                     >
                         <MoreVerticalIcon />

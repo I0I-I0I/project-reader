@@ -9,7 +9,7 @@
         settingsStore,
     } from "$lib/core/stores/settingsStore.svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+    import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
     import {
         notesStore,
         getGlobalOffset,
@@ -25,8 +25,10 @@
     import { onDestroy, untrack } from "svelte"
     import { MediaQuery } from "svelte/reactivity"
     import { MEDIA_QUERIES } from "$lib/core/stores/breakpoints"
-    import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore, useCommands } from "$lib/features/commands/commandsStore.svelte"
+    import { createViewerFitWidthCommand } from "$lib/features/viewer/commands/viewerFitWidthCommand"
     import { ViewerLinkService } from "./ViewerLinkService"
+    import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -118,16 +120,7 @@
         }
     })
 
-    useCommands([
-        {
-            keys: "=",
-            description: m.keymap_zoom_to_fit(),
-            category: "settings",
-            action: () => {
-                fitToWidth()
-            },
-        },
-    ])
+    useCommands([createViewerFitWidthCommand(fitToWidth)])
 
     function compactZoomMultiplier(targetScale = scale) {
         return targetScale / DEFAULT_SETTINGS.scale
@@ -750,11 +743,10 @@
                 if (annotations.length === 0) return
 
                 const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
-                    if (viewerStore.goToPage) {
-                        viewerStore.goToPage(targetPage, { isJump: true })
-                    } else {
-                        currentPage = targetPage
-                    }
+                    void commandsStore.execute("viewer.page.go-to", {
+                        page: targetPage,
+                        isJump: true,
+                    })
                 })
                 linkService.page = pageNo
 
@@ -1141,7 +1133,7 @@
     })
 
     $effect(() => {
-        if (!uiStore.isSearchModeActive || uiStore.prompt.isOpen) return
+        if (!uiStore.isSearchModeActive || promptStore.isOpen) return
 
         const activeRange = searchStore.activeRange
         if (activeRange && container) {

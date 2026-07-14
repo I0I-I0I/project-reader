@@ -1,7 +1,6 @@
 import { SvelteMap } from "svelte/reactivity"
 import pLimit from "p-limit"
 import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-import { uiStore } from "$lib/core/stores/uiStore.svelte"
 import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
 import type PDFDocument from "$lib/core/pdf/pdf"
 import { browser } from "$app/environment"
@@ -68,14 +67,24 @@ class SearchStore {
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
     private worker: Worker | null = null
+    private matchesChangedListeners = new Set<() => void>()
+
+    onMatchesChanged(listener: () => void) {
+        this.matchesChangedListeners.add(listener)
+        return () => this.matchesChangedListeners.delete(listener)
+    }
+
+    private notifyMatchesChanged() {
+        for (const listener of this.matchesChangedListeners) listener()
+    }
 
     initPdf(pdf: PDFDocument) {
         if (this.currentPdf === pdf) return
         this.currentPdf = pdf
 
         this.query = ""
-        uiStore.prompt.clearValue("search")
         this.matches = []
+        this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.searchStartPage = null
         this.isSearching = false
@@ -178,6 +187,7 @@ class SearchStore {
         } finally {
             if (this.currentPdf === pdf) {
                 this.isIndexing = false
+                if (this.query.trim()) this.setQuery(this.query)
             }
         }
     }
@@ -198,6 +208,7 @@ class SearchStore {
         const trimmed = newQuery.trim()
         if (!trimmed) {
             this.matches = []
+            this.notifyMatchesChanged()
             this._currentMatchIndex = -1
             this.isSearching = false
             this.pageRanges.clear()
@@ -223,6 +234,7 @@ class SearchStore {
         this.currentSearchAbortController = controller
 
         this.matches = []
+        this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.isSearching = true
 
@@ -238,6 +250,7 @@ class SearchStore {
             if (type === "results") {
                 const { matches, isPartial } = payload
                 this.matches = matches
+                this.notifyMatchesChanged()
 
                 const startPage = this.searchStartPage ?? 1
                 const nearestIdx = this.findNearestMatchIndex(this.matches, startPage)
@@ -262,10 +275,6 @@ class SearchStore {
                 searchStartPage: this.searchStartPage ?? 1,
             },
         })
-    }
-
-    private async runAsyncSearch(q: string) {
-        await this.runWorkerSearch(q)
     }
 
     next() {
@@ -401,6 +410,7 @@ class SearchStore {
         this.currentPdf = null
         this.query = ""
         this.matches = []
+        this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.searchStartPage = null
         this.isSearching = false

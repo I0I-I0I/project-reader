@@ -14,7 +14,7 @@ export function navigateGrid(
     direction: "up" | "down" | "left" | "right",
     lastFocusedCardId: string | null,
     animations: boolean,
-    event?: KeyboardEvent,
+    repeated = false,
 ) {
     const cards = Array.from(
         document.querySelectorAll(".card_list.grid .card:not(:disabled)"),
@@ -110,8 +110,7 @@ export function navigateGrid(
 
     if (cards[nextIndex]) {
         cards[nextIndex].focus({ preventScroll: true })
-        const isRepeat = event?.repeat || false
-        const behavior = !isRepeat && animations ? "smooth" : "auto"
+        const behavior = !repeated && animations ? "smooth" : "auto"
         cards[nextIndex].scrollIntoView({ block: "nearest", behavior })
     }
 }

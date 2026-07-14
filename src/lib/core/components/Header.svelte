@@ -4,8 +4,8 @@
     import MoonIcon from "$lib/core/components/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/core/components/icons/SystemIcon.svelte"
     import GlobeIcon from "$lib/core/components/icons/GlobeIcon.svelte"
-    import { locales, localizeHref, getLocale } from "$lib/paraglide/runtime"
-    import { settingsStore, type Theme } from "$lib/core/stores/settingsStore.svelte"
+    import { locales, getLocale } from "$lib/paraglide/runtime"
+    import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { resolve } from "$app/paths"
     import { page } from "$app/state"
     import * as m from "$lib/paraglide/messages"
@@ -17,17 +17,14 @@
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import BookOpenIcon from "$lib/core/components/icons/BookOpenIcon.svelte"
-    import {
-        getLocalizedCurrentHref,
-        switchLanguage,
-        type AppLocale,
-    } from "$lib/core/language/language"
+    import { getLocalizedCurrentHref, type AppLocale } from "$lib/core/language/language"
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
-        type CommandNode,
+        type CommandScope,
         getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+    } from "$lib/features/commands/commandsStore.svelte"
 
     const THEMES = [
         { value: "light", label: () => m.light(), Icon: SunIcon },
@@ -37,16 +34,12 @@
 
     let inputValue = $state("")
 
-    function selectTheme(theme: Theme) {
-        settingsStore.theme = theme
-    }
-
     const currentThemeInfo = $derived(
         THEMES.find((t) => t.value === settingsStore.theme) || THEMES[2],
     )
 
     const currentBook = $derived(viewerStore.getCurrentBook())
-    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
+    const commandsNode = getContext<CommandScope>(COMMANDS_CONTEXT_KEY)
 </script>
 
 <header>
@@ -62,16 +55,12 @@
                         class="search-input-wrapper"
                         classInput="search-input"
                         placeholder={m.header_prompt_placeholder()}
-                        oninput={(e) => {
-                            uiStore.prompt.mode = "global"
-                            uiStore.prompt.isOpen = true
-                            uiStore.prompt.initialValue = inputValue
-                            uiStore.prompt.openedWithInitialValue = true
+                        oninput={(event) => {
+                            const input = event.currentTarget as HTMLInputElement
+                            const initialQuery = input.value
                             inputValue = ""
-                            const inputEl = e.currentTarget as HTMLInputElement
-                            if (inputEl) {
-                                inputEl.value = ""
-                            }
+                            input.value = ""
+                            void commandsStore.execute("prompt.open", { initialQuery })
                         }}
                         bind:value={inputValue}
                     />
@@ -81,10 +70,10 @@
             {#if currentBook}
                 <Button
                     variant="action"
-                    href={resolve(localizeHref("/viewer") as any)}
                     class="continue-btn"
+                    onclick={() => void commandsStore.execute("library.continue-reading")}
                     aria-label={m.continue_reading()}
-                    tooltip={`${m.continue_reading()}${getShortcutHint(commandsNode, "continue-reading")}`}
+                    tooltip={`${m.continue_reading()}${getShortcutHint(commandsNode, "library.continue-reading")}`}
                 >
                     <BookOpenIcon class="switcher-icon" />
                 </Button>
@@ -103,7 +92,7 @@
                                     class="dropdown-item"
                                     class:active={settingsStore.theme === value}
                                     onclick={() => {
-                                        selectTheme(value)
+                                        void commandsStore.execute("settings.theme", { value })
                                         close()
                                     }}
                                     aria-current={settingsStore.theme === value
@@ -139,7 +128,9 @@
                                     aria-current={getLocale() === locale ? "true" : undefined}
                                     onclick={(event) => {
                                         event.preventDefault()
-                                        switchLanguage(locale as AppLocale, page.url)
+                                        void commandsStore.execute("settings.language", {
+                                            value: locale as AppLocale,
+                                        })
                                         close()
                                     }}
                                 >

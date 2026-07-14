@@ -2,9 +2,10 @@
     import * as m from "$lib/paraglide/messages"
     import {
         useCommands,
-        getShortcutHint,
         KeyboardHandler,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+        type CommandScope,
+    } from "$lib/features/commands/commandsStore.svelte"
     import { onMount } from "svelte"
     import { MediaQuery } from "svelte/reactivity"
     import Button from "$lib/core/components/ui/Button.svelte"
@@ -13,12 +14,20 @@
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { bookmarksStore } from "$lib/features/viewer/stores/bookmarksStore.svelte"
     import type { Bookmark } from "$lib/core/vfs/vfsStore.types"
+    import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
     import TrashIcon from "$lib/core/components/icons/TrashIcon.svelte"
     import EditIcon from "$lib/core/components/icons/EditIcon.svelte"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
     import BookmarkEditKeymaps from "./BookmarkEditKeymaps.svelte"
+    import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
+    import {
+        executeViewerBookmarkDelete,
+        executeViewerBookmarkEdit,
+    } from "$lib/features/viewer/commands/viewerMutationExecution"
+    import { createViewerListCommands } from "$lib/features/viewer/commands/viewerListCommands"
+    import { withViewerInputShortcut } from "$lib/features/viewer/commands/viewerInputShortcutCommand"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -35,6 +44,7 @@
     let editingBookmarkId = $state<string | null>(null)
     let editingName = $state("")
     let bookmarkToDeleteId = $state<string | null>(null)
+    let bookmarkEditScope = $state.raw<CommandScope>()
 
     onMount(() => uiStore.registerModal(() => !!(editingBookmarkId || bookmarkToDeleteId)))
 
@@ -59,15 +69,16 @@
             .sort((a, b) => a.pageNumber - b.pageNumber),
     )
 
-    async function handleSaveRename(id: string | null) {
-        if (!id || !editingName.trim()) return
-        await bookmarksStore.updateBookmark(id, editingName.trim())
-        editingBookmarkId = null
+    function getBookmarkEditPayload(): NonNullable<AppCommandPayloads["viewer.bookmark.edit"]> {
+        return {
+            bookmarkId: editingBookmarkId ?? undefined,
+            name: editingName.trim(),
+        }
     }
 
     function selectBookmark(bookmark: any) {
         if (bookmark.pageNumber !== undefined) {
-            viewerStore.goToPage(bookmark.pageNumber, { isJump: true })
+            void commandsStore.execute("viewer.bookmark.open", { bookmarkId: bookmark.id })
             if (window.innerWidth <= 480) {
                 onClose()
             }
@@ -125,138 +136,102 @@
         }
     }
 
-    const sidebarCommandsNode = useCommands([
-        {
-            id: "scroll-down",
-            keys: "j",
-            description: "Next Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
-            },
+    const applyBookmarkEdit = async (
+        payload: { bookmarkId?: string; name?: string } | undefined,
+    ) => {
+        const bookmarkId = payload?.bookmarkId ?? filteredBookmarks[selectedIndex]?.id
+        const bookmark = bookmarksStore.bookmarks.find(({ id }) => id === bookmarkId)
+        if (!bookmark) return
+        if (payload?.name?.trim()) {
+            await bookmarksStore.updateBookmark(bookmark.id, payload.name.trim())
+            editingBookmarkId = null
+            return
+        }
+        editingBookmarkId = bookmark.id
+        editingName = bookmark.name
+    }
+
+    const sidebarMutationCommands = createViewerMutationCommands({
+        addBookmark: () => {},
+        editBookmark: applyBookmarkEdit,
+        deleteBookmark: async (
+            payload: { bookmarkId?: string; confirmed?: boolean } | undefined,
+        ) => {
+            const bookmarkId = payload?.bookmarkId ?? filteredBookmarks[selectedIndex]?.id
+            if (!bookmarkId) return
+            if (!payload?.confirmed) {
+                bookmarkToDeleteId = bookmarkId
+                return
+            }
+            await bookmarksStore.deleteBookmark(bookmarkId)
+            bookmarkToDeleteId = null
         },
-        {
-            id: "scroll-down-alt",
-            keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-            description: "Next Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "scroll-up",
-            keys: "k",
-            description: "Previous Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-        },
-        {
-            id: "scroll-up-alt",
-            keys: ["arrowup", "ctrl+p", "ctrl+k"],
-            description: "Previous Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "select-bookmark",
-            keys: "enter",
-            description: "Jump to Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
+        addNote: () => {},
+        editNote: () => {},
+        saveNote: () => {},
+        deleteNote: () => {},
+    })
+
+    const listCommandsDisabled = () =>
+        filteredBookmarks.length === 0 ||
+        uiStore.isModalOpen ||
+        !!editingBookmarkId ||
+        !!bookmarkToDeleteId
+    const shouldHandleListNavigation = (event: KeyboardEvent) => {
+        const target = event.target
+        const isInput =
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLElement && target.isContentEditable)
+        return !(
+            isInput &&
+            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
+        )
+    }
+    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) => {
+        const target = event.target
+        const isInput =
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLElement && target.isContentEditable)
+        return !isInput || (isSearchFocused && KeyboardHandler.matches(event, inputKey))
+    }
+
+    useCommands([
+        ...createViewerListCommands({
+            nextLabel: () => "Next Bookmark",
+            previousLabel: () => "Previous Bookmark",
+            selectLabel: () => "Jump to Bookmark",
+            searchLabel: () => "Search Bookmarks",
+            disabled: listCommandsDisabled,
+            shouldHandleNavigationKey: shouldHandleListNavigation,
+            next: () => navigateSelection("next"),
+            previous: () => navigateSelection("prev"),
+            select: () => {
                 const bookmark = filteredBookmarks[selectedIndex]
                 if (bookmark) {
                     selectBookmark(bookmark)
                     onClose()
                 }
             },
-        },
-        {
-            id: "search-bookmarks",
-            keys: "/",
-            description: "Search Bookmarks",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
+            search: () => {
                 searchInputRef?.focus()
                 searchInputRef?.select()
             },
-        },
-        {
-            id: "edit-selected-bookmark",
-            keys: "e",
-            description: "Edit Selected Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                const bookmark = filteredBookmarks[selectedIndex]
-                if (bookmark) {
-                    triggerEditKeyboard(bookmark)
-                }
-            },
-        },
-        {
-            id: "delete-selected-bookmark",
-            keys: "d",
-            description: "Delete Selected Bookmark",
-            disabled: () => !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                const bookmark = filteredBookmarks[selectedIndex]
-                if (bookmark) {
-                    triggerDeleteKeyboard(bookmark)
-                }
-            },
-        },
-        {
-            id: "edit-selected-bookmark-input",
-            keys: "ctrl+e",
-            description: "Edit Selected Bookmark",
-            disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                const bookmark = filteredBookmarks[selectedIndex]
-                if (bookmark) {
-                    triggerEditKeyboard(bookmark)
-                }
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "delete-selected-bookmark-input",
-            keys: "ctrl+d",
-            description: "Delete Selected Bookmark",
-            disabled: () => !isSearchFocused || !!editingBookmarkId || !!bookmarkToDeleteId,
-            action: (event) => {
-                event.preventDefault()
-                const bookmark = filteredBookmarks[selectedIndex]
-                if (bookmark) {
-                    triggerDeleteKeyboard(bookmark)
-                }
-            },
-            allowInInputs: true,
-        },
+        }),
+        withViewerInputShortcut(
+            sidebarMutationCommands["viewer.bookmark.edit"]!,
+            ["e", "ctrl+e"],
+            listCommandsDisabled,
+            (event) => shouldHandleMutationKey(event, "ctrl+e"),
+        ),
+        withViewerInputShortcut(
+            sidebarMutationCommands["viewer.bookmark.delete"]!,
+            ["d", "ctrl+d"],
+            listCommandsDisabled,
+            (event) => !bookmarkToDeleteId && shouldHandleMutationKey(event, "ctrl+d"),
+        ),
     ])
-
-    function triggerEditKeyboard(bookmark: Bookmark) {
-        editingBookmarkId = bookmark.id
-        editingName = bookmark.name
-    }
-
-    function triggerDeleteKeyboard(bookmark: Bookmark) {
-        bookmarkToDeleteId = bookmark.id
-    }
 
     function formatKey(keys: string | string[]): string {
         if (Array.isArray(keys)) {
@@ -292,75 +267,17 @@
             .join("-")
     }
 
-    let navigateShortcuts = $derived.by(() => {
-        if (!sidebarCommandsNode) return []
-        const cmds = sidebarCommandsNode.getAllCommands()
-        const downCmds = cmds.filter((c) => c.id === "scroll-down" || c.id === "scroll-down-alt")
-        const upCmds = cmds.filter((c) => c.id === "scroll-up" || c.id === "scroll-up-alt")
-        if (downCmds.length === 0 || upCmds.length === 0) return []
-
-        const downKeys = downCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-        const upKeys = upCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-
-        const pairs: { display: string }[] = []
-        const keyPairs = [
-            { down: "j", up: "k" },
-            { down: "arrowdown", up: "arrowup" },
-            KeyboardHandler.isChromiumNonMac()
-                ? { down: "ctrl+j", up: "ctrl+k" }
-                : { down: "ctrl+n", up: "ctrl+p" },
-        ]
-        for (const pair of keyPairs) {
-            if (downKeys.includes(pair.down) && upKeys.includes(pair.up)) {
-                pairs.push({
-                    display: `${formatKey(pair.down)}/${formatKey(pair.up)}`,
-                })
-            }
-        }
-        return pairs
-    })
-
-    let selectShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "select-bookmark" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let searchShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "search-bookmarks" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let editShortcut = $derived.by(() => {
-        if (isSearchFocused) {
-            return formatKey("ctrl+e")
-        }
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "edit-selected-bookmark" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let deleteShortcut = $derived.by(() => {
-        if (isSearchFocused) {
-            return formatKey("ctrl+d")
-        }
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "delete-selected-bookmark" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
+    const navigateShortcuts = [
+        { display: `${formatKey("j")}/${formatKey("k")}` },
+        { display: `${formatKey("arrowdown")}/${formatKey("arrowup")}` },
+        KeyboardHandler.isChromiumNonMac()
+            ? { display: `${formatKey("ctrl+j")}/${formatKey("ctrl+k")}` }
+            : { display: `${formatKey("ctrl+n")}/${formatKey("ctrl+p")}` },
+    ]
+    const selectShortcut = formatKey("enter")
+    const searchShortcut = formatKey("/")
+    let editShortcut = $derived(formatKey(isSearchFocused ? "ctrl+e" : "e"))
+    let deleteShortcut = $derived(formatKey(isSearchFocused ? "ctrl+d" : "d"))
 </script>
 
 {#snippet sidebarContent()}
@@ -371,7 +288,7 @@
             type="text"
             bind:value={searchQuery}
             oninput={queryChanged}
-            placeholder={`${m.search_bookmarks_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-bookmarks")}`}
+            placeholder={`${m.search_bookmarks_placeholder()} [${searchShortcut}]`}
             class="search-input"
             onkeydown={handleSearchKeydown}
             onfocus={() => {
@@ -429,8 +346,7 @@
                                 class="action-btn edit"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    editingBookmarkId = bookmark.id
-                                    editingName = bookmark.name
+                                    void executeViewerBookmarkEdit({ bookmarkId: bookmark.id })
                                 }}
                                 title={m.edit_bookmark()}
                             >
@@ -440,7 +356,7 @@
                                 class="action-btn delete"
                                 onclick={(e) => {
                                     e.stopPropagation()
-                                    bookmarkToDeleteId = bookmark.id
+                                    void executeViewerBookmarkDelete({ bookmarkId: bookmark.id })
                                 }}
                                 title={m.remove_bookmark()}
                             >
@@ -494,11 +410,13 @@
 
     {#if editingBookmarkId}
         <BookmarkEditKeymaps
-            onConfirm={() => handleSaveRename(editingBookmarkId)}
+            onConfirm={applyBookmarkEdit}
+            getPayload={getBookmarkEditPayload}
             onCancel={() => (editingBookmarkId = null)}
+            bind:scope={bookmarkEditScope}
         />
         <Modal
-            onClose={() => (editingBookmarkId = null)}
+            onClose={() => void bookmarkEditScope?.execute("modal.cancel")}
             title={m.rename_bookmark()}
             autofocusClose={false}
         >
@@ -510,17 +428,36 @@
                     label={m.rename_bookmark()}
                     bind:value={editingName}
                     onkeydown={(e) => {
-                        if (e.key === "Enter") {
+                        if (
+                            e.key === "Enter" &&
+                            !e.ctrlKey &&
+                            !e.metaKey &&
+                            !e.altKey &&
+                            !e.shiftKey
+                        ) {
                             e.preventDefault()
-                            handleSaveRename(editingBookmarkId)
+                            void bookmarkEditScope?.execute("viewer.bookmark.edit", {
+                                bookmarkId: editingBookmarkId ?? undefined,
+                                name: editingName.trim(),
+                            })
                         }
                     }}
                 />
                 <div class="modal-actions">
-                    <Button variant="brutalist" onclick={() => handleSaveRename(editingBookmarkId)}>
+                    <Button
+                        variant="brutalist"
+                        onclick={() =>
+                            void bookmarkEditScope?.execute("viewer.bookmark.edit", {
+                                bookmarkId: editingBookmarkId ?? undefined,
+                                name: editingName.trim(),
+                            })}
+                    >
                         {m.save()}
                     </Button>
-                    <Button variant="ghost" onclick={() => (editingBookmarkId = null)}>
+                    <Button
+                        variant="ghost"
+                        onclick={() => void bookmarkEditScope?.execute("modal.cancel")}
+                    >
                         {m.cancel()}
                     </Button>
                 </div>
@@ -533,7 +470,10 @@
             message={m.delete_bookmark_confirm()}
             onConfirm={async () => {
                 if (bookmarkToDeleteId) {
-                    await bookmarksStore.deleteBookmark(bookmarkToDeleteId)
+                    await executeViewerBookmarkDelete({
+                        bookmarkId: bookmarkToDeleteId,
+                        confirmed: true,
+                    })
                 }
                 bookmarkToDeleteId = null
             }}

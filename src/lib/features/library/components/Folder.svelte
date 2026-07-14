@@ -2,7 +2,7 @@
     import * as m from "$lib/paraglide/messages"
     import FolderIcon from "$lib/core/components/icons/FolderIcon.svelte"
     import NewFolderIcon from "$lib/core/components/icons/NewFolderIcon.svelte"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
 
     interface Props {
         type?: "new-folder" | "folder"
@@ -14,11 +14,9 @@
 
     function handleClick() {
         if (type === "new-folder") {
-            uiStore.isNewFolderModalOpen = true
+            void commandsStore.execute("library.folder.create")
         }
-        if (onclick) {
-            onclick()
-        }
+        onclick?.()
     }
 </script>
 

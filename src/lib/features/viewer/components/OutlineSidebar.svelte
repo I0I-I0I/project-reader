@@ -4,15 +4,15 @@
     import Input from "$lib/core/components/ui/Input.svelte"
     import type { FlatHeading } from "$lib/core/pdf/pdf"
     import {
-        useCommands,
-        getShortcutHint,
         KeyboardHandler,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+        useCommands,
+    } from "$lib/features/commands/commandsStore.svelte"
+    import { createViewerOutlineCommands } from "$lib/features/viewer/commands/viewerOutlineCommands"
     import { MediaQuery } from "svelte/reactivity"
     import Button from "$lib/core/components/ui/Button.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { resolveSelectionIndex } from "$lib/core/state/listSelection"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
 
     let {
@@ -46,12 +46,10 @@
 
     function selectHeading(heading: FlatHeading) {
         if (heading.pageNumber !== undefined) {
-            if (viewerStore.goToPage) {
-                viewerStore.goToPage(heading.pageNumber, { isJump: true })
-            } else {
-                currentPage = heading.pageNumber
-                scrollPosition = 0
-            }
+            void commandsStore.execute("viewer.page.go-to", {
+                page: heading.pageNumber,
+                isJump: true,
+            })
             if (window.innerWidth <= 480) {
                 onClose()
             }
@@ -113,75 +111,40 @@
         manualSelectedIndex = null
     }
 
-    const sidebarCommandsNode = useCommands([
-        {
-            id: "scroll-down",
-            keys: "j",
-            description: m.keymap_next_heading(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
+    useCommands(
+        createViewerOutlineCommands({
+            nextLabel: () => m.keymap_next_heading(),
+            previousLabel: () => m.keymap_prev_heading(),
+            selectLabel: () => m.keymap_select_heading(),
+            searchLabel: () => m.keymap_search_headings(),
+            disabled: () =>
+                uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup,
+            shouldHandleNavigationKey: (event) => {
+                const target = event.target
+                const isInput =
+                    target instanceof HTMLInputElement ||
+                    target instanceof HTMLTextAreaElement ||
+                    (target instanceof HTMLElement && target.isContentEditable)
+                return !(
+                    isInput &&
+                    (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
+                )
             },
-        },
-        {
-            id: "scroll-down-alt",
-            keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-            description: m.keymap_next_heading(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "scroll-up",
-            keys: "k",
-            description: m.keymap_prev_heading(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-        },
-        {
-            id: "scroll-up-alt",
-            keys: ["arrowup", "ctrl+p", "ctrl+k"],
-            description: m.keymap_prev_heading(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "select-heading",
-            keys: "enter",
-            description: m.keymap_select_heading(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
+            next: () => navigateSelection("next"),
+            previous: () => navigateSelection("prev"),
+            select: () => {
                 const heading = filteredOutlineList[selectedIndex]
                 if (heading) {
                     selectHeading(heading)
                     onClose()
                 }
             },
-        },
-        {
-            id: "search-headings",
-            keys: "/",
-            description: m.keymap_search_headings(),
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
+            search: () => {
                 searchInputRef?.focus()
                 searchInputRef?.select()
             },
-        },
-    ])
+        }),
+    )
 
     function formatKey(keys: string | string[]): string {
         if (Array.isArray(keys)) {
@@ -223,53 +186,15 @@
             .join("-")
     }
 
-    let navigateShortcuts = $derived.by(() => {
-        if (!sidebarCommandsNode) return []
-        const cmds = sidebarCommandsNode.getAllCommands()
-        const downCmds = cmds.filter((c) => c.id === "scroll-down" || c.id === "scroll-down-alt")
-        const upCmds = cmds.filter((c) => c.id === "scroll-up" || c.id === "scroll-up-alt")
-        if (downCmds.length === 0 || upCmds.length === 0) return []
-
-        const downKeys = downCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-        const upKeys = upCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-
-        const pairs: { display: string }[] = []
-        const keyPairs = [
-            { down: "j", up: "k" },
-            { down: "arrowdown", up: "arrowup" },
-            KeyboardHandler.isChromiumNonMac()
-                ? { down: "ctrl+j", up: "ctrl+k" }
-                : { down: "ctrl+n", up: "ctrl+p" },
-        ]
-        for (const pair of keyPairs) {
-            if (downKeys.includes(pair.down) && upKeys.includes(pair.up)) {
-                pairs.push({
-                    display: `${formatKey(pair.down)}/${formatKey(pair.up)}`,
-                })
-            }
-        }
-        return pairs
-    })
-
-    let selectShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "select-heading" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let searchShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "search-headings" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
+    const navigateShortcuts = [
+        { display: `${formatKey("j")}/${formatKey("k")}` },
+        { display: `${formatKey("arrowdown")}/${formatKey("arrowup")}` },
+        KeyboardHandler.isChromiumNonMac()
+            ? { display: `${formatKey("ctrl+j")}/${formatKey("ctrl+k")}` }
+            : { display: `${formatKey("ctrl+n")}/${formatKey("ctrl+p")}` },
+    ]
+    const selectShortcut = formatKey("enter")
+    const searchShortcut = formatKey("/")
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
@@ -303,7 +228,7 @@
                 type="text"
                 bind:value={searchQuery}
                 oninput={queryChanged}
-                placeholder={`${m.search_headings_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-headings")}`}
+                placeholder={`${m.search_headings_placeholder()} [${searchShortcut}]`}
                 class="search-input"
                 onkeydown={handleSearchKeydown}
             />

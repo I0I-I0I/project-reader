@@ -19,20 +19,29 @@
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
     import EditBookMetadataModal from "$lib/features/library/components/EditBookMetadataModal.svelte"
     import RelinkModal from "$lib/features/library/components/RelinkModal.svelte"
-    import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { useCommands } from "$lib/features/commands/commandsStore.svelte"
+    import { libraryCommands } from "$lib/features/library/commands/libraryCommands"
+    import { createLibraryFolder } from "$lib/features/library/commands/libraryCommandExecution"
+    import { libraryPrimaryCommand } from "$lib/features/library/commands/libraryDashboardCommands"
+    import { libraryRecursiveBookCommand } from "$lib/features/library/commands/libraryRecursiveBookCommand"
+    import { libraryReadStateEntityCommand } from "$lib/features/library/commands/libraryBoundEntityCommands"
+    import {
+        libraryNodeDeleteCommand,
+        libraryNodeMoveCommand,
+    } from "$lib/features/library/commands/libraryNodeCommands"
+    import { confirmLibraryNodeDelete } from "$lib/features/library/commands/libraryNodeDeleteConfirmation"
     import { page } from "$app/state"
     import { goto } from "$app/navigation"
     import { resolve } from "$app/paths"
     import { localizedPath } from "$lib/core/language/language"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { fileNodeToBook } from "$lib/features/viewer/stores/viewerStore.types"
-    import type { FileNode, VFSNode } from "$lib/core/vfs/vfsStore.types"
+    import type { VFSNode } from "$lib/core/vfs/vfsStore.types"
     import PickerModeKeymaps from "$lib/features/prompt/components/PickerModeKeymaps.svelte"
     import PickerKey from "$lib/features/prompt/components/PickerKey.svelte"
     import { PICKER_KEYS, generateHints } from "$lib/features/library/utils/constants"
     import { navigateGrid } from "$lib/features/library/utils/gridNavigation"
     import { tick, untrack } from "svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import { createLibraryDashboardInteractionCommands } from "$lib/features/library/commands/libraryDashboardInteractionCommands"
 
     let pickingMode = $state<"startSelection" | "openFileFolder" | "focusCard">("openFileFolder")
 
@@ -96,42 +105,16 @@
         currentNodes.length > 0 && currentNodes.every((node) => vfsStore.selectedIds.has(node.id)),
     )
 
-    async function handleBulkDelete() {
-        const ids = [...vfsStore.selectedIds]
-        if (ids.length === 0) return
-        uiStore.nodesToDeleteIds = ids
-        uiStore.isDeleteModalOpen = true
-    }
-
     async function handleNodeClick(e: MouseEvent | KeyboardEvent | null, node: VFSNode) {
         const isEnter = e && e instanceof KeyboardEvent && e.key === "Enter"
         if (!isEnter && (uiStore.isSelectionMode || e?.metaKey || e?.ctrlKey)) {
-            uiStore.isSelectionMode = true
-            vfsStore.toggleSelection(node.id)
+            await libraryCommandScope.execute("library.selection.toggle", { nodeId: node.id })
             return
         }
-
-        vfsStore.clearForwardHistory()
         if (node.type === "folder") {
-            const path = vfsStore.getFolderPath(node.id)
-            goto(resolve((localizedPath("/") + `?folder=${encodeURIComponent(path)}`) as any))
+            await libraryCommandScope.execute("library.folder.open", { folderId: node.id })
         } else {
-            try {
-                let fileNode = node as FileNode
-                const isLocked = vfsStore.isLockedMap[fileNode.id]
-
-                if (isLocked) {
-                    await vfsStore.restoreFileAccess(fileNode.id)
-                }
-
-                // setCurrentBook will handle fetching the full URL lazily
-                await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
-                goto(resolve(localizedPath("/viewer") as any))
-            } catch (err) {
-                console.error("[+page] Failed to open book:", err)
-                uiStore.relinkNodeId = node.id
-                uiStore.isRelinkModalOpen = true
-            }
+            await libraryCommandScope.execute("viewer.open", { bookId: node.id })
         }
     }
 
@@ -156,243 +139,73 @@
         }
     }
 
-    useCommands([
-        {
-            id: "grid-select-next",
-            keys: ["j", "arrowdown"],
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                navigateGrid("down", lastFocusedCardId, settingsStore.animations, event)
+    function startPicker(mode: typeof pickingMode) {
+        if (mode !== "openFileFolder" || !uiStore.isSelectionMode) {
+            pickingMode = mode
+        }
+        pickerKeyBuffer = ""
+        uiStore.isPickingMode = true
+    }
+
+    function goUpFolder() {
+        if (vfsStore.currentFolderId === null) return
+        const currentFolder = vfsStore.nodes[vfsStore.currentFolderId]
+        if (!currentFolder) return
+        const parentId = currentFolder.parentId
+        if (parentId) {
+            const path = vfsStore.getFolderPath(parentId)
+            void goto(resolve((localizedPath("/") + `?folder=${encodeURIComponent(path)}`) as any))
+        } else {
+            void goto(resolve(localizedPath("/") as any))
+        }
+    }
+
+    const libraryCommandScope = useCommands([
+        ...createLibraryDashboardInteractionCommands({
+            gridDisabled: () => uiStore.isPickingMode,
+            moveGrid: (direction, repeated) =>
+                navigateGrid(direction, lastFocusedCardId, settingsStore.animations, repeated),
+            startOpenPicker: () => startPicker("openFileFolder"),
+            startFocusPicker: () => startPicker("focusCard"),
+            startSelectionPicker: () => startPicker("startSelection"),
+            goUpFolder,
+            labels: {
+                down: () => m.keymap_grid_select_down(),
+                up: () => m.keymap_grid_select_up(),
+                left: () => m.keymap_grid_select_left(),
+                right: () => m.keymap_grid_select_right(),
+                openPicker: () => m.pick_file_to_open(),
+                focusPicker: () => m.pick_file_to_focus(),
+                selectionPicker: () => m.pick_file_to_open(),
+                upFolder: () => m.keymap_up_folder(),
             },
-            description: m.keymap_grid_select_down(),
-            englishDescription: "Select item below",
-            category: "navigation",
-            disabled: () => uiStore.isPickingMode,
-        },
-        {
-            id: "grid-select-prev",
-            keys: ["k", "arrowup"],
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                navigateGrid("up", lastFocusedCardId, settingsStore.animations, event)
+            englishLabels: {
+                down: () => "Select item below",
+                up: () => "Select item above",
+                left: () => "Select item left",
+                right: () => "Select item right",
+                openPicker: () => m.pick_file_to_open({}, { locale: "en" }),
+                focusPicker: () => m.pick_file_to_focus({}, { locale: "en" }),
+                selectionPicker: () => m.pick_file_to_open({}, { locale: "en" }),
+                upFolder: () => m.keymap_up_folder({}, { locale: "en" }),
             },
-            description: m.keymap_grid_select_up(),
-            englishDescription: "Select item above",
-            category: "navigation",
-            disabled: () => uiStore.isPickingMode,
-        },
-        {
-            id: "grid-select-left",
-            keys: ["h", "arrowleft"],
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                navigateGrid("left", lastFocusedCardId, settingsStore.animations, event)
-            },
-            description: m.keymap_grid_select_left(),
-            englishDescription: "Select item left",
-            category: "navigation",
-            disabled: () => uiStore.isPickingMode,
-        },
-        {
-            id: "grid-select-right",
-            keys: ["l", "arrowright"],
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                navigateGrid("right", lastFocusedCardId, settingsStore.animations, event)
-            },
-            description: m.keymap_grid_select_right(),
-            englishDescription: "Select item right",
-            category: "navigation",
-            disabled: () => uiStore.isPickingMode,
-        },
-        {
-            id: "open-file-recursive",
-            keys: "o",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "files-recursive"
-                uiStore.prompt.isOpen = true
-            },
-            description: m.keymap_open_books_recursive(),
-            englishDescription: m.keymap_open_books_recursive({}, { locale: "en" }),
-            category: "menu",
-        },
-        {
-            id: "go-to-folder",
-            keys: "g",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.prompt.mode = "folders"
-                uiStore.prompt.isOpen = true
-            },
-            description: m.keymap_go_to_folder(),
-            englishDescription: m.keymap_go_to_folder({}, { locale: "en" }),
-            category: "menu",
-        },
-        {
-            id: "toggle-select-all-or-new-folder",
-            keys: "shift+a",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                if (uiStore.isSelectionMode) {
-                    if (allSelected) {
-                        vfsStore.clearSelection()
-                    } else {
-                        vfsStore.selectAll(currentNodes.map((n) => n.id))
-                    }
-                } else {
-                    uiStore.isNewFolderModalOpen = true
-                }
-            },
-            get description() {
-                return uiStore.isSelectionMode ? m.select_all() : m.new_folder()
-            },
-            get englishDescription() {
-                return uiStore.isSelectionMode ? "Select all" : m.new_folder({}, { locale: "en" })
-            },
-            subtitle: () => {
-                if (uiStore.isSelectionMode) {
-                    return allSelected ? m.deselect_all() : m.select_all()
-                }
-                return m.new_folder()
-            },
-            category: "commands",
-        },
-        {
-            id: "pick-file-to-open",
-            keys: "f",
-            action: () => {
-                if (!uiStore.isSelectionMode) {
-                    pickingMode = "openFileFolder"
-                }
-                pickerKeyBuffer = ""
-                uiStore.isPickingMode = true
-            },
-            description: m.pick_file_to_open(),
-            englishDescription: m.pick_file_to_open({}, { locale: "en" }),
-            category: "commands",
-        },
-        {
-            id: "pick-file-to-focus",
-            keys: "v",
-            action: () => {
-                pickingMode = "focusCard"
-                pickerKeyBuffer = ""
-                uiStore.isPickingMode = true
-            },
-            description: m.pick_file_to_focus(),
-            englishDescription: m.pick_file_to_focus({}, { locale: "en" }),
-            category: "commands",
-        },
-        {
-            id: "pick-file-to-open-start-selection",
-            keys: "s",
-            action: () => {
-                pickingMode = "startSelection"
-                pickerKeyBuffer = ""
-                uiStore.isPickingMode = true
-            },
-            description: m.pick_file_to_open(),
-            englishDescription: m.pick_file_to_open({}, { locale: "en" }),
-            category: "commands",
-        },
-        {
-            id: "go-up-folder",
-            keys: "-",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                if (vfsStore.currentFolderId !== null) {
-                    const currentFolder = vfsStore.nodes[vfsStore.currentFolderId]
-                    if (currentFolder) {
-                        const parentId = currentFolder.parentId
-                        if (parentId) {
-                            const path = vfsStore.getFolderPath(parentId)
-                            goto(
-                                resolve(
-                                    (localizedPath("/") +
-                                        `?folder=${encodeURIComponent(path)}`) as any,
-                                ),
-                            )
-                        } else {
-                            goto(resolve(localizedPath("/") as any))
-                        }
-                    }
-                }
-            },
-            description: m.keymap_up_folder(),
-            englishDescription: m.keymap_up_folder({}, { locale: "en" }),
-            category: "navigation",
-        },
-        {
-            id: "continue-reading",
-            keys: "shift+c",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                const currentBook = viewerStore.getCurrentBook()
-                if (currentBook) {
-                    goto(resolve(localizedPath("/viewer") as any))
-                }
-            },
-            description: m.keymap_continue_reading(),
-            englishDescription: m.keymap_continue_reading({}, { locale: "en" }),
-            category: "navigation",
-            disabled: () => !viewerStore.getCurrentBook() || uiStore.isPickingMode,
-        },
-        {
-            id: "exit-selection-mode",
-            keys: ["escape", "ctrl+c", "ctrl+["],
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                if (uiStore.isPickingMode) {
-                    uiStore.isPickingMode = false
-                    return
-                }
-                uiStore.isSelectionMode = false
-                vfsStore.clearSelection()
-            },
-            allowInInputs: true,
-            description: m.keymap_exit_selection_mode(),
-            category: "commands",
-            disabled: () => !uiStore.isSelectionMode,
-        },
-        {
-            id: "close-alt",
-            keys: "q",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                uiStore.isSelectionMode = false
-                vfsStore.clearSelection()
-            },
-            description: m.keymap_exit_selection_mode(),
-            allowInInputs: false,
-            disabled: () => !uiStore.isSelectionMode,
-        },
-        {
-            id: "move-selected",
-            keys: "shift+m",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                if (vfsStore.selectedIds.size > 0) {
-                    uiStore.nodeToMoveId = null
-                    uiStore.prompt.mode = "move"
-                    uiStore.prompt.isOpen = true
-                }
-            },
-            description: m.move(),
-            category: "commands",
-            disabled: () => !uiStore.isSelectionMode,
-        },
-        {
-            id: "delete-selected-shortcut",
-            keys: "shift+d",
-            action: (event: KeyboardEvent) => {
-                event.preventDefault()
-                handleBulkDelete()
-            },
-            description: m.delete_selected(),
-            category: "commands",
-            disabled: () => !uiStore.isSelectionMode,
-        },
+        }),
+        libraryRecursiveBookCommand,
+        libraryReadStateEntityCommand,
+        libraryCommands["library.folder.open"],
+        libraryPrimaryCommand,
+
+        libraryCommands["library.continue-reading"],
+        libraryCommands["library.selection.clear"],
+        libraryCommands["library.selection.move"],
+        libraryCommands["library.selection.delete"],
+        libraryCommands["library.selection.toggle"],
+        libraryCommands["library.selection.all"],
+        libraryCommands["library.folder.create"],
+        libraryNodeMoveCommand,
+        libraryNodeDeleteCommand,
+        libraryCommands["library.node.edit-metadata"],
+        libraryCommands["library.node.relink"],
     ])
 
     let lastFocusedCardId = $state<string | null>(null)
@@ -457,9 +270,7 @@
     <Breadcrumbs {breadcrumbs} />
 
     {#if uiStore.isNewFolderModalOpen}
-        <NewFolderModal
-            onCreate={(name) => vfsStore.createFolder(name, vfsStore.currentFolderId)}
-        />
+        <NewFolderModal onCreate={createLibraryFolder} />
     {/if}
 
     {#if uiStore.isDeleteModalOpen}
@@ -468,14 +279,14 @@
                 ? m.delete_confirmation_multiple({ count: uiStore.nodesToDeleteIds.length })
                 : m.delete_confirmation_single()}
             onConfirm={async () => {
-                const ids = [...uiStore.nodesToDeleteIds]
-                uiStore.isDeleteModalOpen = false
-                for (const id of ids) {
-                    await vfsStore.deleteNode(id)
-                }
-                uiStore.nodesToDeleteIds = []
-                if (uiStore.isSelectionMode && vfsStore.selectedIds.size === 0) {
-                    uiStore.isSelectionMode = false
+                const nodeIds = [...uiStore.nodesToDeleteIds]
+                if (nodeIds.length === 1 && !uiStore.isSelectionMode) {
+                    await confirmLibraryNodeDelete(libraryCommandScope, nodeIds[0])
+                } else {
+                    await libraryCommandScope.execute("library.selection.delete", {
+                        nodeIds,
+                        confirmed: true,
+                    })
                 }
             }}
             onCancel={() => {
@@ -549,24 +360,17 @@
                     variant="brutalist"
                     size="small"
                     Icon={allSelected ? MinusIcon : CheckIcon}
-                    onclick={() => {
-                        if (allSelected) {
-                            vfsStore.clearSelection()
-                        } else {
-                            vfsStore.selectAll(currentNodes.map((n) => n.id))
-                        }
-                    }}
+                    onclick={() =>
+                        void libraryCommandScope.execute(
+                            allSelected ? "library.selection.clear" : "library.selection.all",
+                        )}
                 >
                     <span>{allSelected ? m.deselect_all() : m.select_all()}</span>
                 </Button>
                 <Button
                     variant="brutalist"
                     size="small"
-                    onclick={() => {
-                        uiStore.nodeToMoveId = null
-                        uiStore.prompt.mode = "move"
-                        uiStore.prompt.isOpen = true
-                    }}
+                    onclick={() => void libraryCommandScope.execute("library.selection.move")}
                     disabled={vfsStore.selectedIds.size === 0}
                 >
                     <NavigationIcon />
@@ -576,7 +380,7 @@
                     variant="brutalist"
                     size="small"
                     class="danger-btn"
-                    onclick={handleBulkDelete}
+                    onclick={() => void libraryCommandScope.execute("library.selection.delete")}
                     disabled={vfsStore.selectedIds.size === 0}
                 >
                     <TrashIcon />
@@ -590,10 +394,7 @@
         <div class="mobile-controls-container">
             <button
                 class="mobile-prompt-btn"
-                onclick={() => {
-                    uiStore.prompt.mode = "global"
-                    uiStore.prompt.isOpen = true
-                }}
+                onclick={() => void libraryCommandScope.execute("prompt.open")}
                 aria-label={m.keymap_prompt()}
                 title={m.keymap_prompt()}
             >

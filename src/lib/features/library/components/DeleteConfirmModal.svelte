@@ -1,13 +1,10 @@
 <script lang="ts">
-    import { getContext } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
-    import {
-        useCommands,
-        type CommandNode,
-        getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore, getShortcutHint } from "$lib/features/commands/commandsStore.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
 
     let {
         title = m.delete_confirmation_title(),
@@ -29,43 +26,27 @@
         onCancel()
     }
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope
 
-    const commandsNode = useCommands(
-        [
-            {
-                id: "confirm-delete",
-                keys: "enter",
-                action: (event) => {
-                    event.preventDefault()
-                    handleConfirm()
-                },
-                description: m.delete(),
-            },
-            {
-                id: "cancel-delete",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                action: (event) => {
-                    event.preventDefault()
-                    handleCancel()
-                },
-                description: m.cancel(),
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: "q",
-                action: (event) => {
-                    event.preventDefault()
-                    handleCancel()
-                },
-                description: m.cancel(),
-                allowInInputs: false,
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+    const modalCommands = defineCommands({
+        "modal.confirm": {
+            id: "modal.confirm",
+            keymap: "enter",
+            label: () => m.delete(),
+            category: "commands",
+            run: handleConfirm,
+        },
+        "modal.cancel": {
+            id: "modal.cancel",
+            keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
+            label: () => m.cancel(),
+            category: "commands",
+            allowInInputs: true,
+            run: handleCancel,
+        },
+    })
+
+    const commandsNode = useModalCommands(Object.values(modalCommands), activeNodeBeforeOpen)
 </script>
 
 <Modal autofocusClose={false} onClose={handleCancel} {title}>
@@ -78,15 +59,15 @@
             <Button
                 variant="brutalist"
                 class="modal-delete-btn"
-                onclick={handleConfirm}
-                tooltip={`${m.delete()}${getShortcutHint(commandsNode, "confirm-delete")}`}
+                onclick={() => void commandsNode.execute("modal.confirm")}
+                tooltip={`${m.delete()}${getShortcutHint(commandsNode, "modal.confirm")}`}
             >
                 {m.delete()}
             </Button>
             <Button
                 variant="ghost"
-                onclick={handleCancel}
-                tooltip={`${m.cancel()}${getShortcutHint(commandsNode, "cancel-delete")}`}
+                onclick={() => void commandsNode.execute("modal.cancel")}
+                tooltip={`${m.cancel()}${getShortcutHint(commandsNode, "modal.cancel")}`}
                 tooltipAlign="right"
             >
                 {m.cancel()}

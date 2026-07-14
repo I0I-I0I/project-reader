@@ -2,7 +2,7 @@
     import { page } from "$app/state"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+    import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { fly } from "svelte/transition"
     import * as m from "$lib/paraglide/messages"

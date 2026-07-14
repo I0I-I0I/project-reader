@@ -1,674 +1,287 @@
 <script lang="ts">
+    import Float from "$lib/core/components/ui/Float.svelte"
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
-    import Float from "$lib/core/components/ui/Float.svelte"
-    import Input from "$lib/core/components/ui/Input.svelte"
-    import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
-    import { findNearestPageIndex, resolveSelectionIndex } from "$lib/core/state/listSelection"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
-    import {
-        KeyboardHandler,
-        useCommands,
-        type CommandNode,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import type { SearchItem } from "$lib/features/prompt/stores/promptStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
+    import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
+    import type { PromptSnapshot } from "$lib/features/prompt/prompt.types"
     import * as m from "$lib/paraglide/messages"
-    import Fuse from "fuse.js"
-    import { getContext, onMount, tick } from "svelte"
-    import { flip } from "svelte/animate"
-    import { fade } from "svelte/transition"
-
+    import { tick } from "svelte"
     import PromptItem from "./PromptItem.svelte"
-    interface Props {
-        onClose: () => void
-        value: string
-        items: SearchItem[]
-        placeholder?: string
-    }
 
-    let {
-        value = $bindable(""),
-        onClose,
-        items,
-        placeholder = m.prompt_placeholder(),
-    }: Props = $props()
-
-    let resultsContainerRef = $state<HTMLDivElement | null>(null)
-    let innerHeight = $state<number | undefined>(undefined)
-    let isChromiumNonMac = $state(false)
-    let manualSelectedIndex = $state<number | null>(uiStore.prompt.initialSelectedIndex)
-
-    let internalValue = $derived(value === "" ? "\u200B" : value.replace(/\u200B/g, ""))
-
-    async function scrollToSelected() {
-        await tick()
-        if (!resultsContainerRef) return
-        const selectedEl = resultsContainerRef.querySelector(".result-item.selected") as HTMLElement
-        selectedEl?.scrollIntoView({ block: "nearest" })
-    }
-
-    function trackSelectedResult(_index: number, _results: unknown[]) {
-        return (container: HTMLElement) => {
-            const frame = requestAnimationFrame(() => {
-                const selectedEl = container.querySelector(".result-item.selected") as HTMLElement
-                selectedEl?.scrollIntoView({ block: "nearest" })
-            })
-            return () => cancelAnimationFrame(frame)
-        }
-    }
-
-    let allItems = $derived.by(() => {
-        const seen = new Set<string>()
-        return items.filter((item) => {
-            if (seen.has(item.id)) return false
-            seen.add(item.id)
-            return true
-        })
-    })
-
-    const fuseOptions = {
-        keys: [
-            { name: "title", weight: 0.7 },
-            { name: "englishTitle", weight: 0.6 },
-            { name: "subtitle", weight: 0.3 },
-            { name: "englishSubtitle", weight: 0.2 },
-            { name: "category", weight: 0.1 },
-        ],
-        threshold: 0.4,
-        includeMatches: true,
-    }
-
-    let fuse = $derived(new Fuse(allItems, fuseOptions))
-
-    let searchResults = $derived.by(() => {
-        const query = value.trim()
-        if (uiStore.prompt.mode === "page" || uiStore.prompt.mode === "search") {
-            return allItems.map((item) => ({ item, matches: [] }))
-        }
-        if (query === "") {
-            return allItems.slice(0, 10).map((item) => ({ item, matches: [] }))
-        }
-        return fuse.search(query).map((res) => ({
-            item: res.item,
-            matches: res.matches || [],
-        }))
-    })
-
-    let selectedIndex = $derived.by(() => {
-        const automaticIndex =
-            uiStore.prompt.mode === "search"
-                ? findNearestPageIndex(
-                      searchResults.map(({ item }) => item),
-                      searchStore.searchStartPage ?? viewerStore.getCurrentBook()?.pageNumber ?? 1,
-                  )
-                : 0
-        return resolveSelectionIndex(manualSelectedIndex, searchResults.length, automaticIndex)
-    })
-
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
-
-    function publishSearchQuery(query: string) {
-        if (uiStore.prompt.mode !== "search") return
-        searchStore.setQuery(query)
-        if (query.trim()) uiStore.isSearchModeActive = true
-    }
-
-    function handleSelection(item: SearchItem, opts?: { asJump?: boolean }) {
-        item.action(opts)
-        if (uiStore.prompt.isOpen) {
-            const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
-            if (promptInput) {
-                promptInput.focus()
-            }
-        } else {
-            if (document.activeElement instanceof HTMLElement) {
-                document.activeElement.blur()
-            }
-        }
-    }
-
-    useCommands(
-        [
-            {
-                id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                action: (event) => {
-                    event.preventDefault()
-                    handleClose()
-                },
-                description: "",
-                allowInInputs: true,
-            },
-            {
-                id: "next",
-                keys: ["ctrl+n", "ctrl+j", "arrowdown"],
-                action: (event) => {
-                    if (searchResults.length === 0) return
-                    event.preventDefault()
-                    manualSelectedIndex = (selectedIndex + 1) % searchResults.length
-                    scrollToSelected()
-                },
-                description: "",
-                allowInInputs: true,
-            },
-            {
-                id: "prev",
-                keys: ["ctrl+p", "ctrl+k", "arrowup"],
-                action: (event) => {
-                    if (searchResults.length === 0) return
-                    event.preventDefault()
-                    manualSelectedIndex =
-                        (selectedIndex - 1 + searchResults.length) % searchResults.length
-                    scrollToSelected()
-                },
-                description: "",
-                allowInInputs: true,
-            },
-            {
-                id: "enter",
-                keys: ["enter", "ctrl+y", "ctrl+m"],
-                action: (event) => {
-                    if (searchResults.length === 0) return
-                    event.preventDefault()
-                    const selected = searchResults[selectedIndex]
-                    if (selected) {
-                        handleSelection(selected.item, { asJump: true })
-                    }
-                },
-                description: "",
-                allowInInputs: true,
-            },
-        ],
-        activeNodeBeforeOpen,
+    let results: HTMLDivElement | undefined
+    let snapshot = $derived(
+        promptStore.snapshot as (PromptSnapshot & { errorLabel?: string }) | null,
     )
 
-    onMount(async () => {
-        isChromiumNonMac = KeyboardHandler.isChromiumNonMac()
+    function focusInput(node: HTMLInputElement) {
+        queueMicrotask(() => {
+            node.focus()
+            if (node.value) node.select()
+        })
+    }
 
-        let selectText = true
-        if (uiStore.prompt.openedWithInitialValue) {
-            uiStore.prompt.openedWithInitialValue = false
-            selectText = false
-        }
+    function captureResults(node: HTMLDivElement) {
+        results = node
+    }
 
-        if (value === "") {
-            value = uiStore.prompt.initialValue || ""
-        }
-        uiStore.prompt.initialValue = ""
-        internalValue = value === "" ? "\u200B" : value.replace(/\u200B/g, "")
-
-        if (uiStore.prompt.mode === "search") {
-            searchStore.startIndexing()
-            searchStore.searchStartPage = viewerStore.getCurrentBook()?.pageNumber ?? 1
-            publishSearchQuery(value)
-        }
-
-        if (uiStore.prompt.initialSelectedIndex !== null) {
-            manualSelectedIndex = uiStore.prompt.initialSelectedIndex
-            await tick()
-            scrollToSelected()
-        }
-
+    async function scrollToSelection() {
         await tick()
+        const selected = results?.querySelector<HTMLElement>("[aria-selected='true']")
+        selected?.scrollIntoView({ block: "nearest" })
+    }
 
-        const promptInput = document.querySelector(".prompt-input") as HTMLInputElement
-        if (promptInput) {
-            promptInput.focus()
-            const cleanVal = value.replace(/\u200B/g, "")
-            if (cleanVal !== "") {
-                if (selectText) {
-                    promptInput.select()
-                } else {
-                    promptInput.setSelectionRange(cleanVal.length, cleanVal.length)
-                }
-            }
+    function handleKeydown(event: KeyboardEvent) {
+        event.stopPropagation()
+        if (["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
+            event.preventDefault()
         }
-    })
-    function handleClose() {
-        if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur()
+        if (event.key === "Escape") {
+            promptStore.close()
+        } else if (event.key === "ArrowDown") {
+            promptStore.moveSelection(1)
+            void scrollToSelection()
+        } else if (event.key === "ArrowUp") {
+            promptStore.moveSelection(-1)
+            void scrollToSelection()
+        } else if (event.key === "Enter") {
+            void promptStore.selectCurrent()
         }
-        onClose()
     }
 </script>
 
-<Float onClose={handleClose} align="top">
-    <div
-        class="prompt-container"
-        class:enable-animations={settingsStore.animations}
-        style="height: {innerHeight ? `${innerHeight}px` : 'auto'}"
-    >
-        <div bind:clientHeight={innerHeight}>
+{#if snapshot}
+    <Float onClose={() => promptStore.close()} align="top">
+        <div
+            class="prompt-container"
+            role="dialog"
+            tabindex="-1"
+            aria-modal="true"
+            aria-label={snapshot.request.placeholder ?? m.prompt_search_aria()}
+            onkeydown={handleKeydown}
+        >
             <form
-                class="input-wrapper"
-                class:searching={searchStore.isSearching}
-                onsubmit={(e) => {
-                    e.preventDefault()
-                    if (searchResults.length === 0) return
-                    const selected = searchResults[selectedIndex]
-                    if (selected) {
-                        handleSelection(selected.item, { asJump: true })
-                    }
+                class={["input-wrapper", snapshot.isLoading && "loading"]}
+                onsubmit={(event) => {
+                    event.preventDefault()
+                    void promptStore.selectCurrent()
                 }}
             >
-                <SearchIcon class="search-icon {value ? 'active-search' : ''}" />
-                {#if value === ""}
-                    <span class="custom-placeholder">{placeholder}</span>
-                {/if}
-                <Input
-                    unstyled
+                <SearchIcon class="search-icon" />
+                <input
+                    {@attach focusInput}
                     class="prompt-input"
                     type="search"
-                    enterkeyhint="go"
-                    bind:value={internalValue}
+                    value={snapshot.query}
+                    placeholder={snapshot.request.placeholder ?? m.prompt_placeholder()}
                     aria-label={m.prompt_search_aria()}
                     role="combobox"
                     aria-autocomplete="list"
                     aria-controls="prompt-results-list"
-                    aria-expanded={searchResults.length > 0}
-                    aria-activedescendant={searchResults.length > 0
-                        ? `result-item-${selectedIndex}`
+                    aria-expanded={snapshot.options.length > 0}
+                    aria-activedescendant={snapshot.selectedIndex >= 0
+                        ? `prompt-result-${snapshot.selectedIndex}`
                         : undefined}
-                    oninput={(e) => {
-                        const raw = e.currentTarget.value
-                        manualSelectedIndex = null
-                        if (raw === "") {
-                            if (
-                                value === "" &&
-                                uiStore.prompt.mode !== "global" &&
-                                uiStore.prompt.mode !== "search"
-                            ) {
-                                uiStore.prompt.mode = "global"
-                            }
-                            internalValue = "\u200B"
-                            value = ""
-                            publishSearchQuery("")
-                        } else if (raw === "\u200B") {
-                            value = ""
-                            publishSearchQuery("")
-                        } else {
-                            const cleaned = raw.replace(/\u200B/g, "")
-                            value = cleaned
-                            publishSearchQuery(cleaned)
-                        }
-                    }}
+                    oninput={(event) => promptStore.setQuery(event.currentTarget.value)}
                 />
                 <button
                     type="button"
                     class="close-btn"
-                    onclick={handleClose}
+                    onclick={() => promptStore.close()}
                     aria-label={m.prompt_close_aria()}>✕</button
                 >
             </form>
 
             <div
+                {@attach captureResults}
                 id="prompt-results-list"
                 class="results-list"
                 role="listbox"
                 aria-label={m.prompt_search_aria()}
-                bind:this={resultsContainerRef}
-                {@attach trackSelectedResult(selectedIndex, searchResults)}
             >
-                {#if searchResults.length > 0}
-                    {#each searchResults as { item, matches }, i (item.id)}
-                        <div
-                            animate:flip={{
-                                duration: settingsStore.animations ? 200 : 0,
+                {#if snapshot.options.length > 0}
+                    {#each snapshot.options as item, index (item.id)}
+                        <PromptItem
+                            id={`prompt-result-${index}`}
+                            {item}
+                            isSelected={snapshot.selectedIndex === index}
+                            onclick={() => {
+                                const offset = index - snapshot.selectedIndex
+                                if (offset) promptStore.moveSelection(offset)
+                                void promptStore.selectCurrent()
                             }}
-                            style="display: contents;"
-                        >
-                            <PromptItem
-                                id="result-item-{i}"
-                                {item}
-                                {matches}
-                                isSelected={selectedIndex === i}
-                                onclick={() => handleSelection(item)}
-                            />
-                        </div>
+                        />
                     {/each}
                 {:else}
-                    <div
-                        class="empty-state"
-                        transition:fade={{
-                            duration: settingsStore.animations ? 150 : 0,
-                        }}
-                    >
-                        <SearchNoResultsIcon />
-                        <p>{m.prompt_no_results({ value })}</p>
+                    <div class="empty-state">
+                        {#if snapshot.isLoading}
+                            <span class="loading-mark" aria-hidden="true"></span>
+                            <p>{snapshot.request.loadingLabel ?? "Loading…"}</p>
+                        {:else if snapshot.errorLabel}
+                            <SearchNoResultsIcon />
+                            <p>{snapshot.errorLabel}</p>
+                        {:else}
+                            <SearchNoResultsIcon />
+                            <p>
+                                {snapshot.request.emptyLabel ??
+                                    m.prompt_no_results({ value: snapshot.query })}
+                            </p>
+                        {/if}
                     </div>
                 {/if}
             </div>
 
-            <div class="footer" class:empty-value={value === ""}>
-                <div class="suggestion-info">
-                    {#if value === ""}
-                        <span
-                            in:fade={{
-                                duration: settingsStore.animations ? 120 : 0,
-                            }}>{m.prompt_suggestions()}</span
-                        >
-                    {:else}
-                        <span
-                            in:fade={{
-                                duration: settingsStore.animations ? 120 : 0,
-                            }}
-                        >
-                            {uiStore.prompt.mode === "search"
-                                ? m.prompt_found_results({
-                                      count: searchStore.matches.length,
-                                  })
-                                : m.prompt_found_results({
-                                      count: searchResults.length,
-                                  })}
-                        </span>
-                    {/if}
-                </div>
-                <div class="shortcuts-help">
-                    <div class="shortcut-help-item">
-                        {#if isChromiumNonMac}
-                            <kbd>↑</kbd><kbd>C-j</kbd>/<kbd>↓</kbd><kbd>C-k</kbd>
-                        {:else}
-                            <kbd>↑</kbd><kbd>C-n</kbd>/<kbd>↓</kbd><kbd>C-p</kbd>
-                        {/if}
-                        <span>{m.prompt_help_navigate()}</span>
-                    </div>
-                    <div class="shortcut-help-item">
-                        <kbd>↵</kbd> <span>{m.prompt_help_select()}</span>
-                    </div>
-                    <div class="shortcut-help-item">
-                        <kbd>esc</kbd> <span>{m.prompt_help_close()}</span>
-                    </div>
-                </div>
-            </div>
+            <footer>
+                <span>{snapshot.options.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
+                <span
+                    ><kbd>↑</kbd><kbd>↓</kbd>
+                    {m.prompt_help_navigate()} · <kbd>↵</kbd>
+                    {m.prompt_help_select()} · <kbd>esc</kbd>
+                    {m.prompt_help_close()}</span
+                >
+            </footer>
         </div>
-    </div>
-</Float>
+    </Float>
+{/if}
 
 <style>
     .prompt-container {
         display: flex;
-        flex-direction: column;
         width: 100%;
-        background: var(--surface-color);
-        overflow: hidden;
-    }
-
-    .prompt-container > div {
-        display: flex;
         flex-direction: column;
-    }
-
-    .prompt-container.enable-animations {
-        transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+        background: var(--surface-color);
     }
 
     .input-wrapper {
         position: relative;
         display: flex;
         align-items: center;
-        padding: 16px;
+        padding: 1rem;
         border-bottom: 2px solid var(--border-color);
-        background: var(--surface-color);
     }
 
     .input-wrapper::after {
-        content: "";
         position: absolute;
+        right: 0;
         bottom: -2px;
         left: 0;
-        width: 100%;
         height: 2px;
-        background: transparent;
-        z-index: var(--z-10);
-        transform: scaleX(0);
-        transform-origin: left;
-        transition:
-            transform 0.2s ease,
-            background-color 0.2s ease;
+        background: linear-gradient(90deg, #0984e3, #00b894, #e84393);
+        content: "";
+        opacity: 0;
     }
 
-    .input-wrapper.searching::after {
-        transform: scaleX(1);
-        background: #0984e3;
+    .input-wrapper.loading::after {
+        opacity: 1;
+        animation: loading 1.2s ease-in-out infinite alternate;
     }
 
-    :global(html.dark) .input-wrapper.searching::after {
-        background: #74b9ff;
-    }
-
-    .prompt-container.enable-animations .input-wrapper::after {
-        background: linear-gradient(90deg, #0984e3, #00b894, #e84393, #0984e3);
-        background-size: 300% 100%;
-        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .prompt-container.enable-animations .input-wrapper.searching::after {
-        animation: search-glow-slide 2.5s linear infinite;
-    }
-
-    @keyframes search-glow-slide {
-        0% {
-            background-position: 0% 50%;
-        }
-        100% {
-            background-position: 300% 50%;
+    @keyframes loading {
+        to {
+            filter: hue-rotate(80deg);
         }
     }
 
     :global(.search-icon) {
-        width: 20px;
-        height: 20px;
-        color: var(--text-color);
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.75rem;
         opacity: 0.6;
-        margin-right: 12px;
-        flex-shrink: 0;
     }
 
-    :global(.search-icon.active-search) {
-        color: #0984e3;
-        opacity: 1;
-    }
-
-    :global(html.dark) :global(.search-icon.active-search) {
-        color: #74b9ff;
-    }
-
-    .prompt-container.enable-animations :global(.search-icon) {
-        transition:
-            transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-            color 0.2s ease,
-            opacity 0.2s ease;
-    }
-
-    .prompt-container.enable-animations :global(.search-icon.active-search) {
-        transform: scale(1.15) rotate(8deg);
-    }
-
-    .input-wrapper :global(.prompt-input) {
+    .prompt-input {
+        min-width: 0;
         flex: 1;
-        background: transparent;
-        border: none;
-        outline: none;
-        font-family: inherit;
-        font-size: var(--font-size-2xl);
-        color: var(--text-color);
         padding: 0;
-    }
-
-    .input-wrapper :global(.prompt-input::placeholder) {
+        border: 0;
+        outline: 0;
+        background: transparent;
         color: var(--text-color);
-        opacity: 0.4;
-    }
-
-    .custom-placeholder {
-        position: absolute;
-        left: 48px;
-        pointer-events: none;
-        color: var(--text-color);
-        opacity: 0.4;
-        font-family: inherit;
+        font: inherit;
         font-size: var(--font-size-2xl);
-        user-select: none;
     }
 
     .close-btn {
+        padding: 0.25rem;
+        border: 0;
         background: transparent;
-        border: none;
-        font-size: var(--font-size-xl);
         color: var(--text-color);
-        opacity: 0.5;
         cursor: pointer;
-        padding: 4px;
-        margin-left: 8px;
-    }
-
-    @media (hover: hover) {
-        .close-btn:hover {
-            opacity: 0.9;
-        }
-    }
-
-    .prompt-container.enable-animations .close-btn {
-        transition:
-            opacity 0.15s ease,
-            transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    @media (hover: hover) {
-        .prompt-container.enable-animations .close-btn:hover {
-            transform: rotate(90deg) scale(1.15);
-        }
+        font-size: var(--font-size-xl);
+        opacity: 0.55;
     }
 
     .results-list {
         display: flex;
-        flex-direction: column;
         max-height: 380px;
+        flex-direction: column;
+        gap: 0.25rem;
         overflow-y: auto;
-        padding: 8px;
-        gap: 4px;
-        background: var(--surface-color);
-    }
-
-    .results-list::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .results-list::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .results-list::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        opacity: 0.3;
-        border-radius: var(--radius-md);
+        padding: 0.5rem;
     }
 
     .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-        text-align: center;
+        display: grid;
+        min-height: 10rem;
+        place-items: center;
+        align-content: center;
         color: var(--text-color);
-        opacity: 0.7;
+        opacity: 0.65;
     }
 
     :global(.empty-state svg) {
-        width: 48px;
-        height: 48px;
-        opacity: 0.4;
-        margin-bottom: 12px;
+        width: 3rem;
+        height: 3rem;
     }
 
-    .footer {
+    .loading-mark {
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid var(--border-color);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(1turn);
+        }
+    }
+
+    footer {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 10px 16px;
+        justify-content: space-between;
+        padding: 0.65rem 1rem;
         border-top: 2px solid var(--border-color);
         background: var(--surface-hover-color);
-        font-size: var(--font-size-sm);
         color: var(--text-color);
+        font-size: var(--font-size-sm);
         opacity: 0.8;
     }
 
-    .shortcuts-help {
-        display: flex;
-        gap: 12px;
-    }
-
-    .shortcut-help-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    :global(mark.highlight) {
-        background: rgba(253, 203, 110, 0.4);
-        color: inherit;
+    footer kbd {
+        padding: 0.1rem 0.25rem;
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-sm);
-        padding: 0 1px;
-    }
-
-    :global(html.dark mark.highlight) {
-        background: rgba(225, 112, 85, 0.4);
+        font-family: ui-monospace, monospace;
     }
 
     @media (--prompt) {
-        .custom-placeholder {
-            font-size: var(--font-size-xl);
-        }
-
-        .prompt-container > div {
-            flex-direction: column-reverse;
-        }
-
         .results-list {
-            flex-direction: column-reverse;
             max-height: 60dvh;
         }
 
-        .prompt-container .shortcuts-help {
+        footer span:last-child {
             display: none;
-        }
-
-        .input-wrapper {
-            border-bottom: none;
-            border-top: 2px solid var(--border-color);
-        }
-
-        .input-wrapper::after {
-            bottom: auto;
-            top: -2px;
-        }
-
-        .footer {
-            border-top: none;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .footer.empty-value {
-            display: none !important;
         }
     }
 
-    @media (--prompt) {
-        .prompt-container {
-            height: 100% !important;
-        }
-
-        .prompt-container > div {
-            height: 100% !important;
-        }
-
-        .results-list {
-            flex: 1 !important;
-            max-height: none !important;
+    @media (prefers-reduced-motion: reduce) {
+        .input-wrapper.loading::after,
+        .loading-mark {
+            animation: none;
         }
     }
 </style>

@@ -5,35 +5,25 @@
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
-        type CommandNode,
+        type CommandScope,
         getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+    } from "$lib/features/commands/commandsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
 
-    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
+    const commandsNode = getContext<CommandScope>(COMMANDS_CONTEXT_KEY)
 
-    let {
-        currentPage = $bindable(),
-        scrollPosition = $bindable(),
-        totalPages,
-        isPageLoading,
-        nextPage,
-        prevPage,
-    } = $props<{
+    let { currentPage, totalPages, isPageLoading } = $props<{
         currentPage: number
-        scrollPosition: number
         totalPages: number
         isPageLoading: boolean
-        nextPage: () => void
-        prevPage: () => void
     }>()
 
     function handlePageInput(event: Event) {
         const input = event.target as HTMLInputElement
         const value = parseInt(input.value, 10)
         if (!isNaN(value) && value >= 1 && value <= totalPages) {
-            currentPage = value
-            scrollPosition = 0
+            void commandsStore.execute("viewer.page.go-to", { page: value })
         } else {
             input.value = currentPage.toString()
         }
@@ -52,8 +42,10 @@
                 oninput={(e) => {
                     const val = parseInt((e.target as HTMLInputElement).value, 10)
                     if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                        currentPage = val
-                        scrollPosition = 0
+                        void commandsStore.execute("viewer.page.go-to", {
+                            page: val,
+                            isJump: false,
+                        })
                     }
                 }}
                 class="mobile-scrubber"
@@ -67,11 +59,11 @@
     <Button
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
-        onclick={prevPage}
+        onclick={() => void commandsStore.execute("viewer.page.previous")}
         square={uiStore.isCompact}
         disabled={currentPage <= 1 || isPageLoading}
         aria-label={m.prev_page()}
-        tooltip={m.prev_page() + getShortcutHint(commandsNode, "prev-page")}
+        tooltip={m.prev_page() + getShortcutHint(commandsNode, "viewer.page.previous")}
     >
         <span class="btn-text">{m.prev_page()}</span>
         <span class="btn-arrow">←</span>
@@ -106,8 +98,10 @@
                 oninput={(e) => {
                     const val = parseInt((e.target as HTMLInputElement).value, 10)
                     if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                        currentPage = val
-                        scrollPosition = 0
+                        void commandsStore.execute("viewer.page.go-to", {
+                            page: val,
+                            isJump: false,
+                        })
                     }
                 }}
                 class="footer-scrubber"
@@ -120,11 +114,11 @@
     <Button
         variant="action"
         size={uiStore.isCompact ? "default" : "large"}
-        onclick={nextPage}
+        onclick={() => void commandsStore.execute("viewer.page.next")}
         square={uiStore.isCompact}
         disabled={currentPage >= totalPages || isPageLoading}
         aria-label={m.next_page()}
-        tooltip={m.next_page() + getShortcutHint(commandsNode, "next-page")}
+        tooltip={m.next_page() + getShortcutHint(commandsNode, "viewer.page.next")}
     >
         <span class="btn-text">{m.next_page()}</span>
         <span class="btn-arrow">→</span>

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
     import { onMount } from "svelte"
     import type { Snippet } from "svelte"
     import { fade, scale } from "svelte/transition"
@@ -54,6 +55,11 @@
         }
     })
 
+    function handleModalKeydown(event: KeyboardEvent) {
+        event.stopPropagation()
+        void commandsStore.handleKeydown(event)
+    }
+
     function portal(node: HTMLElement) {
         document.body.appendChild(node)
         return {
@@ -90,6 +96,7 @@
         transition:scale={{ duration: settingsStore.animations ? 150 : 0, start: 0.95 }}
         onmousedown={(e) => e.stopPropagation()}
         onclick={(e) => e.stopPropagation()}
+        onkeydown={handleModalKeydown}
     >
         {@render children()}
     </div>

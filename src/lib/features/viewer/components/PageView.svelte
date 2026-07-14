@@ -3,7 +3,7 @@
     import type PDFDocument from "$lib/core/pdf/pdf"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+    import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
     import {
         notesStore,
         getGlobalOffset,
@@ -16,6 +16,7 @@
     import { browser } from "$app/environment"
     import { ViewerLinkService } from "./ViewerLinkService"
     import { untrack, onMount } from "svelte"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
 
     let {
         pdf,
@@ -78,7 +79,10 @@
                 if (annotations.length === 0) return
 
                 const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
-                    viewerStore.goToPage(targetPage, { isJump: true })
+                    void commandsStore.execute("viewer.page.go-to", {
+                        page: targetPage,
+                        isJump: true,
+                    })
                 })
                 linkService.page = pageNo
 

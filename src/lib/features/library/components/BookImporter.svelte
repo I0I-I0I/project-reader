@@ -4,7 +4,8 @@
     import Input from "$lib/core/components/ui/Input.svelte"
     import * as m from "$lib/paraglide/messages"
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
-    import { useCommands } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { useCommands } from "$lib/features/commands/commandsStore.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -122,22 +123,22 @@
         }
     }
 
-    useCommands(
-        [
-            {
-                keys: "a",
-                action: (e) => {
-                    e.preventDefault()
-                    if (!isImporting) {
-                        handleImportClick(null as any)
-                    }
-                },
-                description: m.keymap_import_book(),
+    const importerCommands = defineCommands({
+        "library.books.import": {
+            id: "library.books.import",
+            keymap: "a",
+            label: () => m.keymap_import_book(),
+            category: "commands",
+            disabled: () => isImporting,
+            run: async () => {
+                await handleImportClick()
             },
-        ],
-        undefined,
-        { registerOnParent: true },
-    )
+        },
+    })
+
+    const commandsNode = useCommands([importerCommands["library.books.import"]], undefined, {
+        registerOnParent: true,
+    })
 </script>
 
 {#if variant === "card"}
@@ -148,7 +149,10 @@
         class:importing={isImporting}
         data-id="book-importer"
         disabled={isImporting}
-        onclick={handleImportClick}
+        onclick={(event) => {
+            event.stopPropagation()
+            void commandsNode.execute("library.books.import")
+        }}
         ondragenter={handleDragEnter}
         ondragleave={handleDragLeave}
         ondragover={handleDragOver}
@@ -211,7 +215,10 @@
                     type="button"
                     class="btn upload-btn"
                     disabled={isImporting}
-                    onclick={handleImportClick}
+                    onclick={(event) => {
+                        event.stopPropagation()
+                        void commandsNode.execute("library.books.import")
+                    }}
                 >
                     {#if isImporting}
                         <Spinner

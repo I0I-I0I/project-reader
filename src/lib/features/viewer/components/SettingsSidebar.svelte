@@ -18,28 +18,18 @@
     import GlobeIcon from "$lib/core/components/icons/GlobeIcon.svelte"
     import { getLanguageName } from "$lib/core/language/locale"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
-    import {
-        getLocalizedCurrentHref,
-        switchLanguage,
-        type AppLocale,
-    } from "$lib/core/language/language"
+    import { getLocalizedCurrentHref, type AppLocale } from "$lib/core/language/language"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
+    import { executeZoomIn, executeZoomOut } from "$lib/core/commands/settingsCommandExecution"
 
     let isShortHeight = $derived(uiStore.isShortHeight)
-
-    function upScale() {
-        settingsStore.scale = Math.min(settingsStore.scale + 0.25, CONSTANTS.maxScale)
-    }
-
-    function downScale() {
-        settingsStore.scale = Math.max(settingsStore.scale - 0.25, CONSTANTS.minScale)
-    }
 
     function handleScaleChange(e: Event) {
         const input = e.target as HTMLInputElement
         const value = parseInt(input.value, 10)
         if (!isNaN(value)) {
             const clamped = Math.max(50, Math.min(300, value))
-            settingsStore.scale = clamped / 100
+            void executeZoomIn(clamped / 100)
             input.value = clamped.toString()
         } else {
             input.value = Math.round(settingsStore.scale * 100).toString()
@@ -75,7 +65,7 @@
                 class={"option-btn" + (settingsStore.layout === "single" ? " active" : "")}
                 variant="action"
                 size="default"
-                onclick={() => (settingsStore.layout = "single")}
+                onclick={() => commandsStore.execute("settings.layout", { value: "single" })}
             >
                 <SinglePageIcon />
                 <span>{m.single_page()}</span>
@@ -84,7 +74,7 @@
                 class={"option-btn" + (settingsStore.layout === "split" ? " active" : "")}
                 variant="action"
                 size="default"
-                onclick={() => (settingsStore.layout = "split")}
+                onclick={() => commandsStore.execute("settings.layout", { value: "split" })}
             >
                 <SplitPagesIcon />
                 <span>{m.split_pages()}</span>
@@ -93,7 +83,7 @@
                 class={"option-btn" + (settingsStore.layout === "scroll" ? " active" : "")}
                 variant="action"
                 size="default"
-                onclick={() => (settingsStore.layout = "scroll")}
+                onclick={() => commandsStore.execute("settings.layout", { value: "scroll" })}
             >
                 <ScrollPagesIcon />
                 <span>{m.scroll_pages()}</span>
@@ -109,7 +99,7 @@
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={downScale}
+                    onclick={() => void executeZoomOut()}
                     aria-label={m.zoom_out()}
                     class="zoom-btn"
                 >
@@ -133,7 +123,7 @@
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={upScale}
+                    onclick={() => void executeZoomIn()}
                     aria-label={m.zoom_in()}
                     class="zoom-btn"
                 >
@@ -151,7 +141,7 @@
                     oninput={(e) => {
                         const val = parseInt((e.target as HTMLInputElement).value, 10)
                         if (!isNaN(val)) {
-                            settingsStore.scale = val / 100
+                            void executeZoomIn(val / 100)
                         }
                     }}
                     class="sidebar-slider"
@@ -216,7 +206,7 @@
                     class={"option-btn" + (settingsStore.theme === value ? " active" : "")}
                     variant="action"
                     size="default"
-                    onclick={() => (settingsStore.theme = value)}
+                    onclick={() => commandsStore.execute("settings.theme", { value })}
                 >
                     <Icon class="theme-icon" />
                     <span>{label()}</span>
@@ -229,7 +219,8 @@
         <h4 class="section-title">{m.animations()}</h4>
         <div class="animation-options">
             <Toggle
-                bind:checked={settingsStore.animations}
+                checked={settingsStore.animations}
+                onchange={() => commandsStore.execute("settings.animations.toggle")}
                 label={settingsStore.animations ? m.animations_enabled() : m.animations_disabled()}
             />
         </div>
@@ -247,7 +238,9 @@
                     size="default"
                     onclick={(event: MouseEvent) => {
                         event.preventDefault()
-                        switchLanguage(locale as AppLocale, page.url)
+                        void commandsStore.execute("settings.language", {
+                            value: locale as AppLocale,
+                        })
                     }}
                 >
                     <GlobeIcon />

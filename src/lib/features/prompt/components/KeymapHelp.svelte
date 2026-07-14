@@ -1,11 +1,7 @@
 <script lang="ts">
-    import { getContext } from "svelte"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
-    import {
-        useCommands,
-        type CommandNode,
-        KeyboardHandler,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore, KeyboardHandler } from "$lib/features/commands/commandsStore.svelte"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
@@ -16,8 +12,8 @@
 
     let { onClose }: Props = $props()
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode()
+    const activeNodeBeforeOpen = commandsStore.activeScope
+    useModalCommands([], activeNodeBeforeOpen)
 
     let contentElement = $state<HTMLElement | null>(null)
     let searchQuery = $state("")
@@ -25,22 +21,22 @@
 
     const keymaps = (() => {
         if (!activeNodeBeforeOpen) return []
-        const allBindings = activeNodeBeforeOpen.getAllCommands()
+        const allBindings = activeNodeBeforeOpen.listActive()
 
         const seen = new Set<string>()
         return allBindings
             .filter((b) => {
-                if (!b.description || !b.keys) return false
-                const keyStr = Array.isArray(b.keys)
-                    ? b.keys.map((k) => KeyboardHandler.normalize(k)).join(",")
-                    : KeyboardHandler.normalize(b.keys)
+                if (!b.label || !b.keymap) return false
+                const keyStr = Array.isArray(b.keymap)
+                    ? b.keymap.map((key) => KeyboardHandler.normalize(key)).join(",")
+                    : KeyboardHandler.normalize(b.keymap)
                 if (seen.has(keyStr)) return false
                 seen.add(keyStr)
                 return true
             })
             .map((b) => ({
-                keys: b.keys!,
-                description: b.description,
+                keys: b.keymap!,
+                description: b.label,
             }))
     })()
 
@@ -73,89 +69,45 @@
         }
     }
 
-    useCommands(
-        [
-            {
-                id: "close",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                description: m.keymap_close_help(),
-                action: (e) => {
-                    e.preventDefault()
-                    onClose()
-                },
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: ["q", "?"],
-                action: (e) => {
-                    e.preventDefault()
-                    onClose()
-                },
-                description: m.keymap_close_help(),
-                allowInInputs: false,
-            },
-            {
-                id: "search",
-                keys: "/",
-                description: m.keymap_search_shortcuts(),
-                action: (e) => {
-                    e.preventDefault()
-                    searchInputRef?.focus()
-                    searchInputRef?.select()
-                },
-            },
-            {
-                id: "scroll-down",
-                keys: ["arrowdown", "j"],
-                description: m.keymap_scroll_down(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: 80,
-                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-up",
-                keys: ["arrowup", "k"],
-                description: m.keymap_scroll_up(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: -80,
-                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-page-down",
-                keys: ["pagedown", "d"],
-                description: m.keymap_scroll_page_down(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: 200,
-                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-            {
-                id: "scroll-page-up",
-                keys: ["pageup", "u"],
-                description: m.keymap_scroll_page_up(),
-                action: (e) => {
-                    e.preventDefault()
-                    contentElement?.scrollBy({
-                        top: -200,
-                        behavior: !e.repeat && settingsStore.animations ? "smooth" : "auto",
-                    })
-                },
-            },
-        ],
-        activeNodeBeforeOpen,
-    )
+    function handleKeydown(event: KeyboardEvent) {
+        const target = event.target as HTMLElement | null
+        const isInput =
+            target?.tagName === "INPUT" ||
+            target?.tagName === "TEXTAREA" ||
+            target?.isContentEditable
+        const closeKeys = ["escape", "ctrl+c", "ctrl+[", ...(isInput ? [] : ["q", "?"])]
+        if (KeyboardHandler.matches(event, closeKeys)) {
+            event.preventDefault()
+            event.stopPropagation()
+            onClose()
+            return
+        }
+        if (!isInput && KeyboardHandler.matches(event, "/")) {
+            event.preventDefault()
+            event.stopPropagation()
+            searchInputRef?.focus()
+            searchInputRef?.select()
+            return
+        }
+
+        const scroll = (top: number) => {
+            event.preventDefault()
+            event.stopPropagation()
+            contentElement?.scrollBy({
+                top,
+                behavior: !event.repeat && settingsStore.animations ? "smooth" : "auto",
+            })
+        }
+        if (KeyboardHandler.matches(event, ["arrowdown", ...(isInput ? [] : ["j"])])) {
+            scroll(80)
+        } else if (KeyboardHandler.matches(event, ["arrowup", ...(isInput ? [] : ["k"])])) {
+            scroll(-80)
+        } else if (!isInput && KeyboardHandler.matches(event, ["pagedown", "d"])) {
+            scroll(200)
+        } else if (!isInput && KeyboardHandler.matches(event, ["pageup", "u"])) {
+            scroll(-200)
+        }
+    }
 
     function formatKeys(keyStr: string): string[] {
         return KeyboardHandler.getFormattedParts(keyStr)
@@ -165,6 +117,8 @@
         return Array.isArray(keys) ? keys : [keys]
     }
 </script>
+
+<svelte:window onkeydowncapture={handleKeydown} />
 
 <Modal {onClose} title={m.keymap_modal_title()} closeLabel={m.close()}>
     {#snippet children()}
@@ -205,14 +159,14 @@
                 </div>
             {:else}
                 <div class="shortcuts-grid">
-                    {#each filteredKeymaps as keymap}
+                    {#each filteredKeymaps as keymap (`${keymap.description}:${getShortcutsArray(keymap.keys).join(",")}`)}
                         <div class="shortcut-row">
                             <div class="key-combo">
-                                {#each getShortcutsArray(keymap.keys) as shortcut, idx}
+                                {#each getShortcutsArray(keymap.keys) as shortcut, idx (shortcut)}
                                     {#if idx > 0}
                                         <span class="shortcut-separator">/</span>
                                     {/if}
-                                    {#each formatKeys(shortcut) as key}
+                                    {#each formatKeys(shortcut) as key, keyIndex (`${key}:${keyIndex}`)}
                                         <kbd class="key-badge">{key}</kbd>
                                     {/each}
                                 {/each}

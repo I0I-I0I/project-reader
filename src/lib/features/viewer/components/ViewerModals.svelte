@@ -3,7 +3,6 @@
     import { bookmarksStore } from "$lib/features/viewer/stores/bookmarksStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
     import { viewerUIStore } from "$lib/features/viewer/stores/viewerUIStore.svelte"
-    import type { UserNote } from "$lib/core/vfs/vfsStore.types"
     import NotePopup from "./NotePopup.svelte"
     import NoteEditor from "./NoteEditor.svelte"
     import BookmarkAddKeymaps from "./BookmarkAddKeymaps.svelte"
@@ -11,6 +10,12 @@
     import Input from "$lib/core/components/ui/Input.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
+    import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
+    import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
+    import {
+        executeViewerBookmarkDelete,
+        executeViewerNoteDelete,
+    } from "$lib/features/viewer/commands/viewerMutationExecution"
 
     interface Props {
         currentBookId: string | null
@@ -18,12 +23,22 @@
     }
 
     let { currentBookId, currentPage }: Props = $props()
+    let bookmarkAddScope = $state.raw<CommandScope>()
 
-    async function handleConfirmAddBookmark() {
+    type BookmarkAddPayload = NonNullable<AppCommandPayloads["viewer.bookmark.add"]>
+
+    function getBookmarkAddPayload(): BookmarkAddPayload {
+        return {
+            page: currentPage,
+            name: viewerUIStore.bookmarkName.trim() || `${m.page()} ${currentPage}`,
+        }
+    }
+
+    async function handleConfirmAddBookmark(payload: BookmarkAddPayload) {
         if (!currentBookId) return
-        const defaultName = `${m.page()} ${currentPage}`
-        const nameToUse = viewerUIStore.bookmarkName.trim() || defaultName
-        await bookmarksStore.addBookmark(currentBookId, currentPage, nameToUse)
+        const page = payload.page ?? currentPage
+        const name = payload.name?.trim() || `${m.page()} ${page}`
+        await bookmarksStore.addBookmark(currentBookId, page, name)
         viewerUIStore.closeBookmarkAddModal()
     }
 
@@ -41,20 +56,17 @@
         activePopup={notesStore.activePopup}
         onClose={() => (notesStore.activePopup = null)}
         onEdit={() => {
-            const note = notesStore.activePopup?.note
-            const coords = notesStore.activePopup
-            if (note && coords) {
-                notesStore.editingNote = note
-                notesStore.editorCoords = { x: coords.x, y: coords.y }
-                notesStore.activePopup = null
-            }
+            const popup = notesStore.activePopup
+            if (!popup) return
+            notesStore.editingNote = popup.note
+            notesStore.editorCoords = { x: popup.x, y: popup.y }
+            notesStore.activePopup = null
         }}
         onDelete={() => {
-            const note = notesStore.activePopup?.note
-            if (note) {
-                viewerUIStore.noteToDeleteId = note.id
-                notesStore.activePopup = null
-            }
+            const noteId = notesStore.activePopup?.note.id
+            if (!noteId) return
+            viewerUIStore.noteToDeleteId = noteId
+            notesStore.activePopup = null
         }}
     />
 {/if}
@@ -66,39 +78,18 @@
             notesStore.editingNote = null
             notesStore.editorCoords = null
         }}
-        onSave={() => {
-            const editorState = notesStore.editingNote
-            if (editorState) {
-                if ("isNew" in editorState) {
-                    notesStore.addNote(
-                        editorState.bookId,
-                        editorState.pageNumber,
-                        editorState.start,
-                        editorState.end,
-                        editorState.text,
-                        editorState.noteContent || "",
-                        editorState.color,
-                    )
-                } else {
-                    notesStore.updateNote(
-                        (editorState as UserNote).id,
-                        editorState.noteContent || "",
-                        editorState.color,
-                    )
-                }
-            }
-        }}
     />
 {/if}
 
 {#if viewerUIStore.noteToDeleteId}
     <DeleteConfirmModal
         message={m.delete_higlight_note()}
-        onConfirm={() => {
-            if (viewerUIStore.noteToDeleteId) {
-                notesStore.deleteNote(viewerUIStore.noteToDeleteId)
-            }
-            viewerUIStore.noteToDeleteId = null
+        onConfirm={async () => {
+            if (!viewerUIStore.noteToDeleteId) return
+            await executeViewerNoteDelete({
+                noteId: viewerUIStore.noteToDeleteId,
+                confirmed: true,
+            })
         }}
         onCancel={() => {
             viewerUIStore.noteToDeleteId = null
@@ -110,9 +101,11 @@
     <BookmarkAddKeymaps
         onConfirm={handleConfirmAddBookmark}
         onCancel={() => viewerUIStore.closeBookmarkAddModal()}
+        getPayload={getBookmarkAddPayload}
+        bind:scope={bookmarkAddScope}
     />
     <Modal
-        onClose={() => viewerUIStore.closeBookmarkAddModal()}
+        onClose={() => void bookmarkAddScope?.execute("modal.cancel")}
         title={m.add_bookmark()}
         autofocusClose={false}
     >
@@ -126,17 +119,30 @@
                 label={m.bookmark_page()}
                 bind:value={viewerUIStore.bookmarkName}
                 onkeydown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
                         e.preventDefault()
-                        handleConfirmAddBookmark()
+                        void bookmarkAddScope?.execute("viewer.bookmark.add", {
+                            page: currentPage,
+                            name: viewerUIStore.bookmarkName.trim() || `${m.page()} ${currentPage}`,
+                        })
                     }
                 }}
             />
             <div class="modal-actions">
-                <Button variant="brutalist" onclick={handleConfirmAddBookmark}>
+                <Button
+                    variant="brutalist"
+                    onclick={() =>
+                        void bookmarkAddScope?.execute("viewer.bookmark.add", {
+                            page: currentPage,
+                            name: viewerUIStore.bookmarkName.trim() || `${m.page()} ${currentPage}`,
+                        })}
+                >
                     {m.add_bookmark()}
                 </Button>
-                <Button variant="ghost" onclick={() => viewerUIStore.closeBookmarkAddModal()}>
+                <Button
+                    variant="ghost"
+                    onclick={() => void bookmarkAddScope?.execute("modal.cancel")}
+                >
                     {m.cancel()}
                 </Button>
             </div>
@@ -149,7 +155,10 @@
         message={m.delete_bookmark_confirm()}
         onConfirm={async () => {
             if (viewerUIStore.bookmarkToDeleteId) {
-                await bookmarksStore.deleteBookmark(viewerUIStore.bookmarkToDeleteId)
+                await executeViewerBookmarkDelete({
+                    bookmarkId: viewerUIStore.bookmarkToDeleteId,
+                    confirmed: true,
+                })
             }
             viewerUIStore.bookmarkToDeleteId = null
         }}

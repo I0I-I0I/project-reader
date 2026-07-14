@@ -9,9 +9,10 @@
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
-        type CommandNode,
+        type CommandScope,
         getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+    } from "$lib/features/commands/commandsStore.svelte"
 
     let {
         name,
@@ -19,19 +20,15 @@
         isOutlineOpen = $bindable(),
         isSettingsOpen = $bindable(),
         isBookmarked = false,
-        onBookmarkClick,
-        onClose,
     } = $props<{
         name: string
         isLoaded: boolean
         isOutlineOpen?: boolean
         isSettingsOpen?: boolean
         isBookmarked?: boolean
-        onBookmarkClick?: () => void
-        onClose: () => void
     }>()
 
-    const commandsNode = getContext<CommandNode>(COMMANDS_CONTEXT_KEY)
+    const commandsNode = getContext<CommandScope>(COMMANDS_CONTEXT_KEY)
 </script>
 
 <div class="viewer-header">
@@ -42,9 +39,10 @@
                 size={uiStore.isCompact ? "default" : "small"}
                 square={uiStore.isCompact}
                 open={isOutlineOpen}
-                onclick={() => (isOutlineOpen = !isOutlineOpen)}
+                onclick={() => void commandsStore.execute("viewer.sidebar.outline.toggle")}
                 aria-label={m.outline()}
-                tooltip={m.outline() + getShortcutHint(commandsNode, "toggle-outline")}
+                tooltip={m.outline() +
+                    getShortcutHint(commandsNode, "viewer.sidebar.outline.toggle")}
             >
                 <MenuIcon />
                 <span class="outline-text">{m.outline()}</span>
@@ -61,9 +59,9 @@
                     class="remove-bookmark-btn"
                     variant="action"
                     square={true}
-                    onclick={onBookmarkClick}
+                    onclick={() => void commandsStore.execute("viewer.bookmark.toggle-page")}
                     aria-label={m.remove_bookmark()}
-                    tooltip={`${m.remove_bookmark()}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                    tooltip={`${m.remove_bookmark()}${getShortcutHint(commandsNode, "viewer.bookmark.toggle-page")}`}
                 >
                     <BookmarkIcon />
                 </Button>
@@ -71,9 +69,9 @@
                 <Button
                     variant="action"
                     square={true}
-                    onclick={onBookmarkClick}
+                    onclick={() => void commandsStore.execute("viewer.bookmark.toggle-page")}
                     aria-label={m.add_bookmark()}
-                    tooltip={`${m.add_bookmark()}${getShortcutHint(commandsNode, "toggle-bookmark-page")}`}
+                    tooltip={`${m.add_bookmark()}${getShortcutHint(commandsNode, "viewer.bookmark.toggle-page")}`}
                 >
                     <BookmarkPlusIcon />
                 </Button>
@@ -83,9 +81,10 @@
                 size={uiStore.isCompact ? "default" : "small"}
                 square={uiStore.isCompact}
                 open={isSettingsOpen}
-                onclick={() => (isSettingsOpen = !isSettingsOpen)}
+                onclick={() => void commandsStore.execute("viewer.sidebar.settings.toggle")}
                 aria-label={m.settings()}
-                tooltip={m.settings() + getShortcutHint(commandsNode, "toggle-settings")}
+                tooltip={m.settings() +
+                    getShortcutHint(commandsNode, "viewer.sidebar.settings.toggle")}
             >
                 <SettingsIcon />
                 <span class="settings-text">{m.settings()}</span>
@@ -95,9 +94,9 @@
         <Button
             variant="close"
             square={true}
-            onclick={onClose}
+            onclick={() => void commandsStore.execute("viewer.close")}
             aria-label={m.close_document()}
-            tooltip={m.close_document() + getShortcutHint(commandsNode, "close")}
+            tooltip={m.close_document() + getShortcutHint(commandsNode, "viewer.close")}
         >
             <span class="close-icon">×</span>
         </Button>

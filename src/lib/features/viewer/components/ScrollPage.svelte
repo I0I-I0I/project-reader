@@ -10,7 +10,7 @@
     import { onMount } from "svelte"
     import { ViewerLinkService } from "./ViewerLinkService"
     import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
-    import { searchStore } from "$lib/features/prompt/stores/searchStore.svelte"
+    import { searchStore } from "$lib/features/viewer/stores/searchStore.svelte"
     import {
         notesStore,
         getGlobalOffset,
@@ -21,6 +21,7 @@
         type SpanRange,
     } from "$lib/features/viewer/stores/notesStore.svelte"
     import { browser } from "$app/environment"
+    import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
 
     let isShortHeight = $derived(uiStore.isShortHeight)
 
@@ -115,9 +116,10 @@
                 if (annotations.length === 0) return
 
                 const linkService = new ViewerLinkService(pdf, (targetPage) => {
-                    if (viewerStore.goToPage) {
-                        viewerStore.goToPage(targetPage, { isJump: true })
-                    }
+                    void commandsStore.execute("viewer.page.go-to", {
+                        page: targetPage,
+                        isJump: true,
+                    })
                 })
                 linkService.page = pageNumber
 

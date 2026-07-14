@@ -3,18 +3,24 @@
     import Input from "$lib/core/components/ui/Input.svelte"
     import {
         useCommands,
-        getShortcutHint,
         KeyboardHandler,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+        commandsStore,
+    } from "$lib/features/commands/commandsStore.svelte"
     import { MediaQuery } from "svelte/reactivity"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { resolveSelectionIndex } from "$lib/core/state/listSelection"
-    import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
     import TrashIcon from "$lib/core/components/icons/TrashIcon.svelte"
     import EditIcon from "$lib/core/components/icons/EditIcon.svelte"
     import type { UserNote } from "$lib/core/vfs/vfsStore.types"
-    import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
+    import {
+        executeViewerNoteDelete,
+        executeViewerNoteEdit,
+    } from "$lib/features/viewer/commands/viewerMutationExecution"
+    import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
+    import { viewerUIStore } from "$lib/features/viewer/stores/viewerUIStore.svelte"
+    import { createViewerListCommands } from "$lib/features/viewer/commands/viewerListCommands"
+    import { withViewerInputShortcut } from "$lib/features/viewer/commands/viewerInputShortcutCommand"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -25,7 +31,6 @@
     const phoneQuery = new MediaQuery("(max-width: 480px)")
     let searchInputRef = $state<HTMLInputElement | null>(null)
     let contentRef = $state<HTMLElement | undefined>()
-    let noteToDeleteId = $state<string | null>(null)
     let isSearchFocused = $state(false)
 
     let filteredNotes = $derived(
@@ -39,9 +44,10 @@
     function selectNote(note: UserNote) {
         if (note.pageNumber !== undefined) {
             notesStore.scrollingToNoteId = note.id
-            if (viewerStore.goToPage) {
-                viewerStore.goToPage(note.pageNumber, { isJump: true })
-            }
+            void commandsStore.execute("viewer.page.go-to", {
+                page: note.pageNumber,
+                isJump: true,
+            })
             if (window.innerWidth <= 480) {
                 onClose()
             }
@@ -99,130 +105,90 @@
         }
     }
 
-    const sidebarCommandsNode = useCommands([
-        {
-            id: "scroll-down",
-            keys: "j",
-            description: "Next Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
-            },
+    const sidebarMutationCommands = createViewerMutationCommands({
+        addBookmark: () => {},
+        editBookmark: () => {},
+        deleteBookmark: () => {},
+        addNote: () => {},
+        editNote: (payload: { noteId?: string; x?: number; y?: number } | undefined) => {
+            const noteId = payload?.noteId ?? filteredNotes[selectedIndex]?.id
+            const note = notesStore.notes.find(({ id }) => id === noteId)
+            if (!note) return
+            notesStore.editingNote = note
+            notesStore.editorCoords = {
+                x: payload?.x ?? window.innerWidth / 2,
+                y: payload?.y ?? window.innerHeight / 2,
+            }
         },
-        {
-            id: "scroll-down-alt",
-            keys: ["arrowdown", "ctrl+n", "ctrl+j"],
-            description: "Next Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("next")
-            },
-            allowInInputs: true,
+        saveNote: () => {},
+        deleteNote: async (payload: { noteId?: string; confirmed?: boolean } | undefined) => {
+            const noteId = payload?.noteId ?? filteredNotes[selectedIndex]?.id
+            if (!noteId) return
+            if (!payload?.confirmed) {
+                viewerUIStore.noteToDeleteId = noteId
+                return
+            }
+            await notesStore.deleteNote(noteId)
+            viewerUIStore.noteToDeleteId = null
         },
-        {
-            id: "scroll-up",
-            keys: "k",
-            description: "Previous Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-        },
-        {
-            id: "scroll-up-alt",
-            keys: ["arrowup", "ctrl+p", "ctrl+k"],
-            description: "Previous Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                navigateSelection("prev")
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "select-note",
-            keys: "enter",
-            description: "Jump to Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
+    })
+
+    const listCommandsDisabled = () =>
+        uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup
+    const shouldHandleListNavigation = (event: KeyboardEvent) => {
+        const target = event.target
+        const isInput =
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLElement && target.isContentEditable)
+        return !(
+            isInput &&
+            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
+        )
+    }
+    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) => {
+        const target = event.target
+        const isInput =
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLElement && target.isContentEditable)
+        return !isInput || (isSearchFocused && KeyboardHandler.matches(event, inputKey))
+    }
+
+    useCommands([
+        ...createViewerListCommands({
+            nextLabel: () => "Next Note",
+            previousLabel: () => "Previous Note",
+            selectLabel: () => "Jump to Note",
+            searchLabel: () => "Search Notes",
+            disabled: listCommandsDisabled,
+            shouldHandleNavigationKey: shouldHandleListNavigation,
+            next: () => navigateSelection("next"),
+            previous: () => navigateSelection("prev"),
+            select: () => {
                 const note = filteredNotes[selectedIndex]
                 if (note) {
                     selectNote(note)
                     onClose()
                 }
             },
-        },
-        {
-            id: "search-notes",
-            keys: "/",
-            description: "Search Notes",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
+            search: () => {
                 searchInputRef?.focus()
                 searchInputRef?.select()
             },
-        },
-        {
-            id: "edit-selected-note",
-            keys: "e",
-            description: "Edit Selected Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                const note = filteredNotes[selectedIndex]
-                if (note) {
-                    triggerEditKeyboard(note)
-                }
-            },
-        },
-        {
-            id: "delete-selected-note",
-            keys: "d",
-            description: "Delete Selected Note",
-            disabled: () => !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                const note = filteredNotes[selectedIndex]
-                if (note) {
-                    triggerDeleteKeyboard(note)
-                }
-            },
-        },
-        {
-            id: "edit-selected-note-input",
-            keys: "ctrl+e",
-            description: "Edit Selected Note",
-            disabled: () =>
-                !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                const note = filteredNotes[selectedIndex]
-                if (note) {
-                    triggerEditKeyboard(note)
-                }
-            },
-            allowInInputs: true,
-        },
-        {
-            id: "delete-selected-note-input",
-            keys: "ctrl+d",
-            description: "Delete Selected Note",
-            disabled: () =>
-                !isSearchFocused || !!notesStore.editingNote || !!notesStore.activePopup,
-            action: (event) => {
-                event.preventDefault()
-                const note = filteredNotes[selectedIndex]
-                if (note) {
-                    triggerDeleteKeyboard(note)
-                }
-            },
-            allowInInputs: true,
-        },
+        }),
+        withViewerInputShortcut(
+            sidebarMutationCommands["viewer.note.edit"]!,
+            ["e", "ctrl+e"],
+            listCommandsDisabled,
+            (event) => shouldHandleMutationKey(event, "ctrl+e"),
+        ),
+        withViewerInputShortcut(
+            sidebarMutationCommands["viewer.note.delete"]!,
+            ["d", "ctrl+d"],
+            listCommandsDisabled,
+            (event) => shouldHandleMutationKey(event, "ctrl+d"),
+        ),
     ])
 
     function formatKey(keys: string | string[]): string {
@@ -259,75 +225,17 @@
             .join("-")
     }
 
-    let navigateShortcuts = $derived.by(() => {
-        if (!sidebarCommandsNode) return []
-        const cmds = sidebarCommandsNode.getAllCommands()
-        const downCmds = cmds.filter((c) => c.id === "scroll-down" || c.id === "scroll-down-alt")
-        const upCmds = cmds.filter((c) => c.id === "scroll-up" || c.id === "scroll-up-alt")
-        if (downCmds.length === 0 || upCmds.length === 0) return []
-
-        const downKeys = downCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-        const upKeys = upCmds.flatMap((c) =>
-            Array.isArray(c.keys) ? c.keys : c.keys ? [c.keys] : [],
-        )
-
-        const pairs: { display: string }[] = []
-        const keyPairs = [
-            { down: "j", up: "k" },
-            { down: "arrowdown", up: "arrowup" },
-            KeyboardHandler.isChromiumNonMac()
-                ? { down: "ctrl+j", up: "ctrl+k" }
-                : { down: "ctrl+n", up: "ctrl+p" },
-        ]
-        for (const pair of keyPairs) {
-            if (downKeys.includes(pair.down) && upKeys.includes(pair.up)) {
-                pairs.push({
-                    display: `${formatKey(pair.down)}/${formatKey(pair.up)}`,
-                })
-            }
-        }
-        return pairs
-    })
-
-    let selectShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "select-note" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let searchShortcut = $derived.by(() => {
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "search-notes" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let editShortcut = $derived.by(() => {
-        if (isSearchFocused) {
-            return formatKey("ctrl+e")
-        }
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "edit-selected-note" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
-
-    let deleteShortcut = $derived.by(() => {
-        if (isSearchFocused) {
-            return formatKey("ctrl+d")
-        }
-        if (!sidebarCommandsNode) return ""
-        const cmd = sidebarCommandsNode
-            .getAllCommands()
-            .find((c) => c.id === "delete-selected-note" && c.keys)
-        return cmd ? formatKey(cmd.keys!) : ""
-    })
+    const navigateShortcuts = [
+        { display: `${formatKey("j")}/${formatKey("k")}` },
+        { display: `${formatKey("arrowdown")}/${formatKey("arrowup")}` },
+        KeyboardHandler.isChromiumNonMac()
+            ? { display: `${formatKey("ctrl+j")}/${formatKey("ctrl+k")}` }
+            : { display: `${formatKey("ctrl+n")}/${formatKey("ctrl+p")}` },
+    ]
+    const selectShortcut = formatKey("enter")
+    const searchShortcut = formatKey("/")
+    let editShortcut = $derived(formatKey(isSearchFocused ? "ctrl+e" : "e"))
+    let deleteShortcut = $derived(formatKey(isSearchFocused ? "ctrl+d" : "d"))
 
     function formatTimestamp(timestamp: number): string {
         return new Date(timestamp).toLocaleString(undefined, {
@@ -338,22 +246,12 @@
 
     function triggerEdit(note: UserNote, e: MouseEvent) {
         e.stopPropagation()
-        notesStore.editingNote = note
-        notesStore.editorCoords = { x: e.clientX, y: e.clientY }
+        void executeViewerNoteEdit({ noteId: note.id, x: e.clientX, y: e.clientY })
     }
 
     function triggerDelete(note: UserNote, e: MouseEvent) {
         e.stopPropagation()
-        noteToDeleteId = note.id
-    }
-
-    function triggerEditKeyboard(note: UserNote) {
-        notesStore.editingNote = note
-        notesStore.editorCoords = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
-    }
-
-    function triggerDeleteKeyboard(note: UserNote) {
-        noteToDeleteId = note.id
+        void executeViewerNoteDelete({ noteId: note.id })
     }
 </script>
 
@@ -365,7 +263,7 @@
             type="text"
             bind:value={searchQuery}
             oninput={queryChanged}
-            placeholder={`${m.search_notes_placeholder()}${getShortcutHint(sidebarCommandsNode, "search-notes")}`}
+            placeholder={`${m.search_notes_placeholder()} [${searchShortcut}]`}
             class="search-input"
             onkeydown={handleSearchKeydown}
             onfocus={() => {
@@ -495,21 +393,6 @@
                 <span class="hint-divider">•</span>
             {/if}
         </div>
-    {/if}
-
-    {#if noteToDeleteId}
-        <DeleteConfirmModal
-            message={m.delete_higlight_note()}
-            onConfirm={() => {
-                if (noteToDeleteId) {
-                    notesStore.deleteNote(noteToDeleteId)
-                }
-                noteToDeleteId = null
-            }}
-            onCancel={() => {
-                noteToDeleteId = null
-            }}
-        />
     {/if}
 {/snippet}
 

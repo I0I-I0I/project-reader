@@ -1,11 +1,5 @@
 <script lang="ts">
-    import { tick, getContext } from "svelte"
-    import type { Snippet } from "svelte"
-    import {
-        CommandRegistry,
-        commandDispatcher,
-        COMMANDS_CONTEXT_KEY,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { tick, type Snippet } from "svelte"
 
     interface Props {
         /** The trigger element/button. Spreads accessibility attributes and visual states. */
@@ -49,12 +43,6 @@
     const triggerId = `dropdown-trigger-${Math.random().toString(36).substring(2, 9)}`
     const menuId = `dropdown-menu-${Math.random().toString(36).substring(2, 9)}`
 
-    // Capture the commands context at initialization time
-    const parentCommandNode = getContext<CommandRegistry>(COMMANDS_CONTEXT_KEY)
-    const setActiveNode = getContext<(node: CommandRegistry | null) => void>(
-        "set_active_commands_node",
-    )
-
     let previouslyFocusedElement: HTMLElement | null = null
 
     function toggleMenu(e: MouseEvent) {
@@ -70,7 +58,7 @@
         toggleMenu(e)
     }
 
-    function handleTriggerKeyDown(e: KeyboardEvent) {
+    function handleTriggerKeyDown(_event: KeyboardEvent) {
         // Trigger keydowns are caught globally by layout, but kept for signature compatibility
     }
 
@@ -114,99 +102,50 @@
         }
     }
 
+    function handleDropdownKeydown(event: KeyboardEvent) {
+        if (!isOpen || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+        const items = getMenuItems()
+        const activeElement = document.activeElement as HTMLElement
+        const currentIndex = items.indexOf(activeElement)
+        let handled = true
+
+        switch (event.key.toLowerCase()) {
+            case "arrowdown":
+            case "j":
+                focusItem((currentIndex + 1) % items.length)
+                break
+            case "arrowup":
+            case "k":
+                focusItem((currentIndex - 1 + items.length) % items.length)
+                break
+            case "home":
+                focusItem(0)
+                break
+            case "end":
+                focusItem(items.length - 1)
+                break
+            case "escape":
+                closeMenu()
+                break
+            case "enter":
+            case " ":
+                if (items.includes(activeElement)) activeElement.click()
+                else handled = false
+                break
+            default:
+                handled = false
+        }
+
+        if (handled) {
+            event.preventDefault()
+            event.stopPropagation()
+        }
+    }
+
     $effect(() => {
         if (isOpen) {
-            // Track the element that had focus before the menu opened
             previouslyFocusedElement = document.activeElement as HTMLElement
-
-            // Create a sub-node in the command registry chain
-            const node = new CommandRegistry(parentCommandNode)
-
-            // Activate the node
-            if (setActiveNode) {
-                setActiveNode(node)
-            } else {
-                commandDispatcher.activeRegistry = node
-            }
-
-            // Register keymaps for navigating/closing the dropdown
-            const unregisterAll = node.registerAll([
-                {
-                    keys: ["arrowdown", "j"],
-                    action: (e) => {
-                        e.preventDefault()
-                        const items = getMenuItems()
-                        const activeEl = document.activeElement as HTMLElement
-                        const currentIndex = items.indexOf(activeEl)
-                        const nextIndex = (currentIndex + 1) % items.length
-                        focusItem(nextIndex)
-                    },
-                    description: "Focus next dropdown item",
-                },
-                {
-                    keys: ["arrowup", "k"],
-                    action: (e) => {
-                        e.preventDefault()
-                        const items = getMenuItems()
-                        const activeEl = document.activeElement as HTMLElement
-                        const currentIndex = items.indexOf(activeEl)
-                        const prevIndex = (currentIndex - 1 + items.length) % items.length
-                        focusItem(prevIndex)
-                    },
-                    description: "Focus previous dropdown item",
-                },
-                {
-                    keys: ["home"],
-                    action: (e) => {
-                        e.preventDefault()
-                        focusItem(0)
-                    },
-                    description: "Focus first dropdown item",
-                },
-                {
-                    keys: ["end"],
-                    action: (e) => {
-                        e.preventDefault()
-                        const items = getMenuItems()
-                        focusItem(items.length - 1)
-                    },
-                    description: "Focus last dropdown item",
-                },
-                {
-                    keys: ["escape"],
-                    action: (e) => {
-                        e.preventDefault()
-                        closeMenu()
-                    },
-                    description: "Close dropdown menu",
-                },
-                {
-                    keys: ["enter", "space"],
-                    action: (e) => {
-                        const activeEl = document.activeElement as HTMLElement
-                        const items = getMenuItems()
-                        if (items.includes(activeEl)) {
-                            e.preventDefault()
-                            activeEl.click()
-                        }
-                    },
-                    description: "Select dropdown item",
-                },
-            ])
-
-            // Focus the first item once DOM renders
-            tick().then(() => {
-                focusItem(0)
-            })
-
-            return () => {
-                node.isDestroyed = true
-                unregisterAll()
-                commandDispatcher.removeRegistry(node)
-                if (setActiveNode) {
-                    setActiveNode(commandDispatcher.activeRegistry)
-                }
-            }
+            void tick().then(() => focusItem(0))
         } else if (!isOpen && previouslyFocusedElement) {
             // Restore focus back to the launcher element when closing, unless focus has already moved elsewhere
             const activeEl = document.activeElement
@@ -221,7 +160,11 @@
     })
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} onfocusin={handleWindowFocusIn} />
+<svelte:window
+    onpointerdown={handleWindowPointerDown}
+    onfocusin={handleWindowFocusIn}
+    onkeydowncapture={handleDropdownKeydown}
+/>
 
 <div
     bind:this={triggerContainer}

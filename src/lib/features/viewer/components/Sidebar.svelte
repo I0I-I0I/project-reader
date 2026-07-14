@@ -6,11 +6,12 @@
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { cubicOut } from "svelte/easing"
     import {
+        commandsStore,
         getShortcutHint,
         useCommands,
-        type CommandNode,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import { getContext, untrack } from "svelte"
+    } from "$lib/features/commands/commandsStore.svelte"
+    import { createViewerSidebarCloseCommand } from "$lib/features/viewer/commands/viewerSidebarCloseCommand"
+    import { untrack } from "svelte"
     import type { FlatHeading } from "$lib/core/pdf/pdf"
 
     import Tabs from "$lib/core/components/ui/Tabs.svelte"
@@ -48,42 +49,31 @@
     }>()
 
     const initialSide = untrack(() => side)
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = initialSide === "right" && getActiveNode ? getActiveNode() : null
-
+    const shortcutScope = commandsStore.activeScope ?? commandsStore.root
+    const sidebarCommand = createViewerSidebarCloseCommand({
+        label: () =>
+            initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
+        disabled: () =>
+            (initialSide === "left" && uiStore.isModalOpen) ||
+            !!notesStore.editingNote ||
+            !!notesStore.activePopup,
+        shouldHandleKey: (event: KeyboardEvent) => {
+            const target = event.target
+            const isInput =
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                (target instanceof HTMLElement && target.isContentEditable)
+            return !(
+                isInput &&
+                (event.key.toLowerCase() === "q" ||
+                    (initialSide === "left" && event.key.toLowerCase() === "escape"))
+            )
+        },
+        close: () => onClose(),
+    })
     const sidebarCommandsNode = useCommands(
-        [
-            {
-                id: "close",
-                keys:
-                    initialSide === "right" ? ["escape", "ctrl+c", "ctrl+["] : ["ctrl+c", "ctrl+["],
-                disabled: () =>
-                    (initialSide === "left" && uiStore.isModalOpen) ||
-                    !!notesStore.editingNote ||
-                    !!notesStore.activePopup,
-                action: () => {
-                    onClose()
-                },
-                description:
-                    initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
-                allowInInputs: true,
-            },
-            {
-                id: "close-alt",
-                keys: initialSide === "right" ? "q" : ["escape", "q"],
-                disabled: () =>
-                    (initialSide === "left" && uiStore.isModalOpen) ||
-                    !!notesStore.editingNote ||
-                    !!notesStore.activePopup,
-                action: () => {
-                    onClose()
-                },
-                description:
-                    initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
-                allowInInputs: false,
-            },
-        ],
-        activeNodeBeforeOpen || undefined,
+        [sidebarCommand],
+        initialSide === "right" ? shortcutScope : undefined,
     )
 
     function slideFromSide(_: HTMLElement, { duration = 150 }) {
@@ -107,7 +97,7 @@
         class="sidebar-backdrop"
         onclick={(e) => {
             e.stopPropagation()
-            onClose()
+            void sidebarCommandsNode.execute("viewer.sidebar.close")
         }}
     ></div>
 {/if}
@@ -125,23 +115,24 @@
             <Tabs class="sidebar-tabs-list" activeValue={activeTab}>
                 <TabItem
                     active={activeTab === "outline"}
-                    onclick={() => (activeTab = "outline")}
+                    onclick={() => void shortcutScope.execute("viewer.sidebar.outline.toggle")}
                     Icon={MenuIcon}
-                    tooltip={m.outline() + getShortcutHint(sidebarCommandsNode, "toggle-outline")}
+                    tooltip={m.outline() +
+                        getShortcutHint(shortcutScope, "viewer.sidebar.outline.toggle")}
                 />
                 <TabItem
                     active={activeTab === "notes"}
-                    onclick={() => (activeTab = "notes")}
+                    onclick={() => void shortcutScope.execute("viewer.sidebar.notes.toggle")}
                     Icon={NoteIcon}
                     tooltip={m.notes_highlights() +
-                        getShortcutHint(sidebarCommandsNode, "toggle-highlights")}
+                        getShortcutHint(shortcutScope, "viewer.sidebar.notes.toggle")}
                 />
                 <TabItem
                     active={activeTab === "bookmarks"}
-                    onclick={() => (activeTab = "bookmarks")}
+                    onclick={() => void shortcutScope.execute("viewer.sidebar.bookmarks.toggle")}
                     Icon={BookmarkIcon}
                     tooltip={m.bookmarks() +
-                        getShortcutHint(sidebarCommandsNode, "toggle-bookmarks")}
+                        getShortcutHint(shortcutScope, "viewer.sidebar.bookmarks.toggle")}
                 />
             </Tabs>
         {:else}
@@ -151,9 +142,9 @@
             variant="close"
             size="default"
             square={true}
-            onclick={onClose}
+            onclick={() => void sidebarCommandsNode.execute("viewer.sidebar.close")}
             aria-label={m.close()}
-            tooltip={m.close() + getShortcutHint(sidebarCommandsNode, "close", "close-alt")}
+            tooltip={m.close() + getShortcutHint(sidebarCommandsNode, "viewer.sidebar.close")}
             class="sidebar-close-btn"
         >
             ×

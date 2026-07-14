@@ -1,36 +1,56 @@
 <script lang="ts">
-    import { useCommands, type CommandNode } from "$lib/features/prompt/stores/commandsStore.svelte"
-    import { getContext } from "svelte"
+    import { commandsStore, type CommandScope } from "$lib/features/commands/commandsStore.svelte"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
+    import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
 
-    let { onConfirm, onCancel } = $props<{
-        onConfirm: () => void
+    type BookmarkAddPayload = NonNullable<AppCommandPayloads["viewer.bookmark.add"]>
+
+    let {
+        onConfirm,
+        onCancel,
+        getPayload,
+        scope = $bindable(),
+    } = $props<{
+        onConfirm: (payload: BookmarkAddPayload) => void | Promise<void>
         onCancel: () => void
+        getPayload: () => BookmarkAddPayload
+        scope?: CommandScope
     }>()
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope
 
-    useCommands(
+    const cancelCommand = defineCommands({
+        "modal.cancel": {
+            id: "modal.cancel",
+            label: () => "Cancel bookmark addition",
+            category: "commands",
+            keymap: ["escape", "ctrl+c", "ctrl+["],
+            allowInInputs: true,
+            run: () => onCancel(),
+        },
+    })["modal.cancel"]
+
+    const mutationCommands = createViewerMutationCommands({
+        addBookmark: (payload) => onConfirm(payload ?? getPayload()),
+        editBookmark: () => {},
+        deleteBookmark: () => {},
+        addNote: () => {},
+        editNote: () => {},
+        saveNote: () => {},
+        deleteNote: () => {},
+    })
+
+    scope = useModalCommands(
         [
+            cancelCommand,
             {
-                id: "cancel-bookmark-add",
-                keys: ["escape", "ctrl+c", "ctrl+["],
-                description: "Cancel Bookmark Addition",
-                action: (event: KeyboardEvent) => {
-                    event.preventDefault()
-                    onCancel()
-                },
+                ...mutationCommands["viewer.bookmark.add"]!,
+                keymap: "ctrl+enter",
+                preventDefault: true,
                 allowInInputs: true,
-            },
-            {
-                id: "save-bookmark-add",
-                keys: ["ctrl+enter"],
-                description: "Save Bookmark",
-                action: (event: KeyboardEvent) => {
-                    event.preventDefault()
-                    onConfirm()
-                },
-                allowInInputs: true,
+                keyboardPayload: () => getPayload(),
             },
         ],
         activeNodeBeforeOpen,

@@ -1,50 +1,43 @@
 <script lang="ts">
-    import { getContext } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Modal from "$lib/core/components/ui/Modal.svelte"
-    import {
-        useCommands,
-        type CommandNode,
-        getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore, getShortcutHint } from "$lib/features/commands/commandsStore.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
 
     let {
         editorState = $bindable(),
         onCancel,
-        onSave,
     }: {
         editorState: any
         onCancel: () => void
-        onSave: () => void
     } = $props()
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope ?? commandsStore.root
 
-    const editorCommandsNode = useCommands(
-        [
-            {
-                id: "cancel-note-edit",
-                keys: ["escape"],
-                action: (event) => {
-                    event.preventDefault()
-                    onCancel()
-                },
-                description: m.cancel(),
-                allowInInputs: true,
+    const modalCommands = defineCommands({
+        "modal.cancel": {
+            id: "modal.cancel",
+            label: () => m.cancel(),
+            category: "commands",
+            keymap: "escape",
+            allowInInputs: true,
+            run: () => onCancel(),
+        },
+        "viewer.note.save": {
+            id: "viewer.note.save",
+            label: () => m.save(),
+            category: "commands",
+            keymap: "ctrl+enter",
+            allowInInputs: true,
+            run: async (payload) => {
+                await activeNodeBeforeOpen.execute("viewer.note.save", payload)
             },
-            {
-                id: "save-note-edit",
-                keys: ["ctrl+enter"],
-                action: (event) => {
-                    event.preventDefault()
-                    onSave()
-                },
-                description: m.save(),
-                allowInInputs: true,
-            },
-        ],
+        },
+    })
+    const editorCommandsNode = useModalCommands(
+        [modalCommands["modal.cancel"], modalCommands["viewer.note.save"]],
         activeNodeBeforeOpen,
     )
     function focusEditor(textarea: HTMLTextAreaElement) {
@@ -58,12 +51,22 @@
         <h3 class="modal-title">{"id" in editorState ? m.edit_note() : m.add_note()}</h3>
         <div class="header-actions">
             <span class="editor-page">{m.page()} {editorState.pageNumber}</span>
-            <button class="close-btn" onclick={onCancel} aria-label={m.cancel()}> &times; </button>
+            <button
+                class="close-btn"
+                onclick={() => void editorCommandsNode.execute("modal.cancel")}
+                aria-label={m.cancel()}
+            >
+                &times;
+            </button>
         </div>
     </div>
 {/snippet}
 
-<Modal onClose={onCancel} {header} autofocusClose={false}>
+<Modal
+    onClose={() => void editorCommandsNode.execute("modal.cancel")}
+    {header}
+    autofocusClose={false}
+>
     <div class="editor-body">
         <blockquote class="editor-quote">
             "{editorState.text}"
@@ -104,18 +107,18 @@
             <Button
                 variant="none"
                 class="editor-btn cancel"
-                onclick={onCancel}
+                onclick={() => void editorCommandsNode.execute("modal.cancel")}
                 aria-label={m.cancel()}
-                tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "cancel-note-edit")}`}
+                tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
             >
                 {m.cancel()}
             </Button>
             <Button
                 variant="none"
                 class="editor-btn save"
-                onclick={onSave}
+                onclick={() => void editorCommandsNode.execute("viewer.note.save")}
                 aria-label={m.save()}
-                tooltip={`${m.save()}${getShortcutHint(editorCommandsNode, "save-note-edit")}`}
+                tooltip={`${m.save()}${getShortcutHint(editorCommandsNode, "viewer.note.save")}`}
             >
                 {m.save()}
             </Button>

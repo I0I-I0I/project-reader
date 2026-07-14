@@ -1,14 +1,13 @@
 <script lang="ts">
-    import { getContext, onMount } from "svelte"
+    import { onMount } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Float from "$lib/core/components/ui/Float.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
-    import {
-        useCommands,
-        type CommandNode,
-        getShortcutHint,
-    } from "$lib/features/prompt/stores/commandsStore.svelte"
+    import { commandsStore, getShortcutHint } from "$lib/features/commands/commandsStore.svelte"
+    import { defineCommands } from "$lib/features/commands/commands.types"
+    import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
+    import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
     import type { UserNote } from "$lib/core/vfs/vfsStore.types"
 
     let {
@@ -23,47 +22,49 @@
         onDelete: () => void
     } = $props()
 
-    const getActiveNode = getContext<() => CommandNode>("get_active_commands_node")
-    const activeNodeBeforeOpen = getActiveNode ? getActiveNode() : null
+    const activeNodeBeforeOpen = commandsStore.activeScope
 
     onMount(() => uiStore.registerModal(() => true))
 
-    const popupCommandsNode = useCommands(
+    const modalCommands = defineCommands({
+        "modal.cancel": {
+            id: "modal.cancel",
+            label: () => m.close(),
+            category: "commands",
+            keymap: ["escape", "q"],
+            allowInInputs: true,
+            run: () => onClose(),
+        },
+    })
+    const mutationCommands = createViewerMutationCommands({
+        addBookmark: () => {},
+        editBookmark: () => {},
+        deleteBookmark: () => {},
+        addNote: () => {},
+        editNote: () => onEdit(),
+        saveNote: () => {},
+        deleteNote: () => onDelete(),
+    })
+
+    const popupCommandsNode = useModalCommands(
         [
-            {
-                id: "close-note-popup",
-                keys: ["escape", "q"],
-                action: (event) => {
-                    event.preventDefault()
-                    onClose()
-                },
-                description: m.close(),
-                allowInInputs: true,
-            },
-            {
-                id: "edit-note",
-                keys: ["e"],
-                action: (event) => {
-                    event.preventDefault()
-                    onEdit()
-                },
-                description: m.edit_note(),
-                allowInInputs: false,
-            },
-            {
-                id: "delete-note",
-                keys: ["d"],
-                action: (event) => {
-                    event.preventDefault()
-                    onDelete()
-                },
-                description: m.delete(),
-                allowInInputs: false,
-            },
+            modalCommands["modal.cancel"],
+            { ...mutationCommands["viewer.note.edit"]!, keymap: "e" },
+            { ...mutationCommands["viewer.note.delete"]!, keymap: "d" },
         ],
         activeNodeBeforeOpen,
     )
+
+    function handleCopyOrClose(event: KeyboardEvent) {
+        if (!event.ctrlKey || (event.key !== "c" && event.key !== "[")) return
+        event.stopPropagation()
+        if (event.key === "c" && window.getSelection()?.toString()) return
+        event.preventDefault()
+        void popupCommandsNode.execute("modal.cancel")
+    }
 </script>
+
+<svelte:window onkeydowncapture={handleCopyOrClose} />
 
 <Float {onClose}>
     <div class="note-popup-content">
@@ -72,9 +73,9 @@
             <Button
                 variant="none"
                 class="popup-close"
-                onclick={onClose}
+                onclick={() => void popupCommandsNode.execute("modal.cancel")}
                 aria-label={m.close()}
-                tooltip={`${m.close()}${getShortcutHint(popupCommandsNode, "close-note-popup")}`}
+                tooltip={`${m.close()}${getShortcutHint(popupCommandsNode, "modal.cancel")}`}
             >
                 ×
             </Button>
@@ -94,18 +95,26 @@
             <Button
                 variant="none"
                 class="popup-btn edit"
-                onclick={onEdit}
+                onclick={() =>
+                    void popupCommandsNode.execute("viewer.note.edit", {
+                        noteId: activePopup.note.id,
+                        x: activePopup.x,
+                        y: activePopup.y,
+                    })}
                 aria-label={m.edit_note()}
-                tooltip={`${m.edit_note()}${getShortcutHint(popupCommandsNode, "edit-note")}`}
+                tooltip={`${m.edit_note()}${getShortcutHint(popupCommandsNode, "viewer.note.edit")}`}
             >
                 {m.edit_note()}
             </Button>
             <Button
                 variant="none"
                 class="popup-btn delete"
-                onclick={onDelete}
+                onclick={() =>
+                    void popupCommandsNode.execute("viewer.note.delete", {
+                        noteId: activePopup.note.id,
+                    })}
                 aria-label={m.delete()}
-                tooltip={`${m.delete()}${getShortcutHint(popupCommandsNode, "delete-note")}`}
+                tooltip={`${m.delete()}${getShortcutHint(popupCommandsNode, "viewer.note.delete")}`}
             >
                 {m.delete()}
             </Button>
