@@ -1,3 +1,4 @@
+import { tick } from "svelte"
 import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
 import { commandsStore, formatKeyString } from "$lib/features/commands/commandsStore.svelte"
 import { promptStore, type PromptItem } from "$lib/features/prompt/stores/promptStore.svelte"
@@ -62,6 +63,7 @@ export async function openCommandPalette(
             }
         },
         onSelect: async (command: PaletteChoice) => {
+            await tick()
             await command.execute()
         },
     }

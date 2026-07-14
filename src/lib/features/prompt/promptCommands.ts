@@ -5,6 +5,8 @@ export interface PromptCommandActions {
     next: () => void
     previous: () => void
     select: () => void | Promise<void>
+    navigateBack: () => void
+    canNavigateBack: () => boolean
     historyBack: () => void
     historyForward: () => void
 }
@@ -46,6 +48,16 @@ export function createPromptCommands(actions: PromptCommandActions) {
             palette: false,
             allowInInputs: true,
             run: actions.select,
+        },
+        "prompt.navigate.back": {
+            id: "prompt.navigate.back",
+            keymap: "backspace",
+            label: () => "Return to previous prompt",
+            category: "navigation",
+            palette: false,
+            allowInInputs: true,
+            disabled: () => !actions.canNavigateBack(),
+            run: actions.navigateBack,
         },
         "prompt.history.back": {
             id: "prompt.history.back",

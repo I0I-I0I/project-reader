@@ -31,7 +31,7 @@ export function createViewerBookmarkCommands(dependencies: {
                 bookmarks.isCurrentPageBookmarked()
                     ? m.remove_bookmark({}, { locale: "en" })
                     : m.add_bookmark({}, { locale: "en" }),
-            category: "commands",
+            category: "bookmarks",
             disabled: bookmarks.isToggleBlocked,
             preventDefault: true,
             run: () => bookmarks.toggleCurrentPage(),

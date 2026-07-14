@@ -23,12 +23,14 @@ function createKeyboardEvent(
     } as unknown as KeyboardEvent
 }
 
-function setup() {
+function setup(canNavigateBack = true) {
     const actions: PromptCommandActions = {
         close: vi.fn(),
         next: vi.fn(),
         previous: vi.fn(),
         select: vi.fn(),
+        navigateBack: vi.fn(),
+        canNavigateBack: vi.fn(() => canNavigateBack),
         historyBack: vi.fn(),
         historyForward: vi.fn(),
     }
@@ -48,6 +50,7 @@ describe("prompt commands", () => {
         ["Ctrl+K", createKeyboardEvent("k", "KeyK", { ctrlKey: true }), "previous"],
         ["Escape", createKeyboardEvent("Escape", "Escape"), "close"],
         ["Enter", createKeyboardEvent("Enter", "Enter"), "select"],
+        ["Backspace", createKeyboardEvent("Backspace", "Backspace"), "navigateBack"],
         ["Alt+P", createKeyboardEvent("p", "KeyP", { altKey: true }), "historyBack"],
         ["Alt+N", createKeyboardEvent("n", "KeyN", { altKey: true }), "historyForward"],
     ])("invokes the correct action for %s", async (_binding, event, action) => {
@@ -68,6 +71,16 @@ describe("prompt commands", () => {
         expect(Object.values(actions).every((action) => !vi.mocked(action).mock.calls.length)).toBe(
             true,
         )
+        expect(event.preventDefault).not.toHaveBeenCalled()
+    })
+
+    it("leaves Backspace to the input when prompt-back is unavailable", async () => {
+        const { actions, scope, store } = setup(false)
+        const event = createKeyboardEvent("Backspace", "Backspace")
+
+        await store.handleKeydown(event, scope)
+
+        expect(actions.navigateBack).not.toHaveBeenCalled()
         expect(event.preventDefault).not.toHaveBeenCalled()
     })
 

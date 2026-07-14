@@ -79,6 +79,29 @@ describe("promptStore", () => {
         ])
     })
 
+    it("restores the last query when an empty initial query is provided", async () => {
+        const first = promptStore.open({
+            id: "empty-initial-query",
+            initialQuery: "remember me",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+        await flush()
+        await promptStore.selectCurrent()
+        await first
+
+        void promptStore.open({
+            id: "empty-initial-query",
+            initialQuery: "",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+
+        expect(promptStore.getQuery()).toBe("remember me")
+    })
+
     it("resets local history when reopening a request whose latest query is unchanged", async () => {
         const remember = async (id: string, query: string) => {
             promptStore.open({
@@ -305,6 +328,138 @@ describe("promptStore", () => {
         promptStore.setQuery("импортировать")
         await flush()
         expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["import"])
+    })
+
+    it("restores a suspended parent when navigating back from a child", async () => {
+        let child!: Promise<string | undefined>
+        const parent = promptStore.open({
+            id: "parent",
+            initialQuery: "commands",
+            filter: "none",
+            items: () => [
+                { id: "one", label: "One", value: "one" },
+                { id: "child", label: "Child", value: "child" },
+            ],
+            onSelect: async () => {
+                child = promptStore.choose({
+                    id: "child",
+                    items: () => [{ id: "value", label: "Value", value: "value" }],
+                })
+                await child
+            },
+        })
+        await flush()
+        promptStore.moveSelection(1)
+        const parentSnapshot = promptStore.snapshot
+        void promptStore.selectCurrent()
+        await flush()
+
+        expect(promptStore.snapshot?.request.id).toBe("child")
+        expect(promptStore.canNavigateBack).toBe(true)
+        promptStore.navigateBack()
+
+        await expect(child).resolves.toBeUndefined()
+        expect(promptStore.snapshot).toBe(parentSnapshot)
+        expect(promptStore.snapshot).toMatchObject({
+            query: "commands",
+            selectedIndex: 1,
+        })
+        expect(promptStore.snapshot?.items[1].id).toBe("child")
+        expect(promptStore.isOpen).toBe(true)
+        promptStore.close()
+        await expect(parent).resolves.toBeUndefined()
+    })
+
+    it("does not navigate back while the child query is non-empty", async () => {
+        let child!: Promise<string | undefined>
+        void promptStore.open({
+            id: "parent-nonempty",
+            items: () => [{ id: "open", label: "Open", value: "open" }],
+            onSelect: async () => {
+                child = promptStore.choose({ id: "child-nonempty", items: () => [] })
+                await child
+            },
+        })
+        await flush()
+        void promptStore.selectCurrent()
+        await flush()
+        promptStore.setQuery("x")
+
+        expect(promptStore.canNavigateBack).toBe(false)
+        promptStore.navigateBack()
+        expect(promptStore.snapshot?.request.id).toBe("child-nonempty")
+    })
+
+    it("selecting a child completes and closes the suspended parent flow", async () => {
+        let child!: Promise<string | undefined>
+        const parent = promptStore.open({
+            id: "parent-complete",
+            items: () => [{ id: "open", label: "Open", value: "open" }],
+            onSelect: async () => {
+                child = promptStore.choose({
+                    id: "child-complete",
+                    items: () => [{ id: "done", label: "Done", value: "done" }],
+                })
+                await child
+            },
+        })
+        await flush()
+        void promptStore.selectCurrent()
+        await flush()
+        await promptStore.selectCurrent()
+
+        await expect(child).resolves.toBe("done")
+        await expect(parent).resolves.toBeUndefined()
+        expect(promptStore.isOpen).toBe(false)
+        expect(promptStore.canNavigateBack).toBe(false)
+    })
+
+    it("close resolves active and suspended sessions", async () => {
+        let child!: Promise<string | undefined>
+        const parent = promptStore.open({
+            id: "parent-close",
+            items: () => [{ id: "open", label: "Open", value: "open" }],
+            onSelect: async () => {
+                child = promptStore.choose({ id: "child-close", items: () => [] })
+                await child
+            },
+        })
+        await flush()
+        void promptStore.selectCurrent()
+        await flush()
+        promptStore.close()
+
+        await expect(child).resolves.toBeUndefined()
+        await expect(parent).resolves.toBeUndefined()
+        expect(promptStore.canNavigateBack).toBe(false)
+    })
+
+    it("does not let stale child results overwrite a restored parent", async () => {
+        let resolveChild!: (items: { id: string; label: string; value: string }[]) => void
+        let child!: Promise<string | undefined>
+        void promptStore.open({
+            id: "parent-stale-child",
+            items: () => [{ id: "open", label: "Open", value: "open" }],
+            onSelect: async () => {
+                child = promptStore.choose({
+                    id: "stale-child",
+                    items: () =>
+                        new Promise((resolve) => {
+                            resolveChild = resolve
+                        }),
+                })
+                await child
+            },
+        })
+        await flush()
+        void promptStore.selectCurrent()
+        await flush()
+        promptStore.navigateBack()
+        resolveChild([{ id: "stale", label: "Stale", value: "stale" }])
+        await flush()
+
+        expect(promptStore.snapshot?.request.id).toBe("parent-stale-child")
+        expect(promptStore.snapshot?.items.map(({ id }) => id)).toEqual(["open"])
     })
 
     it("parses free-form submissions", async () => {

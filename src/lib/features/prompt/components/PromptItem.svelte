@@ -6,6 +6,7 @@
     import MenuIcon from "$lib/core/components/icons/MenuIcon.svelte"
     import NavigationIcon from "$lib/core/components/icons/NavigationIcon.svelte"
     import SettingsIcon from "$lib/core/components/icons/SettingsIcon.svelte"
+    import { KeyboardHandler } from "$lib/features/commands/keyboard"
     import type { PromptItem } from "$lib/features/prompt/prompt.types"
 
     interface Props {
@@ -45,9 +46,9 @@
                 .filter((value) => value === shortcut).length
             return {
                 id: `${shortcut}\u0000${occurrence}`,
-                keys: shortcut.split("+").map((key, index) => ({
+                keys: KeyboardHandler.getFormattedParts(shortcut).map((key, index) => ({
                     id: `${key}\u0000${index}`,
-                    label: key.trim(),
+                    label: key,
                 })),
             }
         })

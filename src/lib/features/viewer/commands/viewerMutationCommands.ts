@@ -20,6 +20,7 @@ export function createViewerMutationCommands(context: MutationContext) {
             englishLabel: () => m.add_bookmark({}, { locale: "en" }),
             category: "bookmarks",
             run: context.addBookmark,
+            palette: false,
         },
         "viewer.bookmark.edit": {
             id: "viewer.bookmark.edit",
@@ -34,6 +35,7 @@ export function createViewerMutationCommands(context: MutationContext) {
             englishLabel: () => m.remove_bookmark({}, { locale: "en" }),
             category: "bookmarks",
             run: context.deleteBookmark,
+            palette: false,
         },
         "viewer.note.add": {
             id: "viewer.note.add",

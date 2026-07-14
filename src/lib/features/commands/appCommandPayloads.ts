@@ -13,6 +13,7 @@ export interface AppCommandPayloads {
     "prompt.next": undefined
     "prompt.previous": undefined
     "prompt.select": undefined
+    "prompt.navigate.back": undefined
     "prompt.history.back": undefined
     "prompt.history.forward": undefined
     "help.toggle": undefined

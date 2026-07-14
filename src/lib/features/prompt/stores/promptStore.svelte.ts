@@ -26,10 +26,20 @@ type Session = {
     sourceItems: PromptItem<unknown>[]
     resolve: (value: unknown) => void
 }
+type PromptFrame = {
+    session: Session
+    snapshot: PromptSnapshot
+    query: string
+    manualSelectedIndex: number | null
+    currentHistoryIndex: number | null
+    retainedQueriesLocal: string[]
+}
 
 class PromptStore implements PromptService {
     snapshot = $state.raw<PromptSnapshot | null>(null)
     private session: Session | null = null
+    private suspendedFrames: PromptFrame[] = []
+    private selectingSessions = new Set<Session>()
     private retainedQueries = new Map<string, string[]>()
     private requestVersion = 0
     private manualSelectedIndex: number | null = null
@@ -39,9 +49,7 @@ class PromptStore implements PromptService {
     retainedQueriesLocal: string[] = []
 
     setLastQuery(query: string): void {
-        if (query !== "") {
-            this.lastQuery = query
-        }
+        if (query !== "") this.lastQuery = query
     }
 
     getLastQuery(): string {
@@ -56,6 +64,10 @@ class PromptStore implements PromptService {
         return this.snapshot !== null
     }
 
+    get canNavigateBack() {
+        return this.suspendedFrames.length > 0 && this.query === ""
+    }
+
     open<T>(request: PromptRequest<T>): Promise<void> {
         return this.start(request, "open") as Promise<void>
     }
@@ -65,15 +77,17 @@ class PromptStore implements PromptService {
     }
 
     private start<T>(request: PromptRequest<T>, kind: SessionKind): Promise<unknown> {
-        this.currentHistoryIndex = null
-        this.cancelCurrent()
-        this.query = ""
+        const isExpectedChild =
+            this.session === null &&
+            this.suspendedFrames.some(({ session }) => this.selectingSessions.has(session))
+        if (!isExpectedChild) this.cancelFlow()
 
-        if (request.initialQuery) {
-            this.query = request.initialQuery
-        } else if (request.rememberQuery) {
-            this.query = this.getLastQuery()
-        }
+        this.currentHistoryIndex = null
+        this.query = request.initialQuery
+            ? request.initialQuery
+            : request.rememberQuery
+              ? this.getLastQuery()
+              : ""
 
         return new Promise<unknown>((resolve) => {
             this.session = {
@@ -97,28 +111,63 @@ class PromptStore implements PromptService {
             if (lastQuery !== "" && this.retainedQueriesLocal.at(-1) !== lastQuery) {
                 this.retainedQueriesLocal.push(lastQuery)
             }
-            this.currentHistoryIndex = this.retainedQueriesLocal.length
-
+            this.currentHistoryIndex = this.retainedQueriesLocal.length - 1
             void this.refreshItems()
         })
     }
 
     close() {
+        if (this.currentHistoryIndex === this.retainedQueriesLocal.length - 1) {
+            this.setLastQuery(this.query)
+        }
         this.currentHistoryIndex = null
-        this.setLastQuery(this.query)
-        this.cancelCurrent()
+        this.cancelFlow()
     }
 
-    private cancelCurrent(value?: unknown) {
+    private resolveActive(value?: unknown) {
         this.requestVersion += 1
         const session = this.session
-        if (!session) {
-            this.snapshot = null
-            return
-        }
         this.session = null
         this.snapshot = null
-        session.resolve(session.kind === "choose" ? value : undefined)
+        if (session) session.resolve(session.kind === "choose" ? value : undefined)
+    }
+
+    private cancelFlow() {
+        this.resolveActive()
+        const frames = this.suspendedFrames.splice(0)
+        for (const { session } of frames) session.resolve(undefined)
+        this.selectingSessions.clear()
+    }
+
+    private suspendCurrent(): PromptFrame | null {
+        if (!this.session || !this.snapshot) return null
+        this.requestVersion += 1
+        const frame: PromptFrame = {
+            session: this.session,
+            snapshot: this.snapshot,
+            query: this.query,
+            manualSelectedIndex: this.manualSelectedIndex,
+            currentHistoryIndex: this.currentHistoryIndex,
+            retainedQueriesLocal: [...this.retainedQueriesLocal],
+        }
+        this.suspendedFrames.push(frame)
+        this.session = null
+        this.snapshot = null
+        return frame
+    }
+
+    navigateBack(): void {
+        if (!this.canNavigateBack) return
+        this.resolveActive()
+        const frame = this.suspendedFrames.pop()
+        if (!frame) return
+        this.requestVersion += 1
+        this.session = frame.session
+        this.snapshot = frame.snapshot
+        this.query = frame.query
+        this.manualSelectedIndex = frame.manualSelectedIndex
+        this.currentHistoryIndex = frame.currentHistoryIndex
+        this.retainedQueriesLocal = [...frame.retainedQueriesLocal]
     }
 
     setQuery(query: string) {
@@ -133,8 +182,7 @@ class PromptStore implements PromptService {
     }
 
     refresh() {
-        if (!this.snapshot) return
-        void this.refreshItems()
+        if (this.snapshot) void this.refreshItems()
     }
 
     moveSelection(offset: number) {
@@ -156,54 +204,54 @@ class PromptStore implements PromptService {
         const value = parsed ?? selected?.value
         if (value === undefined) return
 
-        const closeBeforeSelect = session.request.closeOnSelect !== false
+        this.setLastQuery(this.query)
         if (session.kind === "choose") {
-            this.cancelCurrent(value)
+            this.resolveActive(value)
             return
         }
 
-        if (session.request.rememberQuery && this.snapshot && this.query !== "") {
+        if (session.request.rememberQuery && this.query !== "") {
             const retainedQueries = this.retainedQueries.get(session.request.id) ?? []
-            if (retainedQueries.at(-1) !== this.query) {
-                retainedQueries.push(this.query)
-            }
+            if (retainedQueries.at(-1) !== this.query) retainedQueries.push(this.query)
             this.retainedQueries.set(session.request.id, retainedQueries)
         }
 
+        const closeBeforeSelect = session.request.closeOnSelect !== false
         const controls = {
             close: () => this.close(),
             setQuery: (query: string) => this.setQuery(query),
         }
-        if (closeBeforeSelect) this.cancelCurrent()
+        if (closeBeforeSelect) {
+            this.selectingSessions.add(session)
+            this.suspendCurrent()
+        }
         const behavior = (await session.request.onSelect?.(value, controls)) ?? "close"
-        if (!closeBeforeSelect && behavior === "close") this.close()
-        this.setLastQuery(this.query)
+        this.selectingSessions.delete(session)
+
+        if (closeBeforeSelect) {
+            if (this.session === session) return
+            if (this.suspendedFrames.some((frame) => frame.session === session)) this.cancelFlow()
+        } else if (behavior === "close") {
+            this.close()
+        }
     }
 
     historyForward(): void {
         if (!this.snapshot || this.currentHistoryIndex === null) return
-
         const nextIndex = Math.min(
             this.currentHistoryIndex + 1,
             this.retainedQueriesLocal.length - 1,
         )
         if (nextIndex < 0 || nextIndex === this.currentHistoryIndex) return
-
         this.currentHistoryIndex = nextIndex
         this.setQuery(this.retainedQueriesLocal[nextIndex])
     }
 
     historyBack(): void {
         if (!this.snapshot || this.currentHistoryIndex === null) return
-
         const nextIndex = Math.max(this.currentHistoryIndex - 1, 0)
-        if (
-            nextIndex >= this.retainedQueriesLocal.length ||
-            nextIndex === this.currentHistoryIndex
-        ) {
+        if (nextIndex >= this.retainedQueriesLocal.length || nextIndex === this.currentHistoryIndex)
             return
-        }
-
         this.currentHistoryIndex = nextIndex
         this.setQuery(this.retainedQueriesLocal[nextIndex])
     }

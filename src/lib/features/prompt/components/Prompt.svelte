@@ -43,6 +43,8 @@
             void scrollToSelection()
         },
         select: () => promptStore.selectCurrent(),
+        navigateBack: () => promptStore.navigateBack(),
+        canNavigateBack: () => promptStore.canNavigateBack,
         historyBack: () => promptStore.historyBack(),
         historyForward: () => promptStore.historyForward(),
     })
@@ -54,6 +56,11 @@
         event.stopPropagation()
         promptCommandScope.handleKeydown(event)
     }
+
+    const navigationHints = [
+        { keys: ["↓", "C-j", "C-n"], label: m.prompt_help_navigate() },
+        { keys: ["↑", "C-k", "C-p"], label: m.prompt_help_navigate() },
+    ]
 </script>
 
 {#if snapshot}
@@ -139,12 +146,16 @@
 
             <footer>
                 <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
-                <span
-                    ><kbd>↑</kbd><kbd>↓</kbd>
-                    {m.prompt_help_navigate()} · <kbd>↵</kbd>
-                    {m.prompt_help_select()} · <kbd>esc</kbd>
-                    {m.prompt_help_close()}</span
-                >
+                <span class="footer-help">
+                    {#each navigationHints as hint (hint.keys[0])}
+                        <span class="key-group">
+                            {#each hint.keys as key (key)}<kbd>{key}</kbd>{/each}
+                            {hint.label}
+                        </span>
+                    {/each}
+                    <span class="key-group"><kbd>↵</kbd> {m.prompt_help_select()}</span>
+                    <span class="key-group"><kbd>esc</kbd> {m.prompt_help_close()}</span>
+                </span>
             </footer>
         </div>
     </Float>
@@ -266,6 +277,19 @@
         color: var(--text-color);
         font-size: var(--font-size-sm);
         opacity: 0.8;
+    }
+
+    .footer-help,
+    .key-group {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .footer-help {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.35rem 0.65rem;
     }
 
     footer kbd {
