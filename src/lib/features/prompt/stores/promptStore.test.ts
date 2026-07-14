@@ -38,6 +38,77 @@ describe("promptStore", () => {
         expect(promptStore.getQuery()).toBe("latest")
     })
 
+    it("navigates remembered queries from newest to oldest", async () => {
+        const remember = async (query: string) => {
+            promptStore.open({
+                id: "query-history",
+                initialQuery: query,
+                rememberQuery: true,
+                filter: "none",
+                items: () => [{ id: "item", label: "Item", value: "item" }],
+            })
+            await flush()
+            await promptStore.selectCurrent()
+        }
+        await remember("first")
+        await remember("second")
+
+        const onQueryChange = vi.fn()
+        promptStore.open({
+            id: "query-history",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+            onQueryChange,
+        })
+
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("second")
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("first")
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("first")
+        promptStore.historyForward()
+        expect(promptStore.getQuery()).toBe("second")
+        promptStore.historyForward()
+        expect(promptStore.getQuery()).toBe("second")
+        expect(onQueryChange.mock.calls.map(([query]) => query)).toEqual([
+            "second",
+            "first",
+            "second",
+        ])
+    })
+
+    it("resets local history when reopening a request whose latest query is unchanged", async () => {
+        const remember = async (id: string, query: string) => {
+            promptStore.open({
+                id,
+                initialQuery: query,
+                rememberQuery: true,
+                filter: "none",
+                items: () => [{ id: "item", label: "Item", value: "item" }],
+            })
+            await flush()
+            await promptStore.selectCurrent()
+        }
+
+        await remember("history-reset-a", "alpha")
+        await remember("history-reset-b", "beta")
+        await remember("history-reset-a", "alpha")
+        promptStore.open({
+            id: "history-reset-a",
+            initialQuery: "draft",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("alpha")
+        promptStore.historyBack()
+        expect(promptStore.getQuery()).toBe("alpha")
+    })
+
     it("closes an open request before invoking its default selection callback", async () => {
         const onSelect = vi.fn(() => {
             expect(promptStore.isOpen).toBe(false)
