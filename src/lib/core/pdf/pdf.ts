@@ -61,6 +61,12 @@ if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
 
 export default class PDFDocument implements DocumentInterface {
     private pdfDoc: pdfjs.PDFDocumentProxy | null = null
+    private loadingTask: pdfjs.PDFDocumentLoadingTask | null = null
+    private closePromise: Promise<void> | null = null
+    private mobileMediaQuery: MediaQueryList | null = null
+    private readonly handleMobileChange = (event: MediaQueryListEvent) => {
+        this.isMobile = event.matches
+    }
     private title: string | null = null
     private author: string | null = null
     private pageCount = 0
@@ -82,19 +88,18 @@ export default class PDFDocument implements DocumentInterface {
 
     constructor(public url: string) {
         if (typeof window !== "undefined") {
-            const mql = window.matchMedia(`(max-width: ${BREAKPOINTS.MOBILE}px)`)
-            this.isMobile = mql.matches
-            mql.addEventListener("change", (e) => {
-                this.isMobile = e.matches
-            })
+            this.mobileMediaQuery = window.matchMedia(`(max-width: ${BREAKPOINTS.MOBILE}px)`)
+            this.isMobile = this.mobileMediaQuery.matches
+            this.mobileMediaQuery.addEventListener("change", this.handleMobileChange)
         }
     }
 
     async load(_quality: number = settingsStore.quality): Promise<PDFDocument> {
         try {
             // Allow PDF.js to stream the document using range requests
-            const loadingTask = pdfjs.getDocument({ url: this.url })
-            this.pdfDoc = await loadingTask.promise
+            this.loadingTask = pdfjs.getDocument({ url: this.url })
+            this.pdfDoc = await this.loadingTask.promise
+            this.loadingTask = null
             this.pageCount = this.pdfDoc.numPages
 
             if (this.pageCount > 0) {
@@ -525,20 +530,38 @@ export default class PDFDocument implements DocumentInterface {
         this.pageProxyCache.clear()
     }
 
-    async close(): Promise<void> {
-        this.clearPageProxyCache()
-        if (this.pdfDoc) {
-            try {
-                await this.pdfDoc.destroy()
-            } catch (err) {
-                console.warn("[PDFDocument] Error closing PDF.js instance:", err)
+    close(): Promise<void> {
+        if (this.closePromise) return this.closePromise
+        this.closePromise = (async () => {
+            this.mobileMediaQuery?.removeEventListener("change", this.handleMobileChange)
+            this.mobileMediaQuery = null
+            this.clearPageProxyCache()
+
+            const loadingTask = this.loadingTask
+            this.loadingTask = null
+            if (loadingTask) {
+                try {
+                    await loadingTask.destroy()
+                } catch (err) {
+                    console.warn("[PDFDocument] Error cancelling PDF.js load:", err)
+                }
             }
+
+            const pdfDoc = this.pdfDoc
             this.pdfDoc = null
-        }
-        this.clearPageCache()
-        this.outlineCache = null
-        this.title = null
-        this.author = null
-        this.pageCount = 0
+            if (pdfDoc) {
+                try {
+                    await pdfDoc.destroy()
+                } catch (err) {
+                    console.warn("[PDFDocument] Error closing PDF.js instance:", err)
+                }
+            }
+            this.clearPageCache()
+            this.outlineCache = null
+            this.title = null
+            this.author = null
+            this.pageCount = 0
+        })()
+        return this.closePromise
     }
 }

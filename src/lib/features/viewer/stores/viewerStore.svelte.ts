@@ -15,6 +15,11 @@ class ViewerStore {
     scrollPosition = $state(0)
     private _isRestoringHistory = false
     lastSetPageState = $state<any>(null)
+    private listening = false
+    private readonly flush = () => this.persistToLocalStorage(true)
+    private readonly handleVisibilityChange = () => {
+        if (document.visibilityState === "hidden") this.flush()
+    }
 
     constructor() {
         if (browser) {
@@ -33,15 +38,21 @@ class ViewerStore {
                 }
             }
 
-            const flush = () => {
-                this.persistToLocalStorage(true)
-            }
-            window.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "hidden") {
-                    flush()
-                }
-            })
-            window.addEventListener("beforeunload", flush)
+            window.addEventListener("visibilitychange", this.handleVisibilityChange)
+            window.addEventListener("beforeunload", this.flush)
+            this.listening = true
+        }
+    }
+
+    dispose() {
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout)
+            this.saveTimeout = null
+        }
+        if (browser && this.listening) {
+            window.removeEventListener("visibilitychange", this.handleVisibilityChange)
+            window.removeEventListener("beforeunload", this.flush)
+            this.listening = false
         }
     }
 
@@ -281,3 +292,7 @@ class ViewerStore {
 }
 
 export const viewerStore = new ViewerStore()
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => viewerStore.dispose())
+}

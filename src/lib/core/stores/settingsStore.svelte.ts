@@ -39,6 +39,10 @@ export const DEFAULT_SETTINGS: Settings = {
 
 class SettingsStore {
     private settings = $state<Settings>({ ...DEFAULT_SETTINGS })
+    private colorSchemeQuery: MediaQueryList | null = null
+    private readonly handleColorSchemeChange = () => {
+        if (this.theme === "system") this.updateDOM()
+    }
 
     constructor() {
         if (browser) {
@@ -56,15 +60,16 @@ class SettingsStore {
                 }
             } else {
                 this.theme = (localStorage.getItem("theme") as Theme) || "system"
-
-                const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-                mediaQuery.addEventListener("change", () => {
-                    if (this.theme === "system") {
-                        this.updateDOM()
-                    }
-                })
             }
+
+            this.colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)")
+            this.colorSchemeQuery.addEventListener("change", this.handleColorSchemeChange)
         }
+    }
+
+    dispose() {
+        this.colorSchemeQuery?.removeEventListener("change", this.handleColorSchemeChange)
+        this.colorSchemeQuery = null
     }
 
     private sanitize(parsed: any): Partial<Settings> {
@@ -209,3 +214,7 @@ class SettingsStore {
 }
 
 export const settingsStore = new SettingsStore()
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => settingsStore.dispose())
+}

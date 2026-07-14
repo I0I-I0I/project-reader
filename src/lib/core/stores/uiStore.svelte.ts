@@ -19,28 +19,41 @@ class UIStore {
     #nodeToEditMetadataId = $state<string | null>(null)
     #customModalOpen = $state(false)
     #modalStates = $state<(() => boolean)[]>([])
+    #shortHeightMql: MediaQueryList | null = null
+    #listening = false
+
+    #updateMetrics = () => {
+        this.#innerWidth = window.innerWidth
+        this.#isTouch =
+            window.matchMedia("(pointer: coarse)").matches ||
+            navigator.maxTouchPoints > 0 ||
+            "ontouchstart" in window
+    }
+
+    #checkShortHeight = () => {
+        this.#isShortHeight = this.#shortHeightMql?.matches ?? false
+    }
 
     constructor() {
-        if (browser) {
-            const updateMetrics = () => {
-                this.#innerWidth = window.innerWidth
-                this.#isTouch =
-                    window.matchMedia("(pointer: coarse)").matches ||
-                    navigator.maxTouchPoints > 0 ||
-                    "ontouchstart" in window
-            }
+        this.setup()
+    }
 
-            updateMetrics()
+    setup() {
+        if (!browser || this.#listening) return
+        this.#listening = true
+        this.#shortHeightMql = window.matchMedia("(max-height: 500px)")
+        this.#updateMetrics()
+        this.#checkShortHeight()
+        window.addEventListener("resize", this.#updateMetrics)
+        this.#shortHeightMql.addEventListener("change", this.#checkShortHeight)
+    }
 
-            window.addEventListener("resize", updateMetrics)
-
-            const shortHeightMql = window.matchMedia("(max-height: 500px)")
-            const checkShortHeight = () => {
-                this.#isShortHeight = shortHeightMql.matches
-            }
-            checkShortHeight()
-            shortHeightMql.addEventListener("change", checkShortHeight)
-        }
+    dispose() {
+        if (!browser || !this.#listening) return
+        window.removeEventListener("resize", this.#updateMetrics)
+        this.#shortHeightMql?.removeEventListener("change", this.#checkShortHeight)
+        this.#shortHeightMql = null
+        this.#listening = false
     }
 
     get innerWidth(): number {
@@ -191,3 +204,7 @@ class UIStore {
 }
 
 export const uiStore = new UIStore()
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => uiStore.dispose())
+}

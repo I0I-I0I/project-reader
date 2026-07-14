@@ -16,7 +16,7 @@ import pLimit from "p-limit"
 const METADATA_REPAIR_DELAY_MS = 5000
 const METADATA_REPAIR_INTERVAL_MS = 1000
 
-class VFSStore {
+export class VFSStore {
     nodes = $state<VFSNodes>({})
     rootIds = $state<string[]>([])
     selectedId = $state<string | null>(null)
@@ -60,6 +60,11 @@ class VFSStore {
     private nativeHandles = new Map<string, FileSystemFileHandle>()
     private previewUrlRefs: Record<string, number> = {}
     metadataQueue = pLimit(1)
+    private initializationPromise: Promise<void> | null = null
+    private metadataRepairTimer: ReturnType<typeof setTimeout> | null = null
+    private metadataRepairController: AbortController | null = null
+    private metadataRepairTask: Promise<void> | null = null
+    private metadataRepairIds = new Set<string>()
 
     constructor(initialNodes: VFSNodes = {}) {
         this.nodes = initialNodes
@@ -116,102 +121,159 @@ class VFSStore {
         }
     }
 
-    async init() {
-        if (!browser) return
+    init(): Promise<void> {
+        if (!browser || this.initialized) return Promise.resolve()
+        if (this.initializationPromise) return this.initializationPromise
 
-        try {
-            // PHASE 2 OPTIMIZATION: Only load metadata on startup.
-            // No N+1 queries for previews, no eager Object URLs.
-            const [allFolders, allFiles] = await Promise.all([
-                this.db.folders.getAll(),
-                this.db.files.getAll(),
-            ])
+        let initialization: Promise<void>
+        initialization = (async () => {
+            try {
+                // Only load metadata on startup; previews and Object URLs remain lazy.
+                const [allFolders, allFiles] = await Promise.all([
+                    this.db.folders.getAll(),
+                    this.db.files.getAll(),
+                ])
 
-            const newNodes: VFSNodes = {}
-            for (const f of allFolders) {
-                newNodes[f.id] = f
+                const newNodes: VFSNodes = {}
+                const lockedMap: Record<string, boolean> = {}
+                for (const folder of allFolders) newNodes[folder.id] = folder
+                for (const fileNode of allFiles) {
+                    newNodes[fileNode.id] = fileNode
+                    lockedMap[fileNode.id] = fileNode.isLocked ?? true
+                }
+
+                this.nodes = newNodes
+                this.isLockedMap = lockedMap
+                this.rootIds = Object.values(newNodes)
+                    .filter((node) => node.parentId === null)
+                    .map((node) => node.id)
+                this.initialized = true
+                this.repairMissingMetadata(allFiles)
+            } catch (err) {
+                this.initialized = false
+                console.error("VFS initialization failed:", err)
+            } finally {
+                if (this.initializationPromise === initialization) {
+                    this.initializationPromise = null
+                }
             }
+        })()
 
-            for (const fileNode of allFiles) {
-                newNodes[fileNode.id] = fileNode
-                this.isLockedMap[fileNode.id] = fileNode.isLocked ?? true
-            }
-
-            this.nodes = newNodes
-            this.rootIds = Object.values(newNodes)
-                .filter((node) => node.parentId === null)
-                .map((node) => node.id)
-
-            this.repairMissingMetadata(allFiles)
-        } catch (err) {
-            console.error("VFS initialization failed:", err)
-        } finally {
-            this.initialized = true
-        }
+        this.initializationPromise = initialization
+        return initialization
     }
 
     private repairMissingMetadata(files: FileNode[]) {
-        setTimeout(() => {
-            const missing = files.filter(
-                (fileNode) =>
-                    !fileNode.metadata.totalPages || fileNode.metadata.author === undefined,
+        this.cancelMetadataRepair()
+        const controller = new AbortController()
+        this.metadataRepairController = controller
+
+        const candidates = files.filter(
+            (fileNode) =>
+                (!fileNode.metadata.totalPages || fileNode.metadata.author === undefined) &&
+                !this.metadataRepairIds.has(fileNode.id),
+        )
+        for (const file of candidates) this.metadataRepairIds.add(file.id)
+        if (candidates.length === 0) return
+
+        this.metadataRepairTimer = setTimeout(() => {
+            this.metadataRepairTimer = null
+            this.metadataRepairTask = this.runMetadataRepair(candidates, controller.signal).catch(
+                (err) => {
+                    if (!controller.signal.aborted) {
+                        console.error("[VFSStore] Metadata repair failed:", err)
+                    }
+                },
             )
-            if (missing.length === 0) return
-
-            const processNode = async (fileNode: FileNode) => {
-                if (!this.nodes[fileNode.id]) return
-
-                const url = await this.getFileUrl(fileNode.id)
-                if (!url) return
-
-                const doc = new PDFDocument(url)
-                try {
-                    await doc.load(settingsStore.scale)
-                    const totalPages = await doc.getPageNumber()
-                    const author = await doc.getAuthor()
-
-                    await this.updateFile(fileNode.id, {
-                        metadata: {
-                            ...fileNode.metadata,
-                            totalPages,
-                            author,
-                        },
-                    })
-                } catch (err) {
-                    console.error(
-                        `[VFSStore] Failed to repair metadata for node ${fileNode.id}:`,
-                        err,
-                    )
-                } finally {
-                    await doc.close()
-                    if (this.isLockedMap[fileNode.id]) {
-                        this.revokeFileUrl(fileNode.id)
-                    }
-                }
-            }
-
-            // Prioritize nodes in the current folder
-            const currentFolderMissing = missing.filter((f) => f.parentId === this.currentFolderId)
-            const otherMissing = missing.filter((f) => f.parentId !== this.currentFolderId)
-
-            for (const fileNode of currentFolderMissing) {
-                this.metadataQueue(() => processNode(fileNode))
-            }
-
-            // Background the rest with a delay and lower priority (smaller chunks)
-            if (otherMissing.length > 0) {
-                // Process the rest slowly to avoid CPU spikes
-                const chunkedRepair = async () => {
-                    for (let i = 0; i < otherMissing.length; i++) {
-                        const fileNode = otherMissing[i]
-                        await this.metadataQueue(() => processNode(fileNode))
-                        // Wait a bit between files to keep the main thread very free
-                        await new Promise((r) => setTimeout(r, METADATA_REPAIR_INTERVAL_MS))
-                    }
-                }
-                chunkedRepair()
-            }
         }, METADATA_REPAIR_DELAY_MS)
+    }
+
+    private async runMetadataRepair(files: FileNode[], signal: AbortSignal) {
+        const prioritized = [
+            ...files.filter((file) => file.parentId === this.currentFolderId),
+            ...files.filter((file) => file.parentId !== this.currentFolderId),
+        ]
+
+        for (const candidate of prioritized) {
+            try {
+                if (signal.aborted) return
+                await this.metadataQueue(() => this.repairMetadata(candidate.id, signal))
+                if (signal.aborted) return
+                await this.waitForMetadataRepairInterval(signal)
+            } finally {
+                this.metadataRepairIds.delete(candidate.id)
+            }
+        }
+    }
+
+    private async repairMetadata(id: string, signal: AbortSignal) {
+        const current = this.nodes[id]
+        if (
+            signal.aborted ||
+            !current ||
+            current.type !== "file" ||
+            (current.metadata.totalPages && current.metadata.author !== undefined)
+        ) {
+            return
+        }
+
+        const url = await this.getFileUrl(id)
+        if (signal.aborted || !url) return
+        const doc = new PDFDocument(url)
+        try {
+            await doc.load(settingsStore.scale)
+            if (signal.aborted) return
+            const totalPages = await doc.getPageNumber()
+            const author = await doc.getAuthor()
+            if (signal.aborted) return
+            await this.updateFile(id, {
+                metadata: { ...current.metadata, totalPages, author },
+            })
+        } catch (err) {
+            if (!signal.aborted) {
+                console.error(`[VFSStore] Failed to repair metadata for node ${id}:`, err)
+            }
+        } finally {
+            await doc.close()
+            if (this.isLockedMap[id]) this.revokeFileUrl(id)
+        }
+    }
+
+    private waitForMetadataRepairInterval(signal: AbortSignal): Promise<void> {
+        if (signal.aborted) return Promise.resolve()
+        return new Promise((resolve) => {
+            const timeout = setTimeout(done, METADATA_REPAIR_INTERVAL_MS)
+            const onAbort = () => {
+                clearTimeout(timeout)
+                done()
+            }
+            function done() {
+                signal.removeEventListener("abort", onAbort)
+                resolve()
+            }
+            signal.addEventListener("abort", onAbort, { once: true })
+        })
+    }
+
+    private cancelMetadataRepair() {
+        if (this.metadataRepairTimer) {
+            clearTimeout(this.metadataRepairTimer)
+            this.metadataRepairTimer = null
+        }
+        this.metadataRepairController?.abort()
+        this.metadataRepairController = null
+        this.metadataQueue.clearQueue()
+        this.metadataRepairIds.clear()
+    }
+
+    async dispose() {
+        this.cancelMetadataRepair()
+        await this.metadataRepairTask?.catch(() => undefined)
+        this.metadataRepairTask = null
+        for (const id of Object.keys(this.fileUrls)) this.revokeFileUrl(id)
+        for (const id of Object.keys(this.previewUrls)) this.revokePreviewUrl(id, true)
+        const close = (this.db as unknown as { close?: () => void }).close
+        close?.call(this.db)
     }
 
     /**
@@ -876,6 +938,10 @@ class VFSStore {
 }
 
 export const vfsStore = new VFSStore()
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => vfsStore.dispose())
+}
 
 import { uiStore } from "$lib/core/stores/uiStore.svelte"
 if (typeof window !== "undefined") {

@@ -402,6 +402,7 @@ export class SearchStore {
     }
 
     private highlightUpdatePending = false
+    private highlightFrameId: number | null = null
 
     registerPageRanges(pageNumber: number, ranges: Range[]) {
         this.pageRanges.set(pageNumber, ranges)
@@ -419,7 +420,8 @@ export class SearchStore {
         if (this.highlightUpdatePending) return
         this.highlightUpdatePending = true
         if (typeof requestAnimationFrame !== "undefined") {
-            requestAnimationFrame(() => {
+            this.highlightFrameId = requestAnimationFrame(() => {
+                this.highlightFrameId = null
                 this.highlightUpdatePending = false
                 this.updateCSSHighlights()
             })
@@ -464,6 +466,20 @@ export class SearchStore {
         })
     }
 
+    dispose() {
+        this.reset()
+        if (this.highlightFrameId !== null && typeof cancelAnimationFrame !== "undefined") {
+            cancelAnimationFrame(this.highlightFrameId)
+            this.highlightFrameId = null
+            this.highlightUpdatePending = false
+        }
+        this.matchesChangedListeners.clear()
+        if (typeof CSS !== "undefined" && CSS.highlights) {
+            CSS.highlights.delete("search-match")
+            CSS.highlights.delete("search-match-active")
+        }
+    }
+
     reset() {
         this.searchRequestId += 1
         this.documentGeneration += 1
@@ -490,11 +506,21 @@ export class SearchStore {
             this.currentSearchAbortController = null
         }
         if (this.worker) {
+            this.worker.postMessage({ type: "dispose" })
             this.worker.terminate()
             this.worker = null
+        }
+        if (this.highlightFrameId !== null && typeof cancelAnimationFrame !== "undefined") {
+            cancelAnimationFrame(this.highlightFrameId)
+            this.highlightFrameId = null
+            this.highlightUpdatePending = false
         }
         this.updateCSSHighlights()
     }
 }
 
 export const searchStore = new SearchStore()
+
+if (import.meta.hot) {
+    import.meta.hot.dispose(() => searchStore.dispose())
+}

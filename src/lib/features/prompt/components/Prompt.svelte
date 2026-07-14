@@ -56,11 +56,6 @@
         event.stopPropagation()
         promptCommandScope.handleKeydown(event)
     }
-
-    const navigationHints = [
-        { keys: ["↓", "C-j", "C-n"], label: m.prompt_help_navigate() },
-        { keys: ["↑", "C-k", "C-p"], label: m.prompt_help_navigate() },
-    ]
 </script>
 
 {#if snapshot}
@@ -147,12 +142,17 @@
             <footer>
                 <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
                 <span class="footer-help">
-                    {#each navigationHints as hint (hint.keys[0])}
-                        <span class="key-group">
-                            {#each hint.keys as key (key)}<kbd>{key}</kbd>{/each}
-                            {hint.label}
-                        </span>
-                    {/each}
+                    <span class="key-group">
+                        {#each ["↓", "C-j", "C-n"] as key (key)}
+                            <kbd>{key}</kbd>
+                        {/each}
+                        <span> / </span>
+                        {#each ["↑", "C-k", "C-p"] as key (key)}
+                            <kbd>{key}</kbd>
+                        {/each}
+                        {m.prompt_help_navigate()}
+                    </span>
+                    <span class="key-group"><kbd>A-n</kbd> <kbd>A-p</kbd> History</span>
                     <span class="key-group"><kbd>↵</kbd> {m.prompt_help_select()}</span>
                     <span class="key-group"><kbd>esc</kbd> {m.prompt_help_close()}</span>
                 </span>
