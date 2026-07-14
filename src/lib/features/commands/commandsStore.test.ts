@@ -68,6 +68,65 @@ describe("typed commands", () => {
         expect(childRun).not.toHaveBeenCalled()
     })
 
+    it("resolves targeted shortcuts without materializing unrelated metadata", () => {
+        const scope = new CommandScope()
+        const targetDisabled = vi.fn(() => false)
+        const unrelatedDisabled = vi.fn(() => false)
+        const targetLabel = vi.fn(() => "Next")
+        const unrelatedLabel = vi.fn(() => "Previous")
+        const subtitle = vi.fn(() => "Subtitle")
+        scope.registerAll(
+            Object.values(
+                defineCommands({
+                    "viewer.page.next": {
+                        id: "viewer.page.next",
+                        label: targetLabel,
+                        subtitle,
+                        category: "navigation",
+                        keymap: "n",
+                        disabled: targetDisabled,
+                        run: () => {},
+                    },
+                    "viewer.page.previous": {
+                        id: "viewer.page.previous",
+                        label: unrelatedLabel,
+                        category: "navigation",
+                        keymap: "p",
+                        disabled: unrelatedDisabled,
+                        run: () => {},
+                    },
+                }),
+            ),
+        )
+
+        vi.clearAllMocks()
+        expect(scope.getShortcut("viewer.page.next")).toBe("n")
+        expect(targetDisabled).toHaveBeenCalledOnce()
+        expect(unrelatedDisabled).not.toHaveBeenCalled()
+        expect(targetLabel).not.toHaveBeenCalled()
+        expect(unrelatedLabel).not.toHaveBeenCalled()
+        expect(subtitle).not.toHaveBeenCalled()
+    })
+
+    it("does not check availability twice during direct execution", async () => {
+        const scope = new CommandScope()
+        const disabled = vi.fn(() => false)
+        scope.register(
+            defineCommands({
+                "viewer.page.next": {
+                    id: "viewer.page.next",
+                    label: () => "Next",
+                    category: "navigation",
+                    disabled,
+                    run: () => {},
+                },
+            })["viewer.page.next"],
+        )
+
+        await scope.execute("viewer.page.next")
+        expect(disabled).toHaveBeenCalledOnce()
+    })
+
     it("rejects duplicate IDs and normalized keys within one scope", () => {
         const scope = new CommandScope()
         const first = defineCommands({

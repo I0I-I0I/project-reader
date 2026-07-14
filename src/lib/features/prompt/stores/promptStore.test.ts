@@ -35,7 +35,7 @@ describe("promptStore", () => {
         await promptStore.selectCurrent()
 
         await expect(closed).resolves.toBeUndefined()
-        expect(promptStore.getLastQuery()).toBe("latest")
+        expect(promptStore.getQuery()).toBe("latest")
     })
 
     it("closes an open request before invoking its default selection callback", async () => {

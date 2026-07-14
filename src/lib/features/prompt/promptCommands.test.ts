@@ -29,6 +29,8 @@ function setup() {
         next: vi.fn(),
         previous: vi.fn(),
         select: vi.fn(),
+        historyBack: vi.fn(),
+        historyForward: vi.fn(),
     }
     const store = new CommandsStore()
     const scope = store.createScope(store.root, { keyboardBoundary: true })
@@ -46,6 +48,8 @@ describe("prompt commands", () => {
         ["Ctrl+K", createKeyboardEvent("k", "KeyK", { ctrlKey: true }), "previous"],
         ["Escape", createKeyboardEvent("Escape", "Escape"), "close"],
         ["Enter", createKeyboardEvent("Enter", "Enter"), "select"],
+        ["Alt+P", createKeyboardEvent("p", "KeyP", { altKey: true }), "historyBack"],
+        ["Alt+N", createKeyboardEvent("n", "KeyN", { altKey: true }), "historyForward"],
     ])("invokes the correct action for %s", async (_binding, event, action) => {
         const { actions, scope, store } = setup()
 

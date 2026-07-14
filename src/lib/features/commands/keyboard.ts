@@ -129,43 +129,34 @@ export class KeyboardHandler {
         return parts.sort().join("+")
     }
 
-    static matches(event: KeyboardEvent, keys: string | string[]): boolean {
-        if (Array.isArray(keys)) {
-            return keys.some((k) => KeyboardHandler.matches(event, k))
-        }
-        const normalizedTarget = KeyboardHandler.normalize(keys)
+    static candidates(event: KeyboardEvent): ReadonlySet<string> {
+        const candidates = new Set([
+            KeyboardHandler.fromEvent(event, true),
+            KeyboardHandler.fromEvent(event, false),
+        ])
 
-        // 1. Try physical mapping (event.code) - for layout independence (e.g. Russian)
-        const pressedPhysical = KeyboardHandler.fromEvent(event, true)
-        if (pressedPhysical === normalizedTarget) {
-            return true
-        }
-
-        // 2. Try character mapping (event.key) - for literal shortcuts like '?' or '/'
-        const pressedCharacter = KeyboardHandler.fromEvent(event, false)
-        if (pressedCharacter === normalizedTarget) {
-            return true
-        }
-
-        // 3. Fallback to just the key character if no modifiers are pressed
         if (!event.ctrlKey && !event.metaKey && !event.altKey) {
             const isShiftLetter =
                 event.shiftKey && event.key.toLowerCase() !== event.key.toUpperCase()
-            if (!isShiftLetter) {
-                const keyLower = event.key.toLowerCase()
-                const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
-
-                // If Shift is pressed, we should not fall back to the unshifted version of a named key
-                // (like "space", "enter", "arrowup", etc.) since Shift acts as a distinct modifier for them.
-                const isShiftNamedKey = event.shiftKey && singleKey.length > 1
-
-                if (!isShiftNamedKey && singleKey === normalizedTarget) {
-                    return true
-                }
-            }
+            const keyLower = event.key.toLowerCase()
+            const singleKey = keyLower === " " || keyLower === "spacebar" ? "space" : keyLower
+            const isShiftNamedKey = event.shiftKey && singleKey.length > 1
+            if (!isShiftLetter && !isShiftNamedKey) candidates.add(singleKey)
         }
 
-        return false
+        return candidates
+    }
+
+    static matchesCandidates(
+        candidates: ReadonlySet<string>,
+        keys: string | readonly string[],
+    ): boolean {
+        return (Array.isArray(keys) ? keys : [keys]).some((key) => candidates.has(key))
+    }
+
+    static matches(event: KeyboardEvent, keys: string | string[]): boolean {
+        const normalized = (Array.isArray(keys) ? keys : [keys]).map(KeyboardHandler.normalize)
+        return KeyboardHandler.matchesCandidates(KeyboardHandler.candidates(event), normalized)
     }
 
     static getFormattedParts(keys: string): string[] {

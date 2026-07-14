@@ -6,77 +6,91 @@ interface SearchMatch {
     end: number
 }
 
-interface PageText {
-    original: string
-    lower: string
+type WorkerRequest =
+    | { type: "replace-corpus"; payload: { generation: number; pages: Record<number, string> } }
+    | {
+          type: "query"
+          payload: { generation: number; query: string; searchStartPage: number; searchId: number }
+      }
+    | { type: "cancel"; payload: { searchId: number } }
+    | { type: "dispose"; payload?: undefined }
+
+let generation = 0
+let corpus = new Map<number, string>()
+let newestSearchId = 0
+
+const yieldToMessages = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+    const message = event.data
+    if (message.type === "replace-corpus") {
+        generation = message.payload.generation
+        newestSearchId += 1
+        corpus = new Map(
+            Object.entries(message.payload.pages).map(([pageNumber, text]) => [
+                Number(pageNumber),
+                text.toLocaleLowerCase(),
+            ]),
+        )
+        return
+    }
+    if (message.type === "cancel") {
+        newestSearchId = Math.max(newestSearchId, message.payload.searchId)
+        return
+    }
+    if (message.type === "dispose") {
+        newestSearchId += 1
+        corpus.clear()
+        return
+    }
+    newestSearchId = Math.max(newestSearchId, message.payload.searchId)
+    void search(message.payload)
 }
 
-self.onmessage = async (e: MessageEvent) => {
-    const { type, payload } = e.data
+async function search({
+    generation: requestedGeneration,
+    query,
+    searchStartPage,
+    searchId,
+}: Extract<WorkerRequest, { type: "query" }>["payload"]) {
+    if (requestedGeneration !== generation || searchId !== newestSearchId) return
+    const normalizedQuery = query.toLocaleLowerCase()
+    const pageNumbers = [...corpus.keys()].sort((a, b) => {
+        const distanceA = a >= searchStartPage ? a - searchStartPage : a + corpus.size
+        const distanceB = b >= searchStartPage ? b - searchStartPage : b + corpus.size
+        return distanceA - distanceB
+    })
+    let pending: SearchMatch[] = []
+    let totalMatches = 0
+    let lastUpdateTime = performance.now()
 
-    if (type === "search") {
-        const {
-            query,
-            pageTexts,
-            searchStartPage = 1,
-            searchId,
-        } = payload as {
-            query: string
-            pageTexts: Record<number, PageText> | Map<number, PageText>
-            searchStartPage: number
-            searchId: number
+    for (let pageIndex = 0; pageIndex < pageNumbers.length; pageIndex += 1) {
+        if (requestedGeneration !== generation || searchId !== newestSearchId) return
+        const pageNumber = pageNumbers[pageIndex]
+        const text = corpus.get(pageNumber) ?? ""
+        let index = text.indexOf(normalizedQuery)
+        while (index !== -1 && totalMatches < 10000) {
+            pending.push({ pageNumber, start: index, end: index + normalizedQuery.length })
+            totalMatches += 1
+            index = text.indexOf(normalizedQuery, index + 1)
         }
 
-        const qLower = query.toLowerCase()
-        const matches: SearchMatch[] = []
-
-        // Convert entries if it's not a Map (though it should be passed as one or a plain object)
-        const entries =
-            pageTexts instanceof Map ? Array.from(pageTexts.entries()) : Object.entries(pageTexts)
-
-        // Sort entries to process pages in order starting from searchStartPage
-        const sortedEntries = (entries as [any, PageText][]).sort((a, b) => {
-            const pA = Number(a[0])
-            const pB = Number(b[0])
-
-            // This is a bit complex: we want to start from searchStartPage and go forward, then wrap around
-            const distA = pA >= searchStartPage ? pA - searchStartPage : pA + 1000000
-            const distB = pB >= searchStartPage ? pB - searchStartPage : pB + 1000000
-            return distA - distB
-        })
-
-        let lastUpdateTime = performance.now()
-
-        for (const [pageNoStr, page] of sortedEntries) {
-            const pageNumber = Number(pageNoStr)
-            const lowerText = page.lower
-            let idx = lowerText.indexOf(qLower)
-            while (idx !== -1) {
-                matches.push({
-                    pageNumber,
-                    start: idx,
-                    end: idx + qLower.length,
-                })
-
-                if (matches.length >= 10000) break
-                idx = lowerText.indexOf(qLower, idx + 1)
-            }
-
-            if (matches.length >= 10000) break
-
-            const now = performance.now()
-            if (now - lastUpdateTime > 100) {
-                self.postMessage({
-                    type: "results",
-                    payload: { matches: [...matches], isPartial: true, searchId },
-                })
-                lastUpdateTime = now
-            }
+        const now = performance.now()
+        if (pending.length && now - lastUpdateTime >= 100) {
+            self.postMessage({
+                type: "results",
+                payload: { matches: pending, isPartial: true, searchId },
+            })
+            pending = []
+            lastUpdateTime = now
         }
-
-        self.postMessage({
-            type: "results",
-            payload: { matches, isPartial: false, searchId },
-        })
+        if (totalMatches >= 10000) break
+        if (pageIndex % 8 === 7) await yieldToMessages()
     }
+
+    if (requestedGeneration !== generation || searchId !== newestSearchId) return
+    self.postMessage({
+        type: "results",
+        payload: { matches: pending, isPartial: false, searchId },
+    })
 }

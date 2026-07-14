@@ -32,11 +32,13 @@ type ResolvedCommand = {
 
 function keysOf(keymap?: string | string[]): string[] {
     if (!keymap) return []
-    return (Array.isArray(keymap) ? keymap : [keymap]).map(KeyboardHandler.normalize)
+    return Array.isArray(keymap) ? keymap : [keymap]
 }
 
 function normalizeDefinition(command: AnyCommandDefinition): StoredCommand {
-    const normalized = keysOf(command.keymap)
+    const normalized = (Array.isArray(command.keymap) ? command.keymap : [command.keymap])
+        .filter((key): key is string => key !== undefined)
+        .map(KeyboardHandler.normalize)
     const palette = command.palette
     return {
         id: command.id,
@@ -108,6 +110,22 @@ export class CommandScope {
         return active
     }
 
+    private resolveById(id: string): ResolvedCommand | undefined {
+        if (this.isDestroyed) return undefined
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        let current: CommandScope | null = this
+        while (current) {
+            if (!current.isDestroyed) {
+                const command = current.commands.find((candidate) => candidate.id === id)
+                if (command && !command.disabled()) {
+                    return { command, ownerScope: current, keymap: command.keymap }
+                }
+            }
+            current = current.parent
+        }
+        return undefined
+    }
+
     register(command: AnyCommandDefinition) {
         return this.registerAll([command])
     }
@@ -159,17 +177,17 @@ export class CommandScope {
     }
 
     get<K extends CommandId>(id: K): ActiveCommand<K> | undefined {
-        return this.listActive().find((command) => command.id === id) as
-            | ActiveCommand<K>
-            | undefined
+        const resolved = this.resolveById(id)
+        if (!resolved) return undefined
+        return this.toActiveCommands([resolved])[0] as unknown as ActiveCommand<K>
     }
 
     canExecute<K extends CommandId>(id: K): boolean {
-        return this.get(id) !== undefined
+        return this.resolveById(id) !== undefined
     }
 
     getShortcut<K extends CommandId>(id: K): string | string[] | undefined {
-        return this.get(id)?.keymap
+        return this.resolveById(id)?.keymap
     }
 
     async execute<K extends CommandId>(
@@ -186,7 +204,7 @@ export class CommandScope {
                     if (command.disabled()) {
                         foundDisabled = true
                     } else if (command.definition) {
-                        return this.executeResolved(current, command, args[0])
+                        return this.executeResolved(current, command, args[0], true)
                     }
                 }
             }
@@ -199,12 +217,13 @@ export class CommandScope {
         ownerScope: CommandScope,
         command: StoredCommand,
         payload: unknown,
+        availabilityChecked = false,
     ): Promise<CommandExecutionResult> {
         const id = command.id as CommandId
         if (this.isDestroyed || ownerScope.isDestroyed || !ownerScope.commands.includes(command)) {
             return { status: "unavailable", id }
         }
-        if (command.disabled()) return { status: "disabled", id }
+        if (!availabilityChecked && command.disabled()) return { status: "disabled", id }
         await command.definition.run(payload as never)
         return { status: "executed", id: command.definition.id }
     }
@@ -223,12 +242,17 @@ export class CommandScope {
     }
 
     resolveForKeyboard(event: KeyboardEvent): ResolvedCommand | undefined {
+        const candidates = KeyboardHandler.candidates(event)
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         let current: CommandScope | null = this
         while (current) {
             if (!current.isDestroyed) {
                 for (const command of current.commands) {
-                    if (!command.keymap || !KeyboardHandler.matches(event, command.keymap)) continue
+                    if (
+                        !command.keymap ||
+                        !KeyboardHandler.matchesCandidates(candidates, keysOf(command.keymap))
+                    )
+                        continue
                     if (!command.disabled()) return { command, ownerScope: current }
                 }
             }

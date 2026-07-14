@@ -1,5 +1,4 @@
 import { SvelteMap } from "svelte/reactivity"
-import pLimit from "p-limit"
 import { viewerStore } from "$lib/features/viewer/stores/viewerStore.svelte"
 import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
 import type PDFDocument from "$lib/core/pdf/pdf"
@@ -31,7 +30,7 @@ export class SearchStore {
     isActive = $state(false)
     isIndexing = $state(false)
     isSearching = $state(false)
-    pageTexts = new SvelteMap<number, { original: string; lower: string }>()
+    pageTexts = new SvelteMap<number, { original: string }>()
 
     searchHistory = $state<string[]>([])
     searchStartPage = $state<number | null>(null)
@@ -71,6 +70,8 @@ export class SearchStore {
     private currentSearchAbortController: AbortController | null = null
     private worker: Worker | null = null
     private searchRequestId = 0
+    private documentGeneration = 0
+    private workerCorpusGeneration = -1
     private matchesChangedListeners = new Set<() => void>()
 
     onMatchesChanged(listener: () => void) {
@@ -87,6 +88,8 @@ export class SearchStore {
         this.currentPdf = pdf
         this.currentBookId = bookId
         this.searchRequestId += 1
+        this.documentGeneration += 1
+        this.workerCorpusGeneration = -1
 
         this.isActive = false
         this.query = ""
@@ -135,12 +138,9 @@ export class SearchStore {
                 this.currentPdf === pdf &&
                 this.currentBookId === bookId
             ) {
-                const tempMap = new Map<number, { original: string; lower: string }>()
+                const tempMap = new Map<number, { original: string }>()
                 for (const record of cachedTexts) {
-                    tempMap.set(record.pageNumber, {
-                        original: record.text,
-                        lower: record.text.toLowerCase(),
-                    })
+                    tempMap.set(record.pageNumber, { original: record.text })
                 }
                 // Batch update to SvelteMap
                 for (const [pageNum, text] of tempMap) {
@@ -149,54 +149,43 @@ export class SearchStore {
                 return
             }
 
-            // 2. If not cached, extract page text in parallel
-            const limit = pLimit(2)
-            const tasks: Promise<void>[] = []
-            const recordsToSave: { pageNumber: number; text: string }[] = []
-            const localTexts = new Map<number, { original: string; lower: string }>()
-
-            for (let i = 1; i <= totalPages; i++) {
-                const pageNum = i
-                tasks.push(
-                    limit(async () => {
-                        if (this.currentPdf !== pdf || this.currentBookId !== bookId) return
-                        const textContent = await pdf.getTextContent(pageNum, true)
-                        const text = textContent.items.map((item: any) => item.str).join("")
-                        const lower = text.toLowerCase()
-                        localTexts.set(pageNum, {
-                            original: text,
-                            lower,
-                        })
-                        recordsToSave.push({ pageNumber: pageNum, text })
-                        // Yield to keep the browser responsive (approx one frame)
-                        await new Promise((resolve) => setTimeout(resolve, 4))
-                    }),
+            // 2. Extract through a bounded queue instead of allocating one promise per page.
+            const generation = this.documentGeneration
+            let nextPage = 1
+            let recordsToSave: { pageNumber: number; text: string }[] = []
+            const isCurrent = () =>
+                this.documentGeneration === generation &&
+                this.currentPdf === pdf &&
+                this.currentBookId === bookId
+            const flushRecords = async () => {
+                if (!recordsToSave.length || !isCurrent()) return
+                const batch = recordsToSave
+                recordsToSave = []
+                await vfsStore.db.indexedTexts.bulkPut(
+                    batch.map((record) => ({
+                        id: `${bookId}_${record.pageNumber}`,
+                        bookId,
+                        pageNumber: record.pageNumber,
+                        text: record.text,
+                    })),
                 )
             }
-
-            await Promise.all(tasks)
-
-            // Batch update the reactive map once all tasks are complete
-            if (this.currentPdf === pdf && this.currentBookId === bookId) {
-                for (const [pageNum, text] of localTexts) {
-                    this.pageTexts.set(pageNum, text)
+            const extract = async () => {
+                while (isCurrent()) {
+                    const pageNumber = nextPage++
+                    if (pageNumber > totalPages) return
+                    const textContent = await pdf.getTextContent(pageNumber, true)
+                    if (!isCurrent()) return
+                    const text = textContent.items.map((item: any) => item.str).join("")
+                    this.pageTexts.set(pageNumber, { original: text })
+                    recordsToSave.push({ pageNumber, text })
+                    if (recordsToSave.length >= 25) await flushRecords()
+                    await new Promise((resolve) => setTimeout(resolve, 4))
                 }
             }
 
-            // 3. Persist the extracted text in IndexedDB in batch
-            if (
-                this.currentPdf === pdf &&
-                this.currentBookId === bookId &&
-                recordsToSave.length > 0
-            ) {
-                const dbRecords = recordsToSave.map((r) => ({
-                    id: `${bookId}_${r.pageNumber}`,
-                    bookId,
-                    pageNumber: r.pageNumber,
-                    text: r.text,
-                }))
-                await vfsStore.db.indexedTexts.bulkPut(dbRecords)
-            }
+            await Promise.all([extract(), extract()])
+            await flushRecords()
         } catch (e) {
             console.error("[SearchStore] Failed to index PDF:", e)
         } finally {
@@ -224,6 +213,7 @@ export class SearchStore {
             this.currentSearchAbortController.abort()
             this.currentSearchAbortController = null
         }
+        this.worker?.postMessage({ type: "cancel", payload: { searchId: this.searchRequestId } })
 
         const trimmed = newQuery.trim()
         if (!trimmed) {
@@ -266,18 +256,23 @@ export class SearchStore {
                 return
             }
             this.worker = new SearchWorker()
+            this.workerCorpusGeneration = -1
+        }
+
+        if (this.workerCorpusGeneration !== this.documentGeneration) {
+            const pages: Record<number, string> = {}
+            for (const [pageNumber, page] of this.pageTexts) pages[pageNumber] = page.original
+            this.worker.postMessage({
+                type: "replace-corpus",
+                payload: { generation: this.documentGeneration, pages },
+            })
+            this.workerCorpusGeneration = this.documentGeneration
         }
 
         this.matches = []
         this.notifyMatchesChanged()
         this._currentMatchIndex = -1
         this.isSearching = true
-
-        // Convert SvelteMap to plain object for worker transfer
-        const pageTextsObj: Record<number, { lower: string }> = {}
-        for (const [pageNum, page] of this.pageTexts.entries()) {
-            pageTextsObj[pageNum] = { lower: page.lower }
-        }
 
         this.worker.onmessage = (e) => {
             if (
@@ -293,7 +288,7 @@ export class SearchStore {
             if (type === "results") {
                 const { matches, isPartial, searchId: resultSearchId } = payload
                 if (resultSearchId !== searchId) return
-                this.matches = matches
+                this.matches = [...this.matches, ...matches]
                 this.notifyMatchesChanged()
 
                 const startPage = this.searchStartPage ?? 1
@@ -312,10 +307,10 @@ export class SearchStore {
         }
 
         this.worker.postMessage({
-            type: "search",
+            type: "query",
             payload: {
+                generation: this.documentGeneration,
                 query: q,
-                pageTexts: pageTextsObj,
                 searchStartPage: this.searchStartPage ?? 1,
                 searchId,
             },
@@ -471,6 +466,8 @@ export class SearchStore {
 
     reset() {
         this.searchRequestId += 1
+        this.documentGeneration += 1
+        this.workerCorpusGeneration = -1
         this.currentPdf = null
         this.currentBookId = null
         this.isActive = false
