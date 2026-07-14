@@ -75,6 +75,14 @@ describe("viewer command modules", () => {
     it("chooses and clamps a page when no payload is supplied", async () => {
         const prompt = promptService()
         prompt.choose = vi.fn(async (request: PromptRequest<number>) => {
+            expect(request.items("12")).toEqual([
+                {
+                    id: "goto-page-12",
+                    label: `${m.keymap_goto_page()} 12`,
+                    category: "navigation",
+                    value: 12,
+                },
+            ])
             expect(request.items("anything")).toEqual([])
             expect(request.parseQuery?.("99")).toBe(20)
             return 20

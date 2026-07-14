@@ -1,3 +1,4 @@
+import { tick } from "svelte"
 import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
 import { defineCommands } from "$lib/features/commands/commands.types"
 import * as m from "$lib/paraglide/messages"
@@ -48,7 +49,10 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
             englishLabel: () => m.more_options({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
-            run: () => context.setMenuOpen(true),
+            run: async () => {
+                await tick()
+                context.setMenuOpen(true)
+            },
         },
         "library.selection.toggle": {
             id: "library.selection.toggle",

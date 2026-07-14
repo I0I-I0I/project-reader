@@ -435,10 +435,14 @@
     }
 
     .card:focus-visible:not(.is-placeholder) {
-        transform: translate(-4px, -4px);
-        box-shadow: 8px 8px 0 var(--shadow-color);
+        transform: translate(-8px, -8px);
+        box-shadow: 12px 12px 0 var(--shadow-color);
         background-color: var(--surface-hover-color);
         outline: none;
+
+        .card-metadata {
+            background-color: var(--accent-color);
+        }
     }
 
     .card.is-selected:focus-visible:not(.is-placeholder) {
@@ -543,12 +547,16 @@
 
     .card-metadata {
         width: 100%;
+        max-height: 80px !important;
+        height: 100%;
         display: flex;
         flex-direction: column;
+        justify-content: center;
         gap: 4px;
         padding: 12px;
         box-sizing: border-box;
         text-align: left;
+        transition: all 0.15s ease;
     }
 
     .card-title {

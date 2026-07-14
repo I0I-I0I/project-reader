@@ -265,7 +265,6 @@
 
     commandsNode = useCommands([
         viewerBookmarkCommands["viewer.bookmark.toggle-page"],
-        viewerBookmarkCommands["viewer.bookmark.open"],
         viewerMutationCommands["viewer.bookmark.add"]!,
         {
             ...viewerMutationCommands["viewer.bookmark.delete"]!,

@@ -18,7 +18,7 @@ export async function openCommandPalette(
         keymap?: string | string[]
         execute: () => Promise<void>
     }
-    const items: PromptItem<PaletteChoice>[] = commands.map((command) => {
+    const commandItems: PromptItem<PaletteChoice>[] = commands.map((command) => {
         const keymap = Array.isArray(command.keymap)
             ? command.keymap.map(formatKeyString)
             : command.keymap
@@ -42,26 +42,40 @@ export async function openCommandPalette(
         }
     })
 
+    const parsePageChoice = (query: string): PaletteChoice | undefined => {
+        const pageNumber = Number(query.trim())
+        if (!Number.isInteger(pageNumber) || pageNumber < 1) return undefined
+        if (!scope.canExecute("viewer.page.go-to")) return undefined
+        return {
+            id: `viewer.page.go-to:${pageNumber}`,
+            label: m.go_to_page({ page: pageNumber }),
+            englishLabel: m.go_to_page({ page: pageNumber }, { locale: "en" }),
+            category: "navigation",
+            execute: async () => {
+                await scope.execute("viewer.page.go-to", { page: pageNumber, isJump: true })
+            },
+        }
+    }
+
     const request = {
         id: "command-palette",
         initialQuery,
         rememberQuery: true,
-        items: () => items,
-        filter: "fuzzy" as const,
-        parseQuery: (query: string): PaletteChoice | undefined => {
-            const pageNumber = Number(query.trim())
-            if (!Number.isInteger(pageNumber) || pageNumber < 1) return undefined
-            if (!scope.canExecute("viewer.page.go-to")) return undefined
-            return {
-                id: `viewer.page.go-to:${pageNumber}`,
-                label: m.go_to_page({ page: pageNumber }),
-                englishLabel: m.go_to_page({ page: pageNumber }, { locale: "en" }),
-                category: "navigation",
-                execute: async () => {
-                    await scope.execute("viewer.page.go-to", { page: pageNumber, isJump: true })
-                },
-            }
+        items: (query: string) => {
+            const pageChoice = parsePageChoice(query)
+            return pageChoice
+                ? [
+                      {
+                          ...pageChoice,
+                          presentation: { kind: pageChoice.category },
+                          value: pageChoice,
+                      },
+                      ...commandItems,
+                  ]
+                : commandItems
         },
+        filter: "fuzzy" as const,
+        parseQuery: parsePageChoice,
         onSelect: async (command: PaletteChoice) => {
             await tick()
             await command.execute()

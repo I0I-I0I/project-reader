@@ -25,6 +25,29 @@ describe("bound library card commands", () => {
         }
     })
 
+    it("opens more options after the command palette releases focus", async () => {
+        const setMenuOpen = vi.fn()
+        const commands = createLibraryCardCommands({
+            getNodeId: () => "book",
+            isExecutable: () => true,
+            isSelected: () => false,
+            isRead: () => false,
+            setMenuOpen,
+            openNode: vi.fn(),
+            toggleSelection: vi.fn(),
+            moveNode: vi.fn(),
+            deleteNode: vi.fn(),
+            editMetadata: vi.fn(),
+            toggleReadState: vi.fn(),
+            relink: vi.fn(),
+        })
+
+        const opening = commands["library.card.menu.toggle"].run()
+        expect(setMenuOpen).not.toHaveBeenCalled()
+        await opening
+        expect(setMenuOpen).toHaveBeenCalledWith(true)
+    })
+
     it("remain executable after card focus moves to the command palette", async () => {
         const moveNode = vi.fn().mockResolvedValue(undefined)
         const commands = createLibraryCardCommands({

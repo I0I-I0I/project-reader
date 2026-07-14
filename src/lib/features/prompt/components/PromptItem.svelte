@@ -33,8 +33,9 @@
 
     let { id, item, isSelected, onclick }: Props = $props()
     const presentation = $derived(item.presentation as PromptPresentation | undefined)
+    const presentationKind = $derived(presentation?.kind ?? item.category)
     const Leading = $derived(
-        presentation?.leading ?? groupIcons[presentation?.kind?.toLowerCase() ?? ""],
+        presentation?.leading ?? groupIcons[presentationKind?.toLowerCase() ?? ""],
     )
     const shortcuts = $derived(item.keymap ? shortcutEntries(item.keymap) : [])
 
@@ -67,7 +68,7 @@
         {#if Leading}
             <Leading {...presentation?.leadingProps} />
         {:else}
-            {presentation?.kind ?? "·"}
+            {presentationKind ?? "·"}
         {/if}
     </span>
     <span class="meta">

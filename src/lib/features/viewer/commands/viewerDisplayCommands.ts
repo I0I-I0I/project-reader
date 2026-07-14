@@ -38,6 +38,7 @@ export function createViewerDisplayCommands(display: ViewerDisplayPort) {
         },
         "viewer.sidebar.bookmarks.toggle": {
             id: "viewer.sidebar.bookmarks.toggle",
+            keymap: "shift+b",
             label: () => m.keymap_toggle_bookmarks(),
             englishLabel: () => m.keymap_toggle_bookmarks({}, { locale: "en" }),
             category: "commands",

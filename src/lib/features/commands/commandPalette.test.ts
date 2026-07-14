@@ -58,6 +58,12 @@ describe("command palette adapter", () => {
             label: "Перейти к странице 12",
             englishLabel: "Go to page 12",
         })
+        expect(promptStore.snapshot?.items[0]).toMatchObject({
+            id: "viewer.page.go-to:12",
+            label: "Перейти к странице 12",
+            englishLabel: "Go to page 12",
+            category: "navigation",
+        })
         expect(parsedOption?.description).toBeUndefined()
         await promptStore.selectCurrent()
         await closed

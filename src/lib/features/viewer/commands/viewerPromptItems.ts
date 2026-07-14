@@ -19,6 +19,23 @@ export function parsePage(
     return Math.min(page, totalPages)
 }
 
+export function buildGotoPageItems(query: string, totalPages: number): PromptItem<number>[] {
+    const cleanQuery = query.replace(/\u200B/g, "").trim()
+    if (!cleanQuery) return []
+
+    const page = parsePage(cleanQuery, 1, totalPages)
+    if (page === undefined) return []
+
+    return [
+        {
+            id: `goto-page-${page}`,
+            label: `${m.keymap_goto_page()} ${page}`,
+            category: "navigation",
+            value: page,
+        },
+    ]
+}
+
 export function buildSearchItems(input: {
     query: string
     history: readonly string[]

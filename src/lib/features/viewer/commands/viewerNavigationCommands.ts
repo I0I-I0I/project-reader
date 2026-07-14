@@ -2,7 +2,10 @@ import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloa
 import { defineCommands } from "$lib/features/commands/commands.types"
 import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
 import type { PromptService } from "$lib/features/prompt/prompt.types"
-import { parsePage } from "$lib/features/viewer/commands/viewerPromptItems"
+import {
+    buildGotoPageItems,
+    parsePage,
+} from "$lib/features/viewer/commands/viewerPromptItems"
 import * as m from "$lib/paraglide/messages"
 
 export interface ViewerNavigationPort {
@@ -62,7 +65,7 @@ export function createViewerNavigationCommands(dependencies: {
                         page = await prompt.choose<number>({
                             id: requestId,
                             placeholder: `${m.keymap_goto_page()} (1-${totalPages})`,
-                            items: () => [],
+                            items: (query) => buildGotoPageItems(query, totalPages),
                             filter: "none",
                             parseQuery: (query) =>
                                 parsePage(query, viewer.getCurrentPage(), totalPages),
