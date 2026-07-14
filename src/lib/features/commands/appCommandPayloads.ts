@@ -16,6 +16,8 @@ export interface AppCommandPayloads {
     "settings.animations.toggle": undefined
     "settings.zoom.in": { value?: number } | undefined
     "settings.zoom.out": { value?: number } | undefined
+    "settings.quality.in": { value?: number } | undefined
+    "settings.quality.out": { value?: number } | undefined
     "library.book.open": { bookId?: string } | undefined
     "library.book.open-recursive": { bookId?: string } | undefined
     "library.folder.open": { folderId?: string | null } | undefined
@@ -55,7 +57,7 @@ export interface AppCommandPayloads {
     "library.card.menu.toggle": { nodeId?: string } | undefined
     "library.card.open": { nodeId?: string } | undefined
     "library.card.focus": { nodeId?: string } | undefined
-    "library.book.read-state.toggle": { nodeId?: string } | undefined
+    "library.book.read-state.toggle": { nodeId?: string; markAsRead?: boolean } | undefined
     "viewer.open": { bookId?: string } | undefined
     "viewer.close": undefined
     "viewer.page.next": undefined

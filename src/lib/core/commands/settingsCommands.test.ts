@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
+import { CONSTANTS, settingsStore } from "$lib/core/stores/settingsStore.svelte"
 import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
 import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
 import { settingsCommands } from "./settingsCommands"
@@ -24,6 +24,38 @@ describe("settings commands", () => {
         settingsCommands["settings.zoom.in"].run({ value: 1.75 })
         expect(settingsStore.scale).toBe(1.75)
         settingsStore.scale = originalScale
+    })
+
+    it("uses typed quality commands for viewer controls", async () => {
+        const originalQuality = settingsStore.quality
+        settingsStore.quality = CONSTANTS.minQuality
+        unregister = commandsStore.register(commandsStore.root, settingsCommands)
+        commandsStore.activeScope = commandsStore.root
+
+        await commandsStore.execute("settings.quality.in")
+        expect(settingsStore.quality).toBe(CONSTANTS.minQuality + 1)
+        await commandsStore.execute("settings.quality.out")
+        expect(settingsStore.quality).toBe(CONSTANTS.minQuality)
+        await commandsStore.execute("settings.quality.in", { value: CONSTANTS.maxQuality + 1 })
+        expect(settingsStore.quality).toBe(CONSTANTS.maxQuality)
+        await commandsStore.execute("settings.quality.in", { value: 2.5 })
+        expect(settingsStore.quality).toBe(3)
+        await commandsStore.execute("settings.quality.in", { value: Number.NaN })
+        expect(settingsStore.quality).toBe(3)
+        settingsStore.quality = originalQuality
+    })
+
+    it("adds English aliases to native language choices", async () => {
+        unregister = commandsStore.register(commandsStore.root, settingsCommands)
+        commandsStore.activeScope = commandsStore.root
+
+        const execution = commandsStore.execute("settings.language")
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(
+            promptStore.snapshot?.options.find(({ value }) => value === "ru")?.englishLabel,
+        ).toBe("Russian")
+        promptStore.close()
+        await execution
     })
 
     it("uses one command path for chooser and direct theme changes", async () => {

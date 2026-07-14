@@ -4,6 +4,7 @@
     import { createViewerMutationCommands } from "$lib/features/viewer/commands/viewerMutationCommands"
     import { defineCommands } from "$lib/features/commands/commands.types"
     import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
+    import * as m from "$lib/paraglide/messages"
 
     type BookmarkAddPayload = NonNullable<AppCommandPayloads["viewer.bookmark.add"]>
 
@@ -24,7 +25,8 @@
     const cancelCommand = defineCommands({
         "modal.cancel": {
             id: "modal.cancel",
-            label: () => "Cancel bookmark addition",
+            label: () => m.cancel_bookmark_add(),
+            englishLabel: () => m.cancel_bookmark_add({}, { locale: "en" }),
             category: "commands",
             keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,

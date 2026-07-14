@@ -1,15 +1,24 @@
+const FALLBACK_LANGUAGE_NAMES: Record<string, Record<string, string>> = {
+    en: { en: "English", ru: "Russian" },
+    ru: { en: "Английский", ru: "Русский" },
+}
+
 /**
- * Returns the native capitalized name of the language for a given locale,
- * using the standard Intl.DisplayNames API with a fallback.
+ * Returns the capitalized name of a language in the requested display locale,
+ * using the standard Intl.DisplayNames API with deterministic supported-locale fallbacks.
  */
-export function getLanguageName(locale: string): string {
+export function getLanguageName(locale: string, displayLocale = locale): string {
     try {
-        const displayName = new Intl.DisplayNames([locale], { type: "language" }).of(locale)
+        const displayName = new Intl.DisplayNames([displayLocale], { type: "language" }).of(locale)
         if (displayName) {
             return displayName.charAt(0).toUpperCase() + displayName.slice(1)
         }
     } catch {
-        // Fallback to uppercase locale code if Intl fails
+        // Fall through to deterministic names for supported locales.
     }
-    return locale.toUpperCase()
+    return (
+        FALLBACK_LANGUAGE_NAMES[displayLocale]?.[locale] ??
+        FALLBACK_LANGUAGE_NAMES.en?.[locale] ??
+        locale.toUpperCase()
+    )
 }

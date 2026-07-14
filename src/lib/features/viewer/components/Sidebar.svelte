@@ -53,6 +53,11 @@
     const sidebarCommand = createViewerSidebarCloseCommand({
         label: () =>
             initialSide === "right" ? m.keymap_close_settings() : m.keymap_close_sidebar(),
+        // Keep the keyboard-help label searchable when the active locale is not English.
+        englishLabel: () =>
+            initialSide === "right"
+                ? m.keymap_close_settings({}, { locale: "en" })
+                : m.keymap_close_sidebar({}, { locale: "en" }),
         disabled: () =>
             (initialSide === "left" && uiStore.isModalOpen) ||
             !!notesStore.editingNote ||

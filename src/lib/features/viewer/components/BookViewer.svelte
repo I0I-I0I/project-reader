@@ -66,6 +66,17 @@
     const viewerTypedCommands = createViewerCommands({
         isBookmarkToggleBlocked: () =>
             viewerUIStore.isBookmarkAddModalOpen || viewerUIStore.bookmarkToDeleteId !== null,
+        // Resolve directly from stores so the eager command-label check cannot hit a derived TDZ.
+        isCurrentPageBookmarked: () => {
+            const bookId = viewerStore.getCurrentBook()?.id
+            return bookId
+                ? bookmarksStore.bookmarks.some(
+                      (bookmark) =>
+                          bookmark.bookId === bookId &&
+                          bookmark.pageNumber === viewerStore.currentPage,
+                  )
+                : false
+        },
         toggleBookmark: () => handleBookmarkHeaderClick(),
         closeViewer: () => {
             if (notesStore.editingNote || notesStore.activePopup) {
@@ -228,6 +239,8 @@
         { ...settingsCommands["settings.layout"], keymap: "shift+l" },
         viewerSettingsCommands.zoomIn,
         viewerSettingsCommands.zoomOut,
+        viewerSettingsCommands.qualityIn,
+        viewerSettingsCommands.qualityOut,
         viewerTypedCommands["viewer.scroll"],
         viewerTypedCommands["viewer.page.next"],
         viewerTypedCommands["viewer.page.previous"],

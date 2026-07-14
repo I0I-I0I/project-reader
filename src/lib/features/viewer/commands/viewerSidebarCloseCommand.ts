@@ -2,6 +2,8 @@ import { defineCommands, type AnyCommandDefinition } from "$lib/features/command
 
 interface ViewerSidebarCloseCommandOptions {
     label: () => string
+    /** English search and keyboard-help alias for the localized label. */
+    englishLabel: () => string
     disabled: () => boolean
     shouldHandleKey: (event: KeyboardEvent) => boolean
     close: () => void
@@ -15,6 +17,7 @@ export function createViewerSidebarCloseCommand(
             id: "viewer.sidebar.close",
             keymap: ["escape", "q", "ctrl+c", "ctrl+["],
             label: options.label,
+            englishLabel: options.englishLabel,
             category: "navigation",
             allowInInputs: true,
             disabled: options.disabled,

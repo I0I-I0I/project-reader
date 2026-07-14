@@ -199,10 +199,15 @@
 
     useCommands([
         ...createViewerListCommands({
-            nextLabel: () => "Next Bookmark",
-            previousLabel: () => "Previous Bookmark",
-            selectLabel: () => "Jump to Bookmark",
-            searchLabel: () => "Search Bookmarks",
+            nextLabel: () => m.keymap_next_bookmark(),
+            // Preserve English search terms in localized keyboard help.
+            nextEnglishLabel: () => m.keymap_next_bookmark({}, { locale: "en" }),
+            previousLabel: () => m.keymap_prev_bookmark(),
+            previousEnglishLabel: () => m.keymap_prev_bookmark({}, { locale: "en" }),
+            selectLabel: () => m.keymap_open_bookmark(),
+            selectEnglishLabel: () => m.keymap_open_bookmark({}, { locale: "en" }),
+            searchLabel: () => m.search_bookmarks(),
+            searchEnglishLabel: () => m.search_bookmarks({}, { locale: "en" }),
             disabled: listCommandsDisabled,
             shouldHandleNavigationKey: shouldHandleListNavigation,
             next: () => navigateSelection("next"),

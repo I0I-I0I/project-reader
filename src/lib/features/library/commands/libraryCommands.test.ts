@@ -6,6 +6,7 @@ import { libraryCommands } from "$lib/features/library/commands/libraryCommands"
 import { createLibraryCardCommands } from "$lib/features/library/commands/cardEntityCommands"
 import { CommandScope, commandsStore } from "$lib/features/commands/commandsStore.svelte"
 import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
+import * as m from "$lib/paraglide/messages"
 
 const nodes: VFSNodes = {
     folder: {
@@ -54,6 +55,30 @@ afterEach(() => {
 })
 
 describe("library commands", () => {
+    it("gives every palette command a non-empty English alias", () => {
+        for (const command of Object.values(libraryCommands)) {
+            if ("palette" in command && command.palette === false) continue
+            expect(
+                "englishLabel" in command ? command.englishLabel().trim() : undefined,
+                command.id,
+            ).toBeTruthy()
+        }
+    })
+
+    it("mirrors dynamic primary-action branches in the English alias", () => {
+        const command = libraryCommands["library.primary-action"]
+        expect(command.label()).toBe(m.new_folder())
+        expect(command.englishLabel?.()).toBe(m.new_folder({}, { locale: "en" }))
+
+        uiStore.isSelectionMode = true
+        expect(command.label()).toBe(m.select_all())
+        expect(command.englishLabel?.()).toBe(m.select_all({}, { locale: "en" }))
+
+        vfsStore.selectAll(vfsStore.sortedCurrentNodes.map((node) => node.id))
+        expect(command.label()).toBe(m.keymap_exit_selection_mode())
+        expect(command.englishLabel?.()).toBe(m.keymap_exit_selection_mode({}, { locale: "en" }))
+    })
+
     it("owns selection mutations", async () => {
         await libraryCommands["library.selection.toggle"].run({ nodeId: "book" })
         expect(uiStore.isSelectionMode).toBe(true)
@@ -87,6 +112,9 @@ describe("library commands", () => {
         const executing = scope.execute("library.selection.move", { nodeIds: ["book"] })
         await new Promise((resolve) => setTimeout(resolve, 0))
         expect(promptStore.snapshot?.request.id).toBe("library-move-target")
+        expect(
+            promptStore.snapshot?.options.find(({ value }) => value === null)?.englishLabel,
+        ).toBe(m.root({}, { locale: "en" }))
         await promptStore.selectCurrent()
         await executing
 
@@ -104,6 +132,8 @@ describe("library commands", () => {
                 createLibraryCardCommands({
                     getNodeId: () => "book",
                     isExecutable: () => true,
+                    isSelected: () => false,
+                    isRead: () => false,
                     setMenuOpen: () => {},
                     openNode: async () => {},
                     toggleSelection: async () => {},
@@ -138,6 +168,8 @@ describe("library commands", () => {
                 createLibraryCardCommands({
                     getNodeId: () => "book",
                     isExecutable: () => true,
+                    isSelected: () => false,
+                    isRead: () => false,
                     setMenuOpen: () => {},
                     openNode: async () => {},
                     toggleSelection: async () => {},

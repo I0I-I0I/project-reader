@@ -1,6 +1,7 @@
 import type { CommandScope } from "$lib/features/commands/commandsStore.svelte"
 import { commandsStore, formatKeyString } from "$lib/features/commands/commandsStore.svelte"
 import { promptStore, type PromptOption } from "$lib/features/prompt/stores/promptStore.svelte"
+import * as m from "$lib/paraglide/messages"
 
 export async function openCommandPalette(
     scope: CommandScope = commandsStore.activeScope ?? commandsStore.root,
@@ -51,8 +52,8 @@ export async function openCommandPalette(
             if (!scope.canExecute("viewer.page.go-to")) return undefined
             return {
                 id: `viewer.page.go-to:${pageNumber}`,
-                label: `Go to page ${pageNumber}`,
-                description: `Go to page ${pageNumber}`,
+                label: m.go_to_page({ page: pageNumber }),
+                englishLabel: m.go_to_page({ page: pageNumber }, { locale: "en" }),
                 category: "navigation",
                 execute: async () => {
                     await scope.execute("viewer.page.go-to", { page: pageNumber, isJump: true })

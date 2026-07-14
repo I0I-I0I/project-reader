@@ -1,5 +1,11 @@
 <script lang="ts">
     import type { Component } from "svelte"
+    import BookIcon from "$lib/core/components/icons/BookIcon.svelte"
+    import BookmarkIcon from "$lib/core/components/icons/BookmarkIcon.svelte"
+    import CommandIcon from "$lib/core/components/icons/CommandIcon.svelte"
+    import MenuIcon from "$lib/core/components/icons/MenuIcon.svelte"
+    import NavigationIcon from "$lib/core/components/icons/NavigationIcon.svelte"
+    import SettingsIcon from "$lib/core/components/icons/SettingsIcon.svelte"
     import type { PromptOption } from "$lib/features/prompt/prompt.types"
 
     interface Props {
@@ -15,12 +21,36 @@
         leadingProps?: Record<string, unknown>
     }
 
+    const groupIcons: Record<string, Component> = {
+        bookmarks: BookmarkIcon,
+        books: BookIcon,
+        commands: CommandIcon,
+        menu: MenuIcon,
+        navigation: NavigationIcon,
+        settings: SettingsIcon,
+    }
+
     let { id, item, isSelected, onclick }: Props = $props()
     const presentation = $derived(item.presentation as PromptPresentation | undefined)
-    const Leading = $derived(presentation?.leading)
+    const Leading = $derived(
+        presentation?.leading ?? groupIcons[presentation?.kind?.toLowerCase() ?? ""],
+    )
+    const shortcuts = $derived(item.keymap ? shortcutEntries(item.keymap) : [])
 
-    function shortcutParts(shortcut: string) {
-        return shortcut.split("+").map((part) => part.trim())
+    function shortcutEntries(keymap: string | string[]) {
+        const values = Array.isArray(keymap) ? keymap : [keymap]
+        return values.map((shortcut, shortcutIndex) => {
+            const occurrence = values
+                .slice(0, shortcutIndex)
+                .filter((value) => value === shortcut).length
+            return {
+                id: `${shortcut}\u0000${occurrence}`,
+                keys: shortcut.split("+").map((key, index) => ({
+                    id: `${key}\u0000${index}`,
+                    label: key.trim(),
+                })),
+            }
+        })
     }
 </script>
 
@@ -40,21 +70,23 @@
         {/if}
     </span>
     <span class="meta">
-        <span class="label">{item.label}</span>
-        {#if item.englishLabel && item.englishLabel !== item.label}
-            <span class="english-label">({item.englishLabel})</span>
-        {/if}
+        <span class="title-line">
+            <span class="label">{item.label}</span>
+            {#if item.englishLabel && item.englishLabel !== item.label}
+                <span class="english-label">({item.englishLabel})</span>
+            {/if}
+        </span>
         {#if item.description}
             <span class="description">{item.description}</span>
         {/if}
     </span>
     <span class="action">
         {#if item.category}<span class="category">{item.category}</span>{/if}
-        {#if item.keymap}
+        {#if shortcuts.length > 0}
             <span class="shortcuts">
-                {#each Array.isArray(item.keymap) ? item.keymap : [item.keymap] as shortcut, index (shortcut)}
+                {#each shortcuts as shortcut, index (shortcut.id)}
                     {#if index > 0}<span class="separator">/</span>{/if}
-                    {#each shortcutParts(shortcut) as key (key)}<kbd>{key}</kbd>{/each}
+                    {#each shortcut.keys as key (key.id)}<kbd>{key.label}</kbd>{/each}
                 {/each}
             </span>
         {/if}
@@ -94,6 +126,7 @@
         height: 2rem;
         flex: 0 0 auto;
         place-items: center;
+        overflow: hidden;
         border: 1.5px solid var(--border-color);
         border-radius: var(--radius-md);
         background: var(--bg-color);
@@ -101,30 +134,41 @@
         text-transform: uppercase;
     }
 
+    .option-mark :global(svg) {
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+
     .meta {
         display: grid;
         min-width: 0;
         flex: 1;
-        grid-template-columns: auto 1fr;
+        gap: 0.2rem;
+    }
+
+    .title-line {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
         align-items: baseline;
-        gap: 0.2rem 0.45rem;
+        gap: 0.15rem 0.45rem;
     }
 
     .label {
-        overflow: hidden;
+        min-width: 0;
+        overflow-wrap: anywhere;
         font-size: var(--font-size-xl);
         font-weight: 650;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 
     .english-label,
     .description {
+        min-width: 0;
+        overflow-wrap: anywhere;
         opacity: 0.55;
     }
 
     .description {
-        grid-column: 1 / -1;
         overflow: hidden;
         font-size: var(--font-size-sm);
         text-overflow: ellipsis;
@@ -136,6 +180,17 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
+    }
+
+    .action {
+        max-width: 48%;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .shortcuts {
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
 
     .category {

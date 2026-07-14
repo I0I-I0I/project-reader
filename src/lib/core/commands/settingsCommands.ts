@@ -73,10 +73,19 @@ const languageOptions = (): PromptOption<Locale>[] =>
     (["ru", "en"] as const).map((locale) => ({
         id: `language-${locale}`,
         label: getLanguageName(locale),
+        englishLabel: getLanguageName(locale, "en"),
         description: getLocale() === locale ? "✓" : undefined,
         category: "settings",
         value: locale,
     }))
+
+function updateQuality(value: number) {
+    if (!Number.isFinite(value)) return
+    settingsStore.quality = Math.min(
+        Math.max(Math.round(value), CONSTANTS.minQuality),
+        CONSTANTS.maxQuality,
+    )
+}
 
 export const settingsCommands = defineCommands({
     "settings.theme": {
@@ -179,6 +188,26 @@ export const settingsCommands = defineCommands({
                           CONSTANTS.maxScale,
                       )
                     : Math.min(Math.max(payload.value, CONSTANTS.minScale), CONSTANTS.maxScale)
+        },
+    },
+    "settings.quality.in": {
+        id: "settings.quality.in",
+        label: () => m.quality_up(),
+        englishLabel: () => m.quality_up({}, { locale: "en" }),
+        category: "settings",
+        subtitle: () => `${m.quality()}: ${settingsStore.quality}`,
+        run: (payload) => {
+            updateQuality(payload?.value ?? settingsStore.quality + 1)
+        },
+    },
+    "settings.quality.out": {
+        id: "settings.quality.out",
+        label: () => m.quality_down(),
+        englishLabel: () => m.quality_down({}, { locale: "en" }),
+        category: "settings",
+        subtitle: () => `${m.quality()}: ${settingsStore.quality}`,
+        run: (payload) => {
+            updateQuality(payload?.value ?? settingsStore.quality - 1)
         },
     },
     "settings.animations.toggle": {

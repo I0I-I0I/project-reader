@@ -27,7 +27,6 @@
         requestLibraryNodeDelete,
         requestLibraryNodeMove,
     } from "$lib/features/library/commands/libraryNodeExecution"
-    import { toggleLibraryBookReadState } from "$lib/features/library/commands/libraryReadStateExecution"
 
     interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
@@ -55,6 +54,16 @@
     commandsNode = useLibraryCardCommands({
         getNodeId: () => node?.id,
         isExecutable: () => !isPlaceholder && !isRestoring,
+        isSelected: () => (node ? vfsStore.selectedIds.has(node.id) : false),
+        isRead: () =>
+            !!(
+                node &&
+                node.type === "file" &&
+                node.metadata.totalPages !== undefined &&
+                node.metadata.totalPages > 0 &&
+                (node.metadata.pageNumber || 1) === node.metadata.totalPages
+            ),
+        canToggleReadState: () => node?.type === "file",
         setMenuOpen: (open: boolean) => {
             showMenu = open
         },
@@ -211,7 +220,10 @@
     const toggleReadState = (event: MouseEvent) => {
         event.stopPropagation()
         if (!fileNode) return
-        void toggleLibraryBookReadState(fileNode.id)
+        void commandsNode.execute("library.book.read-state.toggle", {
+            nodeId: fileNode.id,
+            markAsRead: !isRead,
+        })
     }
 
     const closeMenu = () => {

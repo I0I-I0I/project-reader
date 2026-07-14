@@ -5,6 +5,7 @@
     import * as m from "$lib/paraglide/messages"
     import Modal from "$lib/core/components/ui/Modal.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
+    import { buildKeymapHelpItems, filterKeymapHelpItems } from "$lib/features/prompt/keymapHelp"
 
     interface Props {
         onClose: () => void
@@ -19,36 +20,11 @@
     let searchQuery = $state("")
     let searchInputRef = $state<HTMLInputElement | null>(null)
 
-    const keymaps = (() => {
-        if (!activeNodeBeforeOpen) return []
-        const allBindings = activeNodeBeforeOpen.listActive()
+    const keymaps = activeNodeBeforeOpen
+        ? buildKeymapHelpItems(activeNodeBeforeOpen.listActive(), KeyboardHandler.normalize)
+        : []
 
-        const seen = new Set<string>()
-        return allBindings
-            .filter((b) => {
-                if (!b.label || !b.keymap) return false
-                const keyStr = Array.isArray(b.keymap)
-                    ? b.keymap.map((key) => KeyboardHandler.normalize(key)).join(",")
-                    : KeyboardHandler.normalize(b.keymap)
-                if (seen.has(keyStr)) return false
-                seen.add(keyStr)
-                return true
-            })
-            .map((b) => ({
-                keys: b.keymap!,
-                description: b.label,
-            }))
-    })()
-
-    let filteredKeymaps = $derived(
-        keymaps.filter(
-            (k) =>
-                k.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (Array.isArray(k.keys)
-                    ? k.keys.some((key) => key.toLowerCase().includes(searchQuery.toLowerCase()))
-                    : k.keys.toLowerCase().includes(searchQuery.toLowerCase())),
-        ),
-    )
+    let filteredKeymaps = $derived(filterKeymapHelpItems(keymaps, searchQuery))
 
     function handleSearchKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
@@ -171,7 +147,12 @@
                                     {/each}
                                 {/each}
                             </div>
-                            <span class="shortcut-desc">{keymap.description}</span>
+                            <span class="shortcut-desc">
+                                {keymap.description}
+                                {#if keymap.englishDescription && keymap.englishDescription !== keymap.description}
+                                    ({keymap.englishDescription})
+                                {/if}
+                            </span>
                         </div>
                     {/each}
                 </div>

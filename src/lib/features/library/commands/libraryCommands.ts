@@ -114,7 +114,13 @@ function collectInvalidMoveTargets(nodeIds: string[]): Set<string> {
 function moveTargetOptions(nodeIds: string[]): PromptOption<string | null>[] {
     const options: PromptOption<string | null>[] = []
     if (nodeIds.some((id) => vfsStore.nodes[id]?.parentId !== null)) {
-        options.push({ id: "folder-root", label: m.root(), value: null, category: "navigation" })
+        options.push({
+            id: "folder-root",
+            label: m.root(),
+            englishLabel: m.root({}, { locale: "en" }),
+            value: null,
+            category: "navigation",
+        })
     }
     const invalid = collectInvalidMoveTargets(nodeIds)
     for (const folder of Object.values(vfsStore.nodes).filter(
@@ -200,6 +206,7 @@ export const libraryCommands = defineCommands({
     "library.book.read-state.toggle": {
         id: "library.book.read-state.toggle",
         label: () => m.mark_as_read(),
+        englishLabel: () => m.mark_as_read({}, { locale: "en" }),
         category: "commands",
         palette: false,
         run: async (payload) => {
@@ -222,7 +229,8 @@ export const libraryCommands = defineCommands({
                 }
             }
             total ||= 1
-            const targetPage = (node.metadata.pageNumber || 1) === total ? 1 : total
+            const isRead = (node.metadata.pageNumber || 1) === total
+            const targetPage = (payload?.markAsRead ?? !isRead) ? total : 1
             const currentBook = viewerStore.getCurrentBook()
             if (currentBook?.id === node.id) {
                 await viewerStore.updateBook({
@@ -300,6 +308,15 @@ export const libraryCommands = defineCommands({
                 nodeIds.length > 0 && nodeIds.every((id) => vfsStore.selectedIds.has(id))
             return allSelected ? m.keymap_exit_selection_mode() : m.select_all()
         },
+        englishLabel: () => {
+            if (!uiStore.isSelectionMode) return m.new_folder({}, { locale: "en" })
+            const nodeIds = vfsStore.sortedCurrentNodes.map((node) => node.id)
+            const allSelected =
+                nodeIds.length > 0 && nodeIds.every((id) => vfsStore.selectedIds.has(id))
+            return allSelected
+                ? m.keymap_exit_selection_mode({}, { locale: "en" })
+                : m.select_all({}, { locale: "en" })
+        },
         category: "commands",
         run: async () => {
             if (!uiStore.isSelectionMode) {
@@ -328,6 +345,7 @@ export const libraryCommands = defineCommands({
     "library.selection.all": {
         id: "library.selection.all",
         label: () => m.select_all(),
+        englishLabel: () => m.select_all({}, { locale: "en" }),
         category: "commands",
         disabled: () => !uiStore.isSelectionMode,
         run: () => {
@@ -338,6 +356,7 @@ export const libraryCommands = defineCommands({
         id: "library.selection.clear",
         keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
         label: () => m.keymap_exit_selection_mode(),
+        englishLabel: () => m.keymap_exit_selection_mode({}, { locale: "en" }),
         category: "commands",
         allowInInputs: true,
         disabled: () => !uiStore.isSelectionMode,
@@ -351,6 +370,7 @@ export const libraryCommands = defineCommands({
         id: "library.selection.move",
         keymap: "shift+m",
         label: () => m.move(),
+        englishLabel: () => m.move({}, { locale: "en" }),
         category: "commands",
         disabled: () => !uiStore.isSelectionMode || vfsStore.selectedIds.size === 0,
         run: async (payload) => {
@@ -379,6 +399,7 @@ export const libraryCommands = defineCommands({
         id: "library.selection.delete",
         keymap: "shift+d",
         label: () => m.delete_selected(),
+        englishLabel: () => m.delete_selected({}, { locale: "en" }),
         category: "commands",
         disabled: () => !uiStore.isSelectionMode || vfsStore.selectedIds.size === 0,
         run: async (payload) => {

@@ -20,7 +20,6 @@
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { getLocalizedCurrentHref, type AppLocale } from "$lib/core/language/language"
     import { commandsStore } from "$lib/features/commands/commandsStore.svelte"
-    import { executeZoomIn, executeZoomOut } from "$lib/core/commands/settingsCommandExecution"
 
     let isShortHeight = $derived(uiStore.isShortHeight)
 
@@ -29,19 +28,11 @@
         const value = parseInt(input.value, 10)
         if (!isNaN(value)) {
             const clamped = Math.max(50, Math.min(300, value))
-            void executeZoomIn(clamped / 100)
+            commandsStore.execute("settings.zoom.in", { value: clamped / 100 })
             input.value = clamped.toString()
         } else {
             input.value = Math.round(settingsStore.scale * 100).toString()
         }
-    }
-
-    function downQuality() {
-        settingsStore.quality = Math.max(settingsStore.quality - 1, CONSTANTS.minQuality)
-    }
-
-    function upQuality() {
-        settingsStore.quality = Math.min(settingsStore.quality + 1, CONSTANTS.maxQuality)
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -99,7 +90,7 @@
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={() => void executeZoomOut()}
+                    onclick={() => commandsStore.execute("settings.zoom.out")}
                     aria-label={m.zoom_out()}
                     class="zoom-btn"
                 >
@@ -123,7 +114,7 @@
                     variant="action"
                     size="default"
                     square={true}
-                    onclick={() => void executeZoomIn()}
+                    onclick={() => commandsStore.execute("settings.zoom.in")}
                     aria-label={m.zoom_in()}
                     class="zoom-btn"
                 >
@@ -141,7 +132,7 @@
                     oninput={(e) => {
                         const val = parseInt((e.target as HTMLInputElement).value, 10)
                         if (!isNaN(val)) {
-                            void executeZoomIn(val / 100)
+                            commandsStore.execute("settings.zoom.in", { value: val / 100 })
                         }
                     }}
                     class="sidebar-slider"
@@ -158,7 +149,7 @@
                 variant="action"
                 size="default"
                 square={true}
-                onclick={downQuality}
+                onclick={() => commandsStore.execute("settings.quality.out")}
                 aria-label={m.quality_down()}
                 class="zoom-btn"
             >
@@ -171,7 +162,7 @@
                 variant="action"
                 size="default"
                 square={true}
-                onclick={upQuality}
+                onclick={() => commandsStore.execute("settings.quality.in")}
                 aria-label={m.quality_up()}
                 class="zoom-btn"
             >
@@ -189,7 +180,7 @@
                 oninput={(e) => {
                     const val = parseInt((e.target as HTMLInputElement).value, 10)
                     if (!isNaN(val)) {
-                        settingsStore.quality = val
+                        commandsStore.execute("settings.quality.in", { value: val })
                     }
                 }}
                 class="sidebar-slider"

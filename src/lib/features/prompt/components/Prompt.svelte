@@ -2,8 +2,9 @@
     import Float from "$lib/core/components/ui/Float.svelte"
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
-    import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
     import type { PromptSnapshot } from "$lib/features/prompt/prompt.types"
+    import { resolvePromptKeyAction } from "$lib/features/prompt/promptKeyboard"
+    import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { tick } from "svelte"
     import PromptItem from "./PromptItem.svelte"
@@ -32,18 +33,19 @@
 
     function handleKeydown(event: KeyboardEvent) {
         event.stopPropagation()
-        if (["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
-            event.preventDefault()
-        }
-        if (event.key === "Escape") {
+        const action = resolvePromptKeyAction(event)
+        if (!action) return
+
+        event.preventDefault()
+        if (action === "close") {
             promptStore.close()
-        } else if (event.key === "ArrowDown") {
+        } else if (action === "next") {
             promptStore.moveSelection(1)
             void scrollToSelection()
-        } else if (event.key === "ArrowUp") {
+        } else if (action === "previous") {
             promptStore.moveSelection(-1)
             void scrollToSelection()
-        } else if (event.key === "Enter") {
+        } else {
             void promptStore.selectCurrent()
         }
     }

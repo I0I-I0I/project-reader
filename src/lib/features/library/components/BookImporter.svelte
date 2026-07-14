@@ -128,6 +128,7 @@
             id: "library.books.import",
             keymap: "a",
             label: () => m.keymap_import_book(),
+            englishLabel: () => m.keymap_import_book({}, { locale: "en" }),
             category: "commands",
             disabled: () => isImporting,
             run: async () => {

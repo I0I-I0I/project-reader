@@ -14,7 +14,8 @@ describe("command palette adapter", () => {
             defineCommands({
                 "viewer.page.next": {
                     id: "viewer.page.next",
-                    label: () => "Next page",
+                    label: () => "Следующая страница",
+                    englishLabel: () => "Next page",
                     category: "navigation",
                     keymap: "n",
                     run,
@@ -25,6 +26,10 @@ describe("command palette adapter", () => {
         const closed = openCommandPalette(scope)
         await new Promise((resolve) => setTimeout(resolve, 0))
         expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["viewer.page.next"])
+        expect(promptStore.snapshot?.options[0]).toMatchObject({
+            label: "Следующая страница",
+            englishLabel: "Next page",
+        })
         await promptStore.selectCurrent()
         await closed
         expect(run).toHaveBeenCalledOnce()
@@ -46,6 +51,14 @@ describe("command palette adapter", () => {
 
         const closed = openCommandPalette(scope, "12")
         await new Promise((resolve) => setTimeout(resolve, 0))
+        const parsedOption = promptStore.snapshot?.request.parseQuery?.("12") as
+            | { label: string; englishLabel?: string; description?: string }
+            | undefined
+        expect(parsedOption).toMatchObject({
+            label: "Перейти к странице 12",
+            englishLabel: "Go to page 12",
+        })
+        expect(parsedOption?.description).toBeUndefined()
         await promptStore.selectCurrent()
         await closed
         expect(run).toHaveBeenCalledWith({ page: 12, isJump: true })

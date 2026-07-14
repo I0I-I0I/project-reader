@@ -4,6 +4,8 @@ import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloa
 
 export interface ViewerCommandContext {
     isBookmarkToggleBlocked(): boolean
+    /** Returns the current bookmark state used by the toggle command's presentation. */
+    isCurrentPageBookmarked(): boolean
     toggleBookmark(): void
     closeViewer(): void
     nextPage(): void
@@ -29,7 +31,12 @@ export function createViewerCommands(context: ViewerCommandContext) {
         "viewer.bookmark.toggle-page": {
             id: "viewer.bookmark.toggle-page",
             keymap: "b",
-            label: () => "Bookmark Page / Delete Bookmark",
+            label: () =>
+                context.isCurrentPageBookmarked() ? m.remove_bookmark() : m.add_bookmark(),
+            englishLabel: () =>
+                context.isCurrentPageBookmarked()
+                    ? m.remove_bookmark({}, { locale: "en" })
+                    : m.add_bookmark({}, { locale: "en" }),
             category: "commands",
             disabled: context.isBookmarkToggleBlocked,
             preventDefault: true,
@@ -72,7 +79,7 @@ export function createViewerCommands(context: ViewerCommandContext) {
             id: "viewer.search",
             keymap: "/",
             label: () => m.keymap_search(),
-            englishLabel: () => m.keymap_search?.({}, { locale: "en" }) ?? "Search PDF",
+            englishLabel: () => m.keymap_search({}, { locale: "en" }),
             category: "commands",
             preventDefault: true,
             run: async (payload) => {
@@ -85,8 +92,8 @@ export function createViewerCommands(context: ViewerCommandContext) {
         },
         "viewer.search.close": {
             id: "viewer.search.close",
-            label: () => m.prompt_close_aria(),
-            englishLabel: () => "Close search",
+            label: () => m.close_search(),
+            englishLabel: () => m.close_search({}, { locale: "en" }),
             category: "commands",
             disabled: () => false,
             run: () => context.closeSearch(),
@@ -95,7 +102,7 @@ export function createViewerCommands(context: ViewerCommandContext) {
             id: "viewer.search.next",
             keymap: "n",
             label: () => m.keymap_next_match(),
-            englishLabel: () => m.keymap_next_match?.({}, { locale: "en" }) ?? "Next match",
+            englishLabel: () => m.keymap_next_match({}, { locale: "en" }),
             category: "navigation",
             preventDefault: true,
             run: () => context.nextSearchResult(),
@@ -104,7 +111,7 @@ export function createViewerCommands(context: ViewerCommandContext) {
             id: "viewer.search.previous",
             keymap: "shift+n",
             label: () => m.keymap_prev_match(),
-            englishLabel: () => m.keymap_prev_match?.({}, { locale: "en" }) ?? "Previous match",
+            englishLabel: () => m.keymap_prev_match({}, { locale: "en" }),
             category: "navigation",
             preventDefault: true,
             run: () => context.previousSearchResult(),
@@ -135,8 +142,8 @@ export function createViewerCommands(context: ViewerCommandContext) {
         },
         "viewer.sidebar.bookmarks.toggle": {
             id: "viewer.sidebar.bookmarks.toggle",
-            label: () => m.keymap_toggle_bookmarks?.() ?? "Toggle bookmarks",
-            englishLabel: () => "Toggle bookmarks",
+            label: () => m.keymap_toggle_bookmarks(),
+            englishLabel: () => m.keymap_toggle_bookmarks({}, { locale: "en" }),
             category: "commands",
             run: () => context.toggleBookmarks(),
         },
@@ -158,8 +165,8 @@ export function createViewerCommands(context: ViewerCommandContext) {
         },
         "viewer.fullscreen.toggle": {
             id: "viewer.fullscreen.toggle",
-            label: () => "Toggle fullscreen",
-            englishLabel: () => "Toggle fullscreen",
+            label: () => m.toggle_fullscreen(),
+            englishLabel: () => m.toggle_fullscreen({}, { locale: "en" }),
             category: "commands",
             run: () => context.toggleFullscreen(),
         },

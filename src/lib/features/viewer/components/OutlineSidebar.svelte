@@ -114,9 +114,14 @@
     useCommands(
         createViewerOutlineCommands({
             nextLabel: () => m.keymap_next_heading(),
+            // English callbacks feed keyboard-help search without replacing localized labels.
+            nextEnglishLabel: () => m.keymap_next_heading({}, { locale: "en" }),
             previousLabel: () => m.keymap_prev_heading(),
+            previousEnglishLabel: () => m.keymap_prev_heading({}, { locale: "en" }),
             selectLabel: () => m.keymap_select_heading(),
+            selectEnglishLabel: () => m.keymap_select_heading({}, { locale: "en" }),
             searchLabel: () => m.keymap_search_headings(),
+            searchEnglishLabel: () => m.keymap_search_headings({}, { locale: "en" }),
             disabled: () =>
                 uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup,
             shouldHandleNavigationKey: (event) => {

@@ -2,9 +2,14 @@ import { defineCommands, type AnyCommandDefinition } from "$lib/features/command
 
 interface ViewerListCommandOptions {
     nextLabel: () => string
+    /** English aliases mirror each localized list action. */
+    nextEnglishLabel: () => string
     previousLabel: () => string
+    previousEnglishLabel: () => string
     selectLabel: () => string
+    selectEnglishLabel: () => string
     searchLabel: () => string
+    searchEnglishLabel: () => string
     disabled: () => boolean
     shouldHandleNavigationKey: (event: KeyboardEvent) => boolean
     next: () => void
@@ -22,6 +27,7 @@ export function createViewerListCommands(
                 id: "viewer.list.next",
                 keymap: ["j", "arrowdown", "ctrl+n", "ctrl+j"],
                 label: options.nextLabel,
+                englishLabel: options.nextEnglishLabel,
                 category: "navigation",
                 palette: false,
                 allowInInputs: true,
@@ -33,6 +39,7 @@ export function createViewerListCommands(
                 id: "viewer.list.previous",
                 keymap: ["k", "arrowup", "ctrl+p", "ctrl+k"],
                 label: options.previousLabel,
+                englishLabel: options.previousEnglishLabel,
                 category: "navigation",
                 palette: false,
                 allowInInputs: true,
@@ -44,6 +51,7 @@ export function createViewerListCommands(
                 id: "viewer.list.select",
                 keymap: "enter",
                 label: options.selectLabel,
+                englishLabel: options.selectEnglishLabel,
                 category: "navigation",
                 palette: false,
                 disabled: options.disabled,
@@ -53,6 +61,7 @@ export function createViewerListCommands(
                 id: "viewer.list.search",
                 keymap: "/",
                 label: options.searchLabel,
+                englishLabel: options.searchEnglishLabel,
                 category: "commands",
                 palette: false,
                 disabled: options.disabled,

@@ -92,12 +92,12 @@ export async function openViewerSearchPrompt(
     try {
         await promptStore.open<SearchChoice>({
             id: "viewer-search",
-            placeholder: m.keymap_search?.() ?? "Search PDF",
+            placeholder: m.keymap_search(),
             initialQuery: searchStore.query,
             options: searchOptions,
             filter: "none",
             closeOnSelect: false,
-            emptyLabel: m.search_history_empty?.() ?? "No search history or results",
+            emptyLabel: m.search_history_empty(),
             onQueryChange: (query) => {
                 searchStore.setQuery(query.replace(/\u200B/g, ""))
                 uiStore.isSearchModeActive = query.trim().length > 0
@@ -148,7 +148,7 @@ export async function openViewerBookmarkPrompt(
     const bookmarkId = await promptStore.choose({
         id: requestId,
         options: bookmarksStore.bookmarks.map((bookmark) => {
-            const bookName = vfsStore.nodes[bookmark.bookId]?.name ?? "Unknown Book"
+            const bookName = vfsStore.nodes[bookmark.bookId]?.name ?? m.unknown_book()
             return {
                 id: bookmark.id,
                 label: bookmark.name,
@@ -163,7 +163,7 @@ export async function openViewerBookmarkPrompt(
             }
         }),
         filter: "fuzzy",
-        emptyLabel: "No bookmarks yet",
+        emptyLabel: m.no_bookmarks(),
     })
     stopWatchingScope()
     if (bookmarkId && !scope.isDestroyed) {

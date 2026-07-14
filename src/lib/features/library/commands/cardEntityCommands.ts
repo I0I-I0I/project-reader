@@ -7,6 +7,9 @@ type WithNodeId<T> = T & { nodeId: string }
 export interface LibraryCardCommandContext {
     getNodeId: () => string | undefined
     isExecutable: () => boolean
+    isSelected: () => boolean
+    isRead: () => boolean
+    canToggleReadState?: () => boolean
     setMenuOpen: (open: boolean) => void
     openNode: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.card.open"]>>,
@@ -42,6 +45,7 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
             id: "library.card.menu.toggle",
             keymap: "e",
             label: () => m.more_options(),
+            englishLabel: () => m.more_options({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             run: () => context.setMenuOpen(true),
@@ -49,7 +53,11 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.selection.toggle": {
             id: "library.selection.toggle",
             keymap: "space",
-            label: () => m.select(),
+            label: () => (context.isSelected() ? m.deselect() : m.select()),
+            englishLabel: () =>
+                context.isSelected()
+                    ? m.deselect({}, { locale: "en" })
+                    : m.select({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             palette: true,
@@ -63,7 +71,8 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.card.open": {
             id: "library.card.open",
             keymap: "enter",
-            label: () => "Open",
+            label: () => m.open(),
+            englishLabel: () => m.open({}, { locale: "en" }),
             category: "navigation",
             disabled: () => !context.isExecutable(),
             palette: true,
@@ -75,6 +84,7 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.node.move": {
             id: "library.node.move",
             label: () => m.move(),
+            englishLabel: () => m.move({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             palette: true,
@@ -88,6 +98,7 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.node.delete": {
             id: "library.node.delete",
             label: () => m.delete_selected(),
+            englishLabel: () => m.delete_selected({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             palette: true,
@@ -101,6 +112,7 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.node.edit-metadata": {
             id: "library.node.edit-metadata",
             label: () => m.edit_metadata(),
+            englishLabel: () => m.edit_metadata({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             palette: true,
@@ -113,12 +125,19 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         },
         "library.book.read-state.toggle": {
             id: "library.book.read-state.toggle",
-            label: () => m.mark_as_read(),
+            label: () => (context.isRead() ? m.mark_as_unread() : m.mark_as_read()),
+            englishLabel: () =>
+                context.isRead()
+                    ? m.mark_as_unread({}, { locale: "en" })
+                    : m.mark_as_read({}, { locale: "en" }),
             category: "commands",
-            disabled: () => !context.isExecutable(),
+            disabled: () => !context.isExecutable() || context.canToggleReadState?.() === false,
             palette: true,
             run: async (payload) => {
-                const merged = withNodeId(payload)
+                const merged = withNodeId({
+                    ...payload,
+                    markAsRead: payload?.markAsRead ?? !context.isRead(),
+                })
                 if (!merged) return
                 closeMenu()
                 await context.toggleReadState(merged)
@@ -127,6 +146,7 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
         "library.node.relink": {
             id: "library.node.relink",
             label: () => m.locate_file(),
+            englishLabel: () => m.locate_file({}, { locale: "en" }),
             category: "commands",
             disabled: () => !context.isExecutable(),
             palette: true,

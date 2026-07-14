@@ -11,8 +11,8 @@ export function createViewerBookmarkCommands(getScope: () => CommandScope) {
         "viewer.bookmark.open": {
             id: "viewer.bookmark.open",
             keymap: "shift+b",
-            label: () => m.keymap_toggle_bookmarks?.() ?? "Open bookmark",
-            englishLabel: () => "Open bookmark",
+            label: () => m.open_bookmark(),
+            englishLabel: () => m.open_bookmark({}, { locale: "en" }),
             category: "bookmarks",
             run: async (payload) => {
                 if (!payload?.bookmarkId) {

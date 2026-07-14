@@ -7,6 +7,7 @@ export function createViewerFitWidthCommand(fitToWidth: () => void) {
             id: "viewer.zoom.fit-width",
             keymap: "=",
             label: () => m.keymap_zoom_to_fit(),
+            englishLabel: () => m.keymap_zoom_to_fit({}, { locale: "en" }),
             category: "settings",
             run: fitToWidth,
         },

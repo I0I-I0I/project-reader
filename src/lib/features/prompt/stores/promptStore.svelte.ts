@@ -5,6 +5,7 @@ import type {
     PromptSelectionBehavior,
     PromptSnapshot,
 } from "$lib/features/prompt/prompt.types"
+import * as m from "$lib/paraglide/messages"
 
 const PROMPT_FUSE_OPTIONS = {
     keys: [
@@ -161,7 +162,7 @@ class PromptStore {
                 options: [],
                 selectedIndex: -1,
                 isLoading: false,
-                errorLabel: session.request.errorLabel ?? "Failed to load options",
+                errorLabel: session.request.errorLabel ?? m.prompt_options_load_failed(),
             }
             try {
                 session.request.onOptionsError?.(error)

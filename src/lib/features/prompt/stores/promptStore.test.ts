@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { promptStore } from "./promptStore.svelte"
+import * as m from "$lib/paraglide/messages"
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -132,7 +133,7 @@ describe("promptStore", () => {
         await flush()
 
         expect(promptStore.snapshot?.isLoading).toBe(false)
-        expect(promptStore.snapshot?.errorLabel).toBe("Failed to load options")
+        expect(promptStore.snapshot?.errorLabel).toBe(m.prompt_options_load_failed())
     })
 
     it("does not apply stale async errors to replacement requests", async () => {
@@ -171,6 +172,29 @@ describe("promptStore", () => {
 
         expect(promptStore.snapshot?.errorLabel).toBeUndefined()
         expect(promptStore.snapshot?.options).toHaveLength(1)
+    })
+
+    it("finds a localized option by its English alias", async () => {
+        void promptStore.open({
+            id: "localized-alias",
+            initialQuery: "import book",
+            options: [
+                {
+                    id: "import",
+                    label: "Импортировать книгу",
+                    englishLabel: "Import book",
+                    value: "import",
+                },
+                { id: "other", label: "Другая команда", value: "other" },
+            ],
+            filter: "fuzzy",
+        })
+        await flush()
+
+        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["import"])
+        promptStore.setQuery("импортировать")
+        await flush()
+        expect(promptStore.snapshot?.options.map(({ id }) => id)).toEqual(["import"])
     })
 
     it("parses free-form submissions", async () => {

@@ -157,10 +157,15 @@
 
     useCommands([
         ...createViewerListCommands({
-            nextLabel: () => "Next Note",
-            previousLabel: () => "Previous Note",
-            selectLabel: () => "Jump to Note",
-            searchLabel: () => "Search Notes",
+            nextLabel: () => m.keymap_next_note(),
+            // Preserve English search terms in localized keyboard help.
+            nextEnglishLabel: () => m.keymap_next_note({}, { locale: "en" }),
+            previousLabel: () => m.keymap_prev_note(),
+            previousEnglishLabel: () => m.keymap_prev_note({}, { locale: "en" }),
+            selectLabel: () => m.keymap_open_note(),
+            selectEnglishLabel: () => m.keymap_open_note({}, { locale: "en" }),
+            searchLabel: () => m.keymap_search_notes(),
+            searchEnglishLabel: () => m.keymap_search_notes({}, { locale: "en" }),
             disabled: listCommandsDisabled,
             shouldHandleNavigationKey: shouldHandleListNavigation,
             next: () => navigateSelection("next"),
