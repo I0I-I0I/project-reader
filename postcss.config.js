@@ -4,7 +4,7 @@ import postcssCustomMedia from "postcss-custom-media"
 export default {
     plugins: [
         postcssGlobalData({
-            files: ["./src/lib/core/styles/custom-media.css"],
+            files: ["./src/lib/shared/styles/custom-media.css"],
         }),
         postcssCustomMedia(),
     ],

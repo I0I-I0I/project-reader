@@ -1,5 +1,5 @@
 <script lang="ts">
-    import BookViewer from "$lib/features/viewer/components/BookViewer.svelte"
+    import { ViewerPage } from "$lib/modules/viewer"
 </script>
 
-<BookViewer />
+<ViewerPage />

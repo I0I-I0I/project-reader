@@ -1,6 +1,4 @@
 <script lang="ts">
-    import "$lib/features/viewer/styles/pdf-viewer.css"
-
     const { children } = $props<{
         children?: any
     }>()
