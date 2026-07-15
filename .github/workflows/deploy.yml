@@ -1,36 +1,85 @@
-name: Deploy to Server
+name: Deploy to production
 
 on:
-    push:
-        branches:
-            - master
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+        branches: [master]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: production
+    cancel-in-progress: false
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
     deploy:
-        if: false
+        name: Deploy successful master build
+        if: >-
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.head_branch == 'master'
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+
         steps:
-            - name: Checkout code
+            - name: Checkout tested revision
               uses: actions/checkout@v6
-
-            - name: Copy files to Server
-              uses: appleboy/scp-action@v1.0.0
               with:
-                  host: ${{ secrets.REMOTE_HOST }}
-                  username: ${{ secrets.REMOTE_USER }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  source: ".,!node_modules/**,!.svelte-kit/**,!dist/**"
-                  target: "~/apps/project-reader"
+                  ref: ${{ github.event.workflow_run.head_sha }}
 
-            - name: Execute Docker Compose on Server
-              uses: appleboy/ssh-action@v1.0.0
-              with:
-                  host: ${{ secrets.REMOTE_HOST }}
-                  username: ${{ secrets.REMOTE_USER }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  script: |
-                      cd ~/apps/project-reader
-                      docker compose up --build --remove-orphans -d
+            - name: Configure SSH
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+              run: |
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+                  chmod 600 ~/.ssh/deploy_key
+                  printf '%s\n' \
+                    '151.243.224.144 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG9hRYU3BStgVgAiBNhnxnlrdi7MRISjUa+SuIwTTW7l' \
+                    > ~/.ssh/known_hosts
+
+            - name: Upload release
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  RELEASE: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  tar \
+                    --exclude=.git \
+                    --exclude=node_modules \
+                    --exclude=.svelte-kit \
+                    --exclude=dist \
+                    -czf - . | ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "mkdir -p /opt/project-reader/releases/$RELEASE && tar -xzf - -C /opt/project-reader/releases/$RELEASE"
+
+            - name: Build and activate release
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  RELEASE: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "RELEASE='$RELEASE' bash -s" <<'REMOTE'
+                  set -euo pipefail
+                  release_dir="/opt/project-reader/releases/$RELEASE"
+                  cd "$release_dir"
+
+                  docker compose --project-name project-reader config --quiet
+                  IMAGE_TAG="$RELEASE" docker compose --project-name project-reader build
+                  IMAGE_TAG="$RELEASE" docker compose --project-name project-reader up \
+                    --detach --remove-orphans --wait
+
+                  ln -sfn "$release_dir" /opt/project-reader/current
+                  docker image prune --force --filter "until=168h"
+                  find /opt/project-reader/releases -mindepth 1 -maxdepth 1 \
+                    -type d -printf '%T@ %p\n' | sort -nr | tail -n +4 | cut -d' ' -f2- | xargs -r rm -rf
+                  REMOTE
+
+            - name: Verify HTTPS
+              run: curl --fail --show-error --silent --retry 10 --retry-delay 3 https://project-reader.151-243-224-144.sslip.io/ >/dev/null

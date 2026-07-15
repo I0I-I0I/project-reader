@@ -156,20 +156,28 @@ The `Dockerfile` employs a lightweight, high-performance multi-stage pipeline:
 1. **Build Stage**: Uses `node:24-alpine` to install dependencies and compile the static SvelteKit bundle.
 2. **Runtime Stage**: Employs `caddy:2-alpine` to serve static pages and assets directly with extreme efficiency (sub-10MB memory usage) and native client-side routing fallback.
 
-### Proxy & Security Integration
+### HTTPS and automated deployment
 
-A preconfigured `Caddyfile` handles serving static assets and proxy integration:
+Caddy serves the static application and automatically provisions and renews TLS for
+[`project-reader.151-243-224-144.sslip.io`](https://project-reader.151-243-224-144.sslip.io).
+The Compose stack publishes
+ports 80, 443/TCP, and 443/UDP; its named volumes preserve Caddy certificates and state
+between releases.
 
-- Native high-performance file serving with client-side SPA routing fallback.
-- Modern content encodings using **Gzip** and **Zstd** compression.
-- Rigid HTTP security profiles including strict `X-Frame-Options`, `X-Content-Type-Options`, and `HSTS` headers.
-- Fully prepared to hook into docker networks via `docker-compose.yml`.
-
-To launch the complete application stack:
+To launch the stack manually:
 
 ```sh
-docker-compose up -d --build
+docker compose up --detach --build --wait
 ```
+
+Every push to `master` runs `.github/workflows/ci.yml`. After CI succeeds,
+`.github/workflows/deploy.yml` uploads the tested commit, builds it on the server, switches
+the Compose stack to that release, verifies HTTPS, and retains the three newest releases.
+The workflow requires these repository Actions secrets:
+
+- `DEPLOY_HOST`: `151.243.224.144`
+- `DEPLOY_USER`: the server deployment user
+- `DEPLOY_SSH_KEY`: that user's private SSH key
 
 ---
 

@@ -1,19 +1,25 @@
-:80 {
+project-reader.151-243-224-144.sslip.io {
     root * /srv
+    encode zstd gzip
+
+    # SvelteKit's static adapter emits 200.html as the SPA fallback.
+    try_files {path} /200.html
     file_server
 
-    # SPA routing fallback for client-side navigation
-    try_files {path} /200.html
+    @immutable path /_app/immutable/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
 
-    # Modern compression
-    encode gzip zstd
-
-    # Strict security headers
     header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
-        X-XSS-Protection "1; mode=block"
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
     }
 }

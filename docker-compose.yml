@@ -1,23 +1,35 @@
 services:
-    caddy:
-        build: .
-        container_name: project-reader-caddy
-        restart: always
+    web:
+        image: project-reader:${IMAGE_TAG:-latest}
+        build:
+            context: .
+        restart: unless-stopped
+        ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp"
         volumes:
             - caddy_data:/data
             - caddy_config:/config
-        networks:
-            - default
-            - proxy-net
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "wget",
+                    "--quiet",
+                    "--spider",
+                    "--header=Host:project-reader.151-243-224-144.sslip.io",
+                    "http://127.0.0.1/",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 6
+            start_period: 10s
         logging:
             driver: "json-file"
             options:
                 max-size: "10m"
                 max-file: "3"
-
-networks:
-    proxy-net:
-        external: true
 
 volumes:
     caddy_data:
