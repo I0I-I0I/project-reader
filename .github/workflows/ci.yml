@@ -24,13 +24,15 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
 
             - name: Set up pnpm
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
             - name: Set up Node.js
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
               with:
                   node-version: 22
                   cache: pnpm
@@ -49,3 +51,104 @@ jobs:
 
             - name: Run linter
               run: pnpm exec oxlint .
+
+    image:
+        name: Build, test, and publish production image
+        if: github.event_name == 'push'
+        needs: quality
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            attestations: write
+            contents: read
+            id-token: write
+            packages: write
+
+        steps:
+            - name: Checkout tested revision
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
+
+            - name: Set image name
+              id: image
+              run: |
+                  set -euo pipefail
+                  image_name="ghcr.io/${GITHUB_REPOSITORY,,}"
+                  echo "name=$image_name" >> "$GITHUB_OUTPUT"
+                  echo "tag=$image_name:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+            - name: Log in to GitHub Container Registry
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  printf '%s' "$GH_TOKEN" | docker login ghcr.io \
+                    --username "$GITHUB_ACTOR" --password-stdin
+
+            - name: Build production image once
+              env:
+                  IMAGE_TAG: ${{ steps.image.outputs.tag }}
+              run: |
+                  set -euo pipefail
+                  DOCKER_BUILDKIT=1 docker build \
+                    --build-arg "RELEASE=$GITHUB_SHA" \
+                    --tag "$IMAGE_TAG" \
+                    .
+
+            - name: Smoke-test the exact image
+              env:
+                  IMAGE_TAG: ${{ steps.image.outputs.tag }}
+              run: |
+                  set -euo pipefail
+                  container_id="$(docker run --detach --publish 127.0.0.1::80 "$IMAGE_TAG")"
+                  trap 'docker rm --force "$container_id" >/dev/null 2>&1 || true' EXIT
+                  port="$(docker port "$container_id" 80/tcp | awk -F: 'NR == 1 { print $NF }')"
+
+                  for attempt in {1..20}; do
+                    actual_release="$(curl --fail --silent --show-error \
+                      --header 'Host: project-reader.151-243-224-144.sslip.io' \
+                      "http://127.0.0.1:$port/health/version" || true)"
+                    if [[ "$actual_release" == "$GITHUB_SHA" ]]; then
+                      exit 0
+                    fi
+                    sleep 1
+                  done
+
+                  docker logs "$container_id"
+                  echo "Image did not serve the expected revision" >&2
+                  exit 1
+
+            - name: Publish image by commit
+              id: publish
+              env:
+                  IMAGE_NAME: ${{ steps.image.outputs.name }}
+                  IMAGE_TAG: ${{ steps.image.outputs.tag }}
+              run: |
+                  set -euo pipefail
+                  docker push "$IMAGE_TAG" | tee /tmp/docker-push.log
+                  digest="$(awk '$1 == "digest:" { print $2 }' /tmp/docker-push.log | tail -n 1)"
+
+                  if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+                    echo "Could not determine the published image digest" >&2
+                    exit 1
+                  fi
+
+                  image_ref="$IMAGE_NAME@$digest"
+                  docker manifest inspect "$image_ref" >/dev/null
+                  printf '%s\n' "$image_ref" > production-image.txt
+                  echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+            - name: Attest published image provenance
+              uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+              with:
+                  subject-name: ${{ steps.image.outputs.name }}
+                  subject-digest: ${{ steps.publish.outputs.digest }}
+                  push-to-registry: true
+
+            - name: Record immutable production image
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: production-image
+                  path: production-image.txt
+                  if-no-files-found: error
+                  retention-days: 7

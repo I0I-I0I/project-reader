@@ -1,0 +1,8 @@
+# Require explicit review for production build and deployment changes.
+/.github/CODEOWNERS @I0I-I0I
+/.github/dependabot.yml @I0I-I0I
+/.github/workflows/ @I0I-I0I
+/Dockerfile @I0I-I0I
+/.dockerignore @I0I-I0I
+/docker-compose.yml @I0I-I0I
+/Caddyfile @I0I-I0I
