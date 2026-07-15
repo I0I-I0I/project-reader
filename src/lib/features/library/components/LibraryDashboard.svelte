@@ -14,6 +14,7 @@
     import { vfsStore } from "$lib/core/vfs/vfsStore.svelte"
     import Card from "$lib/features/library/components/Card.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
     import Folder from "$lib/features/library/components/Folder.svelte"
     import NewFolderModal from "$lib/features/library/components/NewFolderModal.svelte"
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
@@ -241,7 +242,7 @@
 
     let wasModalOpen = false
     $effect(() => {
-        const isModalOpen = uiStore.isModalOpen
+        const isModalOpen = modalManager.hasBlockingModal
         if (!isModalOpen && wasModalOpen) {
             restoreCardFocus()
         }

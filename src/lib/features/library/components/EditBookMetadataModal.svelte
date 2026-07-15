@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
@@ -115,9 +115,14 @@
 </script>
 
 <Modal
+    variant="default"
+    type="float"
+    size="medium"
+    placement="center"
     onClose={() => void commandsNode.execute("modal.cancel")}
     title={m.edit_book_metadata()}
-    autofocusClose={false}
+    initialFocus={() => document.getElementById("book-title-input")}
+    draggable
 >
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div

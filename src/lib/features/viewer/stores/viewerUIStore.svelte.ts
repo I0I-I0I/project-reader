@@ -1,6 +1,3 @@
-import { uiStore } from "$lib/core/stores/uiStore.svelte"
-import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
-
 export type ViewerSidebarTab = "outline" | "notes" | "bookmarks"
 
 class ViewerUIStore {
@@ -62,15 +59,6 @@ class ViewerUIStore {
         }
     }
 
-    get isAnyModalOpen() {
-        return (
-            this.isBookmarkAddModalOpen ||
-            !!this.bookmarkToDeleteId ||
-            !!this.noteToDeleteId ||
-            !!notesStore.editingNote
-        )
-    }
-
     closeSidebars() {
         this.activeSidebar = null
     }
@@ -83,10 +71,6 @@ class ViewerUIStore {
     closeBookmarkAddModal() {
         this.isBookmarkAddModalOpen = false
         this.bookmarkName = ""
-    }
-
-    registerWithGlobalUI() {
-        return uiStore.registerModal(() => this.isAnyModalOpen)
     }
 }
 

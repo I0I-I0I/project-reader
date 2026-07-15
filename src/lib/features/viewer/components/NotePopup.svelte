@@ -1,9 +1,7 @@
 <script lang="ts">
-    import { onMount } from "svelte"
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
-    import Float from "$lib/core/components/ui/Float.svelte"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import Float from "$lib/core/components/ui/modal/Float.svelte"
     import { commandsStore, getShortcutHint } from "$lib/features/commands/commandsStore.svelte"
     import { defineCommands } from "$lib/features/commands/commands.types"
     import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
@@ -23,8 +21,6 @@
     } = $props()
 
     const activeNodeBeforeOpen = commandsStore.activeScope
-
-    onMount(() => uiStore.registerModal(() => true))
 
     const modalCommands = defineCommands({
         "modal.cancel": {
@@ -66,7 +62,16 @@
 
 <svelte:window onkeydowncapture={handleCopyOrClose} />
 
-<Float {onClose}>
+<Float
+    placement="center"
+    backdrop="transparent"
+    onBackdropPointerDown={() => onClose()}
+    role="dialog"
+    ariaModal={true}
+    ariaLabel={m.edit_note()}
+    class="note-popup-surface"
+    style="width:min(380px,calc(100vw - 24px));"
+>
     <div class="note-popup-content">
         <div class="popup-header">
             <span class="popup-page">{m.page()} {activePopup.note.pageNumber}</span>
@@ -123,11 +128,13 @@
 </Float>
 
 <style>
-    :global(.float-card:has(.note-popup-content)) {
-        max-width: 380px !important;
-        background: color-mix(in srgb, var(--surface-color) 92%, transparent) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
+    :global(.note-popup-surface) {
+        background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+        border: 3px solid var(--border-color);
+        border-radius: var(--radius-md);
+        box-shadow: 6px 6px 0 var(--shadow-color);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
     .note-popup-content {

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Float from "$lib/core/components/ui/Float.svelte"
+    import Float from "$lib/core/components/ui/modal/Float.svelte"
     import SearchIcon from "$lib/core/components/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/core/components/icons/SearchNoResultsIcon.svelte"
     import { useCommands } from "$lib/features/commands/commandsStore.svelte"
@@ -59,15 +59,15 @@
 </script>
 
 {#if snapshot}
-    <Float onClose={() => promptStore.close()} align="top">
-        <div
-            class="prompt-container"
-            role="dialog"
-            tabindex="-1"
-            aria-modal="true"
-            aria-label={snapshot.request.placeholder ?? m.prompt_search_aria()}
-            onkeydown={handleKeydown}
-        >
+    <Float
+        placement="top"
+        backdrop="blur"
+        onBackdropPointerDown={() => promptStore.close()}
+        role="dialog"
+        ariaModal={true}
+        ariaLabel={snapshot.request.placeholder ?? m.prompt_search_aria()}
+    >
+        <div class="prompt-container" role="presentation" onkeydown={handleKeydown}>
             <form
                 class={["input-wrapper", snapshot.isLoading && "loading"]}
                 onsubmit={(event) => {

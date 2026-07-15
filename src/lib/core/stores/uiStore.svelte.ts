@@ -1,6 +1,5 @@
 import { browser } from "$app/environment"
 import { BREAKPOINTS } from "$lib/core/stores/breakpoints"
-import { untrack } from "svelte"
 
 class UIStore {
     #isToolbarsVisible = $state(true)
@@ -17,8 +16,6 @@ class UIStore {
     #nodeToMoveId = $state<string | null>(null)
     #isEditMetadataModalOpen = $state(false)
     #nodeToEditMetadataId = $state<string | null>(null)
-    #customModalOpen = $state(false)
-    #modalStates = $state<(() => boolean)[]>([])
     #shortHeightMql: MediaQueryList | null = null
     #listening = false
 
@@ -78,7 +75,6 @@ class UIStore {
         this.#nodeToMoveId = null
         this.#isEditMetadataModalOpen = false
         this.#nodeToEditMetadataId = null
-        this.#customModalOpen = false
         this.#isRelinkModalOpen = false
         this.#relinkNodeId = null
     }
@@ -174,32 +170,6 @@ class UIStore {
 
     get isShortHeight(): boolean {
         return this.#isShortHeight
-    }
-
-    get isModalOpen(): boolean {
-        return (
-            this.#isNewFolderModalOpen ||
-            this.#isDeleteModalOpen ||
-            this.#isEditMetadataModalOpen ||
-            this.#isRelinkModalOpen ||
-            this.#customModalOpen ||
-            this.#modalStates.some((getState) => getState())
-        )
-    }
-
-    set isModalOpen(value: boolean) {
-        this.#customModalOpen = value
-    }
-
-    registerModal(getState: () => boolean) {
-        untrack(() => {
-            this.#modalStates.push(getState)
-        })
-        return () => {
-            untrack(() => {
-                this.#modalStates = this.#modalStates.filter((s) => s !== getState)
-            })
-        }
     }
 }
 

@@ -1,7 +1,7 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
     import Button from "$lib/core/components/ui/Button.svelte"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import { commandsStore, getShortcutHint } from "$lib/features/commands/commandsStore.svelte"
     import { defineCommands } from "$lib/features/commands/commands.types"
     import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
@@ -63,9 +63,16 @@
 {/snippet}
 
 <Modal
+    variant="default"
+    type="float"
+    size="medium"
+    placement="center"
+    title={"id" in editorState ? m.edit_note() : m.add_note()}
     onClose={() => void editorCommandsNode.execute("modal.cancel")}
     {header}
-    autofocusClose={false}
+    showCloseButton={false}
+    initialFocus="first"
+    draggable
 >
     <div class="editor-body">
         <blockquote class="editor-quote">

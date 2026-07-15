@@ -22,7 +22,7 @@
     import SettingsSidebar from "./SettingsSidebar.svelte"
     import BookmarkIcon from "$lib/core/components/icons/BookmarkIcon.svelte"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
 
     let {
         side = "left",
@@ -59,7 +59,7 @@
                 ? m.keymap_close_settings({}, { locale: "en" })
                 : m.keymap_close_sidebar({}, { locale: "en" }),
         disabled: () =>
-            (initialSide === "left" && uiStore.isModalOpen) ||
+            (initialSide === "left" && modalManager.hasBlockingModal) ||
             !!notesStore.editingNote ||
             !!notesStore.activePopup,
         shouldHandleKey: (event: KeyboardEvent) => {

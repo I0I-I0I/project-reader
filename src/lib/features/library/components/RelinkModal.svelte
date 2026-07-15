@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
@@ -73,9 +73,14 @@
 </script>
 
 <Modal
+    variant="default"
+    type="float"
+    size="medium"
+    placement="center"
     onClose={() => void commandsNode.execute("modal.cancel")}
     title={m.relink_modal_title()}
-    autofocusClose={false}
+    initialFocus="first"
+    draggable
 >
     <div class="relink-modal-content">
         <p class="description-text">

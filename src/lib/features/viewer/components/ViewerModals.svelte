@@ -6,7 +6,7 @@
     import NotePopup from "./NotePopup.svelte"
     import NoteEditor from "./NoteEditor.svelte"
     import BookmarkAddKeymaps from "./BookmarkAddKeymaps.svelte"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
@@ -105,9 +105,14 @@
         bind:scope={bookmarkAddScope}
     />
     <Modal
+        variant="default"
+        type="float"
+        size="medium"
+        placement="center"
         onClose={() => void bookmarkAddScope?.execute("modal.cancel")}
         title={m.add_bookmark()}
-        autofocusClose={false}
+        initialFocus={() => document.getElementById("header-bookmark-name-input")}
+        draggable
     >
         <div class="modal-form">
             <Input

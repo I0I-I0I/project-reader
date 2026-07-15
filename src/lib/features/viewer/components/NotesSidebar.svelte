@@ -7,6 +7,7 @@
         commandsStore,
     } from "$lib/features/commands/commandsStore.svelte"
     import { MediaQuery } from "svelte/reactivity"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { resolveSelectionIndex } from "$lib/core/state/listSelection"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
@@ -134,7 +135,7 @@
     })
 
     const listCommandsDisabled = () =>
-        uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup
+        modalManager.hasBlockingModal || !!notesStore.editingNote || !!notesStore.activePopup
     const shouldHandleListNavigation = (event: KeyboardEvent) => {
         const target = event.target
         const isInput =

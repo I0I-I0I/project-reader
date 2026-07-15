@@ -11,7 +11,6 @@
     import * as m from "$lib/paraglide/messages"
     import KeymapHelp from "$lib/features/prompt/components/KeymapHelp.svelte"
     import Prompt from "$lib/features/prompt/components/Prompt.svelte"
-    import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import FloatingNotification from "$lib/core/components/FloatingNotification.svelte"
     import { promptStore } from "$lib/features/prompt/stores/promptStore.svelte"
     import { localizeHref } from "$lib/paraglide/runtime"
@@ -34,9 +33,6 @@
         commandsStore.activeScope === rootNode ? null : commandsStore.activeScope,
     )
     let isHelpOpen = $state(false)
-
-    onMount(() => uiStore.registerModal(() => isHelpOpen))
-    onMount(() => uiStore.registerModal(() => promptStore.isOpen))
 
     const rootBookmarkCommands = createViewerBookmarkCommands({
         prompt: promptStore,
@@ -220,14 +216,16 @@
     {/if}
 {/snippet}
 
-{#if page.url.pathname.includes("/viewer")}
-    {@render children()}
-    {@render modals()}
-{:else}
-    <div class="app">
+<div id="app-root">
+    {#if page.url.pathname.includes("/viewer")}
         {@render children()}
         {@render modals()}
-    </div>
-{/if}
+    {:else}
+        <div class="app">
+            {@render children()}
+            {@render modals()}
+        </div>
+    {/if}
 
-<FloatingNotification />
+    <FloatingNotification />
+</div>

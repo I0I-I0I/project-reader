@@ -6,7 +6,6 @@
         commandsStore,
         type CommandScope,
     } from "$lib/features/commands/commandsStore.svelte"
-    import { onMount } from "svelte"
     import { MediaQuery } from "svelte/reactivity"
     import Button from "$lib/core/components/ui/Button.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
@@ -17,7 +16,8 @@
     import type { AppCommandPayloads } from "$lib/features/commands/appCommandPayloads"
     import TrashIcon from "$lib/core/components/icons/TrashIcon.svelte"
     import EditIcon from "$lib/core/components/icons/EditIcon.svelte"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import DeleteConfirmModal from "$lib/features/library/components/DeleteConfirmModal.svelte"
     import BookmarkEditKeymaps from "./BookmarkEditKeymaps.svelte"
@@ -45,8 +45,6 @@
     let editingName = $state("")
     let bookmarkToDeleteId = $state<string | null>(null)
     let bookmarkEditScope = $state.raw<CommandScope>()
-
-    onMount(() => uiStore.registerModal(() => !!(editingBookmarkId || bookmarkToDeleteId)))
 
     function focusBookmarkName(input: HTMLInputElement) {
         const frame = requestAnimationFrame(() => {
@@ -174,7 +172,7 @@
 
     const listCommandsDisabled = () =>
         filteredBookmarks.length === 0 ||
-        uiStore.isModalOpen ||
+        modalManager.hasBlockingModal ||
         !!editingBookmarkId ||
         !!bookmarkToDeleteId
     const shouldHandleListNavigation = (event: KeyboardEvent) => {
@@ -421,9 +419,14 @@
             bind:scope={bookmarkEditScope}
         />
         <Modal
+            variant="default"
+            type="float"
+            size="medium"
+            placement="center"
             onClose={() => void bookmarkEditScope?.execute("modal.cancel")}
             title={m.rename_bookmark()}
-            autofocusClose={false}
+            initialFocus={() => document.getElementById("edit-bookmark-name-input")}
+            draggable
         >
             <div class="modal-form">
                 <Input

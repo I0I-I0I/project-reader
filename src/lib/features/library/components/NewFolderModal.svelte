@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte"
     import * as m from "$lib/paraglide/messages"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import Button from "$lib/core/components/ui/Button.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
@@ -92,7 +92,16 @@
     }
 </script>
 
-<Modal onClose={handleClose} title={m.new_folder()} autofocusClose={false}>
+<Modal
+    variant="default"
+    type="float"
+    size="medium"
+    placement="center"
+    onClose={() => handleClose()}
+    title={m.new_folder()}
+    initialFocus={() => document.getElementById("folder-name-input")}
+    draggable
+>
     <div class="modal-form">
         <Input
             id="folder-name-input"

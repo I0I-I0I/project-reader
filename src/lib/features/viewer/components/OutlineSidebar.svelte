@@ -11,6 +11,7 @@
     import { createViewerOutlineCommands } from "$lib/features/viewer/commands/viewerOutlineCommands"
     import { MediaQuery } from "svelte/reactivity"
     import Button from "$lib/core/components/ui/Button.svelte"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
     import { resolveSelectionIndex } from "$lib/core/state/listSelection"
     import { notesStore } from "$lib/features/viewer/stores/notesStore.svelte"
@@ -123,7 +124,9 @@
             searchLabel: () => m.keymap_search_headings(),
             searchEnglishLabel: () => m.keymap_search_headings({}, { locale: "en" }),
             disabled: () =>
-                uiStore.isModalOpen || !!notesStore.editingNote || !!notesStore.activePopup,
+                modalManager.hasBlockingModal ||
+                !!notesStore.editingNote ||
+                !!notesStore.activePopup,
             shouldHandleNavigationKey: (event) => {
                 const target = event.target
                 const isInput =

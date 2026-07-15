@@ -71,8 +71,10 @@
     --z-dropdown: 50;
     --z-sticky: 100;
     --z-fixed: 200;
-    --z-modal-backdrop: 300;
-    --z-modal: 1000;
+    --z-modal-backdrop: 900;
+    --z-modeless-window: 1000;
+    --z-blocking-modal: 1100;
+    --z-modal: var(--z-blocking-modal);
     --z-toast: 9999;
     --z-tooltip: 100000;
 }

@@ -25,6 +25,7 @@
     import { localizedPath } from "$lib/core/language/language"
     import { settingsStore } from "$lib/core/stores/settingsStore.svelte"
     import { uiStore } from "$lib/core/stores/uiStore.svelte"
+    import { modalManager } from "$lib/core/components/ui/modal/modalManager.svelte"
     import { cubicInOut } from "svelte/easing"
     import {
         useCommands,
@@ -393,8 +394,6 @@
         }
     }
     const sidebars = new SidebarState()
-
-    onMount(() => viewerUIStore.registerWithGlobalUI())
 
     let currentBookId = $derived(currentBook?.id)
     let currentPage = $derived(viewerStore.currentPage)
@@ -1057,7 +1056,10 @@
 
     const swipe = createSwipeState({
         enabled: () =>
-            uiStore.isCompact && !uiStore.isModalOpen && !sidebars.left && !sidebars.settings,
+            uiStore.isCompact &&
+            !modalManager.hasBlockingModal &&
+            !sidebars.left &&
+            !sidebars.settings,
         disabledByLayout: () => settingsStore.layout === "scroll",
         canSwipe: (direction: "left" | "right") => {
             const step = settingsStore.layout === "split" ? 2 : 1
@@ -1521,7 +1523,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 9999;
+        z-index: var(--z-fixed);
         background-color: var(--bg-color);
         display: flex;
         flex-direction: column;

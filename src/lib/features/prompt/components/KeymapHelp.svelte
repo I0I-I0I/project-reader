@@ -3,7 +3,7 @@
     import { commandsStore, KeyboardHandler } from "$lib/features/commands/commandsStore.svelte"
     import { useModalCommands } from "$lib/features/commands/useModalCommands.svelte"
     import * as m from "$lib/paraglide/messages"
-    import Modal from "$lib/core/components/ui/Modal.svelte"
+    import Modal from "$lib/core/components/ui/modal/Modal.svelte"
     import Input from "$lib/core/components/ui/Input.svelte"
     import { buildKeymapHelpItems, filterKeymapHelpItems } from "$lib/features/prompt/keymapHelp"
 
@@ -51,7 +51,7 @@
             target?.tagName === "INPUT" ||
             target?.tagName === "TEXTAREA" ||
             target?.isContentEditable
-        const closeKeys = ["escape", "ctrl+c", "ctrl+[", ...(isInput ? [] : ["q", "?"])]
+        const closeKeys = ["ctrl+c", "ctrl+[", ...(isInput ? [] : ["q", "?"])]
         if (KeyboardHandler.matches(event, closeKeys)) {
             event.preventDefault()
             event.stopPropagation()
@@ -96,7 +96,17 @@
 
 <svelte:window onkeydowncapture={handleKeydown} />
 
-<Modal {onClose} title={m.keymap_modal_title()} closeLabel={m.close()}>
+<Modal
+    variant="default"
+    type="float"
+    size="small"
+    placement="center"
+    onClose={() => onClose()}
+    title={m.keymap_modal_title()}
+    closeLabel={m.close()}
+    initialFocus={() => searchInputRef}
+    draggable
+>
     {#snippet children()}
         {#if keymaps.length > 0}
             <div class="modal-search">
@@ -167,7 +177,10 @@
 
 <style>
     .modal-content {
+        min-width: 0;
+        min-height: 0;
         padding: 24px;
+        overflow-x: hidden;
         overflow-y: auto;
         flex: 1;
     }
@@ -179,6 +192,7 @@
     }
 
     .shortcut-row {
+        min-width: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -195,7 +209,9 @@
     }
 
     .key-combo {
+        min-width: 0;
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 4px;
         flex-shrink: 0;
@@ -226,6 +242,8 @@
     }
 
     .shortcut-desc {
+        min-width: 0;
+        overflow-wrap: anywhere;
         font-size: var(--font-size-xl);
         color: var(--text-color);
         text-align: right;
