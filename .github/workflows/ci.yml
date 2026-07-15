@@ -126,7 +126,8 @@ jobs:
               run: |
                   set -euo pipefail
                   docker push "$IMAGE_TAG" | tee /tmp/docker-push.log
-                  digest="$(awk '$1 == "digest:" { print $2 }' /tmp/docker-push.log | tail -n 1)"
+                  digest="$(sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' \
+                    /tmp/docker-push.log | tail -n 1)"
 
                   if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
                     echo "Could not determine the published image digest" >&2
