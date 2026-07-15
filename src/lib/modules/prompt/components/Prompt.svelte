@@ -8,6 +8,9 @@
     import { promptStore } from "../stores/promptStore.svelte"
     import * as m from "$lib/paraglide/messages"
     import { tick } from "svelte"
+    import { fade, fly } from "svelte/transition"
+    import { cubicOut } from "svelte/easing"
+    import { motionPreferences } from "$lib/shared/state/motion.svelte"
     import PromptItem from "./PromptItem.svelte"
 
     let results: HTMLDivElement | undefined
@@ -62,6 +65,7 @@
     <Float
         placement="top"
         backdrop="blur"
+        style="width:min(44rem, calc(var(--float-viewport-width) - 2.5rem))"
         onBackdropPointerDown={() => promptStore.close()}
         role="dialog"
         ariaModal={true}
@@ -113,6 +117,7 @@
                             id={`prompt-result-${index}`}
                             {item}
                             isSelected={snapshot.selectedIndex === index}
+                            animationDelay={motionPreferences.enabled ? Math.min(index, 6) * 18 : 0}
                             onclick={() => {
                                 const offset = index - snapshot.selectedIndex
                                 if (offset) promptStore.moveSelection(offset)
@@ -121,7 +126,15 @@
                         />
                     {/each}
                 {:else}
-                    <div class="empty-state">
+                    <div
+                        class="empty-state"
+                        in:fly={{
+                            y: 8,
+                            duration: motionPreferences.enabled ? 180 : 0,
+                            easing: cubicOut,
+                        }}
+                        out:fade={{ duration: motionPreferences.enabled ? 80 : 0 }}
+                    >
                         {#if snapshot.isLoading}
                             <span class="loading-mark" aria-hidden="true"></span>
                             <p>{snapshot.request.loadingLabel ?? "Loading…"}</p>
@@ -139,7 +152,14 @@
                 {/if}
             </div>
 
-            <footer>
+            <footer
+                in:fly={{
+                    y: 6,
+                    duration: motionPreferences.enabled ? 180 : 0,
+                    delay: motionPreferences.enabled ? 70 : 0,
+                    easing: cubicOut,
+                }}
+            >
                 <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
                 <span class="footer-help">
                     <span class="key-group">
@@ -229,6 +249,20 @@
         cursor: pointer;
         font-size: var(--font-size-xl);
         opacity: 0.55;
+        transition:
+            opacity 120ms ease,
+            transform 120ms ease;
+    }
+
+    @media (hover: hover) {
+        .close-btn:hover {
+            opacity: 0.9;
+            transform: rotate(6deg) scale(1.08);
+        }
+    }
+
+    .close-btn:active {
+        transform: scale(0.92);
     }
 
     .results-list {
@@ -238,6 +272,7 @@
         gap: 0.25rem;
         overflow-y: auto;
         padding: 0.5rem;
+        scrollbar-gutter: stable;
     }
 
     .empty-state {
@@ -315,6 +350,10 @@
         .input-wrapper.loading::after,
         .loading-mark {
             animation: none;
+        }
+
+        .close-btn {
+            transition: none;
         }
     }
 </style>

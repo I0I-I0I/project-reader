@@ -8,11 +8,15 @@
     import SettingsIcon from "$lib/shared/icons/SettingsIcon.svelte"
     import { KeyboardHandler } from "$lib/modules/commands"
     import type { PromptItem } from "../prompt.types"
+    import { cubicOut } from "svelte/easing"
+    import { fade, fly } from "svelte/transition"
+    import { motionPreferences } from "$lib/shared/state/motion.svelte"
 
     interface Props {
         id: string
         item: PromptItem<unknown>
         isSelected: boolean
+        animationDelay?: number
         onclick: () => void
     }
 
@@ -31,7 +35,7 @@
         settings: SettingsIcon,
     }
 
-    let { id, item, isSelected, onclick }: Props = $props()
+    let { id, item, isSelected, animationDelay = 0, onclick }: Props = $props()
     const presentation = $derived(item.presentation as PromptPresentation | undefined)
     const presentationKind = $derived(presentation?.kind ?? item.category)
     const Leading = $derived(
@@ -63,6 +67,13 @@
     aria-selected={isSelected}
     class={["result-item", isSelected && "selected"]}
     {onclick}
+    in:fly={{
+        x: -10,
+        duration: motionPreferences.enabled ? 170 : 0,
+        delay: animationDelay,
+        easing: cubicOut,
+    }}
+    out:fade={{ duration: motionPreferences.enabled ? 70 : 0 }}
 >
     <span class="option-mark" aria-hidden="true">
         {#if Leading}
@@ -109,6 +120,11 @@
         font: inherit;
         text-align: left;
         cursor: pointer;
+        transition:
+            background-color 120ms ease,
+            border-color 120ms ease,
+            box-shadow 120ms ease,
+            transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .result-item:hover,
@@ -134,6 +150,13 @@
         background: var(--bg-color);
         font-weight: 800;
         text-transform: uppercase;
+        transition:
+            transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
+            background-color 150ms ease;
+    }
+
+    .result-item.selected .option-mark {
+        transform: rotate(-4deg) scale(1.04);
     }
 
     .option-mark :global(svg) {
@@ -224,6 +247,13 @@
     @media (--prompt) {
         .action {
             display: none;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .result-item,
+        .option-mark {
+            transition: none;
         }
     }
 </style>

@@ -127,7 +127,7 @@
     {#if backdrop !== "none"}
         <div
             class={["float-backdrop", `backdrop-${backdrop}`]}
-            transition:fade={{ duration: motionPreferences.enabled ? 150 : 0 }}
+            transition:fade|global={{ duration: motionPreferences.enabled ? 150 : 0 }}
             onpointerdown={onBackdropPointerDown}
             aria-hidden="true"
         ></div>
@@ -144,7 +144,10 @@
         tabindex="-1"
         onpointerdown={onSurfacePointerDown}
         onfocusin={onSurfaceFocusIn}
-        transition:scale={{ duration: motionPreferences.enabled ? 150 : 0, start: 0.96 }}
+        transition:scale|global={{
+            duration: motionPreferences.enabled ? 180 : 0,
+            start: 0.96,
+        }}
     >
         {@render children()}
     </div>
