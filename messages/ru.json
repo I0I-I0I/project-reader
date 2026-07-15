@@ -115,6 +115,7 @@
     "prompt_help_history": "История",
     "search_history": "История поиска",
     "search_history_empty": "История поиска пуста",
+    "searching_document": "Поиск по документу…",
     "clear_search_history": "Очистить историю поиска",
     "enter_page_number": "Введите номер страницы:",
     "show_toolbars": "Показать панели инструментов",

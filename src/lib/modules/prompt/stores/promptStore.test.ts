@@ -265,6 +265,22 @@ describe("promptStore", () => {
         expect(promptStore.snapshot?.items[promptStore.snapshot.selectedIndex]?.id).toBe("two")
     })
 
+    it("keeps loading active while an external operation is pending", async () => {
+        let isSearching = true
+        void promptStore.open({
+            id: "external-loading",
+            items: () => [],
+            isLoading: () => isSearching,
+        })
+        await flush()
+        expect(promptStore.snapshot?.isLoading).toBe(true)
+
+        isSearching = false
+        promptStore.refresh()
+        await flush()
+        expect(promptStore.snapshot?.isLoading).toBe(false)
+    })
+
     it("exposes async item failures and clears loading", async () => {
         const onItemsError = vi.fn()
         void promptStore.open({

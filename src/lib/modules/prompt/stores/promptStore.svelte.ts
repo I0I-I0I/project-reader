@@ -375,7 +375,7 @@ class PromptStore implements PromptService {
             ...this.snapshot,
             items,
             selectedIndex,
-            isLoading: false,
+            isLoading: session.request.isLoading?.() ?? false,
             errorLabel: undefined,
         }
     }

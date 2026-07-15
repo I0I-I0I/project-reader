@@ -68,7 +68,10 @@ export function createViewerSearchCommands(dependencies: {
                     }),
                 filter: "none",
                 closeOnSelect: false,
+                loadingLabel: m.searching_document(),
                 emptyLabel: m.search_history_empty(),
+                isLoading: () =>
+                    Boolean(search.query.trim()) && (search.isIndexing || search.isSearching),
                 onQueryChange: (query) => search.setQuery(query.replace(/\u200B/g, "")),
                 onSelect: (choice, controls) => {
                     if (choice.kind === "history") {

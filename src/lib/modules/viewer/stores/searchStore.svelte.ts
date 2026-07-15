@@ -229,7 +229,12 @@ export class SearchStore {
 
         this.isActive = true
         this.isSearching = true
-        if (this.isIndexing || this.pageTexts.size === 0) return
+        if (this.isIndexing) return
+        if (this.pageTexts.size === 0) {
+            this.isSearching = false
+            this.notifyMatchesChanged()
+            return
+        }
         this.searchTimeoutId = setTimeout(() => {
             this.runWorkerSearch(trimmed)
         }, 150)
@@ -290,6 +295,10 @@ export class SearchStore {
                 const { matches, isPartial, searchId: resultSearchId } = payload
                 if (resultSearchId !== searchId) return
                 this.matches = [...this.matches, ...matches]
+                if (!isPartial) {
+                    this.isSearching = false
+                    this.currentSearchAbortController = null
+                }
                 this.notifyMatchesChanged()
 
                 const startPage = this.searchStartPage ?? 1
@@ -300,10 +309,6 @@ export class SearchStore {
                 }
                 this.updateCSSHighlights()
 
-                if (!isPartial) {
-                    this.isSearching = false
-                    this.currentSearchAbortController = null
-                }
             }
         }
 

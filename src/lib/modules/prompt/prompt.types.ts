@@ -48,6 +48,7 @@ export interface PromptRequest<T> {
     emptyLabel?: string
     errorLabel?: string
     onItemsError?: (error: unknown) => void
+    isLoading?: () => boolean
 }
 
 export interface PromptSnapshot<T = unknown> {
