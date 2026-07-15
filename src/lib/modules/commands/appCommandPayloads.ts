@@ -21,6 +21,7 @@ export interface AppCommandPayloads {
     "settings.layout": { value?: Layout } | undefined
     "settings.language": { value?: Locale } | undefined
     "settings.animations.toggle": undefined
+    "settings.pdf-title.toggle": undefined
     "settings.zoom.in": { value?: number } | undefined
     "settings.zoom.out": { value?: number } | undefined
     "settings.quality.in": { value?: number } | undefined

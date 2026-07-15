@@ -216,4 +216,15 @@ export const settingsCommands = defineCommands({
             settingsStore.animations = !settingsStore.animations
         },
     },
+    "settings.pdf-title.toggle": {
+        id: "settings.pdf-title.toggle",
+        label: () => m.prefer_pdf_title(),
+        englishLabel: () => m.prefer_pdf_title({}, { locale: "en" }),
+        category: "settings",
+        subtitle: () =>
+            settingsStore.preferPdfTitle ? m.animations_enabled() : m.animations_disabled(),
+        run: () => {
+            settingsStore.preferPdfTitle = !settingsStore.preferPdfTitle
+        },
+    },
 })

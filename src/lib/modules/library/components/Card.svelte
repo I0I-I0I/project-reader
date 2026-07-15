@@ -3,12 +3,11 @@
     import { useLibraryUI } from "../state/libraryUI.svelte"
     import { type Component } from "svelte"
     import type { HTMLAttributes } from "svelte/elements"
-    import Spinner from "$lib/shared/ui/Spinner.svelte"
     import * as m from "$lib/paraglide/messages"
     import BookOpenIcon from "$lib/shared/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/shared/icons/CheckCircleIcon.svelte"
     import { vfsStore, usePreviewUrl } from "$lib/modules/documents"
-    import type { VFSNode, FileNode } from "$lib/modules/documents"
+    import type { VFSNode, FileNode, ImportJob } from "$lib/modules/documents"
     import TrashIcon from "$lib/shared/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/shared/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/shared/icons/MoreVerticalIcon.svelte"
@@ -23,11 +22,14 @@
         requestLibraryNodeDelete,
         requestLibraryNodeMove,
     } from "../commands/libraryNodeExecution"
+    import { settingsStore } from "$lib/modules/settings"
+    import { resolveBookTitle } from "../utils/bookTitle"
 
     interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
         name?: string
         isPlaceholder?: boolean
+        importJob?: ImportJob
         Icon?: Component
         class?: string
         onclick?: (e: MouseEvent) => void | Promise<void>
@@ -36,12 +38,17 @@
     let {
         node,
         name = "",
-        isPlaceholder = false,
+        isPlaceholder: legacyPlaceholder = false,
+        importJob,
         Icon,
         class: className,
         onclick,
         ...props
     }: Props = $props()
+    const isPlaceholder = $derived(legacyPlaceholder || !!importJob)
+    const isFailed = $derived(importJob?.stage === "failed")
+    const isLoading = $derived(isPlaceholder && !isFailed)
+
     let isRestoring = $state(false)
     let showMenu = $state(false)
     let longPressTimeout: ReturnType<typeof setTimeout> | undefined
@@ -115,16 +122,18 @@
     const kind = $derived(isPlaceholder ? "book" : node?.type === "file" ? "book" : "folder")
     const extension = $derived(isPlaceholder ? "pdf" : node?.type === "file" ? "pdf" : undefined)
 
-    const preview = usePreviewUrl(() => (node && node.type === "file" ? node.id : ""))
+    const preview = usePreviewUrl(() =>
+        node && node.type === "file" && !isPlaceholder ? node.id : "",
+    )
     const previewUrl = $derived(preview ? preview.url : "")
 
     const fileNode = $derived(node && node.type === "file" ? (node as FileNode) : null)
 
     const book = $derived.by(() => {
-        if (!isPlaceholder && fileNode) {
+        if (fileNode) {
             return {
                 id: fileNode.id,
-                name: fileNode.name,
+                name: resolveBookTitle(fileNode, settingsStore.preferPdfTitle),
                 updatedAt: fileNode.updatedAt,
                 pageNumber: fileNode.metadata.pageNumber || 1,
                 totalPages: fileNode.metadata.totalPages,
@@ -241,6 +250,13 @@
 
 <div
     role="button"
+    aria-disabled={isPlaceholder ? "true" : undefined}
+    aria-label={isLoading
+        ? `${m.book_metadata_loading()}: ${importJob?.name ?? name}`
+        : isFailed
+          ? m.book_import_failed({ name: importJob?.name ?? name })
+          : undefined}
+    aria-busy={isLoading ? "true" : undefined}
     tabindex={isPlaceholder || isRestoring ? -1 : 0}
     class={`card ${className}`}
     class:is-selected={isSelected}
@@ -267,9 +283,11 @@
             </div>
         {/if}
 
-        {#if isPlaceholder}
-            <div class="card-icon" aria-hidden="true">
-                <Spinner variant="classic" size="md" />
+        {#if isLoading}
+            <div class="cover-skeleton skeleton" aria-hidden="true"></div>
+        {:else if isFailed}
+            <div class="card-icon failed-icon" aria-hidden="true">
+                {#if Icon}<Icon />{/if}
             </div>
         {:else if book && book.previewDataUrl}
             <div class="card-preview" aria-hidden="true">
@@ -306,19 +324,24 @@
     </div>
 
     <div class="card-metadata">
-        <p class="card-title">{isPlaceholder ? name : node?.name}</p>
+        <p class="card-title">{book?.name ?? importJob?.name ?? name ?? node?.name}</p>
         {#if kind === "book"}
-            <p class="card-author">
-                {#if isPlaceholder}
-                    {m.importing_book()}
-                {:else if book}
-                    {#if book.author}
+            {#if isLoading && !book?.author}
+                <div class="metadata-skeleton skeleton" aria-hidden="true"></div>
+            {:else}
+                <p class="card-author">
+                    {#if isFailed}
+                        {m.book_import_failed({ name: importJob?.name ?? name })}
+                    {:else if book?.author}
                         {book.author}
                     {:else}
                         {m.unknown_author()}
                     {/if}
-                {/if}
-            </p>
+                    {#if book?.totalPages}
+                        · {m.of_pages({ total: book.totalPages })}
+                    {/if}
+                </p>
+            {/if}
         {/if}
     </div>
 
@@ -742,11 +765,53 @@
     }
 
     .card.is-placeholder {
-        opacity: 0.7;
         cursor: wait;
     }
 
     .card.is-placeholder :global(.card-main-button) {
         cursor: wait;
+    }
+
+    .skeleton {
+        background: linear-gradient(
+            105deg,
+            color-mix(in srgb, var(--surface-color) 72%, var(--accent-color)) 35%,
+            color-mix(in srgb, var(--surface-hover-color) 62%, var(--accent-color)) 48%,
+            color-mix(in srgb, var(--surface-color) 72%, var(--accent-color)) 61%
+        );
+        background-size: 220% 100%;
+        animation: skeleton-shimmer 1.6s ease-in-out infinite;
+    }
+
+    .cover-skeleton {
+        width: 100%;
+        height: 100%;
+    }
+
+    .metadata-skeleton {
+        width: 62%;
+        height: 0.7rem;
+        border: 1px solid color-mix(in srgb, var(--border-color) 45%, transparent);
+    }
+
+    .failed-icon {
+        color: var(--danger-active-color);
+        opacity: 0.75;
+    }
+
+    @keyframes skeleton-shimmer {
+        from {
+            background-position: 100% 0;
+        }
+        to {
+            background-position: -100% 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .skeleton {
+            animation: none;
+            background-position: 50% 0;
+        }
     }
 </style>

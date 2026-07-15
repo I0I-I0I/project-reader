@@ -7,6 +7,10 @@ import type {
     VFSNode,
     BookMetadata,
     FileContent,
+    ImportCallbacks,
+    ImportInput,
+    ImportJob,
+    ImportResult,
 } from "./vfsStore.types"
 import { Database } from "../db/db"
 import { PDFDocument } from "$lib/modules/pdf"
@@ -25,7 +29,12 @@ export class VFSStore {
     forwardHistory = $state<string[]>([])
     initialized = $state<boolean>(false)
     db = new Database()
-    uploadingFiles = $state<Array<{ id: string; name: string; parentId: string | null }>>([])
+    importJobs = $state<ImportJob[]>([])
+
+    activeImportCount = $derived(this.importJobs.filter((job) => job.stage !== "failed").length)
+
+    // Compatibility alias for status/UI call sites while the import-job model is adopted.
+    uploadingFiles = $derived(this.importJobs.filter((job) => job.stage !== "failed"))
 
     // Transient Object URLs managed lazily
     previewUrls = $state<Record<string, string>>({})
@@ -57,7 +66,9 @@ export class VFSStore {
 
     private nativeFiles = new Map<string, File | Blob>()
     private nativeHandles = new Map<string, FileSystemFileHandle>()
+    private importSources = new Map<string, File | FileSystemFileHandle>()
     private previewUrlRefs: Record<string, number> = {}
+    private persistenceQueue = pLimit(1)
     metadataQueue = pLimit(1)
     private initializationPromise: Promise<void> | null = null
     private metadataRepairTimer: ReturnType<typeof setTimeout> | null = null
@@ -262,6 +273,7 @@ export class VFSStore {
         this.metadataRepairController?.abort()
         this.metadataRepairController = null
         this.metadataQueue.clearQueue()
+        this.persistenceQueue.clearQueue()
         this.metadataRepairIds.clear()
     }
 
@@ -405,134 +417,219 @@ export class VFSStore {
         }
     }
 
+    importFiles(
+        inputs: ImportInput[],
+        parentId: string | null,
+        callbacks: ImportCallbacks = {},
+    ): Promise<ImportResult[]> {
+        const rejected = new Map<number, ImportResult>()
+        const acceptedIndexes: number[] = []
+        const accepted = inputs.flatMap((input, inputIndex) => {
+            const isPdf =
+                input.name.toLowerCase().endsWith(".pdf") ||
+                (this.isFileSource(input.source) && input.source.type === "application/pdf")
+            if (!isPdf) {
+                const result: ImportResult = {
+                    id: crypto.randomUUID(),
+                    name: input.name,
+                    status: "rejected",
+                }
+                rejected.set(inputIndex, result)
+                callbacks.onFailure?.(result, "validation")
+                return []
+            }
+            const job: ImportJob = {
+                id: crypto.randomUUID(),
+                name: input.name,
+                parentId,
+                stage: "queued",
+            }
+            this.importSources.set(job.id, input.source)
+            acceptedIndexes.push(inputIndex)
+            return [job]
+        })
+
+        // One assignment makes the complete batch observable before any persistence starts.
+        this.importJobs = [...this.importJobs, ...accepted]
+
+        const saveTasks = accepted.map((job) =>
+            this.persistenceQueue(() => this.persistImport(job, callbacks)),
+        )
+        const completionTasks = accepted.map((job, index) =>
+            this.metadataQueue(async () => {
+                const persisted = await saveTasks[index]
+                if (!persisted) {
+                    return { id: job.id, name: job.name, status: "failed" } as ImportResult
+                }
+                return this.enrichImport(job, callbacks)
+            }),
+        )
+
+        return Promise.all(completionTasks).then((results) => {
+            const imported = new Map(
+                acceptedIndexes.map((inputIndex, resultIndex) => [
+                    inputIndex,
+                    results[resultIndex],
+                ]),
+            )
+            return inputs.map(
+                (_, inputIndex) => rejected.get(inputIndex) ?? imported.get(inputIndex)!,
+            )
+        })
+    }
+
+    private isFileSource(source: File | FileSystemFileHandle): source is File {
+        return typeof File !== "undefined" && source instanceof File
+    }
+
+    private updateImportJob(id: string, updates: Partial<ImportJob>) {
+        this.importJobs = this.importJobs.map((job) =>
+            job.id === id ? { ...job, ...updates } : job,
+        )
+    }
+
+    private removeImportJob(id: string) {
+        this.importJobs = this.importJobs.filter((job) => job.id !== id)
+        this.importSources.delete(id)
+    }
+
+    clearFailedImports() {
+        const failedIds = new Set(
+            this.importJobs.filter((job) => job.stage === "failed").map((job) => job.id),
+        )
+        this.importJobs = this.importJobs.filter((job) => job.stage !== "failed")
+        for (const id of failedIds) this.importSources.delete(id)
+    }
+
+    private async persistImport(job: ImportJob, callbacks: ImportCallbacks): Promise<boolean> {
+        this.updateImportJob(job.id, { stage: "saving" })
+        const source = this.importSources.get(job.id)
+        if (!source) return false
+
+        try {
+            const isFile = this.isFileSource(source)
+            const file = isFile ? source : await source.getFile()
+            const now = Date.now()
+            const siblingTimestamps = Object.values(this.nodes)
+                .filter((node) => node.parentId === job.parentId && node.type === "file")
+                .map((node) => node.updatedAt)
+            const displayTimestamp = Math.min(now, ...siblingTimestamps) - 1
+            const node: FileNode = {
+                id: job.id,
+                name: job.name,
+                type: "file",
+                parentId: job.parentId,
+                size: file.size,
+                createdAt: now,
+                updatedAt: displayTimestamp,
+                metadata: { pageNumber: 1 },
+                isLocked: !isFile,
+            }
+            const content: FileContent = isFile
+                ? { id: job.id, file: new Blob([file], { type: file.type }) }
+                : { id: job.id, handle: source }
+
+            await this.db.transaction("rw", ["books", "folders", "fileContents"], async () => {
+                await this.db.files.put(node)
+                await this.db.fileContents.put(content)
+                if (job.parentId !== null) {
+                    const parent = this.nodes[job.parentId]
+                    if (parent?.type === "folder") {
+                        await this.db.folders.put(
+                            $state.snapshot({
+                                ...parent,
+                                childrenIds: [...parent.childrenIds, job.id],
+                                updatedAt: now,
+                            }) as FolderNode,
+                        )
+                    }
+                }
+            })
+
+            if (isFile) this.nativeFiles.set(job.id, content.file!)
+            else this.nativeHandles.set(job.id, source)
+            this.nodes[job.id] = node
+            this.isLockedMap[job.id] = !isFile
+            if (job.parentId === null) {
+                this.rootIds.push(job.id)
+            } else {
+                const parent = this.nodes[job.parentId]
+                if (parent?.type === "folder") {
+                    parent.childrenIds.push(job.id)
+                    parent.updatedAt = now
+                }
+            }
+            this.updateImportJob(job.id, { stage: "metadata" })
+            return true
+        } catch (error) {
+            console.error(`[VFSStore] Failed to persist import ${job.name}:`, error)
+            this.updateImportJob(job.id, { stage: "failed", failure: "persistence" })
+            callbacks.onFailure?.({ id: job.id, name: job.name, status: "failed" }, "persistence")
+            return false
+        }
+    }
+
+    private async enrichImport(job: ImportJob, callbacks: ImportCallbacks): Promise<ImportResult> {
+        const source = this.importSources.get(job.id)
+        let tempUrl = ""
+        let doc: PDFDocument | null = null
+        let previewUrl = ""
+        let failed = false
+        try {
+            if (!source) throw new Error("Import source is unavailable")
+            const file = this.isFileSource(source) ? source : await source.getFile()
+            tempUrl = URL.createObjectURL(file)
+            doc = new PDFDocument(tempUrl)
+            await doc.load()
+
+            const [totalPages, author, pdfTitle] = await Promise.all([
+                doc.getPageNumber(),
+                doc.getAuthor(),
+                doc.getTitle(),
+            ])
+            await this.updateFile(
+                job.id,
+                {
+                    metadata: {
+                        pageNumber: 1,
+                        totalPages,
+                        author,
+                        pdfTitle: pdfTitle?.trim() || null,
+                    },
+                },
+                true,
+            )
+
+            const page = await doc.getPage(1)
+            previewUrl = await doc.getCanvasPage(page)
+            if (previewUrl) await this.savePreview(job.id, previewUrl, true)
+        } catch (error) {
+            failed = true
+            console.error(`[VFSStore] Failed to enrich import ${job.name}:`, error)
+            callbacks.onFailure?.({ id: job.id, name: job.name, status: "imported" }, "metadata")
+        } finally {
+            if (previewUrl) URL.revokeObjectURL(previewUrl)
+            await doc?.close()
+            if (tempUrl) URL.revokeObjectURL(tempUrl)
+            this.removeImportJob(job.id)
+        }
+
+        const result: ImportResult = { id: job.id, name: job.name, status: "imported" }
+        await callbacks.onImported?.(result)
+        if (failed && this.isLockedMap[job.id]) this.revokeFileUrl(job.id)
+        return result
+    }
+
     async createFile(
         name: string,
         parentId: string | null,
         fileSource: File | FileSystemFileHandle,
         metadata: Partial<BookMetadata> = {},
     ): Promise<string> {
-        const id = crypto.randomUUID()
-        const uploadingItem = { id, name, parentId }
-        this.uploadingFiles.push(uploadingItem)
-
-        try {
-            const isFile = fileSource instanceof File
-
-            let fileObj: File | null = null
-            try {
-                fileObj = isFile
-                    ? (fileSource as File)
-                    : await (fileSource as FileSystemFileHandle).getFile()
-            } catch (e) {
-                console.error("Failed to retrieve file object during VFS file creation:", e)
-            }
-
-            // No manual cloning to ArrayBuffer to avoid high memory pressure.
-            // Dexie can store Blob/File objects directly.
-
-            let previewBlob: Blob | null = null
-            let totalPages: number | undefined = undefined
-            let author: string | null | undefined = undefined
-
-            if (fileObj) {
-                const tempUrl = URL.createObjectURL(fileObj)
-                const doc = new PDFDocument(tempUrl)
-                try {
-                    await doc.load()
-                    totalPages = await doc.getPageNumber()
-                    author = await doc.getAuthor()
-                    const page = await doc.getPage(1)
-                    const pageUrl = await doc.getCanvasPage(page)
-                    if (pageUrl) {
-                        try {
-                            const response = await fetch(pageUrl)
-                            previewBlob = await response.blob()
-                        } catch (e) {
-                            console.error("Failed to save preview blob during creation:", e)
-                        }
-                        URL.revokeObjectURL(pageUrl)
-                    }
-                } catch (err) {
-                    console.error("Failed to extract PDF preview during import:", err)
-                } finally {
-                    await doc.close()
-                    URL.revokeObjectURL(tempUrl)
-                }
-            }
-
-            const now = Date.now()
-
-            const newFile: FileNode = {
-                id,
-                name,
-                type: "file",
-                parentId,
-                size: isFile && fileObj ? fileObj.size : isFile ? (fileSource as File).size : 0,
-                createdAt: now,
-                updatedAt: now,
-                metadata: {
-                    pageNumber: 1,
-                    totalPages,
-                    author,
-                    ...metadata,
-                },
-                isLocked: !isFile,
-            }
-
-            const fileContent: FileContent = { id }
-            if (isFile) {
-                const file = fileObj || (fileSource as File)
-                fileContent.file = new Blob([file], { type: file.type })
-            } else {
-                fileContent.handle = fileSource as FileSystemFileHandle
-            }
-
-            await this.db.transaction(
-                "rw",
-                ["books", "folders", "previews", "fileContents"],
-                async () => {
-                    await this.db.files.put(newFile)
-                    await this.db.fileContents.put(fileContent)
-                    if (previewBlob) {
-                        await this.db.previews.put({ id, data: previewBlob })
-                    }
-                    if (parentId !== null) {
-                        const parent = this.nodes[parentId]
-                        if (parent && parent.type === "folder") {
-                            const updatedParent = {
-                                ...parent,
-                                childrenIds: [...parent.childrenIds, id],
-                                updatedAt: now,
-                            }
-                            await this.db.folders.put($state.snapshot(updatedParent) as FolderNode)
-                        }
-                    }
-                },
-            )
-
-            if (isFile) {
-                this.nativeFiles.set(id, fileContent.file!)
-            } else {
-                this.nativeHandles.set(id, fileContent.handle!)
-            }
-
-            this.nodes[id] = newFile
-            this.isLockedMap[id] = !isFile
-
-            if (parentId === null) {
-                this.rootIds.push(id)
-            } else {
-                const parent = this.nodes[parentId]
-                if (parent && parent.type === "folder") {
-                    parent.childrenIds.push(id)
-                    parent.updatedAt = now
-                }
-            }
-
-            return id
-        } finally {
-            this.uploadingFiles = this.uploadingFiles.filter((f) => f.id !== id)
-        }
+        const [result] = await this.importFiles([{ name, source: fileSource }], parentId)
+        if (!result || result.status !== "imported") throw new Error(`Failed to import ${name}`)
+        if (Object.keys(metadata).length > 0) await this.updateFile(result.id, { metadata })
+        return result.id
     }
 
     async createFolder(name: string, parentId: string | null): Promise<string> {
@@ -665,7 +762,11 @@ export class VFSStore {
         }
     }
 
-    async updateFile(id: string, updates: Partial<FileNode>) {
+    async updateFile(
+        id: string,
+        updates: Omit<Partial<FileNode>, "metadata"> & { metadata?: Partial<BookMetadata> },
+        preserveUpdatedAt = false,
+    ) {
         const node = this.nodes[id]
         if (node && node.type === "file") {
             if (updates.name !== undefined) node.name = updates.name
@@ -674,7 +775,7 @@ export class VFSStore {
             }
             if (updates.isLocked !== undefined) this.isLockedMap[id] = updates.isLocked
 
-            node.updatedAt = Date.now()
+            if (!preserveUpdatedAt) node.updatedAt = Date.now()
             await this.saveFileToDb(node)
         }
     }
@@ -696,7 +797,11 @@ export class VFSStore {
         }
     }
 
-    async savePreview(id: string, previewDataUrl: string): Promise<void> {
+    async savePreview(
+        id: string,
+        previewDataUrl: string,
+        preserveUpdatedAt = false,
+    ): Promise<void> {
         let blob: Blob
         if (previewDataUrl.startsWith("blob:") || previewDataUrl.startsWith("data:")) {
             try {
@@ -715,7 +820,7 @@ export class VFSStore {
         const node = this.nodes[id]
         if (node && node.type === "file") {
             this.revokePreviewUrl(id, true)
-            node.updatedAt = Date.now()
+            if (!preserveUpdatedAt) node.updatedAt = Date.now()
             await this.saveFileToDb(node)
         }
     }

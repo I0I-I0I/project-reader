@@ -11,6 +11,7 @@ export interface Settings {
     theme: Theme
     language: "en" | "ru"
     animations: boolean
+    preferPdfTitle: boolean
 }
 
 interface Constants {
@@ -36,6 +37,42 @@ export const DEFAULT_SETTINGS: Settings = {
     theme: "system",
     language: "ru",
     animations: true,
+    preferPdfTitle: true,
+}
+
+export function sanitizeSettings(parsed: unknown): Partial<Settings> {
+    const sanitized: Partial<Settings> = {}
+    if (!parsed || typeof parsed !== "object") return sanitized
+
+    const value = parsed as Record<string, unknown>
+    if (["single", "split", "scroll"].includes(value.layout as string)) {
+        sanitized.layout = value.layout as Layout
+    }
+    if (
+        typeof value.scale === "number" &&
+        value.scale >= CONSTANTS.minScale &&
+        value.scale <= CONSTANTS.maxScale
+    ) {
+        sanitized.scale = value.scale
+    }
+    if (["light", "dark", "system"].includes(value.theme as string)) {
+        sanitized.theme = value.theme as Theme
+    }
+    if (["en", "ru"].includes(value.language as string)) {
+        sanitized.language = value.language as Settings["language"]
+    }
+    if (typeof value.animations === "boolean") sanitized.animations = value.animations
+    if (typeof value.preferPdfTitle === "boolean") {
+        sanitized.preferPdfTitle = value.preferPdfTitle
+    }
+    if (
+        typeof value.quality === "number" &&
+        value.quality >= CONSTANTS.minQuality &&
+        value.quality <= CONSTANTS.maxQuality
+    ) {
+        sanitized.quality = value.quality
+    }
+    return sanitized
 }
 
 class SettingsStore {
@@ -51,7 +88,7 @@ class SettingsStore {
             if (savedSettings) {
                 try {
                     const parsed = JSON.parse(savedSettings)
-                    const sanitized = this.sanitize(parsed)
+                    const sanitized = sanitizeSettings(parsed)
                     this.settings = { ...this.settings, ...sanitized }
                     if (sanitized.language) {
                         document.cookie = `PARAGLIDE_LOCALE=${sanitized.language}; path=/; max-age=31536000; SameSite=Lax`
@@ -72,41 +109,6 @@ class SettingsStore {
     dispose() {
         this.colorSchemeQuery?.removeEventListener("change", this.handleColorSchemeChange)
         this.colorSchemeQuery = null
-    }
-
-    private sanitize(parsed: any): Partial<Settings> {
-        const sanitized: Partial<Settings> = {}
-
-        if (parsed && typeof parsed === "object") {
-            if (["single", "split", "scroll"].includes(parsed.layout)) {
-                sanitized.layout = parsed.layout
-            }
-            if (
-                typeof parsed.scale === "number" &&
-                parsed.scale >= CONSTANTS.minScale &&
-                parsed.scale <= CONSTANTS.maxScale
-            ) {
-                sanitized.scale = parsed.scale
-            }
-            if (["light", "dark", "system"].includes(parsed.theme)) {
-                sanitized.theme = parsed.theme
-            }
-            if (["en", "ru"].includes(parsed.language)) {
-                sanitized.language = parsed.language
-            }
-            if (typeof parsed.animations === "boolean") {
-                sanitized.animations = parsed.animations
-            }
-            if (
-                typeof parsed.quality === "number" &&
-                parsed.quality >= CONSTANTS.minQuality &&
-                parsed.quality <= CONSTANTS.maxQuality
-            ) {
-                sanitized.quality = parsed.quality
-            }
-        }
-
-        return sanitized
     }
 
     getSettings(): Settings {
@@ -180,6 +182,14 @@ class SettingsStore {
 
     set quality(value: Settings["quality"]) {
         this.updateSetting("quality", value)
+    }
+
+    get preferPdfTitle(): Settings["preferPdfTitle"] {
+        return this.settings.preferPdfTitle
+    }
+
+    set preferPdfTitle(value: Settings["preferPdfTitle"]) {
+        this.updateSetting("preferPdfTitle", value)
     }
 
     updateDOM() {

@@ -31,6 +31,33 @@ export type BookMetadata = {
     pdfDest?: string
     totalPages?: number
     author?: string | null
+    pdfTitle?: string | null
+}
+
+export type ImportStage = "queued" | "saving" | "metadata" | "failed"
+
+export interface ImportJob {
+    id: string
+    name: string
+    parentId: string | null
+    stage: ImportStage
+    failure?: "invalid-file" | "persistence"
+}
+
+export interface ImportInput {
+    name: string
+    source: File | FileSystemFileHandle
+}
+
+export interface ImportResult {
+    id: string
+    name: string
+    status: "imported" | "rejected" | "failed"
+}
+
+export interface ImportCallbacks {
+    onImported?: (result: ImportResult) => void | Promise<void>
+    onFailure?: (result: ImportResult, phase: "validation" | "persistence" | "metadata") => void
 }
 
 export interface FileNode extends BaseNode {

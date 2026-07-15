@@ -8,7 +8,7 @@ import { parse as parseSvelte } from "svelte/compiler"
 export const DEFAULT_ALLOWED_DEPENDENCIES = {
     commands: [],
     documents: ["pdf"],
-    library: ["commands", "documents", "pdf", "prompt", "settings"],
+    library: ["commands", "documents", "notifications", "pdf", "prompt", "settings"],
     notifications: [],
     pdf: ["settings"],
     prompt: ["commands"],

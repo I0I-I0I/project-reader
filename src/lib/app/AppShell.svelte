@@ -7,7 +7,11 @@
     import * as m from "$lib/paraglide/messages"
     import { KeymapHelp } from "$lib/modules/prompt"
     import { Prompt } from "$lib/modules/prompt"
-    import { FloatingNotification, resolveContextualNotification } from "$lib/modules/notifications"
+    import {
+        FloatingNotification,
+        notificationStore,
+        resolveContextualNotification,
+    } from "$lib/modules/notifications"
     import { promptStore } from "$lib/modules/prompt"
     import { localizeHref } from "$lib/paraglide/runtime"
     import { page, updated } from "$app/state"
@@ -37,18 +41,19 @@
     let isViewerPage = $derived(page.url.pathname.includes("/viewer"))
 
     let contextualNotification = $derived(
-        resolveContextualNotification({
-            isViewerPage,
-            isLibrarySelectionActive: vfsStore.selectedIds.size > 0,
-            selectedCount: vfsStore.selectedIds.size,
-            isViewerSearchActive: searchStore.isActive,
-            currentMatchIndex: searchStore.currentMatchIndex,
-            matchCount: searchStore.matches.length,
-            importCount: vfsStore.uploadingFiles.length,
-            selectedLabel: m.selected_label(),
-            matchedLabel: m.matched_label(),
-            importingLabel: m.importing_book().replace("...", "").trim().toUpperCase(),
-        }),
+        notificationStore.current ??
+            resolveContextualNotification({
+                isViewerPage,
+                isLibrarySelectionActive: vfsStore.selectedIds.size > 0,
+                selectedCount: vfsStore.selectedIds.size,
+                isViewerSearchActive: searchStore.isActive,
+                currentMatchIndex: searchStore.currentMatchIndex,
+                matchCount: searchStore.matches.length,
+                importCount: vfsStore.activeImportCount,
+                selectedLabel: m.selected_label(),
+                matchedLabel: m.matched_label(),
+                importingLabel: m.importing_book().replace("...", "").trim().toUpperCase(),
+            }),
     )
 
     const viewerOpenCommand = createViewerOpenCommand({
@@ -103,6 +108,7 @@
         settingsCommands["settings.layout"],
         settingsCommands["settings.language"],
         settingsCommands["settings.animations.toggle"],
+        settingsCommands["settings.pdf-title.toggle"],
         {
             id: "viewer.scroll",
             keymap: ["arrowdown", "j", "arrowup", "k", "pagedown", "d", "pageup", "u"],

@@ -218,6 +218,19 @@
     </section>
 
     <section class="settings-section">
+        <h4 class="section-title">{m.prefer_pdf_title()}</h4>
+        <div class="animation-options">
+            <Toggle
+                checked={settingsStore.preferPdfTitle}
+                onchange={() => commandsStore.execute("settings.pdf-title.toggle")}
+                label={settingsStore.preferPdfTitle
+                    ? m.animations_enabled()
+                    : m.animations_disabled()}
+            />
+        </div>
+    </section>
+
+    <section class="settings-section">
         <h4 class="section-title">{m.language_switcher()}</h4>
         <div class="language-options" role="group" aria-label={m.language_switcher()}>
             {#each locales as locale (locale)}

@@ -6,6 +6,8 @@
     import { vfsStore } from "$lib/modules/documents"
     import { useCommands } from "$lib/modules/commands"
     import { defineCommands } from "$lib/modules/commands"
+    import { publishNotification } from "$lib/modules/notifications"
+    import type { ImportInput } from "$lib/modules/documents"
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
@@ -18,45 +20,55 @@
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
     let isDragging = $derived(dragCount > 0)
-    let isImporting = $state(false)
+    let isSubmitting = $state(false)
+    let isPicking = $state(false)
+    let isImporting = $derived(isSubmitting || isPicking)
 
-    async function processFiles(files: FileList | File[]) {
-        if (isImporting) return
-        isImporting = true
+    function processInputs(inputs: ImportInput[]) {
+        if (isSubmitting || inputs.length === 0) return
+        isSubmitting = true
         try {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i]
-                if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                    continue
-                }
-                const name = file.name
-                try {
-                    const id = await vfsStore.createFile(name, vfsStore.currentFolderId, file)
-                    if (onimport) {
-                        const url = await vfsStore.getFileUrl(id)
-                        onimport({ url, name })
-                    }
-                } catch (err) {
-                    console.error("Failed to process file:", err)
-                }
-            }
+            const completion = vfsStore.importFiles(inputs, vfsStore.currentFolderId, {
+                onImported: async ({ id, name }) => {
+                    if (!onimport) return
+                    const url = await vfsStore.getFileUrl(id)
+                    onimport({ url, name })
+                },
+                onFailure: ({ name }, phase) => {
+                    const metadataFailure = phase === "metadata"
+                    publishNotification({
+                        line1: metadataFailure
+                            ? m.book_metadata_failed({ name })
+                            : m.book_import_failed({ name }),
+                        line2: name,
+                    })
+                },
+            })
+            void completion.catch((error) => {
+                console.error("Failed to complete import batch:", error)
+            })
         } finally {
-            isImporting = false
+            // Registration is synchronous; metadata continues in the store queue.
+            isSubmitting = false
         }
+    }
+
+    function processFiles(files: FileList | File[]) {
+        processInputs(Array.from(files, (file) => ({ name: file.name, source: file })))
     }
 
     function handleFileChange(event: Event) {
         const target = event.target as HTMLInputElement
         const fileList = target.files
-        if (fileList && fileList.length > 0) {
-            processFiles(fileList)
-        }
+        if (fileList && fileList.length > 0) processFiles(fileList)
+        target.value = ""
     }
 
     async function handleImportClick(event?: MouseEvent | null) {
         if (event) event.stopPropagation()
-        if (isImporting) return
+        if (isPicking) return
         if (typeof window.showOpenFilePicker === "function") {
+            isPicking = true
             try {
                 const handles = await window.showOpenFilePicker({
                     types: [
@@ -68,31 +80,14 @@
                     multiple: true,
                 })
 
-                isImporting = true
-                try {
-                    for (const handle of handles) {
-                        try {
-                            const id = await vfsStore.createFile(
-                                handle.name,
-                                vfsStore.currentFolderId,
-                                handle,
-                            )
-                            if (onimport) {
-                                const url = await vfsStore.getFileUrl(id)
-                                onimport({ url, name: handle.name })
-                            }
-                        } catch (err) {
-                            console.error("Failed to import book via handle:", err)
-                        }
-                    }
-                } finally {
-                    isImporting = false
-                }
-            } catch (err: any) {
-                if (err.name !== "AbortError") {
+                processInputs(handles.map((handle) => ({ name: handle.name, source: handle })))
+            } catch (err: unknown) {
+                if (!(err instanceof DOMException && err.name === "AbortError")) {
                     console.error("showOpenFilePicker failed, falling back to standard input", err)
                     fileInput?.click()
                 }
+            } finally {
+                isPicking = false
             }
         } else {
             fileInput?.click()
@@ -130,7 +125,7 @@
             label: () => m.keymap_import_book(),
             englishLabel: () => m.keymap_import_book({}, { locale: "en" }),
             category: "commands",
-            disabled: () => isImporting,
+            disabled: () => isPicking,
             run: async () => {
                 await handleImportClick()
             },

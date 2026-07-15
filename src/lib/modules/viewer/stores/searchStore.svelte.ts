@@ -308,7 +308,6 @@ export class SearchStore {
                     this.goToCurrentMatch()
                 }
                 this.updateCSSHighlights()
-
             }
         }
 

@@ -38,12 +38,23 @@
     import { tick, untrack } from "svelte"
     import { settingsStore } from "$lib/modules/settings"
     import { createLibraryDashboardInteractionCommands } from "../commands/libraryDashboardInteractionCommands"
+    import { mergeLibraryEntries } from "../utils/libraryEntries"
 
     const libraryCommands = createLibraryCommands(libraryUI)
 
     let pickingMode = $state<"startSelection" | "openFileFolder" | "focusCard">("openFileFolder")
 
-    const currentNodes = $derived(vfsStore.sortedCurrentNodes)
+    const displayEntries = $derived(
+        mergeLibraryEntries(
+            vfsStore.sortedCurrentNodes,
+            vfsStore.importJobs,
+            vfsStore.currentFolderId,
+        ),
+    )
+    const currentNodes = $derived(
+        displayEntries.flatMap((entry) => (entry.interactive && entry.node ? [entry.node] : [])),
+    )
+    const interactiveIndex = $derived(new Map(currentNodes.map((node, index) => [node.id, index])))
 
     let pickerKeyBuffer = $state("")
     const currentHints = $derived(generateHints(currentNodes.length, PICKER_KEYS))
@@ -67,6 +78,7 @@
         }
 
         if (vfsStore.currentFolderId !== resolvedId) {
+            vfsStore.clearFailedImports()
             vfsStore.currentFolderId = resolvedId
             untrack(() => {
                 libraryUI.isSelectionMode = false
@@ -308,34 +320,33 @@
     {/if}
 
     <main class:selection-mode={libraryUI.isSelectionMode} onfocusin={handleCardFocus}>
-        {#if currentNodes.length !== 0 || vfsStore.currentFolderId !== null || vfsStore.uploadingFiles.some((f) => f.parentId === vfsStore.currentFolderId)}
+        {#if displayEntries.length !== 0 || vfsStore.currentFolderId !== null}
             <ul class="card_list grid">
                 <li class="card_item">
                     <Folder class="card_inner" type="new-folder" />
                 </li>
-                {#each currentNodes as node, idx (node.id)}
+                {#each displayEntries as entry (entry.id)}
                     <li class="card_item">
                         <Card
                             class="card_inner"
-                            {node}
-                            data-id={node.id}
+                            node={entry.node}
+                            importJob={entry.job}
+                            data-id={entry.id}
                             Icon={BookIcon}
-                            onclick={(e) => handleNodeClick(e, node)}
+                            onclick={entry.interactive && entry.node
+                                ? (e) => handleNodeClick(e, entry.node!)
+                                : undefined}
                         />
-                        {#if libraryUI.isPickingMode}
-                            {@const hint = currentHints[idx]}
+                        {#if libraryUI.isPickingMode && entry.interactive && entry.node}
+                            {@const idx = interactiveIndex.get(entry.node.id)}
+                            {@const hint = idx === undefined ? undefined : currentHints[idx]}
                             {#if hint && hint.startsWith(pickerKeyBuffer)}
                                 <PickerKey
-                                    onSelect={() => handlePickerSelect(node)}
+                                    onSelect={() => handlePickerSelect(entry.node!)}
                                     keyChar={hint.slice(pickerKeyBuffer.length)}
                                 />
                             {/if}
                         {/if}
-                    </li>
-                {/each}
-                {#each vfsStore.uploadingFiles.filter((f) => f.parentId === vfsStore.currentFolderId) as uploading (uploading.id)}
-                    <li class="card_item">
-                        <Card class="card_inner" isPlaceholder={true} name={uploading.name} />
                     </li>
                 {/each}
                 <li class="card_item">
