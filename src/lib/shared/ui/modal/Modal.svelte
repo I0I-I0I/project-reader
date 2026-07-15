@@ -79,7 +79,7 @@
         if (requested === "close") return closeButtonRef
         if (requested === "first") return surfaceRef ? getFocusableElements(surfaceRef)[0] : null
         if (variant === "confirmation" && surfaceRef) {
-            return surfaceRef.querySelector<HTMLElement>(".confirmation-cancel")
+            return surfaceRef.querySelector<HTMLElement>(".confirmation-actions button:last-child")
         }
         return surfaceRef ? getFocusableElements(surfaceRef)[0] : null
     }
