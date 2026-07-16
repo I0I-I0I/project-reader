@@ -68,6 +68,7 @@ export class SearchStore {
     private pageRanges = new SvelteMap<number, Range[]>()
     private searchTimeoutId: any = null
     private currentSearchAbortController: AbortController | null = null
+    private indexingAbortController: AbortController | null = null
     private worker: Worker | null = null
     private searchRequestId = 0
     private documentGeneration = 0
@@ -111,6 +112,8 @@ export class SearchStore {
             this.currentSearchAbortController.abort()
             this.currentSearchAbortController = null
         }
+        this.indexingAbortController?.abort()
+        this.indexingAbortController = null
 
         if (this.worker) {
             this.worker.terminate()
@@ -127,6 +130,9 @@ export class SearchStore {
         const bookId = this.currentBookId
         if (!bookId) return
         this.isIndexing = true
+        const controller = new AbortController()
+        this.indexingAbortController = controller
+        const { signal } = controller
         const totalPages = pdf.pagesCount
 
         try {
@@ -154,6 +160,7 @@ export class SearchStore {
             let nextPage = 1
             let recordsToSave: { pageNumber: number; text: string }[] = []
             const isCurrent = () =>
+                !signal.aborted &&
                 this.documentGeneration === generation &&
                 this.currentPdf === pdf &&
                 this.currentBookId === bookId
@@ -187,8 +194,11 @@ export class SearchStore {
             await Promise.all([extract(), extract()])
             await flushRecords()
         } catch (e) {
-            console.error("[SearchStore] Failed to index PDF:", e)
+            if (!signal.aborted) console.error("[SearchStore] Failed to index PDF:", e)
         } finally {
+            if (this.indexingAbortController === controller) {
+                this.indexingAbortController = null
+            }
             if (this.currentPdf === pdf && this.currentBookId === bookId) {
                 this.isIndexing = false
                 if (this.query.trim()) this.setQuery(this.query)
@@ -510,6 +520,8 @@ export class SearchStore {
             this.currentSearchAbortController.abort()
             this.currentSearchAbortController = null
         }
+        this.indexingAbortController?.abort()
+        this.indexingAbortController = null
         if (this.worker) {
             this.worker.postMessage({ type: "dispose" })
             this.worker.terminate()

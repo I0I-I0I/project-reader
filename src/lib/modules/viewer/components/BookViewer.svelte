@@ -641,7 +641,10 @@
                     if (!canceled) {
                         loadedDoc = doc
                         pdf = doc
-                        const pagesCount = await doc.getPageNumber()
+                        const [pagesCount, author] = await Promise.all([
+                            doc.getPageNumber(),
+                            doc.getAuthor(),
+                        ])
                         totalPages = pagesCount
                         if (viewerStore.currentPage > pagesCount) {
                             viewerStore.currentPage = pagesCount
@@ -653,10 +656,16 @@
                         searchStore.initPdf({ pdf: doc, bookId })
 
                         const currentBook = viewerStore.getCurrentBook()
-                        if (currentBook && currentBook.totalPages !== pagesCount) {
-                            viewerStore.updateBook({
+                        if (
+                            currentBook &&
+                            (currentBook.totalPages !== pagesCount ||
+                                currentBook.author === undefined)
+                        ) {
+                            void viewerStore.updateBook({
                                 ...currentBook,
                                 totalPages: pagesCount,
+                                author:
+                                    currentBook.author === undefined ? author : currentBook.author,
                             })
                         }
                     } else {
@@ -923,9 +932,6 @@
     })
 
     onDestroy(() => {
-        if (pdf) {
-            pdf.close()
-        }
         searchStore.reset()
     })
 

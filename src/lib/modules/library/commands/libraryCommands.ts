@@ -371,13 +371,6 @@ export function createLibraryCommands(libraryUI: LibraryUIController) {
                     })
                     if (targetFolderId === undefined) return
                 }
-                if (!payload || !("targetFolderId" in payload)) {
-                    await commandsStore.execute("library.selection.move", {
-                        nodeIds,
-                        targetFolderId: targetFolderId ?? null,
-                    })
-                    return
-                }
                 await moveNodes(libraryUI, nodeIds, targetFolderId ?? null)
             },
         },
@@ -412,21 +405,16 @@ export function createLibraryCommands(libraryUI: LibraryUIController) {
             run: async (payload) => {
                 if (!payload?.nodeId) return
                 const nodeId = payload.nodeId
+                let targetFolderId = payload.targetFolderId
                 if (!("targetFolderId" in payload)) {
-                    const targetFolderId = await promptStore.choose({
+                    targetFolderId = await promptStore.choose({
                         id: "library-move-target",
                         items: () => moveTargetItems([nodeId]),
                         filter: "fuzzy",
                     })
-                    if (targetFolderId !== undefined) {
-                        await commandsStore.execute("library.node.move", {
-                            nodeId,
-                            targetFolderId,
-                        })
-                    }
-                    return
+                    if (targetFolderId === undefined) return
                 }
-                await moveNodes(libraryUI, [nodeId], payload.targetFolderId ?? null)
+                await moveNodes(libraryUI, [nodeId], targetFolderId ?? null)
             },
         },
         "library.node.delete": {

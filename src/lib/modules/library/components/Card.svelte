@@ -1,5 +1,4 @@
 <script lang="ts">
-    const libraryUI = useLibraryUI()
     import { useLibraryUI } from "../state/libraryUI.svelte"
     import { type Component } from "svelte"
     import type { HTMLAttributes } from "svelte/elements"
@@ -18,12 +17,11 @@
     import Dropdown from "$lib/shared/ui/Dropdown.svelte"
     import { commandsStore, getShortcutHint, type CommandScope } from "$lib/modules/commands"
     import { useLibraryCardCommands } from "../commands/useLibraryCardCommands.svelte"
-    import {
-        requestLibraryNodeDelete,
-        requestLibraryNodeMove,
-    } from "../commands/libraryNodeExecution"
+    import { requestLibraryNodeDelete } from "../commands/libraryNodeExecution"
     import { settingsStore } from "$lib/modules/settings"
     import { resolveBookTitle } from "../utils/bookTitle"
+
+    const libraryUI = useLibraryUI()
 
     interface Props extends HTMLAttributes<HTMLDivElement> {
         node?: VFSNode
@@ -119,8 +117,11 @@
     }
 
     const isSelected = $derived(node ? vfsStore.selectedIds.has(node.id) : false)
-    const kind = $derived(isPlaceholder ? "book" : node?.type === "file" ? "book" : "folder")
-    const extension = $derived(isPlaceholder ? "pdf" : node?.type === "file" ? "pdf" : undefined)
+    const kind = $derived.by(() => {
+        if (isPlaceholder || node?.type === "file") return "book"
+        return "folder"
+    })
+    const extension = $derived(kind === "book" ? "pdf" : undefined)
 
     const preview = usePreviewUrl(() =>
         node && node.type === "file" && !isPlaceholder ? node.id : "",
@@ -192,11 +193,7 @@
         console.warn(
             `[Card] Preview image failed to load for node ${node.id}, attempting to regenerate...`,
         )
-        // This will trigger the getPreviewUrl again in a bit, but we might want to force clear it in DB
-        // For now, let's just clear the local cache
-        if (preview) {
-            await preview.regenerate()
-        }
+        if (preview) await preview.regenerate()
     }
 
     const onRemove = (event: MouseEvent) => {
@@ -206,7 +203,7 @@
 
     const onMove = (event: MouseEvent) => {
         event.stopPropagation()
-        if (node) void requestLibraryNodeMove(node.id)
+        if (node) void commandsNode.execute("library.node.move", { nodeId: node.id })
     }
 
     const onSelect = (event: MouseEvent) => {
@@ -246,16 +243,19 @@
             closeMenu()
         }
     }
+
+    const ariaLabel = $derived.by(() => {
+        const importName = importJob?.name ?? name
+        if (isLoading) return `${m.book_metadata_loading()}: ${importName}`
+        if (isFailed) return m.book_import_failed({ name: importName })
+        return undefined
+    })
 </script>
 
 <div
     role="button"
     aria-disabled={isPlaceholder ? "true" : undefined}
-    aria-label={isLoading
-        ? `${m.book_metadata_loading()}: ${importJob?.name ?? name}`
-        : isFailed
-          ? m.book_import_failed({ name: importJob?.name ?? name })
-          : undefined}
+    aria-label={ariaLabel}
     aria-busy={isLoading ? "true" : undefined}
     tabindex={isPlaceholder || isRestoring ? -1 : 0}
     class={`card ${className}`}
@@ -324,7 +324,7 @@
     </div>
 
     <div class="card-metadata">
-        <p class="card-title">{book?.name ?? importJob?.name ?? name ?? node?.name}</p>
+        <p class="card-title">{book?.name ?? importJob?.name ?? node?.name ?? name}</p>
         {#if kind === "book"}
             {#if isLoading && !book?.author}
                 <div class="metadata-skeleton skeleton" aria-hidden="true"></div>

@@ -62,125 +62,131 @@
 </script>
 
 {#if snapshot}
-    <Float
-        placement="top"
-        backdrop="blur"
-        style="width:min(44rem, calc(var(--float-viewport-width) - 2.5rem))"
-        onBackdropPointerDown={() => promptStore.close()}
-        role="dialog"
-        ariaModal={true}
-        ariaLabel={snapshot.request.placeholder ?? m.prompt_search_aria()}
-    >
-        <div class="prompt-container" role="presentation" onkeydown={handleKeydown}>
-            <form
-                class={["input-wrapper", snapshot.isLoading && "loading"]}
-                onsubmit={(event) => {
-                    event.preventDefault()
-                    void promptStore.selectCurrent()
-                }}
-            >
-                <SearchIcon class="search-icon" />
-                <input
-                    {@attach focusInput}
-                    class="prompt-input"
-                    type="search"
-                    value={snapshot.query}
-                    placeholder={snapshot.request.placeholder ?? m.prompt_placeholder()}
-                    aria-label={m.prompt_search_aria()}
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-controls="prompt-results-list"
-                    aria-expanded={snapshot.items.length > 0}
-                    aria-activedescendant={snapshot.selectedIndex >= 0
-                        ? `prompt-result-${snapshot.selectedIndex}`
-                        : undefined}
-                    oninput={(event) => promptStore.setQuery(event.currentTarget.value)}
-                />
-                <button
-                    type="button"
-                    class="close-btn"
-                    onclick={() => promptStore.close()}
-                    aria-label={m.prompt_close_aria()}>✕</button
+    {#key snapshot.request}
+        <Float
+            placement="top"
+            backdrop="blur"
+            style="width:min(44rem, calc(var(--float-viewport-width) - 2.5rem))"
+            onBackdropPointerDown={() => promptStore.close()}
+            role="dialog"
+            ariaModal={true}
+            ariaLabel={snapshot.request.placeholder ?? m.prompt_search_aria()}
+            class="prompt-float"
+        >
+            <div class="prompt-container" role="presentation" onkeydown={handleKeydown}>
+                <form
+                    class={["input-wrapper", snapshot.isLoading && "loading"]}
+                    onsubmit={(event) => {
+                        event.preventDefault()
+                        void promptStore.selectCurrent()
+                    }}
                 >
-            </form>
+                    <SearchIcon class="search-icon" />
+                    <input
+                        {@attach focusInput}
+                        class="prompt-input"
+                        type="search"
+                        value={snapshot.query}
+                        placeholder={snapshot.request.placeholder ?? m.prompt_placeholder()}
+                        aria-label={m.prompt_search_aria()}
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="prompt-results-list"
+                        aria-expanded={snapshot.items.length > 0}
+                        aria-activedescendant={snapshot.selectedIndex >= 0
+                            ? `prompt-result-${snapshot.selectedIndex}`
+                            : undefined}
+                        oninput={(event) => promptStore.setQuery(event.currentTarget.value)}
+                    />
+                    <button
+                        type="button"
+                        class="close-btn"
+                        onclick={() => promptStore.close()}
+                        aria-label={m.prompt_close_aria()}>✕</button
+                    >
+                </form>
 
-            <div
-                {@attach captureResults}
-                id="prompt-results-list"
-                class="results-list"
-                role="listbox"
-                aria-label={m.prompt_search_aria()}
-            >
-                {#if snapshot.items.length > 0}
-                    {#each snapshot.items as item, index (item.id)}
-                        <PromptItem
-                            id={`prompt-result-${index}`}
-                            {item}
-                            isSelected={snapshot.selectedIndex === index}
-                            animationDelay={motionPreferences.enabled ? Math.min(index, 6) * 18 : 0}
-                            onclick={() => {
-                                const offset = index - snapshot.selectedIndex
-                                if (offset) promptStore.moveSelection(offset)
-                                void promptStore.selectCurrent()
+                <div
+                    {@attach captureResults}
+                    id="prompt-results-list"
+                    class="results-list"
+                    role="listbox"
+                    aria-label={m.prompt_search_aria()}
+                >
+                    {#if snapshot.items.length > 0}
+                        {#each snapshot.items as item, index (item.id)}
+                            <PromptItem
+                                id={`prompt-result-${index}`}
+                                {item}
+                                isSelected={snapshot.selectedIndex === index}
+                                animationDelay={motionPreferences.enabled
+                                    ? Math.min(index, 6) * 18
+                                    : 0}
+                                onclick={() => {
+                                    const offset = index - snapshot.selectedIndex
+                                    if (offset) promptStore.moveSelection(offset)
+                                    void promptStore.selectCurrent()
+                                }}
+                            />
+                        {/each}
+                    {:else}
+                        <div
+                            class="empty-state"
+                            in:fly={{
+                                y: 8,
+                                duration: motionPreferences.enabled ? 180 : 0,
+                                easing: cubicOut,
                             }}
-                        />
-                    {/each}
-                {:else}
-                    <div
-                        class="empty-state"
-                        in:fly={{
-                            y: 8,
-                            duration: motionPreferences.enabled ? 180 : 0,
-                            easing: cubicOut,
-                        }}
-                        out:fade={{ duration: motionPreferences.enabled ? 80 : 0 }}
-                    >
-                        {#if snapshot.isLoading}
-                            <span class="loading-mark" aria-hidden="true"></span>
-                            <p>{snapshot.request.loadingLabel ?? "Loading…"}</p>
-                        {:else if snapshot.errorLabel}
-                            <SearchNoResultsIcon />
-                            <p>{snapshot.errorLabel}</p>
-                        {:else}
-                            <SearchNoResultsIcon />
-                            <p>
-                                {snapshot.request.emptyLabel ??
-                                    m.prompt_no_results({ value: snapshot.query })}
-                            </p>
-                        {/if}
-                    </div>
-                {/if}
-            </div>
+                            out:fade={{ duration: motionPreferences.enabled ? 80 : 0 }}
+                        >
+                            {#if snapshot.isLoading}
+                                <span class="loading-mark" aria-hidden="true"></span>
+                                <p>{snapshot.request.loadingLabel ?? "Loading…"}</p>
+                            {:else if snapshot.errorLabel}
+                                <SearchNoResultsIcon />
+                                <p>{snapshot.errorLabel}</p>
+                            {:else}
+                                <SearchNoResultsIcon />
+                                <p>
+                                    {snapshot.request.emptyLabel ??
+                                        m.prompt_no_results({ value: snapshot.query })}
+                                </p>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
 
-            <footer
-                in:fly={{
-                    y: 6,
-                    duration: motionPreferences.enabled ? 180 : 0,
-                    delay: motionPreferences.enabled ? 70 : 0,
-                    easing: cubicOut,
-                }}
-            >
-                <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span>
-                <span class="footer-help">
-                    <span class="key-group">
-                        {#each ["↓", "C-j", "C-n"] as key (key)}
-                            <kbd>{key}</kbd>
-                        {/each}
-                        <span> / </span>
-                        {#each ["↑", "C-k", "C-p"] as key (key)}
-                            <kbd>{key}</kbd>
-                        {/each}
-                        {m.prompt_help_navigate()}
-                    </span>
-                    <span class="key-group"
-                        ><kbd>A-n</kbd> <kbd>A-p</kbd> {m.prompt_help_history()}</span
+                <footer
+                    in:fly={{
+                        y: 6,
+                        duration: motionPreferences.enabled ? 180 : 0,
+                        delay: motionPreferences.enabled ? 70 : 0,
+                        easing: cubicOut,
+                    }}
+                >
+                    <span>{snapshot.items.length} {m.prompt_suggestions().toLocaleLowerCase()}</span
                     >
-                    <span class="key-group"><kbd>↵</kbd> {m.prompt_help_select()}</span>
-                    <span class="key-group"><kbd>esc</kbd> {m.prompt_help_close()}</span>
-                </span>
-            </footer>
-        </div>
-    </Float>
+                    <span class="footer-help">
+                        <span class="key-group">
+                            {#each ["↓", "C-j", "C-n"] as key (key)}
+                                <kbd>{key}</kbd>
+                            {/each}
+                            <span> / </span>
+                            {#each ["↑", "C-k", "C-p"] as key (key)}
+                                <kbd>{key}</kbd>
+                            {/each}
+                            {m.prompt_help_navigate()}
+                        </span>
+                        <span class="key-group"
+                            ><kbd>A-n</kbd> <kbd>A-p</kbd> {m.prompt_help_history()}</span
+                        >
+                        <span class="key-group"><kbd>↵</kbd> {m.prompt_help_select()}</span>
+                        <span class="key-group"><kbd>esc</kbd> {m.prompt_help_close()}</span>
+                    </span>
+                </footer>
+            </div>
+        </Float>
+    {/key}
 {/if}
 
 <style>
@@ -337,8 +343,34 @@
     }
 
     @media (--prompt) {
+        :global(.prompt-float) {
+            height: 100%;
+        }
+
+        .prompt-container {
+            height: 100%;
+            flex-direction: column-reverse;
+        }
+
+        .input-wrapper {
+            border-top: 2px solid var(--border-color);
+            border-bottom: 0;
+        }
+
+        .input-wrapper::after {
+            top: -2px;
+            bottom: auto;
+        }
+
         .results-list {
-            max-height: 60dvh;
+            max-height: none;
+            flex: 1;
+            flex-direction: column-reverse;
+        }
+
+        footer {
+            border-top: 0;
+            border-bottom: 2px solid var(--border-color);
         }
 
         footer span:last-child {

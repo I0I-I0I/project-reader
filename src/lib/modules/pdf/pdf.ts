@@ -36,7 +36,7 @@ interface DocumentInterface {
         bypassCache?: boolean,
     ): Promise<{ width: number; height: number }>
     getCanvasPage(page: Page, scale?: number, signal?: AbortSignal): Promise<string>
-    getAllPageDimensions(): Promise<{ width: number; height: number }[]>
+    getAllPageDimensions(signal?: AbortSignal): Promise<{ width: number; height: number }[]>
     getTextContent(pageNumber: number, bypassCache?: boolean): Promise<TextContent>
     getViewport(pageNumber: number, scale: number): Promise<pdfjs.PageViewport>
     getTextAndViewport(
@@ -178,22 +178,24 @@ export default class PDFDocument implements DocumentInterface {
         return dims
     }
 
-    async getAllPageDimensions(): Promise<{ width: number; height: number }[]> {
+    async getAllPageDimensions(signal?: AbortSignal): Promise<{ width: number; height: number }[]> {
         const dimensions: { width: number; height: number }[] = []
         const totalPages = this.pageCount
-        const chunkSize = 10 // Reduced chunk size for better responsiveness
+        const chunkSize = 4
 
         for (let i = 1; i <= totalPages; i += chunkSize) {
+            signal?.throwIfAborted()
             const end = Math.min(i + chunkSize - 1, totalPages)
             const tasks = []
             for (let j = i; j <= end; j++) {
+                signal?.throwIfAborted()
                 tasks.push(this.getPageDimension(j, true))
             }
             const chunkDims = await Promise.all(tasks)
+            signal?.throwIfAborted()
             dimensions.push(...chunkDims)
 
-            // Yield to main thread after each chunk (approx one frame)
-            await new Promise((resolve) => setTimeout(resolve, 4))
+            await new Promise<void>((resolve) => setTimeout(resolve, 4))
         }
 
         return dimensions
@@ -356,15 +358,35 @@ export default class PDFDocument implements DocumentInterface {
 
             if (signal?.aborted) throw new Error("Rendering cancelled")
 
-            const blob = await new Promise<Blob | null>((resolve) => {
+            const blob = await new Promise<Blob | null>((resolve, reject) => {
+                let idleId: number | null = null
+                const abortConversion = () => {
+                    if (idleId !== null && typeof cancelIdleCallback !== "undefined") {
+                        cancelIdleCallback(idleId)
+                    }
+                    reject(new DOMException("Rendering cancelled", "AbortError"))
+                }
+                const convert = () => {
+                    idleId = null
+                    if (signal?.aborted) return abortConversion()
+                    canvas.toBlob(
+                        (value) => {
+                            signal?.removeEventListener("abort", abortConversion)
+                            if (signal?.aborted) return abortConversion()
+                            resolve(value)
+                        },
+                        "image/webp",
+                        0.9,
+                    )
+                }
+                signal?.addEventListener("abort", abortConversion, { once: true })
                 if (typeof requestIdleCallback !== "undefined") {
-                    requestIdleCallback(() => canvas.toBlob(resolve, "image/webp", 0.9), {
-                        timeout: 1000,
-                    })
+                    idleId = requestIdleCallback(convert, { timeout: 1000 })
                 } else {
-                    canvas.toBlob(resolve, "image/webp", 0.9)
+                    convert()
                 }
             })
+            signal?.throwIfAborted()
             if (!blob) throw new Error("Failed to create blob from canvas")
 
             pdfPage.cleanup()
