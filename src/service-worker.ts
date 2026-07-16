@@ -72,17 +72,8 @@ self.addEventListener("fetch", (event) => {
             }
         }
 
-        // For SPA navigation requests, fallback to the 200.html shell immediately
-        // to provide a fast "offline-first" experience.
-        if (event.request.mode === "navigate") {
-            const fallback = await cache.match("/200.html")
-            if (fallback) {
-                return fallback
-            }
-        }
-
-        // for everything else, try the network first, but
-        // fall back to the cache if we're offline
+        // Always check the network for navigations so a newly deployed app shell
+        // can replace the cached version. Use the SPA shell only while offline.
         try {
             const response = await fetch(event.request)
 
@@ -103,7 +94,9 @@ self.addEventListener("fetch", (event) => {
 
             return response
         } catch (err) {
-            const response = await cache.match(event.request)
+            const response =
+                (await cache.match(event.request)) ??
+                (event.request.mode === "navigate" ? await cache.match("/200.html") : undefined)
 
             if (response) {
                 return response

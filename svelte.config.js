@@ -23,6 +23,9 @@ const config = {
         paths: {
             relative: false,
         },
+        version: {
+            pollInterval: 60_000,
+        },
     },
 }
 
