@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+const { pdfConstructed } = vi.hoisted(() => ({ pdfConstructed: vi.fn() }))
+
+vi.mock("$app/environment", () => ({ browser: true }))
 vi.mock("$lib/modules/pdf", () => ({
     PDFDocument: class {
+        constructor() {
+            pdfConstructed()
+        }
         async load() {
             throw new Error("corrupt PDF")
         }
@@ -19,6 +25,159 @@ function handle(name: string): FileSystemFileHandle {
         getFile: vi.fn(async () => new Blob(["pdf"], { type: "application/pdf" })),
     } as unknown as FileSystemFileHandle
 }
+
+beforeEach(() => {
+    pdfConstructed.mockClear()
+})
+
+afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+})
+
+describe("VFS initialization", () => {
+    it("restores legacy metadata without parsing PDFs", async () => {
+        const store = new VFSStore()
+        store.db = {
+            folders: { getAll: vi.fn(async () => []) },
+            files: {
+                getAll: vi.fn(async () => [
+                    {
+                        id: "legacy",
+                        name: "legacy.pdf",
+                        type: "file",
+                        parentId: null,
+                        size: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        metadata: { pageNumber: 1, author: undefined },
+                    },
+                ]),
+            },
+        } as never
+
+        await store.init()
+
+        expect(store.nodes.legacy).toBeDefined()
+        expect(pdfConstructed).not.toHaveBeenCalled()
+    })
+})
+
+describe("VFS metadata enrichment ownership", () => {
+    it("does not parse a legacy file solely because its optional author is unchecked", async () => {
+        const idleCallbacks: IdleRequestCallback[] = []
+        vi.stubGlobal(
+            "requestIdleCallback",
+            vi.fn((callback: IdleRequestCallback) => {
+                idleCallbacks.push(callback)
+                return 1
+            }),
+        )
+        vi.stubGlobal("cancelIdleCallback", vi.fn())
+        vi.stubGlobal("document", {
+            visibilityState: "visible",
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        })
+
+        const store = new VFSStore({
+            legacy: {
+                id: "legacy",
+                name: "legacy.pdf",
+                type: "file",
+                parentId: null,
+                size: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                metadata: { pageNumber: 1, totalPages: 10, author: undefined },
+            },
+        })
+        store.initialized = true
+
+        const release = store.acquireMetadataEnrichment()
+        idleCallbacks[0]({ didTimeout: false, timeRemaining: () => 50 })
+        await Promise.resolve()
+        await Promise.resolve()
+
+        expect(pdfConstructed).not.toHaveBeenCalled()
+        release()
+    })
+
+    it("cancels queued enrichment when the library releases ownership", () => {
+        const cancelIdleCallback = vi.fn()
+        vi.stubGlobal(
+            "requestIdleCallback",
+            vi.fn(() => 7),
+        )
+        vi.stubGlobal("cancelIdleCallback", cancelIdleCallback)
+        vi.stubGlobal("document", {
+            visibilityState: "visible",
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        })
+
+        const store = new VFSStore()
+        const release = store.acquireMetadataEnrichment()
+        release()
+
+        expect(cancelIdleCallback).toHaveBeenCalledWith(7)
+    })
+})
+
+describe("VFS preview ownership", () => {
+    it("deduplicates concurrent cache reads and retains the URL until the last release", async () => {
+        const store = new VFSStore()
+        let resolvePreview!: (value: { id: string; data: Blob }) => void
+        const get = vi.fn(
+            () =>
+                new Promise<{ id: string; data: Blob }>((resolve) => {
+                    resolvePreview = resolve
+                }),
+        )
+        store.db = { previews: { get } } as never
+        const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview")
+        const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
+
+        const first = store.getPreviewUrl("book")
+        const second = store.getPreviewUrl("book")
+        resolvePreview({ id: "book", data: new Blob(["preview"]) })
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            "blob:preview",
+            "blob:preview",
+        ])
+        expect(get).toHaveBeenCalledOnce()
+        expect(createObjectURL).toHaveBeenCalledOnce()
+
+        store.revokePreviewUrl("book")
+        expect(revokeObjectURL).not.toHaveBeenCalled()
+        store.revokePreviewUrl("book")
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview")
+    })
+
+    it("revokes a URL created after its only consumer releases", async () => {
+        const store = new VFSStore()
+        let resolvePreview!: (value: { id: string; data: Blob }) => void
+        store.db = {
+            previews: {
+                get: () =>
+                    new Promise<{ id: string; data: Blob }>((resolve) => {
+                        resolvePreview = resolve
+                    }),
+            },
+        } as never
+        vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:late")
+        const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
+
+        const pending = store.getPreviewUrl("book")
+        store.revokePreviewUrl("book")
+        resolvePreview({ id: "book", data: new Blob(["preview"]) })
+
+        await expect(pending).resolves.toBe("")
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:late")
+        expect(store.previewUrls.book).toBeUndefined()
+    })
+})
 
 describe("VFS import registration", () => {
     it("exposes a complete batch synchronously and captures its parent", async () => {

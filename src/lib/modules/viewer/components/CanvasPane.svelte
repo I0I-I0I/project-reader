@@ -19,7 +19,7 @@
     import { browser } from "$app/environment"
     import ScrollPage from "./ScrollPage.svelte"
     import { onDestroy, untrack } from "svelte"
-    import { MediaQuery } from "svelte/reactivity"
+    import { MediaQuery, SvelteMap } from "svelte/reactivity"
     import { MEDIA_QUERIES } from "$lib/shared/state/breakpoints"
     import { commandsStore, useCommands } from "$lib/modules/commands"
     import { createViewerFitWidthCommand } from "../commands/viewerFitWidthCommand"
@@ -200,6 +200,26 @@
     let cachedSpanRanges1: SpanRange[] | null = null
     let cachedSpanRanges2: SpanRange[] | null = null
 
+    type SelectionPage = {
+        container: HTMLElement
+        getSpanRanges: () => SpanRange[] | null
+    }
+    const scrollSelectionPages = new SvelteMap<number, SelectionPage>()
+
+    function registerSelectionPage(
+        pageNumber: number,
+        selectionContainer: HTMLElement,
+        getSpanRanges: () => SpanRange[] | null,
+    ) {
+        const page = { container: selectionContainer, getSpanRanges }
+        scrollSelectionPages.set(pageNumber, page)
+        return () => {
+            if (scrollSelectionPages.get(pageNumber) === page) {
+                scrollSelectionPages.delete(pageNumber)
+            }
+        }
+    }
+
     $effect(() => {
         if (!pdf || layoutMode === "scroll") return
 
@@ -230,24 +250,28 @@
         })
     })
 
-    const PAGE_GAP = $derived(viewport.isCompact && !isShortHeight ? 2 : isMobile ? 16 : 80)
+    const PAGE_GAP = $derived.by(() => {
+        if (viewport.isCompact && !isShortHeight) return 2
+        if (isMobile) return 16
+        return 80
+    })
 
     $effect(() => {
         if (pdf && layoutMode === "scroll") {
-            let active = true
+            const controller = new AbortController()
             const loadDimensions = async () => {
                 try {
-                    const dims = await pdf.getAllPageDimensions()
-                    if (active) {
-                        pageDimensions = dims
-                    }
+                    const dims = await pdf.getAllPageDimensions(controller.signal)
+                    if (!controller.signal.aborted) pageDimensions = dims
                 } catch (err) {
-                    console.warn("[CanvasPane] Failed to load all page dimensions:", err)
+                    if (!controller.signal.aborted) {
+                        console.warn("[CanvasPane] Failed to load all page dimensions:", err)
+                    }
                 }
             }
-            loadDimensions()
+            void loadDimensions()
             return () => {
-                active = false
+                controller.abort()
                 pageDimensions = []
                 lastObservedPage = -1
             }
@@ -1012,40 +1036,45 @@
         }
     })
 
-    // Text Selection & Highlight Click Listeners for single/split layouts
+    // One document-level selection listener serves single, split, and virtualized scroll pages.
     $effect(() => {
-        if (!browser || !pdf || layoutMode === "scroll") return
+        if (!browser || !pdf) return
 
         const handleSelectionChange = () => {
             const selection = document.getSelection()
-            if (!selection || selection.isCollapsed) {
-                const currentBook = viewerStore.getCurrentBook()
-                if (currentBook && notesStore.activeSelection?.bookId === currentBook.id) {
-                    const pg = notesStore.activeSelection.pageNumber
-                    if (pg === currentPage || pg === currentPage + 1) {
-                        notesStore.activeSelection = null
-                    }
+            const currentBook = viewerStore.getCurrentBook()
+            if (!currentBook) return
+
+            if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+                if (notesStore.activeSelection?.bookId === currentBook.id) {
+                    notesStore.activeSelection = null
                 }
                 return
             }
 
             const range = selection.getRangeAt(0)
-            const currentBook = viewerStore.getCurrentBook()
-            if (!currentBook) return
-
             let selectedPage: number | null = null
-            let spans: any[] | null = null
+            let spans: SpanRange[] | null = null
 
-            if (
-                textLayer1 &&
-                textLayer1.contains(range.startContainer) &&
+            if (layoutMode === "scroll") {
+                for (const [pageNumber, page] of scrollSelectionPages) {
+                    if (
+                        page.container.contains(range.startContainer) &&
+                        page.container.contains(range.endContainer)
+                    ) {
+                        selectedPage = pageNumber
+                        spans = page.getSpanRanges()
+                        break
+                    }
+                }
+            } else if (
+                textLayer1?.contains(range.startContainer) &&
                 textLayer1.contains(range.endContainer)
             ) {
                 selectedPage = currentPage
                 spans = cachedSpanRanges1
             } else if (
-                textLayer2 &&
-                textLayer2.contains(range.startContainer) &&
+                textLayer2?.contains(range.startContainer) &&
                 textLayer2.contains(range.endContainer)
             ) {
                 selectedPage = currentPage + 1
@@ -1056,16 +1085,13 @@
                 const startOffset = getGlobalOffset(range.startContainer, range.startOffset, spans)
                 const endOffset = getGlobalOffset(range.endContainer, range.endOffset, spans)
                 if (startOffset !== null && endOffset !== null) {
-                    const start = Math.min(startOffset, endOffset)
-                    const end = Math.max(startOffset, endOffset)
-                    const text = selection.toString()
                     const rect = range.getBoundingClientRect()
                     notesStore.activeSelection = {
                         bookId: currentBook.id,
                         pageNumber: selectedPage,
-                        start,
-                        end,
-                        text,
+                        start: Math.min(startOffset, endOffset),
+                        end: Math.max(startOffset, endOffset),
+                        text: selection.toString(),
                         x: rect.left + rect.width / 2,
                         y: rect.top,
                         bottomY: rect.bottom,
@@ -1083,7 +1109,7 @@
             if (!pageAttr) return
             const pageNo = parseInt(pageAttr, 10)
 
-            let spans: any[] | null = null
+            let spans: SpanRange[] | null = null
             if (textLayer === textLayer1) spans = cachedSpanRanges1
             else if (textLayer === textLayer2) spans = cachedSpanRanges2
 
@@ -1144,6 +1170,7 @@
             {#each visibleRange as i (i)}
                 <ScrollPage
                     {pdf}
+                    {registerSelectionPage}
                     pageNumber={i + 1}
                     scale={getScrollPageScale(pageDimensions[i])}
                     offsetY={pageOffsets[i]}

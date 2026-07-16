@@ -104,7 +104,7 @@ describe("library commands", () => {
         await choosing
     })
 
-    it("dispatches a selected move target through the active command scope", async () => {
+    it("moves selected nodes after choosing a target", async () => {
         const scope = new CommandScope()
         scope.register(libraryCommands["library.selection.move"])
         commandsStore.activate(scope)
@@ -152,12 +152,16 @@ describe("library commands", () => {
         )
         commandsStore.activate(child)
         expect(libraryUI.isSelectionMode).toBe(false)
+        const moveNode = vi.spyOn(vfsStore, "moveNode").mockResolvedValue()
 
         const executing = child.execute("library.node.move")
         await new Promise((resolve) => setTimeout(resolve, 0))
         expect(promptStore.snapshot?.request.id).toBe("library-move-target")
-        promptStore.close()
+        await promptStore.selectCurrent()
         await executing
+
+        expect(moveNode).toHaveBeenCalledWith("book", null)
+        moveNode.mockRestore()
         child.destroy()
         parent.destroy()
     })

@@ -158,13 +158,9 @@ class ViewerStore {
             const matchingNode = vfsStore.nodes[this.book.id]
             if (matchingNode && matchingNode.type === "file") {
                 let currentUrl = this.book.url
-                let currentPreview = this.book.previewDataUrl
 
                 if (!currentUrl) {
                     currentUrl = await vfsStore.getFileUrl(this.book.id)
-                }
-                if (!currentPreview) {
-                    currentPreview = await vfsStore.getPreviewUrl(this.book.id)
                 }
 
                 const localPageNumber = this.book.pageNumber
@@ -175,7 +171,7 @@ class ViewerStore {
                     pageNumber: localPageNumber,
                     scrollPosition: localScrollPosition,
                     url: currentUrl,
-                    previewDataUrl: currentPreview,
+                    previewDataUrl: "",
                     isLocked: vfsStore.isLockedMap[matchingNode.id],
                 }
             }
@@ -218,7 +214,6 @@ class ViewerStore {
         // Revoke old URL if it was a blob URL created by us
         if (oldBook && oldBook.id !== newBookId) {
             vfsStore.revokeFileUrl(oldBook.id)
-            vfsStore.revokePreviewUrl(oldBook.id)
         }
 
         // Set the active book state immediately so components don't see the old book
@@ -234,10 +229,6 @@ class ViewerStore {
             let hasChanges = false
             if (!newBook.url) {
                 newBook.url = await vfsStore.getFileUrl(newBook.id)
-                hasChanges = true
-            }
-            if (!newBook.previewDataUrl) {
-                newBook.previewDataUrl = await vfsStore.getPreviewUrl(newBook.id)
                 hasChanges = true
             }
             const isLocked = vfsStore.isLockedMap[newBook.id]

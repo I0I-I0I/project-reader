@@ -78,6 +78,31 @@ describe("viewer search indexing", () => {
         expect(searchStore.pageTexts.get(1)?.original).toBe("needle")
     })
 
+    it("stops requesting pages after reset during extraction", async () => {
+        vi.spyOn(vfsStore.db.indexedTexts, "getByBookId").mockResolvedValueOnce([])
+        const textResolvers: ((value: { items: { str: string }[] }) => void)[] = []
+        const pdf = {
+            pagesCount: 20,
+            getTextContent: vi.fn(
+                () =>
+                    new Promise<{ items: { str: string }[] }>((resolve) => {
+                        textResolvers.push(resolve)
+                    }),
+            ),
+        } as unknown as PDFDocument
+        searchStore.initPdf({ pdf, bookId: "cancelled-book" })
+
+        const indexing = searchStore.startIndexing()
+        await vi.waitFor(() => expect(pdf.getTextContent).toHaveBeenCalled())
+        searchStore.reset()
+        for (const resolve of textResolvers) resolve({ items: [{ str: "stale" }] })
+        await indexing
+
+        expect(pdf.getTextContent).toHaveBeenCalledTimes(2)
+        expect(searchStore.pageTexts.size).toBe(0)
+        expect(searchStore.isIndexing).toBe(false)
+    })
+
     it("loads cached text by the explicit book id", async () => {
         const getByBookId = vi
             .spyOn(vfsStore.db.indexedTexts, "getByBookId")

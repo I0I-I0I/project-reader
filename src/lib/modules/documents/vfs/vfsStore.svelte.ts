@@ -16,9 +16,6 @@ import { Database } from "../db/db"
 import { PDFDocument } from "$lib/modules/pdf"
 import pLimit from "p-limit"
 
-const METADATA_REPAIR_DELAY_MS = 5000
-const METADATA_REPAIR_INTERVAL_MS = 1000
-
 export class VFSStore {
     nodes = $state<VFSNodes>({})
     rootIds = $state<string[]>([])
@@ -68,13 +65,19 @@ export class VFSStore {
     private nativeHandles = new Map<string, FileSystemFileHandle>()
     private importSources = new Map<string, File | FileSystemFileHandle>()
     private previewUrlRefs: Record<string, number> = {}
+    private previewUrlRequests = new Map<string, Promise<string>>()
     private persistenceQueue = pLimit(1)
     metadataQueue = pLimit(1)
     private initializationPromise: Promise<void> | null = null
-    private metadataRepairTimer: ReturnType<typeof setTimeout> | null = null
-    private metadataRepairController: AbortController | null = null
-    private metadataRepairTask: Promise<void> | null = null
-    private metadataRepairIds = new Set<string>()
+    private metadataEnrichmentOwners = 0
+    private metadataEnrichmentController: AbortController | null = null
+    private metadataEnrichmentTask: Promise<void> | null = null
+    private metadataEnrichmentIdleId: number | null = null
+    private activeMetadataDocument: PDFDocument | null = null
+    private readonly handleMetadataVisibilityChange = () => {
+        if (document.visibilityState === "hidden") this.pauseMetadataEnrichment()
+        else if (this.metadataEnrichmentOwners > 0) this.scheduleMetadataEnrichment()
+    }
 
     constructor(initialNodes: VFSNodes = {}) {
         this.nodes = initialNodes
@@ -157,7 +160,6 @@ export class VFSStore {
                     .filter((node) => node.parentId === null)
                     .map((node) => node.id)
                 this.initialized = true
-                this.repairMissingMetadata(allFiles)
             } catch (err) {
                 this.initialized = false
                 console.error("VFS initialization failed:", err)
@@ -173,114 +175,126 @@ export class VFSStore {
         return initialization
     }
 
-    private repairMissingMetadata(files: FileNode[]) {
-        this.cancelMetadataRepair()
-        const controller = new AbortController()
-        this.metadataRepairController = controller
+    acquireMetadataEnrichment(): () => void {
+        if (!browser) return () => undefined
+        this.metadataEnrichmentOwners += 1
+        if (this.metadataEnrichmentOwners === 1) {
+            document.addEventListener("visibilitychange", this.handleMetadataVisibilityChange)
+            this.scheduleMetadataEnrichment()
+        }
 
-        const candidates = files.filter(
-            (fileNode) =>
-                (!fileNode.metadata.totalPages || fileNode.metadata.author === undefined) &&
-                !this.metadataRepairIds.has(fileNode.id),
-        )
-        for (const file of candidates) this.metadataRepairIds.add(file.id)
-        if (candidates.length === 0) return
-
-        this.metadataRepairTimer = setTimeout(() => {
-            this.metadataRepairTimer = null
-            this.metadataRepairTask = this.runMetadataRepair(candidates, controller.signal).catch(
-                (err) => {
-                    if (!controller.signal.aborted) {
-                        console.error("[VFSStore] Metadata repair failed:", err)
-                    }
-                },
-            )
-        }, METADATA_REPAIR_DELAY_MS)
-    }
-
-    private async runMetadataRepair(files: FileNode[], signal: AbortSignal) {
-        const prioritized = [
-            ...files.filter((file) => file.parentId === this.currentFolderId),
-            ...files.filter((file) => file.parentId !== this.currentFolderId),
-        ]
-
-        for (const candidate of prioritized) {
-            try {
-                if (signal.aborted) return
-                await this.metadataQueue(() => this.repairMetadata(candidate.id, signal))
-                if (signal.aborted) return
-                await this.waitForMetadataRepairInterval(signal)
-            } finally {
-                this.metadataRepairIds.delete(candidate.id)
+        let released = false
+        return () => {
+            if (released) return
+            released = true
+            this.metadataEnrichmentOwners = Math.max(0, this.metadataEnrichmentOwners - 1)
+            if (this.metadataEnrichmentOwners === 0) {
+                document.removeEventListener(
+                    "visibilitychange",
+                    this.handleMetadataVisibilityChange,
+                )
+                this.pauseMetadataEnrichment()
             }
         }
     }
 
-    private async repairMetadata(id: string, signal: AbortSignal) {
-        const current = this.nodes[id]
+    private scheduleMetadataEnrichment() {
         if (
-            signal.aborted ||
-            !current ||
-            current.type !== "file" ||
-            (current.metadata.totalPages && current.metadata.author !== undefined)
+            this.metadataEnrichmentOwners === 0 ||
+            document.visibilityState === "hidden" ||
+            this.metadataEnrichmentTask ||
+            this.metadataEnrichmentIdleId !== null
         ) {
             return
         }
 
+        const start = () => {
+            this.metadataEnrichmentIdleId = null
+            if (this.metadataEnrichmentOwners === 0 || document.visibilityState === "hidden") return
+            const controller = new AbortController()
+            this.metadataEnrichmentController = controller
+            const task = this.runMetadataEnrichment(controller.signal)
+            this.metadataEnrichmentTask = task
+            void task.finally(() => {
+                if (this.metadataEnrichmentTask === task) this.metadataEnrichmentTask = null
+                if (this.metadataEnrichmentController === controller) {
+                    this.metadataEnrichmentController = null
+                }
+                if (
+                    controller.signal.aborted &&
+                    this.metadataEnrichmentOwners > 0 &&
+                    document.visibilityState === "visible"
+                ) {
+                    this.scheduleMetadataEnrichment()
+                }
+            })
+        }
+
+        if (typeof requestIdleCallback !== "undefined") {
+            this.metadataEnrichmentIdleId = requestIdleCallback(start, { timeout: 2000 })
+        } else {
+            this.metadataEnrichmentIdleId = window.setTimeout(start, 250)
+        }
+    }
+
+    private async runMetadataEnrichment(signal: AbortSignal) {
+        await this.init()
+        const candidates = this.allFiles.filter((file) => !file.metadata.totalPages)
+        for (const candidate of candidates) {
+            if (signal.aborted || document.visibilityState === "hidden") return
+            await this.enrichLegacyMetadata(candidate.id, signal)
+            if (signal.aborted) return
+            await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
+        }
+    }
+
+    private async enrichLegacyMetadata(id: string, signal: AbortSignal) {
+        const node = this.nodes[id]
+        if (!node || node.type !== "file" || node.metadata.totalPages) return
         const url = await this.getFileUrl(id)
-        if (signal.aborted || !url) return
+        if (!url || signal.aborted) return
+
         const doc = new PDFDocument(url)
+        this.activeMetadataDocument = doc
         try {
             await doc.load()
             if (signal.aborted) return
-            const totalPages = await doc.getPageNumber()
-            const author = await doc.getAuthor()
+            const [totalPages, author] = await Promise.all([doc.getPageNumber(), doc.getAuthor()])
             if (signal.aborted) return
-            await this.updateFile(id, {
-                metadata: { ...current.metadata, totalPages, author },
-            })
-        } catch (err) {
+            await this.updateFile(id, { metadata: { totalPages, author: author ?? null } }, true)
+        } catch (error) {
             if (!signal.aborted) {
-                console.error(`[VFSStore] Failed to repair metadata for node ${id}:`, err)
+                console.warn(`[VFSStore] Failed to enrich metadata for node ${id}:`, error)
             }
         } finally {
+            if (this.activeMetadataDocument === doc) this.activeMetadataDocument = null
             await doc.close()
             if (this.isLockedMap[id]) this.revokeFileUrl(id)
         }
     }
 
-    private waitForMetadataRepairInterval(signal: AbortSignal): Promise<void> {
-        if (signal.aborted) return Promise.resolve()
-        return new Promise((resolve) => {
-            const timeout = setTimeout(done, METADATA_REPAIR_INTERVAL_MS)
-            const onAbort = () => {
-                clearTimeout(timeout)
-                done()
+    private pauseMetadataEnrichment() {
+        if (this.metadataEnrichmentIdleId !== null) {
+            if (typeof cancelIdleCallback !== "undefined") {
+                cancelIdleCallback(this.metadataEnrichmentIdleId)
+            } else {
+                clearTimeout(this.metadataEnrichmentIdleId)
             }
-            function done() {
-                signal.removeEventListener("abort", onAbort)
-                resolve()
-            }
-            signal.addEventListener("abort", onAbort, { once: true })
-        })
-    }
-
-    private cancelMetadataRepair() {
-        if (this.metadataRepairTimer) {
-            clearTimeout(this.metadataRepairTimer)
-            this.metadataRepairTimer = null
+            this.metadataEnrichmentIdleId = null
         }
-        this.metadataRepairController?.abort()
-        this.metadataRepairController = null
-        this.metadataQueue.clearQueue()
-        this.persistenceQueue.clearQueue()
-        this.metadataRepairIds.clear()
+        this.metadataEnrichmentController?.abort()
+        this.metadataEnrichmentController = null
+        void this.activeMetadataDocument?.close()
     }
 
     async dispose() {
-        this.cancelMetadataRepair()
-        await this.metadataRepairTask?.catch(() => undefined)
-        this.metadataRepairTask = null
+        this.metadataEnrichmentOwners = 0
+        if (browser) {
+            document.removeEventListener("visibilitychange", this.handleMetadataVisibilityChange)
+        }
+        this.pauseMetadataEnrichment()
+        await this.metadataEnrichmentTask?.catch(() => undefined)
+        this.metadataEnrichmentTask = null
         for (const id of Object.keys(this.fileUrls)) this.revokeFileUrl(id)
         for (const id of Object.keys(this.previewUrls)) this.revokePreviewUrl(id, true)
         const close = (this.db as unknown as { close?: () => void }).close
@@ -294,12 +308,23 @@ export class VFSStore {
         this.previewUrlRefs[id] = (this.previewUrlRefs[id] || 0) + 1
         if (this.previewUrls[id]) return this.previewUrls[id]
 
+        const pending = this.previewUrlRequests.get(id)
+        if (pending) return pending
+
+        const request = this.loadPreviewUrl(id)
+        this.previewUrlRequests.set(id, request)
+        try {
+            return await request
+        } finally {
+            if (this.previewUrlRequests.get(id) === request) this.previewUrlRequests.delete(id)
+        }
+    }
+
+    private async loadPreviewUrl(id: string): Promise<string> {
         try {
             const cachedPreview = await this.db.previews.get(id)
             if (cachedPreview) {
-                const url = URL.createObjectURL(cachedPreview.data)
-                this.previewUrls[id] = url
-                return url
+                return this.publishPreviewUrl(id, URL.createObjectURL(cachedPreview.data))
             }
 
             const fileUrl = await this.getFileUrl(id)
@@ -315,9 +340,10 @@ export class VFSStore {
 
                         const newCachedPreview = await this.db.previews.get(id)
                         if (newCachedPreview) {
-                            const url = URL.createObjectURL(newCachedPreview.data)
-                            this.previewUrls[id] = url
-                            return url
+                            return this.publishPreviewUrl(
+                                id,
+                                URL.createObjectURL(newCachedPreview.data),
+                            )
                         }
                     }
                 } catch (err) {
@@ -336,6 +362,22 @@ export class VFSStore {
             console.error(`Failed to load preview for node ${id}:`, e)
         }
         return ""
+    }
+
+    private publishPreviewUrl(id: string, url: string): string {
+        if (!this.previewUrlRefs[id]) {
+            URL.revokeObjectURL(url)
+            return ""
+        }
+        this.previewUrls[id] = url
+        return url
+    }
+
+    async invalidatePreview(id: string) {
+        await this.db.previews.delete(id)
+        const url = this.previewUrls[id]
+        if (url) URL.revokeObjectURL(url)
+        delete this.previewUrls[id]
     }
 
     revokePreviewUrl(id: string, force = false) {
@@ -819,7 +861,9 @@ export class VFSStore {
 
         const node = this.nodes[id]
         if (node && node.type === "file") {
-            this.revokePreviewUrl(id, true)
+            const existingUrl = this.previewUrls[id]
+            if (existingUrl) URL.revokeObjectURL(existingUrl)
+            delete this.previewUrls[id]
             if (!preserveUpdatedAt) node.updatedAt = Date.now()
             await this.saveFileToDb(node)
         }
@@ -1068,8 +1112,9 @@ export function usePreviewUrl(nodeId: () => string) {
         async regenerate() {
             const id = nodeId()
             if (!id) return
-            vfsStore.revokePreviewUrl(id)
+            await vfsStore.invalidatePreview(id)
             url = await vfsStore.getPreviewUrl(id)
+            vfsStore.revokePreviewUrl(id)
         },
     }
 }
