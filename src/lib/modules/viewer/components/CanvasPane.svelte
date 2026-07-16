@@ -163,7 +163,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale1}px; height: ${dim.height * pageScale1}px; --aspect-ratio: ${dim.width} / ${dim.height};`
+        return `width: ${dim.width * pageScale1}px; height: ${dim.height * pageScale1}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale1};`
     })
 
     const wrapperStyle2 = $derived.by(() => {
@@ -172,7 +172,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height};`
+        return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale2};`
     })
 
     let isAutoScrolling = false
@@ -723,21 +723,24 @@
         })
     })
 
+    // PDF.js layers use a stable base viewport. The reactive page scales only update
+    // wrapper geometry and --display-scale, preserving DOM ranges while zooming.
+    const PDF_LAYER_BASE_SCALE = 1
+
     async function renderPageLayers(
         targetPdf: PDFDocument,
         pageNo: number,
         textContainer: HTMLElement,
         annotationContainer: HTMLDivElement | null,
-        targetScale: number,
         signal?: AbortSignal,
     ) {
         try {
             const { pageProxy, textContent, annotations, viewport } =
-                await targetPdf.getPageDataForRendering(pageNo, targetScale)
+                await targetPdf.getPageDataForRendering(pageNo, PDF_LAYER_BASE_SCALE)
             if (signal?.aborted) return
 
             textContainer.innerHTML = ""
-            textContainer.style.setProperty("--scale-factor", targetScale.toString())
+            textContainer.style.setProperty("--scale-factor", PDF_LAYER_BASE_SCALE.toString())
 
             const textLayer = new pdfjs.TextLayer({
                 textContentSource: textContent,
@@ -770,7 +773,10 @@
                 })
                 linkService.page = pageNo
 
-                annotationContainer.style.setProperty("--scale-factor", targetScale.toString())
+                annotationContainer.style.setProperty(
+                    "--scale-factor",
+                    PDF_LAYER_BASE_SCALE.toString(),
+                )
 
                 const annotationLayer = new pdfjs.AnnotationLayer({
                     div: annotationContainer,
@@ -806,17 +812,16 @@
 
     $effect(() => {
         if (!renderLayers || !pdf || layoutMode === "scroll" || isPageLoading) return
+        const targetPdf = pdf
         const tLayer1 = textLayer1
         const aLayer1 = annotationLayer1
-        // Synchronously read reactive variables so Svelte registers them as dependencies:
-        const scale = pageScale1
         const page = currentPage
-        if (currentPageImage && tLayer1 && aLayer1) {
+        if (tLayer1 && aLayer1) {
             textLayerController1?.abort()
             const controller = new AbortController()
             textLayerController1 = controller
             const delayTimeout = setTimeout(() => {
-                renderPageLayers(pdf, page, tLayer1, aLayer1, scale, controller.signal)
+                renderPageLayers(targetPdf, page, tLayer1, aLayer1, controller.signal)
             }, 150)
             return () => {
                 clearTimeout(delayTimeout)
@@ -827,17 +832,16 @@
 
     $effect(() => {
         if (!renderLayers || !pdf || layoutMode !== "split" || isPageLoading) return
+        const targetPdf = pdf
         const tLayer2 = textLayer2
         const aLayer2 = annotationLayer2
-        // Synchronously read reactive variables so Svelte registers them as dependencies:
-        const scale = pageScale2
         const page = currentPage + 1
-        if (currentPageImage2 && tLayer2 && aLayer2) {
+        if (tLayer2 && aLayer2) {
             textLayerController2?.abort()
             const controller = new AbortController()
             textLayerController2 = controller
             const delayTimeout = setTimeout(() => {
-                renderPageLayers(pdf, page, tLayer2, aLayer2, scale, controller.signal)
+                renderPageLayers(targetPdf, page, tLayer2, aLayer2, controller.signal)
             }, 150)
             return () => {
                 clearTimeout(delayTimeout)

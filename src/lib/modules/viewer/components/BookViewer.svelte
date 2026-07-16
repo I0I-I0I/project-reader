@@ -332,6 +332,9 @@
     let isLoaded = $state(false)
 
     let lastPageNo = 1
+    let lastBitmapPdf: PDFDocument | null = null
+    let lastBitmapLayout: "single" | "split" | "scroll" | null = null
+    let lastBitmapQuality: number | null = null
     let currentPageImage = $state<string | null>(null)
     let currentPageImage2 = $state<string | null>(null)
     let prevPageImage = $state<string | null>(null)
@@ -693,6 +696,8 @@
     })
 
     $effect(() => {
+        // Only bitmap identity and render quality belong in this effect. Display scale
+        // and unrelated viewer settings must never invalidate a rendered page image.
         const currentPdf = pdf
         const loaded = isLoaded
         const pageNo = viewerStore.currentPage
@@ -714,6 +719,9 @@
                 nextPageDim1 = null
                 nextPageDim2 = null
                 lastPageNo = pageNo
+                lastBitmapPdf = currentPdf
+                lastBitmapLayout = mode
+                lastBitmapQuality = quality
                 isPageLoading = false
             })
             return
@@ -723,6 +731,13 @@
 
         untrack(() => {
             const step = mode === "split" ? 2 : 1
+            const keepCurrentBitmap =
+                lastBitmapPdf === currentPdf &&
+                lastPageNo === pageNo &&
+                lastBitmapLayout === mode &&
+                lastBitmapQuality !== null &&
+                lastBitmapQuality !== quality &&
+                currentPageImage !== null
 
             // Reuse preloaded images and dimensions if possible to prevent flicker
             let matched = false
@@ -742,7 +757,7 @@
                 matched = true
             }
 
-            if (!matched) {
+            if (!matched && !keepCurrentBitmap) {
                 currentPageImage = null
                 currentPageImage2 = null
                 currentPageDim1 = null
@@ -760,6 +775,9 @@
             nextPageDim2 = null
 
             lastPageNo = pageNo
+            lastBitmapPdf = currentPdf
+            lastBitmapLayout = mode
+            lastBitmapQuality = quality
 
             const renderPages = async () => {
                 try {

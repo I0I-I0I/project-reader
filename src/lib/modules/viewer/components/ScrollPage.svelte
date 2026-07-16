@@ -45,51 +45,61 @@
     let annotationLayerContainer = $state<HTMLDivElement | null>(null)
 
     const containerStyle = $derived(
-        `width: ${width}px; height: ${height}px; --aspect-ratio: ${width} / ${height};`,
+        `width: ${width}px; height: ${height}px; --aspect-ratio: ${width} / ${height}; --display-scale: ${scale};`,
     )
 
+    let bitmapPdf: PDFDocument | null = null
+    let bitmapPage = -1
+
     $effect(() => {
+        // Bitmap identity is intentionally limited to document, page, and render quality.
+        // Display scale only changes containerStyle and never starts PDF.js work.
         const currentPdf = pdf
+        const pageNo = pageNumber
         const quality = settingsStore.quality
 
         return untrack(() => {
-            if (currentPdf) {
-                // If quality changed, we must discard the old image URL
-                imageUrl = null
+            const identityChanged = bitmapPdf !== currentPdf || bitmapPage !== pageNo
+            bitmapPdf = currentPdf
+            bitmapPage = pageNo
+            if (identityChanged) imageUrl = null
 
-                const controller = new AbortController()
+            const controller = new AbortController()
 
-                const timeout = setTimeout(() => {
-                    isLoading = true
-                    currentPdf
-                        .getCanvasPage(new Page(pageNumber), quality, controller.signal)
-                        .then((url: string) => {
-                            if (controller.signal.aborted) {
-                                return
-                            }
-                            imageUrl = url
-                            isLoading = false
-                        })
-                        .catch((err: any) => {
-                            if (!err.message?.startsWith("Rendering cancelled")) {
-                                console.error(`[ScrollPage] Failed to load page ${pageNumber}`, err)
-                            }
-                            isLoading = false
-                        })
-                }, 50)
+            const timeout = setTimeout(() => {
+                isLoading = true
+                currentPdf
+                    .getCanvasPage(new Page(pageNo), quality, controller.signal)
+                    .then((url: string) => {
+                        if (controller.signal.aborted) return
+                        imageUrl = url
+                        isLoading = false
+                    })
+                    .catch((err: any) => {
+                        if (controller.signal.aborted) return
+                        if (!err.message?.startsWith("Rendering cancelled")) {
+                            console.error(`[ScrollPage] Failed to load page ${pageNo}`, err)
+                        }
+                        isLoading = false
+                    })
+            }, 50)
 
-                return () => {
-                    clearTimeout(timeout)
-                    controller.abort()
-                }
+            return () => {
+                clearTimeout(timeout)
+                controller.abort()
             }
         })
     })
 
-    $effect(() => {
-        if (!imageUrl || !textLayerContainer || !annotationLayerContainer || !pdf) return
-        const currentScale = scale
+    // Text and annotation DOM stays at a stable PDF viewport. CSS applies display zoom
+    // to the image and both overlays together through --display-scale.
+    const PDF_LAYER_BASE_SCALE = 1
 
+    $effect(() => {
+        if (!textLayerContainer || !annotationLayerContainer || !pdf) return
+
+        const targetPdf = pdf
+        const pageNo = pageNumber
         const controller = new AbortController()
         const textContainer = textLayerContainer
         const annotationContainer = annotationLayerContainer
@@ -97,11 +107,11 @@
         const renderLayers = async () => {
             try {
                 const { pageProxy, textContent, annotations, viewport } =
-                    await pdf.getPageDataForRendering(pageNumber, currentScale)
+                    await targetPdf.getPageDataForRendering(pageNo, PDF_LAYER_BASE_SCALE)
                 if (controller.signal.aborted) return
 
                 textContainer.innerHTML = ""
-                textContainer.style.setProperty("--scale-factor", currentScale.toString())
+                textContainer.style.setProperty("--scale-factor", PDF_LAYER_BASE_SCALE.toString())
 
                 const textLayer = new pdfjs.TextLayer({
                     textContentSource: textContent,
@@ -120,15 +130,18 @@
                 annotationContainer.innerHTML = ""
                 if (annotations.length === 0) return
 
-                const linkService = new ViewerLinkService(pdf, (targetPage) => {
+                const linkService = new ViewerLinkService(targetPdf, (targetPage) => {
                     void commandsStore.execute("viewer.page.go-to", {
                         page: targetPage,
                         isJump: true,
                     })
                 })
-                linkService.page = pageNumber
+                linkService.page = pageNo
 
-                annotationContainer.style.setProperty("--scale-factor", currentScale.toString())
+                annotationContainer.style.setProperty(
+                    "--scale-factor",
+                    PDF_LAYER_BASE_SCALE.toString(),
+                )
 
                 const annotationLayer = new pdfjs.AnnotationLayer({
                     div: annotationContainer,
@@ -154,7 +167,7 @@
                 }
             } catch (err) {
                 if (controller.signal.aborted) return
-                console.error(`[ScrollPage] Failed to render layers for page ${pageNumber}`, err)
+                console.error(`[ScrollPage] Failed to render layers for page ${pageNo}`, err)
             }
         }
 

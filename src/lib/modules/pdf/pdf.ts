@@ -79,6 +79,7 @@ export default class PDFDocument implements DocumentInterface {
         return this.isMobile ? 8 : 16
     }
     private renderedQuality: number | null = null
+    private renderGeneration = 0
     private pageProxyCache = new Map<number, pdfjs.PDFPageProxy>()
     private pageProxyPromises = new Map<number, Promise<pdfjs.PDFPageProxy>>()
     private get maxPageProxyCacheSize(): number {
@@ -303,10 +304,14 @@ export default class PDFDocument implements DocumentInterface {
     ): Promise<string> {
         const pdfDoc = this.getRequiredPdfDoc()
 
+        // Render quality controls rasterization and cache invalidation. Display scale is
+        // deliberately absent: zoom is applied to the cached bitmap with CSS.
         if (this.renderedQuality !== null && this.renderedQuality !== quality) {
             this.clearPageCache("quality change")
+            this.renderGeneration += 1
         }
         this.renderedQuality = quality
+        const renderGeneration = this.renderGeneration
 
         const cacheKey = page.pageNumber
         if (this.pageCache.has(cacheKey)) {
@@ -388,6 +393,9 @@ export default class PDFDocument implements DocumentInterface {
             })
             signal?.throwIfAborted()
             if (!blob) throw new Error("Failed to create blob from canvas")
+            if (renderGeneration !== this.renderGeneration || this.renderedQuality !== quality) {
+                throw new DOMException("Rendering superseded by a quality change", "AbortError")
+            }
 
             pdfPage.cleanup()
 
@@ -399,6 +407,7 @@ export default class PDFDocument implements DocumentInterface {
             if (pdfPage) pdfPage.cleanup()
             if (
                 err.name === "RenderingCancelledException" ||
+                err.name === "AbortError" ||
                 err.message === "Rendering cancelled" ||
                 signal?.aborted
             ) {

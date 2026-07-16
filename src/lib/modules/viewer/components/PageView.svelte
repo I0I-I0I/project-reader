@@ -44,21 +44,24 @@
     let cachedSpanRanges = $state<SpanRange[] | null>(null)
     let controller: AbortController | null = null
 
+    // PDF.js layers are built once at document scale 1. `scale` is display-only and
+    // reaches the existing image and overlays through --display-scale below.
+    const PDF_LAYER_BASE_SCALE = 1
+
     async function renderPageLayers(
         targetPdf: PDFDocument,
         pageNo: number,
         textContainer: HTMLElement,
         annotationContainer: HTMLDivElement | null,
-        targetScale: number,
         signal?: AbortSignal,
     ) {
         try {
             const { pageProxy, textContent, annotations, viewport } =
-                await targetPdf.getPageDataForRendering(pageNo, targetScale)
+                await targetPdf.getPageDataForRendering(pageNo, PDF_LAYER_BASE_SCALE)
             if (signal?.aborted) return
 
             textContainer.innerHTML = ""
-            textContainer.style.setProperty("--scale-factor", targetScale.toString())
+            textContainer.style.setProperty("--scale-factor", PDF_LAYER_BASE_SCALE.toString())
 
             const textLayer = new pdfjs.TextLayer({
                 textContentSource: textContent,
@@ -86,7 +89,10 @@
                 })
                 linkService.page = pageNo
 
-                annotationContainer.style.setProperty("--scale-factor", targetScale.toString())
+                annotationContainer.style.setProperty(
+                    "--scale-factor",
+                    PDF_LAYER_BASE_SCALE.toString(),
+                )
 
                 const annotationLayer = new pdfjs.AnnotationLayer({
                     div: annotationContainer,
@@ -118,7 +124,12 @@
     }
 
     $effect(() => {
-        if (!renderLayers || !pdf || !image || !textLayerEl || !annotationLayerEl) return
+        if (!renderLayers || !pdf || !textLayerEl || !annotationLayerEl) return
+
+        const targetPdf = pdf
+        const pageNo = pageNumber
+        const textContainer = textLayerEl
+        const annotationContainer = annotationLayerEl
 
         controller?.abort()
         const newController = new AbortController()
@@ -126,11 +137,10 @@
 
         const delayTimeout = setTimeout(() => {
             renderPageLayers(
-                pdf!,
-                pageNumber,
-                textLayerEl!,
-                annotationLayerEl!,
-                scale,
+                targetPdf,
+                pageNo,
+                textContainer,
+                annotationContainer,
                 newController.signal,
             )
         }, 150)
@@ -302,7 +312,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
     class="pdf-image-wrapper {className}"
-    style="width: {width}px; height: {height}px; --aspect-ratio: {width} / {height};"
+    style="width: {width}px; height: {height}px; --aspect-ratio: {width} / {height}; --display-scale: {scale};"
     onclick={handleTextLayerClick}
 >
     {#if image}

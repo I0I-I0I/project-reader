@@ -25,8 +25,6 @@ const ASSETS = [
 ]
 
 self.addEventListener("install", (event) => {
-    self.skipWaiting()
-
     async function addFilesToCache() {
         const cache = await caches.open(CACHE)
         for (const asset of ASSETS) {
@@ -42,17 +40,20 @@ self.addEventListener("install", (event) => {
 })
 
 self.addEventListener("activate", (event) => {
-    // Ensure the service worker takes control of all clients immediately
-    event.waitUntil(self.clients.claim())
-
-    // Remove previous cached data from disk
-    async function deleteOldCaches() {
+    async function activate() {
         for (const key of await caches.keys()) {
             if (key !== CACHE) await caches.delete(key)
         }
+        await self.clients.claim()
     }
 
-    event.waitUntil(deleteOldCaches())
+    event.waitUntil(activate())
+})
+
+self.addEventListener("message", (event) => {
+    if (event.data?.type === "SKIP_WAITING") {
+        event.waitUntil(self.skipWaiting())
+    }
 })
 
 self.addEventListener("fetch", (event) => {
@@ -72,17 +73,13 @@ self.addEventListener("fetch", (event) => {
             }
         }
 
-        // For SPA navigation requests, fallback to the 200.html shell immediately
-        // to provide a fast "offline-first" experience.
+        // Navigations use the cached SPA shell so the app starts immediately offline.
+        // Version polling and the explicit update flow refresh deployments.
         if (event.request.mode === "navigate") {
             const fallback = await cache.match("/200.html")
-            if (fallback) {
-                return fallback
-            }
+            if (fallback) return fallback
         }
 
-        // for everything else, try the network first, but
-        // fall back to the cache if we're offline
         try {
             const response = await fetch(event.request)
 

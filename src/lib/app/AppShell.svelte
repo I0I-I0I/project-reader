@@ -27,6 +27,7 @@
         libraryBookOpenCommand,
         requestLibraryRelink,
     } from "$lib/modules/library"
+    import { appUpdate } from "$lib/shared/state/appUpdate.svelte"
     import "$lib/shared/styles/variables.css"
     import "$lib/shared/styles/global.css"
 
@@ -161,10 +162,7 @@
     })
 
     $effect(() => {
-        if (updated.current) {
-            const reload = confirm(m.new_version_available())
-            if (reload) location.reload()
-        }
+        if (updated.current) appUpdate.markAvailable()
     })
 
     afterNavigate(({ to }) => {
@@ -179,6 +177,8 @@
             localStorage.setItem("last_visited_url", pathname + search)
         }
     })
+
+    onMount(() => appUpdate.initialize())
 
     onMount(() => {
         const pathname = page.url.pathname as string
@@ -259,6 +259,7 @@
     {/if}
 
     <LibraryRelinkHost />
+
     <FloatingNotification
         notification={contextualNotification}
         animations={settingsStore.animations}
