@@ -11,6 +11,7 @@
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
     import { resolveSelectionIndex } from "$lib/shared/state/listSelection"
     import { notesStore } from "../stores/notesStore.svelte"
+    import { tick } from "svelte"
 
     let {
         isOutlineLoading,
@@ -41,16 +42,19 @@
             : [],
     )
 
-    function selectHeading(heading: FlatHeading) {
-        if (heading.pageNumber !== undefined) {
-            void commandsStore.execute("viewer.page.go-to", {
-                page: heading.pageNumber,
-                isJump: true,
-            })
-            if (window.innerWidth <= 480) {
-                onClose()
-            }
+    async function selectHeading(heading: FlatHeading) {
+        if (heading.pageNumber === undefined) return
+
+        if (window.innerWidth <= 480) {
+            onClose()
+            // Commit the closed sidebar before pushState snapshots the current history entry.
+            await tick()
         }
+
+        void commandsStore.execute("viewer.page.go-to", {
+            page: heading.pageNumber,
+            isJump: true,
+        })
     }
 
     let selectedIndex = $derived.by(() => {
@@ -205,6 +209,7 @@
 
     function trackOutlineSelection(_index: number, _items: FlatHeading[], loading: boolean) {
         return (content: HTMLElement) => {
+            contentRef = content
             const frame = requestAnimationFrame(() => {
                 if (!hasScrolledInitially && !loading) {
                     const activeElements = content.querySelectorAll(".outline-item.active")
@@ -218,7 +223,10 @@
                     .querySelector(".outline-item.selected")
                     ?.scrollIntoView({ block: "nearest" })
             })
-            return () => cancelAnimationFrame(frame)
+            return () => {
+                if (contentRef === content) contentRef = undefined
+                cancelAnimationFrame(frame)
+            }
         }
     }
 </script>
@@ -254,7 +262,6 @@
 
     <div
         class="sidebar-content"
-        bind:this={contentRef}
         {@attach trackOutlineSelection(selectedIndex, filteredOutlineList, isOutlineLoading)}
     >
         {#if isOutlineLoading}

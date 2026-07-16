@@ -28,6 +28,7 @@
     } from "../commands/viewerMutationExecution"
     import { createViewerListCommands } from "../commands/viewerListCommands"
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
+    import { tick } from "svelte"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -74,13 +75,16 @@
         }
     }
 
-    function selectBookmark(bookmark: any) {
-        if (bookmark.pageNumber !== undefined) {
-            void commandsStore.execute("viewer.bookmark.open", { bookmarkId: bookmark.id })
-            if (window.innerWidth <= 480) {
-                onClose()
-            }
+    async function selectBookmark(bookmark: Bookmark) {
+        if (bookmark.pageNumber === undefined) return
+
+        if (window.innerWidth <= 480) {
+            onClose()
+            // Commit the closed sidebar before navigation updates browser history.
+            await tick()
         }
+
+        void commandsStore.execute("viewer.bookmark.open", { bookmarkId: bookmark.id })
     }
 
     let selectedIndex = $derived(
@@ -129,8 +133,12 @@
     }
 
     function trackSelection(_index: number, _bookmarks: Bookmark[]) {
-        return (_content: HTMLElement) => {
+        return (content: HTMLElement) => {
+            contentRef = content
             scrollSelectedIntoView()
+            return () => {
+                if (contentRef === content) contentRef = undefined
+            }
         }
     }
 
@@ -316,11 +324,7 @@
         {/if}
     </div>
 
-    <div
-        class="sidebar-content"
-        bind:this={contentRef}
-        {@attach trackSelection(selectedIndex, filteredBookmarks)}
-    >
+    <div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredBookmarks)}>
         {#if filteredBookmarks.length === 0}
             <div class="no-bookmarks">
                 {m.no_bookmarks()}
