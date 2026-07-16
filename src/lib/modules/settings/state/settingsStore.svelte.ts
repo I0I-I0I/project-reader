@@ -116,11 +116,12 @@ class SettingsStore {
     }
 
     updateSetting<K extends keyof Settings>(key: K, value: Settings[K]): void {
-        const settings = { ...this.settings }
-        settings[key] = value
-        this.settings = settings
+        // Mutate the deep state property so Svelte can invalidate only consumers of
+        // this setting. Replacing the whole object reruns effects that read quality
+        // when unrelated settings such as scale, theme, or animations change.
+        this.settings[key] = value
         if (browser) {
-            localStorage.setItem("settings", JSON.stringify(settings))
+            localStorage.setItem("settings", JSON.stringify(this.settings))
         }
     }
 

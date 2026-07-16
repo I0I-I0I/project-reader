@@ -5,6 +5,18 @@ afterEach(() => {
     settingsStore.preferPdfTitle = DEFAULT_SETTINGS.preferPdfTitle
 })
 
+describe("settings reactivity", () => {
+    it("keeps the settings object stable for property-level invalidation", () => {
+        const settings = settingsStore.getSettings()
+        const originalScale = settingsStore.scale
+
+        settingsStore.scale = originalScale === 1 ? 1.25 : 1
+
+        expect(settingsStore.getSettings()).toBe(settings)
+        settingsStore.scale = originalScale
+    })
+})
+
 describe("PDF title preference", () => {
     it("defaults to enabled", () => {
         expect(DEFAULT_SETTINGS.preferPdfTitle).toBe(true)
