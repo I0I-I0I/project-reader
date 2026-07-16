@@ -19,6 +19,7 @@
     import { useViewerUIStore } from "../stores/viewerUIStore.svelte"
     import { createViewerListCommands } from "../commands/viewerListCommands"
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
+    import { tick } from "svelte"
 
     let { onClose } = $props<{
         onClose: () => void
@@ -39,17 +40,20 @@
         ),
     )
 
-    function selectNote(note: UserNote) {
-        if (note.pageNumber !== undefined) {
-            notesStore.scrollingToNoteId = note.id
-            void commandsStore.execute("viewer.page.go-to", {
-                page: note.pageNumber,
-                isJump: true,
-            })
-            if (window.innerWidth <= 480) {
-                onClose()
-            }
+    async function selectNote(note: UserNote) {
+        if (note.pageNumber === undefined) return
+
+        notesStore.scrollingToNoteId = note.id
+        if (window.innerWidth <= 480) {
+            onClose()
+            // Commit the closed sidebar before pushState snapshots the current history entry.
+            await tick()
         }
+
+        void commandsStore.execute("viewer.page.go-to", {
+            page: note.pageNumber,
+            isJump: true,
+        })
     }
 
     let selectedIndex = $derived(
@@ -98,8 +102,12 @@
     }
 
     function trackSelection(_index: number, _notes: UserNote[]) {
-        return (_content: HTMLElement) => {
+        return (content: HTMLElement) => {
+            contentRef = content
             scrollSelectedIntoView()
+            return () => {
+                if (contentRef === content) contentRef = undefined
+            }
         }
     }
 
@@ -291,11 +299,7 @@
         {/if}
     </div>
 
-    <div
-        class="sidebar-content"
-        bind:this={contentRef}
-        {@attach trackSelection(selectedIndex, filteredNotes)}
-    >
+    <div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredNotes)}>
         {#if notesStore.notes.length === 0}
             <div class="no-notes">
                 {m.no_notes()}
