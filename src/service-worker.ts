@@ -25,8 +25,6 @@ const ASSETS = [
 ]
 
 self.addEventListener("install", (event) => {
-    self.skipWaiting()
-
     async function addFilesToCache() {
         const cache = await caches.open(CACHE)
         for (const asset of ASSETS) {
@@ -42,17 +40,20 @@ self.addEventListener("install", (event) => {
 })
 
 self.addEventListener("activate", (event) => {
-    // Ensure the service worker takes control of all clients immediately
-    event.waitUntil(self.clients.claim())
-
-    // Remove previous cached data from disk
-    async function deleteOldCaches() {
+    async function activate() {
         for (const key of await caches.keys()) {
             if (key !== CACHE) await caches.delete(key)
         }
+        await self.clients.claim()
     }
 
-    event.waitUntil(deleteOldCaches())
+    event.waitUntil(activate())
+})
+
+self.addEventListener("message", (event) => {
+    if (event.data?.type === "SKIP_WAITING") {
+        event.waitUntil(self.skipWaiting())
+    }
 })
 
 self.addEventListener("fetch", (event) => {
@@ -72,8 +73,13 @@ self.addEventListener("fetch", (event) => {
             }
         }
 
-        // Always check the network for navigations so a newly deployed app shell
-        // can replace the cached version. Use the SPA shell only while offline.
+        // Navigations use the cached SPA shell so the app starts immediately offline.
+        // Version polling and the explicit update flow refresh deployments.
+        if (event.request.mode === "navigate") {
+            const fallback = await cache.match("/200.html")
+            if (fallback) return fallback
+        }
+
         try {
             const response = await fetch(event.request)
 
@@ -94,9 +100,7 @@ self.addEventListener("fetch", (event) => {
 
             return response
         } catch (err) {
-            const response =
-                (await cache.match(event.request)) ??
-                (event.request.mode === "navigate" ? await cache.match("/200.html") : undefined)
+            const response = await cache.match(event.request)
 
             if (response) {
                 return response

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { viewport } from "$lib/shared/state/viewport.svelte"
     import * as m from "$lib/paraglide/messages"
+    import AppUpdateButton from "$lib/shared/ui/AppUpdateButton.svelte"
     import Button from "$lib/shared/ui/Button.svelte"
     import MenuIcon from "$lib/shared/icons/MenuIcon.svelte"
     import SettingsIcon from "$lib/shared/icons/SettingsIcon.svelte"
@@ -53,6 +54,8 @@
     </div>
 
     <div class="header-actions">
+        <AppUpdateButton />
+
         {#if isLoaded}
             {#if isBookmarked}
                 <Button

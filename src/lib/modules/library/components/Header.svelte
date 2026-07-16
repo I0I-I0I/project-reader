@@ -12,6 +12,7 @@
     import * as m from "$lib/paraglide/messages"
 
     import { getLanguageName } from "$lib/modules/settings"
+    import AppUpdateButton from "$lib/shared/ui/AppUpdateButton.svelte"
     import Input from "$lib/shared/ui/Input.svelte"
     import TerminalIcon from "$lib/shared/icons/TerminalIcon.svelte"
     import { vfsStore } from "$lib/modules/documents"
@@ -46,10 +47,12 @@
 
 <header>
     <div class="title-wrapper">
-        <h1 class="title" data-text={m.library()}>{m.library()}</h1>
+        <h1 class="title" data-text={m.library()}>{m.library()} ()</h1>
     </div>
     <div class="actions-wrapper" role="toolbar" aria-label={m.action_controls()}>
         <div class="header-btn-wrapper">
+            <AppUpdateButton />
+
             {#if !viewport.isCompact}
                 <div class="search-btn">
                     <TerminalIcon class="search-icon" />
