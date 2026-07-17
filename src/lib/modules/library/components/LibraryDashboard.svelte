@@ -22,6 +22,7 @@
     import NewFolderModal from "./NewFolderModal.svelte"
     import DeleteConfirmModal from "./DeleteConfirmModal.svelte"
     import EditBookMetadataModal from "./EditBookMetadataModal.svelte"
+    import RenameFolderModal from "./RenameFolderModal.svelte"
     import { useCommands } from "$lib/modules/commands"
     import { createLibraryCommands } from "../commands/libraryCommands"
     import { createLibraryFolder } from "../commands/libraryCommandExecution"
@@ -212,6 +213,7 @@
         libraryCommands["library.selection.toggle"],
         libraryCommands["library.selection.all"],
         libraryCommands["library.folder.create"],
+        libraryCommands["library.node.rename"],
         libraryCommands["library.node.move"],
         libraryCommands["library.node.delete"],
         libraryCommands["library.node.edit-metadata"],
@@ -308,6 +310,10 @@
 
     {#if libraryUI.isEditMetadataModalOpen && libraryUI.nodeToEditMetadataId}
         <EditBookMetadataModal nodeId={libraryUI.nodeToEditMetadataId} />
+    {/if}
+
+    {#if libraryUI.isRenameFolderModalOpen && libraryUI.folderToRenameId}
+        <RenameFolderModal nodeId={libraryUI.folderToRenameId} />
     {/if}
 
     {#if libraryUI.isPickingMode}

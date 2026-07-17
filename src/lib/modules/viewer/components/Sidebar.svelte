@@ -285,10 +285,12 @@
         }
 
         .sidebar.left {
+            border-right: 0;
             left: 0;
         }
 
         .sidebar.right {
+            border-left: 0;
             right: 0;
         }
 

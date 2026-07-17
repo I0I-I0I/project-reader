@@ -11,6 +11,8 @@ export interface LibraryCardCommandContext {
     isSelected: () => boolean
     isRead: () => boolean
     canToggleReadState?: () => boolean
+    canEditMetadata?: () => boolean
+    canRenameFolder?: () => boolean
     setMenuOpen: (open: boolean) => void
     openNode: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.card.open"]>>,
@@ -26,6 +28,9 @@ export interface LibraryCardCommandContext {
     ) => Promise<void>
     editMetadata: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.node.edit-metadata"]>>,
+    ) => Promise<void>
+    renameFolder?: (
+        payload: WithNodeId<NonNullable<AppCommandPayloads["library.node.rename"]>>,
     ) => Promise<void>
     toggleReadState: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.book.read-state.toggle"]>>,
@@ -113,12 +118,36 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
                 await context.deleteNode(merged)
             },
         },
+        "library.node.rename": {
+            id: "library.node.rename",
+            keymap: "r",
+            label: () => (context.canRenameFolder?.() === true ? m.rename() : m.edit_metadata()),
+            englishLabel: () =>
+                context.canRenameFolder?.() === true
+                    ? m.rename({}, { locale: "en" })
+                    : m.edit_metadata({}, { locale: "en" }),
+            category: "commands",
+            disabled: () =>
+                !context.isExecutable() ||
+                (context.canRenameFolder?.() === false && context.canEditMetadata?.() === false),
+            palette: true,
+            run: async (payload) => {
+                const merged = withNodeId(payload)
+                if (!merged) return
+                closeMenu()
+                if (context.canRenameFolder?.() === true) {
+                    await context.renameFolder?.(merged)
+                } else {
+                    await context.editMetadata(merged)
+                }
+            },
+        },
         "library.node.edit-metadata": {
             id: "library.node.edit-metadata",
             label: () => m.edit_metadata(),
             englishLabel: () => m.edit_metadata({}, { locale: "en" }),
             category: "commands",
-            disabled: () => !context.isExecutable(),
+            disabled: () => !context.isExecutable() || context.canEditMetadata?.() === false,
             palette: true,
             run: async (payload) => {
                 const merged = withNodeId(payload)

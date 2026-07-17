@@ -12,6 +12,7 @@ import type {
     ImportJob,
     ImportResult,
 } from "./vfsStore.types"
+import { FolderNameError } from "./vfsStore.types"
 import { Database } from "../db/db"
 import { PDFDocument } from "$lib/modules/pdf"
 import pLimit from "p-limit"
@@ -674,12 +675,43 @@ export class VFSStore {
         return result.id
     }
 
+    normalizeFolderName(
+        requestedName: string,
+        parentId: string | null,
+        excludeFolderId?: string,
+    ): string {
+        const name = requestedName.trim()
+        if (!name) throw new FolderNameError("empty")
+        if (name.includes("/")) throw new FolderNameError("slash")
+        const duplicate = Object.values(this.nodes).some(
+            (node) =>
+                node.type === "folder" &&
+                node.parentId === parentId &&
+                node.id !== excludeFolderId &&
+                node.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase(),
+        )
+        if (duplicate) throw new FolderNameError("duplicate")
+        return name
+    }
+
+    async renameFolder(id: string, requestedName: string): Promise<void> {
+        const node = this.nodes[id]
+        if (!node || node.type !== "folder") return
+        const name = this.normalizeFolderName(requestedName, node.parentId, id)
+        if (name === node.name) return
+
+        const updated: FolderNode = { ...$state.snapshot(node), name, updatedAt: Date.now() }
+        await this.db.folders.put(updated)
+        this.nodes[id] = updated
+    }
+
     async createFolder(name: string, parentId: string | null): Promise<string> {
+        const normalizedName = this.normalizeFolderName(name, parentId)
         const id = crypto.randomUUID()
         const now = Date.now()
         const newFolder: FolderNode = {
             id,
-            name,
+            name: normalizedName,
             type: "folder",
             parentId,
             childrenIds: [],

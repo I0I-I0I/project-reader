@@ -45,7 +45,7 @@ beforeEach(() => {
     vfsStore.rootIds = ["folder"]
     vfsStore.currentFolderId = null
     vfsStore.clearSelection()
-    libraryUI.isSelectionMode = false
+    libraryUI.clear()
 })
 
 afterEach(() => {
@@ -54,7 +54,7 @@ afterEach(() => {
     vfsStore.nodes = previousNodes
     vfsStore.rootIds = previousRootIds
     vfsStore.currentFolderId = previousFolderId
-    libraryUI.isSelectionMode = false
+    libraryUI.clear()
 })
 
 describe("library commands", () => {
@@ -80,6 +80,27 @@ describe("library commands", () => {
         vfsStore.selectAll(vfsStore.sortedCurrentNodes.map((node) => node.id))
         expect(command.label()).toBe(m.keymap_exit_selection_mode())
         expect(command.englishLabel?.()).toBe(m.keymap_exit_selection_mode({}, { locale: "en" }))
+    })
+
+    it("opens and completes folder rename while retaining state on failure", async () => {
+        const command = libraryCommands["library.node.rename"]
+        await command.run({ nodeId: "folder" })
+        expect(libraryUI.folderToRenameId).toBe("folder")
+        expect(libraryUI.isRenameFolderModalOpen).toBe(true)
+
+        const renameFolder = vi
+            .spyOn(vfsStore, "renameFolder")
+            .mockRejectedValueOnce(new Error("disk"))
+        await expect(command.run({ nodeId: "folder", name: "New" })).rejects.toThrow("disk")
+        expect(libraryUI.folderToRenameId).toBe("folder")
+        expect(libraryUI.isRenameFolderModalOpen).toBe(true)
+
+        renameFolder.mockResolvedValueOnce()
+        await command.run({ nodeId: "folder", name: "New" })
+        expect(renameFolder).toHaveBeenLastCalledWith("folder", "New")
+        expect(libraryUI.folderToRenameId).toBeNull()
+        expect(libraryUI.isRenameFolderModalOpen).toBe(false)
+        renameFolder.mockRestore()
     })
 
     it("owns selection mutations", async () => {

@@ -38,6 +38,7 @@ export interface AppCommandPayloads {
     "library.picker.focus": undefined
     "library.picker.select": undefined
     "library.folder.create": { name?: string } | undefined
+    "library.node.rename": { nodeId?: string; name?: string } | undefined
     "library.books.import": undefined
     "library.continue-reading": undefined
     "library.primary-action": undefined
