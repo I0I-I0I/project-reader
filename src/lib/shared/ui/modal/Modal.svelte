@@ -199,11 +199,16 @@
     {...floatPlacementProps}
     backdrop={modalState === "blocking" ? "blur" : "none"}
     onBackdropPointerDown={() => {
-        if (variant === "default" && (props.closeOnBackdrop ?? true)) requestClose("backdrop")
+        if (variant === "default" && (props.closeOnBackdrop ?? false)) requestClose("backdrop")
     }}
     onSurfacePointerDown={handleSurfacePointerDown}
     onSurfaceFocusIn={handleSurfacePointerDown}
     bind:surfaceRef
+    wrapperClass={[
+        "modal-wrapper",
+        `modal-wrapper-${modalType}`,
+        `modal-wrapper-${modalSize}`,
+    ].join(" ")}
     class={["modal-surface", `modal-${modalType}`, `modal-${modalSize}`, position && "positioned"]
         .filter(Boolean)
         .join(" ")}
@@ -238,23 +243,25 @@
                 {/if}
                 <div class="custom-header">{@render props.header()}</div>
                 {#if showCloseButton}
-                    <button
-                        bind:this={closeButtonRef}
-                        class="modal-close"
+                    <Button
+                        bind:ref={closeButtonRef}
+                        variant="close"
+                        square
                         onclick={() => requestClose("close-button")}
                         aria-label={props.closeLabel ?? "Close"}
-                        disabled={isBusy}>×</button
+                        disabled={isBusy}>×</Button
                     >
                 {/if}
             {:else}
                 <h2 id={titleId} class="modal-title">{props.title}</h2>
                 {#if showCloseButton}
-                    <button
-                        bind:this={closeButtonRef}
-                        class="modal-close"
+                    <Button
+                        bind:ref={closeButtonRef}
+                        variant="close"
+                        square
                         onclick={() => requestClose("close-button")}
                         aria-label={props.closeLabel ?? "Close"}
-                        disabled={isBusy}>×</button
+                        disabled={isBusy}>×</Button
                     >
                 {/if}
             {/if}
@@ -271,7 +278,7 @@
             {#if props.cancelLabel}
                 <Button
                     class="confirmation-cancel"
-                    variant="ghost"
+                    variant="close"
                     disabled={isBusy}
                     onclick={() => requestClose("cancel")}>{props.cancelLabel}</Button
                 >
@@ -300,6 +307,29 @@
 </Float>
 
 <style>
+    :global(.modal-wrapper) {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    :global(.modal-wrapper .modal-surface) {
+        max-width: 100%;
+        max-height: 100%;
+        margin: auto;
+    }
+
+    :global(.modal-wrapper.placement-top .modal-surface) {
+        margin-top: 80px;
+        margin-bottom: auto;
+    }
+
+    :global(.modal-wrapper.placement-bottom .modal-surface) {
+        margin-top: auto;
+        margin-bottom: 0;
+    }
+
     :global(.modal-surface) {
         --modal-small: 34rem;
         --modal-medium: 46rem;
@@ -383,27 +413,6 @@
         text-transform: uppercase;
     }
 
-    .modal-close {
-        flex: 0 0 auto;
-        padding: 0 4px;
-        border: 0;
-        background: none;
-        color: inherit;
-        cursor: pointer;
-        font: inherit;
-        font-size: var(--font-size-5xl);
-        font-weight: 800;
-        line-height: 1;
-    }
-    .modal-close:focus-visible {
-        outline: 3px solid var(--accent-color);
-        outline-offset: 2px;
-    }
-    .modal-close:disabled {
-        cursor: not-allowed;
-        opacity: 0.45;
-    }
-
     .modal-body,
     .modal-content-region,
     .modal-sidebar {
@@ -473,6 +482,16 @@
     }
 
     @media (--mobile) {
+        :global(.modal-wrapper) {
+            padding: 16px 12px;
+        }
+        :global(.modal-wrapper.placement-top .modal-surface) {
+            margin-top: 0;
+        }
+        :global(.modal-wrapper-layout.modal-wrapper-large),
+        :global(.modal-wrapper-layout.modal-wrapper-fullscreen) {
+            padding: 0;
+        }
         :global(.modal-surface) {
             width: min(var(--modal-width), calc(var(--float-viewport-width, 100vw) - 24px));
             max-height: calc(var(--float-viewport-height, 100dvh) - 32px);

@@ -462,11 +462,13 @@
         }
 
         const handleGlobalClick = (e: MouseEvent) => {
+            if (modalManager.hasAnyModal) return
+
             const target = e.target as HTMLElement
             if (
                 !target.closest(".note-fab") &&
-                !target.closest(".note-popup") &&
-                !target.closest(".note-editor")
+                !target.closest(".note-popup-surface") &&
+                !target.closest(".modal-surface")
             ) {
                 const selection = document.getSelection()
                 if (!selection || selection.isCollapsed) {
@@ -1378,11 +1380,7 @@
                                         .length}
                                 </div>
                             {/if}
-                            <div
-                                class="search-fab-grid {!viewerUI.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
-                            >
+                            <div class="search-fab-grid">
                                 <Button
                                     size="large"
                                     variant="fab"
@@ -1445,9 +1443,7 @@
                                 size="large"
                                 variant="fab"
                                 square={true}
-                                class="viewer-fab-btn fab-search {!viewerUI.isToolbarsVisible
-                                    ? 'hidden-toolbars'
-                                    : ''}"
+                                class="viewer-fab-btn fab-search"
                                 onclick={(e) => {
                                     e.stopPropagation()
                                     void commandsStore.execute("viewer.search")
@@ -1656,11 +1652,7 @@
     }
 
     :global(.fab-jump-back.hidden-toolbars),
-    :global(.fab-jump-forward.hidden-toolbars),
-    :global(.fab-search.hidden-toolbars),
-    :global(.fab-next-search.hidden-toolbars),
-    :global(.fab-prev-search.hidden-toolbars),
-    :global(.fab-close-search.hidden-toolbars) {
+    :global(.fab-jump-forward.hidden-toolbars) {
         transform: translateX(100px);
         opacity: 0;
         pointer-events: none;
@@ -1699,12 +1691,6 @@
         transition:
             transform 0.2s ease,
             opacity 0.2s ease;
-    }
-
-    .search-fab-grid.hidden-toolbars {
-        transform: translateX(100px);
-        opacity: 0;
-        pointer-events: none;
     }
 
     .search-fab-grid :global(.viewer-fab-btn) {

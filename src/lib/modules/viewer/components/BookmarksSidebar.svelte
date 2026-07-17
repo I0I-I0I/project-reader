@@ -19,6 +19,7 @@
     import Modal from "$lib/shared/ui/modal/Modal.svelte"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
     import Input from "$lib/shared/ui/Input.svelte"
+    import { SidebarFooter, SidebarSearch } from "$lib/shared/ui/sidebar"
     import DeleteConfirmModal from "./DeleteConfirmModal.svelte"
     import BookmarkEditKeymaps from "./BookmarkEditKeymaps.svelte"
     import { createViewerMutationCommands } from "../commands/viewerMutationCommands"
@@ -41,7 +42,6 @@
     let contentRef = $state<HTMLElement | undefined>()
     let isSearchFocused = $state(false)
 
-    // Inline editing state for items in list
     let editingBookmarkId = $state<string | null>(null)
     let editingName = $state("")
     let bookmarkToDeleteId = $state<string | null>(null)
@@ -58,12 +58,13 @@
     let currentBook = $derived(viewerStore.getCurrentBook())
     let currentBookId = $derived(currentBook?.id)
 
+    let normalizedSearchQuery = $derived(searchQuery.toLowerCase())
     let filteredBookmarks = $derived(
         bookmarksStore.bookmarks
             .filter(
-                (b) =>
-                    b.bookId === currentBookId &&
-                    b.name.toLowerCase().includes(searchQuery.toLowerCase()),
+                (bookmark) =>
+                    bookmark.bookId === currentBookId &&
+                    bookmark.name.toLowerCase().includes(normalizedSearchQuery),
             )
             .sort((a, b) => a.pageNumber - b.pageNumber),
     )
@@ -121,14 +122,13 @@
     function scrollSelectedIntoView() {
         requestAnimationFrame(() => {
             if (!contentRef) return
-            const selectedEl = contentRef.querySelector(".bookmark-card.selected")
-            if (selectedEl) {
-                selectedEl.scrollIntoView({ block: "nearest" })
-            }
+            contentRef
+                .querySelector(".bookmark-card.selected")
+                ?.scrollIntoView({ block: "nearest" })
         })
     }
 
-    function queryChanged() {
+    function resetSelection() {
         manualSelectedIndex = null
     }
 
@@ -183,25 +183,24 @@
         modalManager.hasBlockingModal ||
         !!editingBookmarkId ||
         !!bookmarkToDeleteId
-    const shouldHandleListNavigation = (event: KeyboardEvent) => {
-        const target = event.target
-        const isInput =
+
+    function isEditableTarget(target: EventTarget | null) {
+        return (
             target instanceof HTMLInputElement ||
             target instanceof HTMLTextAreaElement ||
             (target instanceof HTMLElement && target.isContentEditable)
-        return !(
-            isInput &&
-            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
         )
     }
-    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) => {
-        const target = event.target
-        const isInput =
-            target instanceof HTMLInputElement ||
-            target instanceof HTMLTextAreaElement ||
-            (target instanceof HTMLElement && target.isContentEditable)
-        return !isInput || (isSearchFocused && KeyboardHandler.matches(event, inputKey))
-    }
+
+    const shouldHandleListNavigation = (event: KeyboardEvent) =>
+        !(
+            isEditableTarget(event.target) &&
+            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
+        )
+
+    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) =>
+        !isEditableTarget(event.target) ||
+        (isSearchFocused && KeyboardHandler.matches(event, inputKey))
 
     useCommands([
         ...createViewerListCommands({
@@ -244,17 +243,14 @@
         ),
     ])
 
-    function formatKey(keys: string | string[]): string {
-        if (Array.isArray(keys)) {
-            return keys.map((k) => formatKey(k)).join("/")
-        }
-        const MODIFIERS = ["ctrl", "meta", "alt", "shift"]
+    function formatKey(keys: string): string {
+        const modifiers = ["ctrl", "meta", "alt", "shift"]
         const parts = keys.split("+")
         parts.sort((a, b) => {
             const aLower = a.toLowerCase().trim()
             const bLower = b.toLowerCase().trim()
-            const aIdx = MODIFIERS.indexOf(aLower)
-            const bIdx = MODIFIERS.indexOf(bLower)
+            const aIdx = modifiers.indexOf(aLower)
+            const bIdx = modifiers.indexOf(bLower)
 
             if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
             if (aIdx !== -1) return -1
@@ -289,277 +285,177 @@
     const searchShortcut = formatKey("/")
     let editShortcut = $derived(formatKey(isSearchFocused ? "ctrl+e" : "e"))
     let deleteShortcut = $derived(formatKey(isSearchFocused ? "ctrl+d" : "d"))
+
+    function confirmBookmarkEdit() {
+        void bookmarkEditScope?.execute("viewer.bookmark.edit", {
+            bookmarkId: editingBookmarkId ?? undefined,
+            name: editingName.trim(),
+        })
+    }
 </script>
 
-{#snippet sidebarContent()}
-    <div class="sidebar-search">
-        <Input
-            unstyled
-            bind:ref={searchInputRef}
-            type="text"
-            bind:value={searchQuery}
-            oninput={queryChanged}
-            placeholder={`${m.search_bookmarks_placeholder()} [${searchShortcut}]`}
-            class="search-input"
-            onkeydown={handleSearchKeydown}
-            onfocus={() => {
-                isSearchFocused = true
-            }}
-            onblur={() => {
-                isSearchFocused = false
-            }}
-        />
-        {#if searchQuery}
-            <button
-                class="clear-search-btn"
-                onclick={() => {
-                    searchQuery = ""
-                    queryChanged()
-                    searchInputRef?.focus()
-                }}
-                aria-label={m.clear_search_aria()}
-            >
-                ×
-            </button>
-        {/if}
-    </div>
+<SidebarSearch
+    bind:ref={searchInputRef}
+    bind:value={searchQuery}
+    oninput={resetSelection}
+    onClear={resetSelection}
+    placeholder={`${m.search_bookmarks_placeholder()} [${searchShortcut}]`}
+    onkeydown={handleSearchKeydown}
+    onfocus={() => {
+        isSearchFocused = true
+    }}
+    onblur={() => {
+        isSearchFocused = false
+    }}
+    clearLabel={m.clear_search_aria()}
+/>
 
-    <div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredBookmarks)}>
-        {#if filteredBookmarks.length === 0}
-            <div class="no-bookmarks">
-                {m.no_bookmarks()}
-            </div>
-        {:else}
-            <div class="bookmarks-list">
-                {#each filteredBookmarks as bookmark, index (bookmark.id)}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div
-                        class="bookmark-card"
-                        class:selected={index === selectedIndex}
-                        onclick={() => {
-                            selectBookmark(bookmark)
-                            manualSelectedIndex = index
-                        }}
-                    >
-                        <div class="bookmark-card-header">
-                            <span class="bookmark-page">Page {bookmark.pageNumber}</span>
-                        </div>
-                        <div class="bookmark-text-content">
-                            {bookmark.name}
-                        </div>
-                        <div class="bookmark-card-actions">
-                            <button
-                                class="action-btn edit"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    void executeViewerBookmarkEdit({ bookmarkId: bookmark.id })
-                                }}
-                                title={m.edit_bookmark()}
-                            >
-                                <EditIcon width="14" height="14" />
-                            </button>
-                            <button
-                                class="action-btn delete"
-                                onclick={(e) => {
-                                    e.stopPropagation()
-                                    void executeViewerBookmarkDelete({ bookmarkId: bookmark.id })
-                                }}
-                                title={m.remove_bookmark()}
-                            >
-                                <TrashIcon width="14" height="14" />
-                            </button>
-                        </div>
+<div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredBookmarks)}>
+    {#if filteredBookmarks.length === 0}
+        <div class="no-bookmarks">
+            {m.no_bookmarks()}
+        </div>
+    {:else}
+        <div class="bookmarks-list">
+            {#each filteredBookmarks as bookmark, index (bookmark.id)}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div
+                    class="bookmark-card"
+                    class:selected={index === selectedIndex}
+                    onclick={() => {
+                        selectBookmark(bookmark)
+                        manualSelectedIndex = index
+                    }}
+                >
+                    <div class="bookmark-card-header">
+                        <span class="bookmark-page">Page {bookmark.pageNumber}</span>
                     </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
-
-    {#if !viewport.isCompact}
-        <div class="sidebar-footer-hint">
-            {#if navigateShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each navigateShortcuts as pair, i (pair.display)}
-                        {#if i > 0},
-                        {/if}<kbd>{pair.display}</kbd>
-                    {/each}
-                    Navigate
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if selectShortcut}
-                <span class="hint-item">
-                    <kbd>{selectShortcut}</kbd> Go
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if searchShortcut}
-                <span class="hint-item">
-                    <kbd>{searchShortcut}</kbd> Search
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if editShortcut}
-                <span class="hint-item">
-                    <kbd>{editShortcut}</kbd> Edit
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if deleteShortcut}
-                <span class="hint-item">
-                    <kbd>{deleteShortcut}</kbd> Delete
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
+                    <div class="bookmark-text-content">
+                        {bookmark.name}
+                    </div>
+                    <div class="bookmark-card-actions">
+                        <button
+                            class="action-btn edit"
+                            onclick={(event) => {
+                                event.stopPropagation()
+                                void executeViewerBookmarkEdit({ bookmarkId: bookmark.id })
+                            }}
+                            title={m.edit_bookmark()}
+                        >
+                            <EditIcon width="14" height="14" />
+                        </button>
+                        <button
+                            class="action-btn delete"
+                            onclick={(event) => {
+                                event.stopPropagation()
+                                void executeViewerBookmarkDelete({ bookmarkId: bookmark.id })
+                            }}
+                            title={m.remove_bookmark()}
+                        >
+                            <TrashIcon width="14" height="14" />
+                        </button>
+                    </div>
+                </div>
+            {/each}
         </div>
     {/if}
+</div>
 
-    {#if editingBookmarkId}
-        <BookmarkEditKeymaps
-            onConfirm={applyBookmarkEdit}
-            getPayload={getBookmarkEditPayload}
-            onCancel={() => (editingBookmarkId = null)}
-            bind:scope={bookmarkEditScope}
-        />
-        <Modal
-            variant="default"
-            type="float"
-            size="medium"
-            placement="center"
-            onClose={() => void bookmarkEditScope?.execute("modal.cancel")}
-            title={m.rename_bookmark()}
-            initialFocus={() => document.getElementById("edit-bookmark-name-input")}
-            draggable
-        >
-            <div class="modal-form">
-                <Input
-                    id="edit-bookmark-name-input"
-                    attachment={focusBookmarkName}
-                    placeholder={m.bookmark_name_placeholder()}
-                    label={m.rename_bookmark()}
-                    bind:value={editingName}
-                    onkeydown={(e) => {
-                        if (
-                            e.key === "Enter" &&
-                            !e.ctrlKey &&
-                            !e.metaKey &&
-                            !e.altKey &&
-                            !e.shiftKey
-                        ) {
-                            e.preventDefault()
-                            void bookmarkEditScope?.execute("viewer.bookmark.edit", {
-                                bookmarkId: editingBookmarkId ?? undefined,
-                                name: editingName.trim(),
-                            })
-                        }
-                    }}
-                />
-                <div class="modal-actions">
-                    <Button
-                        variant="brutalist"
-                        onclick={() =>
-                            void bookmarkEditScope?.execute("viewer.bookmark.edit", {
-                                bookmarkId: editingBookmarkId ?? undefined,
-                                name: editingName.trim(),
-                            })}
-                    >
-                        {m.save()}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        onclick={() => void bookmarkEditScope?.execute("modal.cancel")}
-                    >
-                        {m.cancel()}
-                    </Button>
-                </div>
+{#if !viewport.isCompact}
+    <SidebarFooter>
+        <span class="hint-item">
+            {#each navigateShortcuts as pair, i (pair.display)}
+                {#if i > 0},
+                {/if}<kbd>{pair.display}</kbd>
+            {/each}
+            Navigate
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{selectShortcut}</kbd> Go
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{searchShortcut}</kbd> Search
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{editShortcut}</kbd> Edit
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{deleteShortcut}</kbd> Delete
+        </span>
+        <span class="hint-divider">•</span>
+    </SidebarFooter>
+{/if}
+
+{#if editingBookmarkId}
+    <BookmarkEditKeymaps
+        onConfirm={applyBookmarkEdit}
+        getPayload={getBookmarkEditPayload}
+        onCancel={() => (editingBookmarkId = null)}
+        bind:scope={bookmarkEditScope}
+    />
+    <Modal
+        variant="default"
+        type="float"
+        size="medium"
+        placement="center"
+        onClose={() => void bookmarkEditScope?.execute("modal.cancel")}
+        title={m.rename_bookmark()}
+        initialFocus={() => document.getElementById("edit-bookmark-name-input")}
+        draggable
+    >
+        <div class="modal-form">
+            <Input
+                id="edit-bookmark-name-input"
+                attachment={focusBookmarkName}
+                placeholder={m.bookmark_name_placeholder()}
+                label={m.rename_bookmark()}
+                bind:value={editingName}
+                onkeydown={(e) => {
+                    if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+                        e.preventDefault()
+                        confirmBookmarkEdit()
+                    }
+                }}
+            />
+            <div class="modal-actions">
+                <Button variant="brutalist" onclick={confirmBookmarkEdit}>
+                    {m.save()}
+                </Button>
+                <Button
+                    variant="close"
+                    onclick={() => void bookmarkEditScope?.execute("modal.cancel")}
+                >
+                    {m.cancel()}
+                </Button>
             </div>
-        </Modal>
-    {/if}
+        </div>
+    </Modal>
+{/if}
 
-    {#if bookmarkToDeleteId}
-        <DeleteConfirmModal
-            message={m.delete_bookmark_confirm()}
-            onConfirm={async () => {
-                if (bookmarkToDeleteId) {
-                    await executeViewerBookmarkDelete({
-                        bookmarkId: bookmarkToDeleteId,
-                        confirmed: true,
-                    })
-                }
-                bookmarkToDeleteId = null
-            }}
-            onCancel={() => {
-                bookmarkToDeleteId = null
-            }}
-        />
-    {/if}
-{/snippet}
-
-{@render sidebarContent()}
+{#if bookmarkToDeleteId}
+    <DeleteConfirmModal
+        message={m.delete_bookmark_confirm()}
+        onConfirm={async () => {
+            if (bookmarkToDeleteId) {
+                await executeViewerBookmarkDelete({
+                    bookmarkId: bookmarkToDeleteId,
+                    confirmed: true,
+                })
+            }
+            bookmarkToDeleteId = null
+        }}
+        onCancel={() => {
+            bookmarkToDeleteId = null
+        }}
+    />
+{/if}
 
 <style>
-    .sidebar-search {
-        position: relative;
-        padding: 0;
-        background: var(--surface-color);
-        border-bottom: 3px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
-        box-sizing: border-box;
-        z-index: var(--z-5);
-    }
-
-    .sidebar-search :global(.search-input) {
-        width: 100%;
-        padding: 12px 36px 12px 16px;
-        font-family: inherit;
-        font-weight: 700;
-        background: var(--surface-color);
-        color: var(--text-color);
-        border: none;
-        outline: none;
-        transition: all 0.15s ease;
-        box-sizing: border-box;
-    }
-
-    .sidebar-search :global(.search-input:focus) {
-        background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
-        box-shadow: inset 4px 0 0 var(--accent-color);
-    }
-
-    .clear-search-btn {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--faded-color);
-        border: none;
-        border-radius: var(--radius-full);
-        width: 18px;
-        height: 18px;
-        font-size: var(--font-size-sm);
-        font-weight: 800;
-        cursor: pointer;
-        color: var(--text-color);
-        opacity: 0.6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s ease;
-        padding: 0;
-        line-height: 1;
-    }
-
-    @media (hover: hover) {
-        .clear-search-btn:hover {
-            opacity: 1;
-            background: var(--border-color);
-            color: var(--surface-color);
-        }
-    }
-
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -672,34 +568,6 @@
         background: rgba(229, 57, 53, 0.1);
     }
 
-    .sidebar-footer-hint {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        padding: 10px 8px;
-        background: var(--accent-active-color);
-        border-top: 3px solid var(--border-color);
-        font-size: var(--font-size-2xs);
-        font-weight: 900;
-        color: var(--text-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        flex-shrink: 0;
-        box-sizing: border-box;
-    }
-
-    .sidebar-footer-hint kbd {
-        background: var(--surface-color);
-        border: 1.5px solid var(--border-color);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        border-radius: var(--radius-sm);
-        padding: 1px 4px;
-        font-family: monospace;
-        font-weight: 900;
-    }
-
     .modal-form {
         display: flex;
         flex-direction: column;
@@ -726,18 +594,6 @@
 
         .action-btn {
             padding: 8px;
-        }
-
-        .sidebar-search {
-            padding: 0;
-        }
-
-        .sidebar-search :global(.search-input) {
-            padding: 10px 32px 10px 14px;
-        }
-
-        .clear-search-btn {
-            right: 10px !important;
         }
 
         .bookmark-card {

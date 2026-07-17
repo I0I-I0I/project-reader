@@ -1,8 +1,7 @@
 <script lang="ts">
-    const viewerUIStore = useViewerUIStore()
     import { viewport } from "$lib/shared/state/viewport.svelte"
     import * as m from "$lib/paraglide/messages"
-    import Input from "$lib/shared/ui/Input.svelte"
+    import { SidebarFooter, SidebarSearch } from "$lib/shared/ui/sidebar"
     import { useCommands, KeyboardHandler, commandsStore } from "$lib/modules/commands"
     import { MediaQuery } from "svelte/reactivity"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
@@ -21,6 +20,8 @@
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
     import { tick } from "svelte"
 
+    const viewerUIStore = useViewerUIStore()
+
     let { onClose } = $props<{
         onClose: () => void
     }>()
@@ -32,11 +33,12 @@
     let contentRef = $state<HTMLElement | undefined>()
     let isSearchFocused = $state(false)
 
+    let normalizedSearchQuery = $derived(searchQuery.toLowerCase())
     let filteredNotes = $derived(
         notesStore.notes.filter(
-            (n) =>
-                n.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                n.noteContent.toLowerCase().includes(searchQuery.toLowerCase()),
+            (note) =>
+                note.text.toLowerCase().includes(normalizedSearchQuery) ||
+                note.noteContent.toLowerCase().includes(normalizedSearchQuery),
         ),
     )
 
@@ -90,14 +92,11 @@
     function scrollSelectedIntoView() {
         requestAnimationFrame(() => {
             if (!contentRef) return
-            const selectedEl = contentRef.querySelector(".note-card.selected")
-            if (selectedEl) {
-                selectedEl.scrollIntoView({ block: "nearest" })
-            }
+            contentRef.querySelector(".note-card.selected")?.scrollIntoView({ block: "nearest" })
         })
     }
 
-    function queryChanged() {
+    function resetSelection() {
         manualSelectedIndex = null
     }
 
@@ -141,25 +140,24 @@
 
     const listCommandsDisabled = () =>
         modalManager.hasBlockingModal || !!notesStore.editingNote || !!notesStore.activePopup
-    const shouldHandleListNavigation = (event: KeyboardEvent) => {
-        const target = event.target
-        const isInput =
+
+    function isEditableTarget(target: EventTarget | null) {
+        return (
             target instanceof HTMLInputElement ||
             target instanceof HTMLTextAreaElement ||
             (target instanceof HTMLElement && target.isContentEditable)
-        return !(
-            isInput &&
-            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
         )
     }
-    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) => {
-        const target = event.target
-        const isInput =
-            target instanceof HTMLInputElement ||
-            target instanceof HTMLTextAreaElement ||
-            (target instanceof HTMLElement && target.isContentEditable)
-        return !isInput || (isSearchFocused && KeyboardHandler.matches(event, inputKey))
-    }
+
+    const shouldHandleListNavigation = (event: KeyboardEvent) =>
+        !(
+            isEditableTarget(event.target) &&
+            (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
+        )
+
+    const shouldHandleMutationKey = (event: KeyboardEvent, inputKey: string) =>
+        !isEditableTarget(event.target) ||
+        (isSearchFocused && KeyboardHandler.matches(event, inputKey))
 
     useCommands([
         ...createViewerListCommands({
@@ -202,17 +200,14 @@
         ),
     ])
 
-    function formatKey(keys: string | string[]): string {
-        if (Array.isArray(keys)) {
-            return keys.map((k) => formatKey(k)).join("/")
-        }
-        const MODIFIERS = ["ctrl", "meta", "alt", "shift"]
+    function formatKey(keys: string): string {
+        const modifiers = ["ctrl", "meta", "alt", "shift"]
         const parts = keys.split("+")
         parts.sort((a, b) => {
             const aLower = a.toLowerCase().trim()
             const bLower = b.toLowerCase().trim()
-            const aIdx = MODIFIERS.indexOf(aLower)
-            const bIdx = MODIFIERS.indexOf(bLower)
+            const aIdx = modifiers.indexOf(aLower)
+            const bIdx = modifiers.indexOf(bLower)
 
             if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
             if (aIdx !== -1) return -1
@@ -255,218 +250,131 @@
         })
     }
 
-    function triggerEdit(note: UserNote, e: MouseEvent) {
-        e.stopPropagation()
-        void executeViewerNoteEdit({ noteId: note.id, x: e.clientX, y: e.clientY })
+    function triggerEdit(note: UserNote, event: MouseEvent) {
+        event.stopPropagation()
+        void executeViewerNoteEdit({
+            noteId: note.id,
+            x: event.clientX,
+            y: event.clientY,
+        })
     }
 
-    function triggerDelete(note: UserNote, e: MouseEvent) {
-        e.stopPropagation()
+    function triggerDelete(note: UserNote, event: MouseEvent) {
+        event.stopPropagation()
         void executeViewerNoteDelete({ noteId: note.id })
     }
 </script>
 
-{#snippet sidebarContent()}
-    <div class="sidebar-search">
-        <Input
-            unstyled
-            bind:ref={searchInputRef}
-            type="text"
-            bind:value={searchQuery}
-            oninput={queryChanged}
-            placeholder={`${m.search_notes_placeholder()} [${searchShortcut}]`}
-            class="search-input"
-            onkeydown={handleSearchKeydown}
-            onfocus={() => {
-                isSearchFocused = true
-            }}
-            onblur={() => {
-                isSearchFocused = false
-            }}
-        />
-        {#if searchQuery}
-            <button
-                class="clear-search-btn"
-                onclick={() => {
-                    searchQuery = ""
-                    queryChanged()
-                    searchInputRef?.focus()
-                }}
-                aria-label={m.clear_search_aria()}
-            >
-                ×
-            </button>
-        {/if}
-    </div>
+<SidebarSearch
+    bind:ref={searchInputRef}
+    bind:value={searchQuery}
+    oninput={resetSelection}
+    onClear={resetSelection}
+    placeholder={`${m.search_notes_placeholder()} [${searchShortcut}]`}
+    onkeydown={handleSearchKeydown}
+    onfocus={() => {
+        isSearchFocused = true
+    }}
+    onblur={() => {
+        isSearchFocused = false
+    }}
+    clearLabel={m.clear_search_aria()}
+/>
 
-    <div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredNotes)}>
-        {#if notesStore.notes.length === 0}
-            <div class="no-notes">
-                {m.no_notes()}
-            </div>
-        {:else if filteredNotes.length === 0}
-            <div class="no-notes">{m.no_matching_notes()}</div>
-        {:else}
-            <div class="notes-list">
-                {#each filteredNotes as note, index (note.id)}
-                    <div
-                        class="note-card color-{note.color}"
-                        class:selected={index === selectedIndex}
-                        role="button"
-                        tabindex="0"
-                        onclick={() => {
+<div class="sidebar-content" {@attach trackSelection(selectedIndex, filteredNotes)}>
+    {#if notesStore.notes.length === 0}
+        <div class="no-notes">
+            {m.no_notes()}
+        </div>
+    {:else if filteredNotes.length === 0}
+        <div class="no-notes">{m.no_matching_notes()}</div>
+    {:else}
+        <div class="notes-list">
+            {#each filteredNotes as note, index (note.id)}
+                <div
+                    class="note-card color-{note.color}"
+                    class:selected={index === selectedIndex}
+                    role="button"
+                    tabindex="0"
+                    onclick={() => {
+                        selectNote(note)
+                        manualSelectedIndex = index
+                    }}
+                    onkeydown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault()
                             selectNote(note)
                             manualSelectedIndex = index
-                        }}
-                        onkeydown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault()
-                                selectNote(note)
-                                manualSelectedIndex = index
-                            }
-                        }}
-                    >
-                        <div class="note-card-header">
-                            <span class="note-page">Page {note.pageNumber}</span>
-                            <span class="note-date">{formatTimestamp(note.createdAt)}</span>
-                        </div>
-
-                        <blockquote class="note-highlight">
-                            "{note.text}"
-                        </blockquote>
-
-                        {#if note.noteContent}
-                            <div class="note-text-content">
-                                {note.noteContent}
-                            </div>
-                        {/if}
-
-                        <div class="note-card-actions">
-                            <button
-                                class="action-btn edit"
-                                onclick={(e) => triggerEdit(note, e)}
-                                title="Edit Note"
-                            >
-                                <EditIcon width="14" height="14" />
-                            </button>
-                            <button
-                                class="action-btn delete"
-                                onclick={(e) => triggerDelete(note, e)}
-                                title="Delete Highlight"
-                            >
-                                <TrashIcon width="14" height="14" />
-                            </button>
-                        </div>
+                        }
+                    }}
+                >
+                    <div class="note-card-header">
+                        <span class="note-page">Page {note.pageNumber}</span>
+                        <span class="note-date">{formatTimestamp(note.createdAt)}</span>
                     </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
 
-    {#if !viewport.isCompact}
-        <div class="sidebar-footer-hint">
-            {#if navigateShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each navigateShortcuts as pair, i (pair.display)}
-                        {#if i > 0},
-                        {/if}<kbd>{pair.display}</kbd>
-                    {/each}
-                    Navigate
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if selectShortcut}
-                <span class="hint-item">
-                    <kbd>{selectShortcut}</kbd> Go
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if searchShortcut}
-                <span class="hint-item">
-                    <kbd>{searchShortcut}</kbd> Search
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if editShortcut}
-                <span class="hint-item">
-                    <kbd>{editShortcut}</kbd> Edit
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if deleteShortcut}
-                <span class="hint-item">
-                    <kbd>{deleteShortcut}</kbd> Delete
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
+                    <blockquote class="note-highlight">
+                        "{note.text}"
+                    </blockquote>
+
+                    {#if note.noteContent}
+                        <div class="note-text-content">
+                            {note.noteContent}
+                        </div>
+                    {/if}
+
+                    <div class="note-card-actions">
+                        <button
+                            class="action-btn edit"
+                            onclick={(event) => triggerEdit(note, event)}
+                            title="Edit Note"
+                        >
+                            <EditIcon width="14" height="14" />
+                        </button>
+                        <button
+                            class="action-btn delete"
+                            onclick={(event) => triggerDelete(note, event)}
+                            title="Delete Highlight"
+                        >
+                            <TrashIcon width="14" height="14" />
+                        </button>
+                    </div>
+                </div>
+            {/each}
         </div>
     {/if}
-{/snippet}
+</div>
 
-{@render sidebarContent()}
+{#if !viewport.isCompact}
+    <SidebarFooter>
+        <span class="hint-item">
+            {#each navigateShortcuts as pair, i (pair.display)}
+                {#if i > 0},
+                {/if}<kbd>{pair.display}</kbd>
+            {/each}
+            Navigate
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{selectShortcut}</kbd> Go
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{searchShortcut}</kbd> Search
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{editShortcut}</kbd> Edit
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{deleteShortcut}</kbd> Delete
+        </span>
+        <span class="hint-divider">•</span>
+    </SidebarFooter>
+{/if}
 
 <style>
-    .sidebar-search {
-        position: relative;
-        padding: 0;
-        background: var(--surface-color);
-        border-bottom: 3px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
-        box-sizing: border-box;
-        z-index: var(--z-5);
-    }
-
-    .sidebar-search :global(.search-input) {
-        width: 100%;
-        padding: 12px 36px 12px 16px;
-        font-family: inherit;
-        font-weight: 700;
-        background: var(--surface-color);
-        color: var(--text-color);
-        border: none;
-        outline: none;
-        transition: all 0.15s ease;
-        box-sizing: border-box;
-    }
-
-    .sidebar-search :global(.search-input:focus) {
-        background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
-        box-shadow: inset 4px 0 0 var(--accent-color);
-    }
-
-    .clear-search-btn {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--faded-color);
-        border: none;
-        border-radius: var(--radius-full);
-        width: 18px;
-        height: 18px;
-        font-size: var(--font-size-sm);
-        font-weight: 800;
-        cursor: pointer;
-        color: var(--text-color);
-        opacity: 0.6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s ease;
-        padding: 0;
-        line-height: 1;
-    }
-
-    @media (hover: hover) {
-        .clear-search-btn:hover {
-            opacity: 1;
-            background: var(--border-color);
-            color: var(--surface-color);
-        }
-    }
-
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -610,42 +518,6 @@
         background: rgba(229, 57, 53, 0.1);
     }
 
-    .sidebar-footer-hint {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        padding: 10px 8px;
-        background: var(--accent-active-color);
-        border-top: 3px solid var(--border-color);
-        font-size: var(--font-size-2xs);
-        font-weight: 900;
-        color: var(--text-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        flex-shrink: 0;
-        box-sizing: border-box;
-    }
-
-    .sidebar-footer-hint kbd {
-        background: var(--surface-color);
-        border: 1.5px solid var(--border-color);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        border-radius: var(--radius-sm);
-        padding: 1px 4px;
-        font-family: monospace;
-        font-weight: 900;
-    }
-
-    .hint-divider {
-        opacity: 0.5;
-    }
-
-    .hint-item {
-        line-height: 1.5;
-    }
-
     @media (max-width: 640px) {
         .note-card-actions {
             opacity: 1;
@@ -653,18 +525,6 @@
 
         .action-btn {
             padding: 8px;
-        }
-
-        .sidebar-search {
-            padding: 0;
-        }
-
-        .sidebar-search :global(.search-input) {
-            padding: 10px 32px 10px 14px;
-        }
-
-        .clear-search-btn {
-            right: 10px !important;
         }
 
         .note-card {

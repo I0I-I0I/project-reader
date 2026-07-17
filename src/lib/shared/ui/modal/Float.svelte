@@ -12,6 +12,7 @@
         onSurfacePointerDown?: (event: PointerEvent) => void
         onSurfaceFocusIn?: (event: FocusEvent) => void
         surfaceRef?: HTMLElement | null
+        wrapperClass?: string
         class?: string
         style?: string
         role?: string
@@ -34,6 +35,7 @@
         onSurfacePointerDown,
         onSurfaceFocusIn,
         surfaceRef = $bindable(null),
+        wrapperClass = "",
         class: className = "",
         style = "",
         role,
@@ -115,7 +117,12 @@
 
 <div
     {@attach portal}
-    class={["float-wrapper", `placement-${placement}`, backdrop === "none" && "without-backdrop"]}
+    class={[
+        "float-wrapper",
+        `placement-${placement}`,
+        backdrop === "none" && "without-backdrop",
+        wrapperClass,
+    ]}
     style:height={viewportHeight}
     style:width={viewportWidth}
     style:top={viewportTop}
@@ -156,16 +163,14 @@
 <style>
     .float-wrapper {
         position: fixed;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 40px 20px;
+        isolation: isolate;
         box-sizing: border-box;
         pointer-events: none;
     }
 
     .float-backdrop {
         position: absolute;
+        z-index: 0;
         inset: 0;
         background: rgb(0 0 0 / 0.4);
         pointer-events: auto;
@@ -185,31 +190,8 @@
         z-index: 1;
         min-width: 0;
         min-height: 0;
-        max-width: 100%;
-        max-height: 100%;
-        margin: auto;
         box-sizing: border-box;
         pointer-events: auto;
         overscroll-behavior: contain;
-    }
-
-    .placement-top .float-surface {
-        margin-top: 80px;
-        margin-bottom: auto;
-    }
-
-    .placement-bottom .float-surface {
-        margin-top: auto;
-        margin-bottom: 0;
-    }
-
-    @media (--mobile) {
-        .float-wrapper {
-            padding: 16px 12px;
-        }
-
-        .placement-top .float-surface {
-            margin-top: 0;
-        }
     }
 </style>

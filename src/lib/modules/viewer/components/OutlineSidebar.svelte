@@ -2,7 +2,7 @@
     import { viewport } from "$lib/shared/state/viewport.svelte"
     import * as m from "$lib/paraglide/messages"
     import Spinner from "$lib/shared/ui/Spinner.svelte"
-    import Input from "$lib/shared/ui/Input.svelte"
+    import { SidebarFooter, SidebarSearch } from "$lib/shared/ui/sidebar"
     import type { FlatHeading } from "$lib/modules/pdf"
     import { KeyboardHandler, commandsStore, useCommands } from "$lib/modules/commands"
     import { createViewerOutlineCommands } from "../commands/viewerOutlineCommands"
@@ -34,12 +34,11 @@
     const phoneQuery = new MediaQuery("(max-width: 480px)")
     let searchInputRef = $state<HTMLInputElement | null>(null)
 
+    let normalizedSearchQuery = $derived(searchQuery.toLowerCase())
     let filteredOutlineList = $derived(
-        outlineList
-            ? outlineList.filter((h: FlatHeading) =>
-                  h.title.toLowerCase().includes(searchQuery.toLowerCase()),
-              )
-            : [],
+        outlineList?.filter((heading: FlatHeading) =>
+            heading.title.toLowerCase().includes(normalizedSearchQuery),
+        ) ?? [],
     )
 
     async function selectHeading(heading: FlatHeading) {
@@ -61,13 +60,13 @@
         const activeIndex = filteredOutlineList.findIndex((heading: FlatHeading) =>
             activeHeadings.has(heading),
         )
-        const automaticIndex = phoneQuery.current
-            ? -1
-            : searchQuery
-              ? 0
-              : activeIndex === -1
-                ? 0
-                : activeIndex
+        let automaticIndex = activeIndex
+        if (phoneQuery.current) {
+            automaticIndex = -1
+        } else if (searchQuery || activeIndex === -1) {
+            automaticIndex = 0
+        }
+
         return resolveSelectionIndex(
             manualSelectedIndex,
             filteredOutlineList.length,
@@ -101,15 +100,20 @@
     function scrollSelectedIntoView() {
         requestAnimationFrame(() => {
             if (!contentRef) return
-            const selectedEl = contentRef.querySelector(".outline-item.selected")
-            if (selectedEl) {
-                selectedEl.scrollIntoView({ block: "nearest" })
-            }
+            contentRef.querySelector(".outline-item.selected")?.scrollIntoView({ block: "nearest" })
         })
     }
 
-    function queryChanged() {
+    function resetSelection() {
         manualSelectedIndex = null
+    }
+
+    function isEditableTarget(target: EventTarget | null) {
+        return (
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            (target instanceof HTMLElement && target.isContentEditable)
+        )
     }
 
     useCommands(
@@ -127,17 +131,11 @@
                 modalManager.hasBlockingModal ||
                 !!notesStore.editingNote ||
                 !!notesStore.activePopup,
-            shouldHandleNavigationKey: (event) => {
-                const target = event.target
-                const isInput =
-                    target instanceof HTMLInputElement ||
-                    target instanceof HTMLTextAreaElement ||
-                    (target instanceof HTMLElement && target.isContentEditable)
-                return !(
-                    isInput &&
+            shouldHandleNavigationKey: (event) =>
+                !(
+                    isEditableTarget(event.target) &&
                     (KeyboardHandler.matches(event, "j") || KeyboardHandler.matches(event, "k"))
-                )
-            },
+                ),
             next: () => navigateSelection("next"),
             previous: () => navigateSelection("prev"),
             select: () => {
@@ -154,27 +152,18 @@
         }),
     )
 
-    function formatKey(keys: string | string[]): string {
-        if (Array.isArray(keys)) {
-            return keys.map((k) => formatKey(k)).join("/")
-        }
-        const MODIFIERS = ["ctrl", "meta", "alt", "shift"]
+    function formatKey(keys: string): string {
+        const modifiers = ["ctrl", "meta", "alt", "shift"]
         const parts = keys.split("+")
         parts.sort((a, b) => {
             const aLower = a.toLowerCase().trim()
             const bLower = b.toLowerCase().trim()
-            const aIdx = MODIFIERS.indexOf(aLower)
-            const bIdx = MODIFIERS.indexOf(bLower)
+            const aIdx = modifiers.indexOf(aLower)
+            const bIdx = modifiers.indexOf(bLower)
 
-            if (aIdx !== -1 && bIdx !== -1) {
-                return aIdx - bIdx
-            }
-            if (aIdx !== -1) {
-                return -1
-            }
-            if (bIdx !== -1) {
-                return 1
-            }
+            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
+            if (aIdx !== -1) return -1
+            if (bIdx !== -1) return 1
             return aLower.localeCompare(bLower)
         })
         return parts
@@ -231,105 +220,82 @@
     }
 </script>
 
-{#snippet sidebarContent()}
-    {#if outlineList && outlineList.length > 0}
-        <div class="sidebar-search">
-            <Input
-                unstyled
-                bind:ref={searchInputRef}
-                type="text"
-                bind:value={searchQuery}
-                oninput={queryChanged}
-                placeholder={`${m.search_headings_placeholder()} [${searchShortcut}]`}
-                class="search-input"
-                onkeydown={handleSearchKeydown}
-            />
-            {#if searchQuery}
-                <button
-                    class="clear-search-btn"
+{#if outlineList && outlineList.length > 0}
+    <SidebarSearch
+        bind:ref={searchInputRef}
+        bind:value={searchQuery}
+        oninput={resetSelection}
+        onClear={resetSelection}
+        placeholder={`${m.search_headings_placeholder()} [${searchShortcut}]`}
+        onkeydown={handleSearchKeydown}
+        clearLabel={m.clear_search_aria()}
+    />
+{/if}
+
+<div
+    class="sidebar-content"
+    {@attach trackOutlineSelection(selectedIndex, filteredOutlineList, isOutlineLoading)}
+>
+    {#if isOutlineLoading}
+        <div class="outline-loader">
+            <Spinner variant="dots" size="sm" label="" />
+        </div>
+    {:else if !outlineList || outlineList.length === 0}
+        <div class="no-outline">
+            {m.no_outline()}
+        </div>
+    {:else if filteredOutlineList.length === 0}
+        <div class="no-outline">{m.no_matching_headings()}</div>
+    {:else}
+        <nav class="outline-nav">
+            {#each filteredOutlineList as heading, index (heading)}
+                <Button
+                    variant="none"
+                    size="none"
+                    class={[
+                        "outline-item",
+                        `depth-${heading.depth}`,
+                        activeHeadings.has(heading) && "active",
+                        index === selectedIndex && "selected",
+                    ]}
                     onclick={() => {
-                        searchQuery = ""
-                        queryChanged()
-                        searchInputRef?.focus()
+                        selectHeading(heading)
+                        manualSelectedIndex = index
                     }}
-                    aria-label={m.clear_search_aria()}
+                    disabled={heading.pageNumber === undefined}
+                    style="--depth: {heading.depth}"
+                    title={heading.title}
                 >
-                    ×
-                </button>
-            {/if}
-        </div>
+                    <span class="heading-title">{heading.title}</span>
+                    {#if heading.pageNumber !== undefined}
+                        <span class="heading-page">{heading.pageNumber}</span>
+                    {/if}
+                </Button>
+            {/each}
+        </nav>
     {/if}
+</div>
 
-    <div
-        class="sidebar-content"
-        {@attach trackOutlineSelection(selectedIndex, filteredOutlineList, isOutlineLoading)}
-    >
-        {#if isOutlineLoading}
-            <div class="outline-loader">
-                <Spinner variant="dots" size="sm" label="" />
-            </div>
-        {:else if !outlineList || outlineList.length === 0}
-            <div class="no-outline">
-                {m.no_outline()}
-            </div>
-        {:else if filteredOutlineList.length === 0}
-            <div class="no-outline">{m.no_matching_headings()}</div>
-        {:else}
-            <nav class="outline-nav">
-                {#each filteredOutlineList as heading, index (heading)}
-                    <Button
-                        variant="none"
-                        size="none"
-                        class="outline-item depth-{heading.depth} {activeHeadings.has(heading)
-                            ? 'active'
-                            : ''} {index === selectedIndex ? 'selected' : ''}"
-                        onclick={() => {
-                            selectHeading(heading)
-                            manualSelectedIndex = index
-                        }}
-                        disabled={heading.pageNumber === undefined}
-                        style="--depth: {heading.depth}"
-                        title={heading.title}
-                    >
-                        <span class="heading-title">{heading.title}</span>
-                        {#if heading.pageNumber !== undefined}
-                            <span class="heading-page">{heading.pageNumber}</span>
-                        {/if}
-                    </Button>
-                {/each}
-            </nav>
-        {/if}
-    </div>
-
-    {#if !viewport.isCompact}
-        <div class="sidebar-footer-hint">
-            {#if navigateShortcuts.length > 0}
-                <span class="hint-item">
-                    {#each navigateShortcuts as pair, i (pair.display)}
-                        {#if i > 0},
-                        {/if}<kbd>{pair.display}</kbd>
-                    {/each}
-                    Navigate
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if selectShortcut}
-                <span class="hint-item">
-                    <kbd>{selectShortcut}</kbd> Go
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-            {#if searchShortcut}
-                <span class="hint-item">
-                    <kbd>{searchShortcut}</kbd> Search
-                </span>
-                <span class="hint-divider">•</span>
-            {/if}
-        </div>
-    {/if}
-{/snippet}
-
-{@render sidebarContent()}
+{#if !viewport.isCompact}
+    <SidebarFooter>
+        <span class="hint-item">
+            {#each navigateShortcuts as pair, i (pair.display)}
+                {#if i > 0},
+                {/if}<kbd>{pair.display}</kbd>
+            {/each}
+            Navigate
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{selectShortcut}</kbd> Go
+        </span>
+        <span class="hint-divider">•</span>
+        <span class="hint-item">
+            <kbd>{searchShortcut}</kbd> Search
+        </span>
+        <span class="hint-divider">•</span>
+    </SidebarFooter>
+{/if}
 
 <style>
     .sidebar-content {
@@ -422,81 +388,6 @@
         border: 1px solid var(--border-color);
     }
 
-    .sidebar-search {
-        position: relative;
-        padding: 0;
-        background: var(--surface-color);
-        border-bottom: 3px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
-        box-sizing: border-box;
-        z-index: var(--z-5);
-    }
-
-    .sidebar-search :global(.search-input) {
-        width: 100%;
-        padding: 12px 36px 12px 16px;
-        font-family: inherit;
-        font-weight: 700;
-        background: var(--surface-color);
-        color: var(--text-color);
-        border: none;
-        outline: none;
-        transition: all 0.15s ease;
-        box-sizing: border-box;
-    }
-
-    .sidebar-search :global(.search-input:focus) {
-        background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
-        box-shadow: inset 4px 0 0 var(--accent-color);
-    }
-
-    @media (max-width: 640px) {
-        .sidebar-search {
-            padding: 0;
-        }
-
-        .sidebar-search :global(.search-input) {
-            padding: 10px 32px 10px 14px;
-        }
-
-        .clear-search-btn {
-            right: 10px !important;
-        }
-    }
-
-    .clear-search-btn {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--faded-color);
-        border: none;
-        border-radius: var(--radius-full);
-        width: 18px;
-        height: 18px;
-        font-size: var(--font-size-sm);
-        font-weight: 800;
-        cursor: pointer;
-        color: var(--text-color);
-        opacity: 0.6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s ease;
-        padding: 0;
-        line-height: 1;
-    }
-
-    @media (hover: hover) {
-        .clear-search-btn:hover {
-            opacity: 1;
-            background: var(--border-color);
-            color: var(--surface-color);
-        }
-    }
-
     .outline-nav :global(.outline-item.selected:not(:disabled)) {
         background: var(--accent-color) !important;
         box-shadow: inset 4px 0 0 var(--border-color) !important;
@@ -507,41 +398,5 @@
         background: var(--accent-active-color) !important;
         box-shadow: inset 4px 0 0 var(--border-color) !important;
         font-weight: 900 !important;
-    }
-
-    .sidebar-footer-hint {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        padding: 10px 8px;
-        background: var(--accent-active-color);
-        border-top: 3px solid var(--border-color);
-        font-size: var(--font-size-2xs);
-        font-weight: 900;
-        color: var(--text-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        flex-shrink: 0;
-        box-sizing: border-box;
-    }
-
-    .sidebar-footer-hint kbd {
-        background: var(--surface-color);
-        border: 1.5px solid var(--border-color);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        border-radius: var(--radius-sm);
-        padding: 1px 4px;
-        font-family: monospace;
-        font-weight: 900;
-    }
-
-    .hint-divider {
-        opacity: 0.5;
-    }
-
-    .hint-item {
-        line-height: 1.5;
     }
 </style>
