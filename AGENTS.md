@@ -4,7 +4,6 @@
 - **Framework**: **Svelte 5 & SvelteKit**
 - **Styling & Design System**: **Vanilla CSS / Custom Styles**
     - **Rule**: Avoid generic colors or browser defaults. Use curated, vibrant color palettes, HSL variables, sleek dark modes, glassmorphism, dynamic transitions, and modern typography (Google Fonts like Outfit, Inter, Playfair Display).
-    - Do NOT use Tailwind CSS unless the user explicitly requests it.
 
 You are able to use the Svelte MCP server, where you have access to comprehensive Svelte 5 and SvelteKit documentation. Here's how to use the available tools effectively:
 
