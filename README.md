@@ -145,39 +145,21 @@ pnpm run preview
 
 ---
 
-## 🐳 Production Deployment
+## 🐳 Production deployment
 
-The project is fully containerized and configured for reliable, resource-efficient self-hosting.
+The multi-stage `Dockerfile` builds the static SvelteKit application with Node.js 22 and serves it with a pinned Caddy image. Caddy's site address comes from `PRODUCTION_HOST`; no production address is embedded in the image.
 
-### Docker Multi-Stage Build
-
-The `Dockerfile` employs a lightweight, high-performance multi-stage pipeline:
-
-1. **Build Stage**: Uses `node:24-alpine` to install dependencies and compile the static SvelteKit bundle.
-2. **Runtime Stage**: Employs `caddy:2-alpine` to serve static pages and assets directly with extreme efficiency (sub-10MB memory usage) and native client-side routing fallback.
-
-### HTTPS and automated deployment
-
-Caddy serves the static application and automatically provisions and renews TLS for
-[`project-reader.151-243-224-144.sslip.io`](https://project-reader.151-243-224-144.sslip.io).
-The Compose stack publishes
-ports 80, 443/TCP, and 443/UDP; its named volumes preserve Caddy certificates and state
-between releases.
-
-To launch the stack manually:
+For a local container check:
 
 ```sh
-docker compose up --detach --build --wait
+docker build --build-arg RELEASE=development -t project-reader:local .
+PRODUCTION_HOST=localhost DEPLOY_IMAGE=project-reader:local docker compose up --detach --wait
+curl -H 'Host: localhost' http://127.0.0.1/health/version
 ```
 
-Every push to `master` runs `.github/workflows/ci.yml`. After CI succeeds,
-`.github/workflows/deploy.yml` uploads the tested commit, builds it on the server, switches
-the Compose stack to that release, verifies HTTPS, and retains the three newest releases.
-The workflow requires these repository Actions secrets:
+Every pull request builds the production bundle and production container without registry or deployment credentials. A successful push to protected `master` scans and publishes the exact tested image by digest, attaches provenance and an SPDX SBOM, then deploys that digest. Activation verifies the revision internally and over public HTTPS; failure restores the previous image with its own immutable Compose configuration.
 
-- `DEPLOY_HOST`: `151.243.224.144`
-- `DEPLOY_USER`: the server deployment user
-- `DEPLOY_SSH_KEY`: that user's private SSH key
+Production requires the `PRODUCTION_HOST` and `PRODUCTION_URL` environment variables plus dedicated SSH secrets. Host bootstrap, GitHub protection settings, rootless Docker configuration, backups, retention, and recovery commands are documented in [`docs/production-runbook.md`](docs/production-runbook.md). Vulnerability suppressions follow [`.github/VULNERABILITY_EXCEPTIONS.md`](.github/VULNERABILITY_EXCEPTIONS.md).
 
 ---
 

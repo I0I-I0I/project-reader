@@ -12,6 +12,8 @@ describe("LibraryUIController", () => {
         state.nodeToMoveId = "two"
         state.isEditMetadataModalOpen = true
         state.nodeToEditMetadataId = "three"
+        state.isRenameFolderModalOpen = true
+        state.folderToRenameId = "folder"
 
         state.clear()
 
@@ -23,6 +25,8 @@ describe("LibraryUIController", () => {
         expect(state.nodeToMoveId).toBeNull()
         expect(state.isEditMetadataModalOpen).toBe(false)
         expect(state.nodeToEditMetadataId).toBeNull()
+        expect(state.isRenameFolderModalOpen).toBe(false)
+        expect(state.folderToRenameId).toBeNull()
     })
 
     it("creates independent instances", () => {

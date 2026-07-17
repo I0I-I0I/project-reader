@@ -65,6 +65,8 @@
                 (node.metadata.pageNumber || 1) === node.metadata.totalPages
             ),
         canToggleReadState: () => node?.type === "file",
+        canEditMetadata: () => node?.type === "file",
+        canRenameFolder: () => node?.type === "folder",
         setMenuOpen: (open: boolean) => {
             showMenu = open
         },
@@ -90,6 +92,9 @@
         },
         editMetadata: async (payload) => {
             await commandsNode.parent?.execute("library.node.edit-metadata", payload)
+        },
+        renameFolder: async (payload) => {
+            await commandsNode.parent?.execute("library.node.rename", payload)
         },
         toggleReadState: async (payload) => {
             await commandsNode.parent?.execute("library.book.read-state.toggle", payload)
@@ -210,6 +215,12 @@
         event.stopPropagation()
         if (!node) return
         void commandsNode.execute("library.selection.toggle", { nodeId: node.id })
+    }
+
+    const onRename = (event: MouseEvent) => {
+        event.stopPropagation()
+        if (!node || node.type !== "folder") return
+        void commandsNode.execute("library.node.rename", { nodeId: node.id })
     }
 
     const onEditMetadata = (event: MouseEvent) => {
@@ -372,6 +383,12 @@
                     <NavigationIcon class="dropdown-icon" />
                     <span>{m.move()}</span>
                 </Button>
+                {#if kind === "folder"}
+                    <Button variant="none" class="dropdown-item" role="menuitem" onclick={onRename}>
+                        <EditIcon class="dropdown-icon" />
+                        <span>{m.rename()}</span>
+                    </Button>
+                {/if}
                 {#if kind === "book"}
                     <Button
                         variant="none"

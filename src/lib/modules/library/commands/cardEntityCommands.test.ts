@@ -146,6 +146,53 @@ describe("bound library card commands", () => {
         expect(toggleReadState).toHaveBeenLastCalledWith({ nodeId: "book", markAsRead: false })
     })
 
+    it("binds r to the type-appropriate rename action", async () => {
+        const folderCommands = createLibraryCardCommands({
+            getNodeId: () => "folder",
+            isExecutable: () => true,
+            isSelected: () => false,
+            isRead: () => false,
+            canEditMetadata: () => false,
+            canRenameFolder: () => true,
+            setMenuOpen: vi.fn(),
+            openNode: vi.fn(),
+            toggleSelection: vi.fn(),
+            moveNode: vi.fn(),
+            deleteNode: vi.fn(),
+            editMetadata: vi.fn(),
+            renameFolder: vi.fn(),
+            toggleReadState: vi.fn(),
+            relink: vi.fn(),
+        })
+        expect(folderCommands["library.node.rename"].keymap).toBe("r")
+        expect(folderCommands["library.node.rename"].disabled?.()).toBe(false)
+        expect(folderCommands["library.node.edit-metadata"].disabled?.()).toBe(true)
+
+        const editMetadata = vi.fn().mockResolvedValue(undefined)
+        const bookCommands = createLibraryCardCommands({
+            getNodeId: () => "book",
+            isExecutable: () => true,
+            isSelected: () => false,
+            isRead: () => false,
+            canEditMetadata: () => true,
+            canRenameFolder: () => false,
+            setMenuOpen: vi.fn(),
+            openNode: vi.fn(),
+            toggleSelection: vi.fn(),
+            moveNode: vi.fn(),
+            deleteNode: vi.fn(),
+            editMetadata,
+            renameFolder: vi.fn(),
+            toggleReadState: vi.fn(),
+            relink: vi.fn(),
+        })
+        expect(bookCommands["library.node.rename"].keymap).toBe("r")
+        expect(bookCommands["library.node.rename"].label()).toBe(m.edit_metadata())
+        expect(bookCommands["library.node.rename"].disabled?.()).toBe(false)
+        await bookCommands["library.node.rename"].run(undefined)
+        expect(editMetadata).toHaveBeenCalledWith({ nodeId: "book" })
+    })
+
     it("disables read-state changes for folders", () => {
         const commands = createLibraryCardCommands({
             getNodeId: () => "folder",

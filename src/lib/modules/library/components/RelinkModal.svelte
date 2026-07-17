@@ -88,7 +88,7 @@
         </p>
         <div class="modal-actions">
             <Button variant="brutalist" onclick={handleLocateClick}>{m.locate_file()}</Button>
-            <Button variant="ghost" onclick={() => void commandsNode.execute("modal.cancel")}>
+            <Button variant="close" onclick={() => void commandsNode.execute("modal.cancel")}>
                 {m.cancel()}
             </Button>
         </div>

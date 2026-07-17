@@ -70,6 +70,15 @@ export interface FileNode extends BaseNode {
 export type VFSNode = FolderNode | FileNode
 export type VFSNodes = Record<string, VFSNode>
 
+export type FolderNameErrorCode = "empty" | "slash" | "duplicate"
+
+export class FolderNameError extends Error {
+    constructor(public readonly code: FolderNameErrorCode) {
+        super(`Invalid folder name: ${code}`)
+        this.name = "FolderNameError"
+    }
+}
+
 export interface VFS {
     nodes: VFSNodes
     rootIds: string[]

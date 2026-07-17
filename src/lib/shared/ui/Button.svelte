@@ -14,6 +14,7 @@
         square?: boolean
         open?: boolean
         href?: string
+        ref?: HTMLButtonElement | null
     }
 
     let {
@@ -27,11 +28,19 @@
         square = false,
         open = false,
         href,
+        ref = $bindable(),
         class: className = "",
         ...props
     }: Props = $props()
 
     const displayTooltip = $derived(tooltip || title)
+
+    function captureButton(node: HTMLButtonElement) {
+        ref = node
+        return () => {
+            if (ref === node) ref = null
+        }
+    }
 </script>
 
 {#if href}
@@ -39,12 +48,11 @@
         href={resolve(href as any)}
         class={[
             "button",
-            variant === "action" ? "action-btn" : "",
+            variant === "action" || variant === "close" ? "action-btn" : "",
             variant === "fab" ? "fab-btn" : "",
             variant === "brutalist" ? "brutalist-btn" : "",
             variant === "ghost" ? "ghost-btn" : "",
             variant === "none" ? "none-btn" : "",
-            variant === "close" ? "close-btn" : "",
             size === "none" ? "size-none" : "",
             size === "small" ? "small-size" : "",
             size === "default" ? "default-size" : "",
@@ -67,14 +75,14 @@
     </a>
 {:else}
     <button
+        {@attach captureButton}
         class={[
             "button",
-            variant === "action" ? "action-btn" : "",
+            variant === "action" || variant === "close" ? "action-btn" : "",
             variant === "fab" ? "fab-btn" : "",
             variant === "brutalist" ? "brutalist-btn" : "",
             variant === "ghost" ? "ghost-btn" : "",
             variant === "none" ? "none-btn" : "",
-            variant === "close" ? "close-btn" : "",
             size === "none" ? "size-none" : "",
             size === "small" ? "small-size" : "",
             size === "default" ? "default-size" : "",
@@ -133,24 +141,23 @@
     }
 
     @media (hover: hover) {
-        .action-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
-        .action-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
+        .action-btn:hover:not(:disabled):not(:active):not(.active),
+        .action-btn:focus-visible:not(:disabled):not(:active):not(.active) {
             transform: translate(-1px, -1px);
             box-shadow: 4px 4px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
             background: var(--surface-hover-color, var(--surface-hover-color, #faf8f5));
             outline: none;
         }
 
-        .action-btn.square:hover:not(:disabled):not(:active):not(.active):not(.open),
-        .action-btn.square:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
+        .action-btn.square:hover:not(:disabled):not(:active):not(.active),
+        .action-btn.square:focus-visible:not(:disabled):not(:active):not(.active) {
             background: var(--accent-color, #faf8f5);
             outline: none;
         }
     }
 
     .action-btn:active:not(:disabled),
-    .action-btn.active:not(:disabled),
-    .action-btn.open {
+    .action-btn.active:not(:disabled) {
         transform: translate(2px, 2px);
         box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
         background: var(--accent-active-color, var(--accent-active-color, #eae6d8));
@@ -286,46 +293,6 @@
     .ghost-btn.active:not(:disabled),
     .ghost-btn.open {
         background: var(--faded-color, var(--faded-color, rgba(0, 0, 0, 0.1)));
-    }
-
-    .close-btn {
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        font-family: inherit;
-        font-size: var(--font-size-lg);
-        font-weight: 800;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        color: var(--text-color);
-        position: relative;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        padding: 8px 16px;
-        line-height: 1.2;
-        text-align: center;
-    }
-
-    @media (hover: hover) {
-        .close-btn:hover:not(:disabled):not(:active):not(.active):not(.open),
-        .close-btn:focus-visible:not(:disabled):not(:active):not(.active):not(.open) {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
-            background: var(--danger-active-color, var(--surface-hover-color, #faf8f5));
-            color: var(--danger-text-color, var(--text-color, #1a1a1a));
-            outline: none;
-        }
-    }
-
-    .close-btn:active:not(:disabled),
-    .close-btn.active:not(:disabled),
-    .close-btn.open {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color, var(--shadow-color, #1a1a1a));
-        background: var(--danger-active-color, var(--surface-hover-color, #faf8f5));
-        color: var(--danger-text-color, var(--text-color, #1a1a1a));
     }
 
     .none-btn {

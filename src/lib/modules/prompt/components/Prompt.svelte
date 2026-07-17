@@ -1,5 +1,6 @@
 <script lang="ts">
     import Float from "$lib/shared/ui/modal/Float.svelte"
+    import Button from "$lib/shared/ui/Button.svelte"
     import SearchIcon from "$lib/shared/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/shared/icons/SearchNoResultsIcon.svelte"
     import { useCommands } from "$lib/modules/commands"
@@ -66,7 +67,7 @@
         <Float
             placement="top"
             backdrop="blur"
-            style="width:min(44rem, calc(var(--float-viewport-width) - 2.5rem))"
+            wrapperClass="prompt-wrapper"
             onBackdropPointerDown={() => promptStore.close()}
             role="dialog"
             ariaModal={true}
@@ -98,11 +99,13 @@
                             : undefined}
                         oninput={(event) => promptStore.setQuery(event.currentTarget.value)}
                     />
-                    <button
+                    <Button
                         type="button"
-                        class="close-btn"
+                        variant="close"
+                        size="small"
+                        square
                         onclick={() => promptStore.close()}
-                        aria-label={m.prompt_close_aria()}>✕</button
+                        aria-label={m.prompt_close_aria()}>✕</Button
                     >
                 </form>
 
@@ -190,6 +193,21 @@
 {/if}
 
 <style>
+    :global(.prompt-wrapper) {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    :global(.prompt-float) {
+        width: min(44rem, calc(var(--float-viewport-width) - 2.5rem));
+        max-width: 100%;
+        max-height: 100%;
+        margin-top: 80px;
+        margin-bottom: auto;
+    }
+
     .prompt-container {
         display: flex;
         width: 100%;
@@ -245,30 +263,6 @@
         color: var(--text-color);
         font: inherit;
         font-size: var(--font-size-2xl);
-    }
-
-    .close-btn {
-        padding: 0.25rem;
-        border: 0;
-        background: transparent;
-        color: var(--text-color);
-        cursor: pointer;
-        font-size: var(--font-size-xl);
-        opacity: 0.55;
-        transition:
-            opacity 120ms ease,
-            transform 120ms ease;
-    }
-
-    @media (hover: hover) {
-        .close-btn:hover {
-            opacity: 0.9;
-            transform: rotate(6deg) scale(1.08);
-        }
-    }
-
-    .close-btn:active {
-        transform: scale(0.92);
     }
 
     .results-list {
@@ -343,8 +337,14 @@
     }
 
     @media (--prompt) {
+        :global(.prompt-wrapper) {
+            padding: 0;
+        }
+
         :global(.prompt-float) {
+            width: 100%;
             height: 100%;
+            margin: 0;
         }
 
         .prompt-container {
@@ -382,10 +382,6 @@
         .input-wrapper.loading::after,
         .loading-mark {
             animation: none;
-        }
-
-        .close-btn {
-            transition: none;
         }
     }
 </style>

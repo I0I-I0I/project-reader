@@ -51,13 +51,16 @@
         <h3 class="modal-title">{"id" in editorState ? m.edit_note() : m.add_note()}</h3>
         <div class="header-actions">
             <span class="editor-page">{m.page()} {editorState.pageNumber}</span>
-            <button
-                class="close-btn"
+            <Button
+                variant="close"
+                size="small"
+                square
                 onclick={() => void editorCommandsNode.execute("modal.cancel")}
                 aria-label={m.cancel()}
+                tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
             >
                 &times;
-            </button>
+            </Button>
         </div>
     </div>
 {/snippet}
@@ -112,7 +115,7 @@
     {#snippet footer()}
         <div class="editor-actions">
             <Button
-                variant="none"
+                variant="close"
                 class="editor-btn cancel"
                 onclick={() => void editorCommandsNode.execute("modal.cancel")}
                 aria-label={m.cancel()}
@@ -148,7 +151,8 @@
     }
 
     .editor-body {
-        overflow-y: hidden !important;
+        min-height: 0;
+        overflow-y: auto;
         padding: 16px 24px;
         background: var(--bg-color);
         display: flex;
@@ -185,28 +189,6 @@
         gap: 12px;
     }
 
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: var(--font-size-5xl);
-        font-weight: bold;
-        color: var(--text-color);
-        cursor: pointer;
-        padding: 0 4px;
-        line-height: 1;
-        transition: transform 0.1s ease;
-    }
-
-    @media (hover: hover) {
-        .close-btn:hover {
-            transform: scale(1.15);
-        }
-    }
-
-    .close-btn:active {
-        transform: scale(0.95);
-    }
-
     .editor-page {
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
@@ -227,6 +209,8 @@
         padding: 12px 16px;
         border-left: 4px solid var(--border-color);
         max-height: 100px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         word-break: break-word;
         line-height: 1.4;
     }

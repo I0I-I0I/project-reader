@@ -146,7 +146,7 @@
                     {m.add_bookmark()}
                 </Button>
                 <Button
-                    variant="ghost"
+                    variant="close"
                     onclick={() => void bookmarkAddScope?.execute("modal.cancel")}
                 >
                     {m.cancel()}

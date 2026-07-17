@@ -271,6 +271,25 @@ export function createLibraryCommands(libraryUI: LibraryUIController) {
                 libraryUI.isNewFolderModalOpen = false
             },
         },
+        "library.node.rename": {
+            id: "library.node.rename",
+            label: () => m.rename_folder(),
+            englishLabel: () => m.rename_folder({}, { locale: "en" }),
+            category: "commands",
+            palette: false,
+            run: async (payload) => {
+                const node = payload?.nodeId ? vfsStore.nodes[payload.nodeId] : undefined
+                if (!node || node.type !== "folder") return
+                if (payload?.name === undefined) {
+                    libraryUI.folderToRenameId = node.id
+                    libraryUI.isRenameFolderModalOpen = true
+                    return
+                }
+                await vfsStore.renameFolder(node.id, payload.name)
+                libraryUI.isRenameFolderModalOpen = false
+                libraryUI.folderToRenameId = null
+            },
+        },
         "library.continue-reading": {
             id: "library.continue-reading",
             keymap: "shift+c",

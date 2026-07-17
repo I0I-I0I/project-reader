@@ -179,6 +179,84 @@ describe("VFS preview ownership", () => {
     })
 })
 
+describe("folder names", () => {
+    const folders = {
+        parent: {
+            id: "parent",
+            name: "Parent",
+            type: "folder" as const,
+            parentId: null,
+            childrenIds: ["folder", "sibling"],
+            createdAt: 1,
+            updatedAt: 1,
+        },
+        folder: {
+            id: "folder",
+            name: "Old name",
+            type: "folder" as const,
+            parentId: "parent",
+            childrenIds: ["book"],
+            createdAt: 2,
+            updatedAt: 2,
+        },
+        sibling: {
+            id: "sibling",
+            name: "Taken",
+            type: "folder" as const,
+            parentId: "parent",
+            childrenIds: [],
+            createdAt: 3,
+            updatedAt: 3,
+        },
+    }
+
+    it("persists before atomically publishing a normalized rename", async () => {
+        const store = new VFSStore(structuredClone(folders))
+        const put = vi.fn(async () => "folder")
+        store.db = { folders: { put } } as never
+
+        await store.renameFolder("folder", "  New name  ")
+
+        expect(put).toHaveBeenCalledWith(expect.objectContaining({ name: "New name" }))
+        expect(store.nodes.folder).toMatchObject({
+            id: "folder",
+            name: "New name",
+            parentId: "parent",
+            childrenIds: ["book"],
+            createdAt: 2,
+        })
+    })
+
+    it.each(["   ", "a/b", "taken", "TAKEN"])("rejects invalid name %j", async (name) => {
+        const store = new VFSStore(structuredClone(folders))
+        store.db = { folders: { put: vi.fn() } } as never
+        await expect(store.renameFolder("folder", name)).rejects.toThrow()
+        expect(store.nodes.folder.name).toBe("Old name")
+    })
+
+    it("does not write an unchanged normalized name", async () => {
+        const store = new VFSStore(structuredClone(folders))
+        const put = vi.fn()
+        store.db = { folders: { put } } as never
+        await store.renameFolder("folder", "Old name")
+        expect(put).not.toHaveBeenCalled()
+        expect(store.nodes.folder.updatedAt).toBe(2)
+    })
+
+    it("keeps memory unchanged when persistence fails", async () => {
+        const store = new VFSStore(structuredClone(folders))
+        store.db = {
+            folders: {
+                put: vi.fn(async () => {
+                    throw new Error("disk full")
+                }),
+            },
+        } as never
+        await expect(store.renameFolder("folder", "New name")).rejects.toThrow("disk full")
+        expect(store.nodes.folder.name).toBe("Old name")
+    })
+})
+
 describe("VFS import registration", () => {
     it("exposes a complete batch synchronously and captures its parent", async () => {
         const store = new VFSStore()

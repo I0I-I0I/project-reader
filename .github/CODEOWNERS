@@ -1,7 +1,11 @@
-# Require explicit review for production build and deployment changes.
+# These paths are security-sensitive. Repository rules require CODEOWNER review;
+# keep every listed owner valid and grant at least two independent reviewers access.
 /.github/CODEOWNERS @I0I-I0I
 /.github/dependabot.yml @I0I-I0I
+/.github/VULNERABILITY_EXCEPTIONS.md @I0I-I0I
 /.github/workflows/ @I0I-I0I
+/docs/production-runbook.md @I0I-I0I
+/scripts/deploy-release.sh @I0I-I0I
 /Dockerfile @I0I-I0I
 /.dockerignore @I0I-I0I
 /docker-compose.yml @I0I-I0I

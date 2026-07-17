@@ -9,6 +9,8 @@ export class LibraryUIController {
     nodeToMoveId = $state<string | null>(null)
     isEditMetadataModalOpen = $state(false)
     nodeToEditMetadataId = $state<string | null>(null)
+    isRenameFolderModalOpen = $state(false)
+    folderToRenameId = $state<string | null>(null)
 
     get isSelectionMode(): boolean {
         return this.#isSelectionMode
@@ -28,6 +30,8 @@ export class LibraryUIController {
         this.nodeToMoveId = null
         this.isEditMetadataModalOpen = false
         this.nodeToEditMetadataId = null
+        this.isRenameFolderModalOpen = false
+        this.folderToRenameId = null
     }
 }
 

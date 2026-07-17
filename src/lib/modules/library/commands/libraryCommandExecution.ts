@@ -4,3 +4,7 @@ import { commandsStore } from "$lib/modules/commands"
 export async function createLibraryFolder(name: string): Promise<void> {
     await commandsStore.execute("library.folder.create", { name })
 }
+
+export async function renameLibraryFolder(nodeId: string, name: string): Promise<void> {
+    await commandsStore.execute("library.node.rename", { nodeId, name })
+}
