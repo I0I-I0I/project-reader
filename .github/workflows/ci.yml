@@ -19,8 +19,8 @@ env:
 jobs:
     quality:
         name: Tests, checks, formatting, and linting
-        runs-on: ubuntu-latest
-        timeout-minutes: 15
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
 
         steps:
             - name: Checkout code
@@ -46,18 +46,87 @@ jobs:
             - name: Run Svelte checks
               run: pnpm check
 
+            - name: Build production bundle
+              run: pnpm build
+
             - name: Check formatting
               run: pnpm exec oxfmt --check .
 
             - name: Run linter
               run: pnpm exec oxlint .
 
+            - name: Install checksum-verified actionlint
+              env:
+                  ACTIONLINT_VERSION: 1.7.9
+                  ACTIONLINT_SHA256: 233b280d05e100837f4af1433c7b40a5dcb306e3aa68fb4f17f8a7f45a7df7b4
+              run: |
+                  set -euo pipefail
+                  archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+                  curl --fail --silent --show-error --location \
+                    "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}" \
+                    --output "/tmp/$archive"
+                  echo "$ACTIONLINT_SHA256  /tmp/$archive" | sha256sum --check
+                  tar -xzf "/tmp/$archive" -C /tmp actionlint
+                  install -m 755 /tmp/actionlint /usr/local/bin/actionlint
+
+            - name: Lint GitHub Actions workflows
+              run: actionlint
+
+    production-container:
+        name: Production container check
+        if: github.event_name == 'pull_request'
+        needs: quality
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout untrusted revision without credentials
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+              with:
+                  persist-credentials: false
+
+            - name: Build and smoke-test production container
+              run: |
+                  set -Eeuo pipefail
+                  image_tag="project-reader-pr:$GITHUB_SHA"
+                  container_id=""
+                  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+                  cleanup() {
+                    status=$?
+                    if [[ -n "$container_id" && $status -ne 0 ]]; then
+                      docker logs "$container_id" || true
+                    fi
+                    [[ -z "$container_id" ]] || docker rm --force "$container_id" >/dev/null 2>&1 || true
+                    exit "$status"
+                  }
+                  trap cleanup EXIT
+
+                  DOCKER_BUILDKIT=1 docker build \
+                    --build-arg "RELEASE=$GITHUB_SHA" \
+                    --tag "$image_tag" .
+                  container_id="$(docker run --detach \
+                    --env PRODUCTION_HOST=localhost \
+                    --publish 127.0.0.1::80 "$image_tag")"
+                  port="$(docker port "$container_id" 80/tcp | awk -F: 'NR == 1 { print $NF }')"
+
+                  for _ in {1..30}; do
+                    actual_release="$(curl --fail --silent --show-error \
+                      --header 'Host: localhost' \
+                      "http://127.0.0.1:$port/health/version" || true)"
+                    [[ "$actual_release" == "$GITHUB_SHA" ]] && exit 0
+                    sleep 1
+                  done
+                  echo "Image did not serve the expected revision" >&2
+                  exit 1
+
     image:
         name: Build, test, and publish production image
         if: github.event_name == 'push'
         needs: quality
-        runs-on: ubuntu-latest
-        timeout-minutes: 20
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
         permissions:
             attestations: write
             contents: read
@@ -92,31 +161,66 @@ jobs:
                   set -euo pipefail
                   DOCKER_BUILDKIT=1 docker build \
                     --build-arg "RELEASE=$GITHUB_SHA" \
-                    --tag "$IMAGE_TAG" \
-                    .
+                    --tag "$IMAGE_TAG" .
 
             - name: Smoke-test the exact image
               env:
                   IMAGE_TAG: ${{ steps.image.outputs.tag }}
               run: |
-                  set -euo pipefail
-                  container_id="$(docker run --detach --publish 127.0.0.1::80 "$IMAGE_TAG")"
-                  trap 'docker rm --force "$container_id" >/dev/null 2>&1 || true' EXIT
+                  set -Eeuo pipefail
+                  container_id="$(docker run --detach --env PRODUCTION_HOST=localhost \
+                    --publish 127.0.0.1::80 "$IMAGE_TAG")"
+                  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+                  cleanup() {
+                    status=$?
+                    [[ $status -eq 0 ]] || docker logs "$container_id" || true
+                    docker rm --force "$container_id" >/dev/null 2>&1 || true
+                    exit "$status"
+                  }
+                  trap cleanup EXIT
                   port="$(docker port "$container_id" 80/tcp | awk -F: 'NR == 1 { print $NF }')"
 
-                  for attempt in {1..20}; do
+                  for _ in {1..30}; do
                     actual_release="$(curl --fail --silent --show-error \
-                      --header 'Host: project-reader.151-243-224-144.sslip.io' \
+                      --header 'Host: localhost' \
                       "http://127.0.0.1:$port/health/version" || true)"
-                    if [[ "$actual_release" == "$GITHUB_SHA" ]]; then
-                      exit 0
-                    fi
+                    [[ "$actual_release" == "$GITHUB_SHA" ]] && exit 0
                     sleep 1
                   done
-
-                  docker logs "$container_id"
                   echo "Image did not serve the expected revision" >&2
                   exit 1
+
+            - name: Generate SPDX SBOM from the tested image
+              uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+              with:
+                  image: ${{ steps.image.outputs.tag }}
+                  format: spdx-json
+                  output-file: image.spdx.json
+                  syft-version: v1.48.0
+                  upload-artifact: false
+                  upload-release-assets: false
+
+            - name: Scan the tested image for fixable critical vulnerabilities
+              uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+              with:
+                  image-ref: ${{ steps.image.outputs.tag }}
+                  format: json
+                  output: trivy-results.json
+                  exit-code: "1"
+                  ignore-unfixed: true
+                  severity: CRITICAL
+                  version: v0.69.3
+
+            - name: Upload supply-chain reports
+              if: always()
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: image-security-reports
+                  path: |
+                      image.spdx.json
+                      trivy-results.json
+                  if-no-files-found: warn
+                  retention-days: 7
 
             - name: Publish image by commit
               id: publish
@@ -128,12 +232,7 @@ jobs:
                   docker push "$IMAGE_TAG" | tee /tmp/docker-push.log
                   digest="$(sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' \
                     /tmp/docker-push.log | tail -n 1)"
-
-                  if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-                    echo "Could not determine the published image digest" >&2
-                    exit 1
-                  fi
-
+                  [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
                   image_ref="$IMAGE_NAME@$digest"
                   docker manifest inspect "$image_ref" >/dev/null
                   printf '%s\n' "$image_ref" > production-image.txt
@@ -144,6 +243,14 @@ jobs:
               with:
                   subject-name: ${{ steps.image.outputs.name }}
                   subject-digest: ${{ steps.publish.outputs.digest }}
+                  push-to-registry: true
+
+            - name: Attest published image SBOM
+              uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+              with:
+                  subject-name: ${{ steps.image.outputs.name }}
+                  subject-digest: ${{ steps.publish.outputs.digest }}
+                  sbom-path: image.spdx.json
                   push-to-registry: true
 
             - name: Record immutable production image

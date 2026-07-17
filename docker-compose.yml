@@ -10,6 +10,8 @@ services:
             - ALL
         cap_add:
             - NET_BIND_SERVICE
+        environment:
+            PRODUCTION_HOST: ${PRODUCTION_HOST:-localhost}
         ports:
             - "80:80"
             - "443:443"
@@ -20,11 +22,18 @@ services:
         tmpfs:
             - /tmp:size=16m,mode=1777
         healthcheck:
-            test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:2019/config/"]
+            test:
+                [
+                    "CMD-SHELL",
+                    'wget --quiet -O /dev/null --header="Host: $${PRODUCTION_HOST}" http://127.0.0.1/health/version',
+                ]
             interval: 10s
             timeout: 5s
-            retries: 6
-            start_period: 10s
+            retries: 12
+            start_period: 20s
+        pids_limit: 128
+        mem_limit: 256m
+        cpus: 1.0
         stop_grace_period: 30s
         logging:
             driver: "json-file"

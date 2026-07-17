@@ -25,7 +25,7 @@ jobs:
             github.event.workflow_run.event == 'push' &&
             github.event.workflow_run.head_branch == 'master' &&
             github.event.workflow_run.head_repository.full_name == github.repository
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         timeout-minutes: 5
         outputs:
             image_ref: ${{ steps.image.outputs.ref }}
@@ -37,10 +37,7 @@ jobs:
                   RELEASE: ${{ github.event.workflow_run.head_sha }}
               run: |
                   set -euo pipefail
-                  current_sha="$(gh api \
-                    "repos/$GITHUB_REPOSITORY/commits/master" \
-                    --jq '.sha')"
-
+                  current_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/master" --jq '.sha')"
                   if [[ "$current_sha" != "$RELEASE" ]]; then
                     echo "Refusing stale deployment: $RELEASE; current master is $current_sha" >&2
                     exit 1
@@ -59,11 +56,7 @@ jobs:
               run: |
                   set -euo pipefail
                   mapfile -t image_refs < deployment/production-image.txt
-                  if [[ "${#image_refs[@]}" -ne 1 ]]; then
-                    echo "Expected exactly one image reference" >&2
-                    exit 1
-                  fi
-
+                  [[ "${#image_refs[@]}" -eq 1 ]]
                   image_ref="${image_refs[0]}"
                   expected_image="ghcr.io/${GITHUB_REPOSITORY,,}"
                   digest="${image_ref#"$expected_image"@}"
@@ -72,38 +65,36 @@ jobs:
                     echo "Unexpected production image reference: $image_ref" >&2
                     exit 1
                   fi
-
                   echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
 
     deploy:
         name: Deploy successful master image
         needs: authorize
-        runs-on: ubuntu-latest
-        timeout-minutes: 20
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
         environment:
             name: production
-            url: https://project-reader.151-243-224-144.sslip.io/
+            url: ${{ vars.PRODUCTION_URL }}
         permissions:
             contents: read
             packages: read
 
         steps:
-            - name: Ensure revision is still current master tip
-              env:
-                  GH_TOKEN: ${{ github.token }}
-                  RELEASE: ${{ github.event.workflow_run.head_sha }}
-              run: |
-                  set -euo pipefail
-                  current_sha="$(gh api \
-                    "repos/$GITHUB_REPOSITORY/commits/master" \
-                    --jq '.sha')"
-                  test "$current_sha" = "$RELEASE"
-
             - name: Checkout tested revision
               uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
               with:
                   ref: ${{ github.event.workflow_run.head_sha }}
                   persist-credentials: false
+
+            - name: Validate production configuration
+              env:
+                  PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST }}
+                  PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+              run: |
+                  set -euo pipefail
+                  [[ "$PRODUCTION_HOST" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$ ]]
+                  [[ "$PRODUCTION_URL" == "https://$PRODUCTION_HOST" || \
+                     "$PRODUCTION_URL" == "https://$PRODUCTION_HOST/" ]]
 
             - name: Configure SSH
               env:
@@ -146,6 +137,7 @@ jobs:
                   IMAGE_REF: ${{ needs.authorize.outputs.image_ref }}
               run: |
                   set -euo pipefail
+                  # shellcheck disable=SC2029 # Validated values intentionally expand on the runner.
                   printf '%s' "$GH_TOKEN" | ssh production \
                     "set -euo pipefail
                      docker_config=\$(mktemp -d)
@@ -157,9 +149,12 @@ jobs:
 
             - name: Upload immutable release configuration
               env:
+                  IMAGE_REF: ${{ needs.authorize.outputs.image_ref }}
                   RELEASE: ${{ github.event.workflow_run.head_sha }}
               run: |
                   set -euo pipefail
+                  printf '%s\n' "$IMAGE_REF" > /tmp/image-ref
+                  # shellcheck disable=SC2029 # RELEASE is a validated commit SHA.
                   ssh production "RELEASE='$RELEASE' bash -s" <<'REMOTE'
                   set -euo pipefail
                   base=/opt/project-reader/releases
@@ -168,152 +163,48 @@ jobs:
                   install -m 700 -d "$incoming"
                   REMOTE
 
-                  scp -q docker-compose.yml \
-                    "production:/opt/project-reader/releases/.incoming-$RELEASE/docker-compose.yml"
+                  scp -q docker-compose.yml /tmp/image-ref \
+                    "production:/opt/project-reader/releases/.incoming-$RELEASE/"
 
+                  # shellcheck disable=SC2029 # RELEASE is a validated commit SHA.
                   ssh production "RELEASE='$RELEASE' bash -s" <<'REMOTE'
                   set -euo pipefail
                   base=/opt/project-reader/releases
                   incoming="$base/.incoming-$RELEASE"
                   final="$base/$RELEASE"
-
                   if [[ -e "$final" ]]; then
                     cmp "$incoming/docker-compose.yml" "$final/docker-compose.yml"
+                    cmp "$incoming/image-ref" "$final/image-ref"
                     rm -rf "$incoming"
                   else
-                    chmod 444 "$incoming/docker-compose.yml"
+                    chmod 444 "$incoming/docker-compose.yml" "$incoming/image-ref"
                     chmod 555 "$incoming"
                     mv "$incoming" "$final"
                   fi
                   REMOTE
 
-            - name: Activate exact tested image
-              id: activate
+            - name: Ensure revision is still current master tip
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  RELEASE: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  set -euo pipefail
+                  current_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/master" --jq '.sha')"
+                  test "$current_sha" = "$RELEASE"
+
+            - name: Activate, verify, and finalize exact tested image
               env:
                   IMAGE_REF: ${{ needs.authorize.outputs.image_ref }}
-                  RELEASE: ${{ github.event.workflow_run.head_sha }}
-              run: |
-                  ssh production "IMAGE_REF='$IMAGE_REF' RELEASE='$RELEASE' bash -s" <<'REMOTE'
-                  set -euo pipefail
-                  base=/opt/project-reader/releases
-                  release_dir="$base/$RELEASE"
-                  rollback_file="/opt/project-reader/.rollback-$RELEASE"
-                  compose=(docker compose --project-name project-reader --file "$release_dir/docker-compose.yml")
-
-                  image_release="$(docker image inspect "$IMAGE_REF" \
-                    --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
-                  if [[ "$image_release" != "$RELEASE" ]]; then
-                    echo "Image revision mismatch: expected $RELEASE, got $image_release" >&2
-                    exit 1
-                  fi
-
-                  previous_container="$(docker ps --quiet \
-                    --filter label=com.docker.compose.project=project-reader \
-                    --filter label=com.docker.compose.service=web | head -n 1)"
-                  previous_image=""
-                  if [[ -n "$previous_container" ]]; then
-                    previous_image="$(docker inspect "$previous_container" --format '{{.Config.Image}}')"
-                  fi
-                  previous_dir="$(readlink -f /opt/project-reader/current 2>/dev/null || true)"
-                  printf '%s\n%s\n' "$previous_image" "$previous_dir" > "$rollback_file.tmp"
-                  chmod 600 "$rollback_file.tmp"
-                  mv "$rollback_file.tmp" "$rollback_file"
-
-                  rollback() {
-                    echo "Rolling back failed deployment" >&2
-                    if [[ -n "$previous_image" ]]; then
-                      DEPLOY_IMAGE="$previous_image" "${compose[@]}" up \
-                        --detach --remove-orphans --wait
-                    else
-                      DEPLOY_IMAGE="$IMAGE_REF" "${compose[@]}" down || true
-                    fi
-                    rm -f "$rollback_file"
-                  }
-
-                  DEPLOY_IMAGE="$IMAGE_REF" "${compose[@]}" config --quiet
-                  if ! DEPLOY_IMAGE="$IMAGE_REF" "${compose[@]}" up \
-                    --detach --remove-orphans --wait; then
-                    rollback
-                    exit 1
-                  fi
-
-                  container_id="$(DEPLOY_IMAGE="$IMAGE_REF" "${compose[@]}" ps --quiet web)"
-                  actual_release="$(docker exec "$container_id" wget --quiet -O - \
-                    --header=Host:project-reader.151-243-224-144.sslip.io \
-                    http://127.0.0.1/health/version)"
-                  if [[ "$actual_release" != "$RELEASE" ]]; then
-                    echo "Running revision mismatch: expected $RELEASE, got $actual_release" >&2
-                    rollback
-                    exit 1
-                  fi
-
-                  next_link="/opt/project-reader/.current-$RELEASE"
-                  rm -f "$next_link"
-                  ln -s "$release_dir" "$next_link"
-                  mv -Tf "$next_link" /opt/project-reader/current
-                  REMOTE
-
-            - name: Verify public HTTPS revision
-              id: verify
-              env:
+                  PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST }}
+                  PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
                   RELEASE: ${{ github.event.workflow_run.head_sha }}
               run: |
                   set -euo pipefail
-                  actual_release="$(curl --fail --silent --show-error \
-                    --retry 10 --retry-all-errors --retry-delay 3 --max-time 10 \
-                    https://project-reader.151-243-224-144.sslip.io/health/version)"
-                  test "$actual_release" = "$RELEASE"
-
-            - name: Finalize successful deployment
-              env:
-                  RELEASE: ${{ github.event.workflow_run.head_sha }}
-              run: |
-                  ssh production "RELEASE='$RELEASE' bash -s" <<'REMOTE'
-                  set -euo pipefail
-                  rm -f "/opt/project-reader/.rollback-$RELEASE"
-                  docker image prune --all --force --filter "until=168h"
-
-                  find /opt/project-reader/releases -mindepth 1 -maxdepth 1 \
-                    -type d -name '[0-9a-f]*' -printf '%T@ %p\n' \
-                    | sort -nr | tail -n +4 | cut -d' ' -f2- \
-                    | while IFS= read -r old_release; do
-                        chmod -R u+w "$old_release"
-                        rm -rf "$old_release"
-                      done
-                  REMOTE
-
-            - name: Roll back failed public verification
-              if: failure() && steps.activate.outcome == 'success' && steps.verify.outcome == 'failure'
-              env:
-                  RELEASE: ${{ github.event.workflow_run.head_sha }}
-              run: |
-                  ssh production "RELEASE='$RELEASE' bash -s" <<'REMOTE'
-                  set -euo pipefail
-                  release_dir="/opt/project-reader/releases/$RELEASE"
-                  rollback_file="/opt/project-reader/.rollback-$RELEASE"
-                  mapfile -t rollback < "$rollback_file"
-                  previous_image="${rollback[0]:-}"
-                  previous_dir="${rollback[1]:-}"
-
-                  if [[ -z "$previous_image" ]]; then
-                    echo "No previous image is available for rollback" >&2
-                    exit 1
-                  fi
-
-                  DEPLOY_IMAGE="$previous_image" docker compose \
-                    --project-name project-reader \
-                    --file "$release_dir/docker-compose.yml" up \
-                    --detach --remove-orphans --wait
-
-                  if [[ -n "$previous_dir" ]]; then
-                    next_link="/opt/project-reader/.rollback-current-$RELEASE"
-                    rm -f "$next_link"
-                    ln -s "$previous_dir" "$next_link"
-                    mv -Tf "$next_link" /opt/project-reader/current
-                  fi
-                  rm -f "$rollback_file"
-                  REMOTE
+                  # shellcheck disable=SC2029 # Every interpolated value was strictly validated.
+                  ssh production \
+                    "IMAGE_REF='$IMAGE_REF' RELEASE='$RELEASE' PRODUCTION_HOST='$PRODUCTION_HOST' PRODUCTION_URL='$PRODUCTION_URL' bash -s" \
+                    < scripts/deploy-release.sh
 
             - name: Remove runner SSH credentials
               if: always()
-              run: rm -rf ~/.ssh
+              run: rm -rf ~/.ssh /tmp/image-ref

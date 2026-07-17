@@ -1,4 +1,9 @@
-http://project-reader.151-243-224-144.sslip.io {
+{
+	# The immutable runtime is configured entirely by this file.
+	admin off
+}
+
+http://{$PRODUCTION_HOST:localhost} {
 	handle /health/version {
 		root * /srv
 		header Cache-Control "no-store"
@@ -7,11 +12,11 @@ http://project-reader.151-243-224-144.sslip.io {
 	}
 
 	handle {
-		redir https://project-reader.151-243-224-144.sslip.io{uri} 308
+		redir https://{$PRODUCTION_HOST:localhost}{uri} 308
 	}
 }
 
-project-reader.151-243-224-144.sslip.io {
+{$PRODUCTION_HOST:localhost} {
 	encode zstd gzip
 
 	header {
