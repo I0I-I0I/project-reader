@@ -92,7 +92,7 @@ jobs:
                   set -Eeuo pipefail
                   image_tag="project-reader-pr:$GITHUB_SHA"
                   container_id=""
-                  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+                  # shellcheck disable=SC2317,SC2329 # Invoked by the EXIT trap.
                   cleanup() {
                     status=$?
                     if [[ -n "$container_id" && $status -ne 0 ]]; then
@@ -170,7 +170,7 @@ jobs:
                   set -Eeuo pipefail
                   container_id="$(docker run --detach --env PRODUCTION_HOST=localhost \
                     --publish 127.0.0.1::80 "$IMAGE_TAG")"
-                  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+                  # shellcheck disable=SC2317,SC2329 # Invoked by the EXIT trap.
                   cleanup() {
                     status=$?
                     [[ $status -eq 0 ]] || docker logs "$container_id" || true
