@@ -252,12 +252,7 @@
                 <Button
                     variant="none"
                     size="none"
-                    class={[
-                        "outline-item",
-                        `depth-${heading.depth}`,
-                        activeHeadings.has(heading) && "active",
-                        index === selectedIndex && "selected",
-                    ]}
+                    class={`outline-item depth-${heading.depth}${activeHeadings.has(heading) ? " active" : ""}${index === selectedIndex ? " selected" : ""}`}
                     onclick={() => {
                         selectHeading(heading)
                         manualSelectedIndex = index
