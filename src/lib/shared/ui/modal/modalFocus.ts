@@ -31,10 +31,11 @@ export function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
     const active = document.activeElement
-    if (event.shiftKey && (active === first || !container.contains(active))) {
+    const activeIsFocusable = active instanceof HTMLElement && focusable.includes(active)
+    if (event.shiftKey && (active === first || !activeIsFocusable)) {
         event.preventDefault()
         last.focus()
-    } else if (!event.shiftKey && (active === last || !container.contains(active))) {
+    } else if (!event.shiftKey && (active === last || !activeIsFocusable)) {
         event.preventDefault()
         first.focus()
     }

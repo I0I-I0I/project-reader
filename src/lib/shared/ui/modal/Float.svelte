@@ -1,9 +1,32 @@
 <script lang="ts">
     import { motionPreferences } from "$lib/shared/state/motion.svelte"
+    import { cubicOut } from "svelte/easing"
     import { onMount, type Snippet } from "svelte"
-    import { fade, scale } from "svelte/transition"
+    import { fade } from "svelte/transition"
 
     export type FloatPlacement = "center" | "top" | "bottom" | "anchor"
+    export type FloatPresentation = "dialog" | "sheet" | "fullscreen"
+
+    function presentationTransition(
+        _node: HTMLElement,
+        { presentation, enabled }: { presentation: FloatPresentation; enabled: boolean },
+    ) {
+        if (!enabled) return { duration: 0 }
+        const duration = presentation === "dialog" ? 180 : 160
+        return {
+            duration,
+            easing: cubicOut,
+            css: (t: number) => {
+                const transform =
+                    presentation === "dialog"
+                        ? `scale(${0.96 + 0.04 * t})`
+                        : presentation === "sheet"
+                          ? `translateY(${20 * (1 - t)}px)`
+                          : `translateY(${8 * (1 - t)}px)`
+                return `opacity:${t};transform:${transform}`
+            },
+        }
+    }
 
     type Props = {
         children: Snippet
@@ -20,6 +43,7 @@
         ariaLabel?: string
         ariaLabelledby?: string
         ariaDescribedby?: string
+        presentation?: FloatPresentation
         zIndex?: number
     } & (
         | { placement: "anchor"; anchor: HTMLElement }
@@ -43,6 +67,7 @@
         ariaLabel,
         ariaLabelledby,
         ariaDescribedby,
+        presentation = "dialog",
         zIndex = 1000,
     }: Props = $props()
 
@@ -50,7 +75,10 @@
     let viewportWidth = $state("100vw")
     let viewportTop = $state("0px")
     let viewportLeft = $state("0px")
-    let safeAreaInsetBottom = $state("env(safe-area-inset-bottom)")
+    let safeAreaInsetTop = $state("env(safe-area-inset-top, 0px)")
+    let safeAreaInsetRight = $state("env(safe-area-inset-right, 0px)")
+    let safeAreaInsetBottom = $state("env(safe-area-inset-bottom, 0px)")
+    let safeAreaInsetLeft = $state("env(safe-area-inset-left, 0px)")
     let anchorPosition = $state({ x: 0, y: 0 })
 
     function updateAnchorPosition() {
@@ -79,7 +107,10 @@
             viewportWidth = `${visualViewport?.width ?? window.innerWidth}px`
             viewportTop = `${top}px`
             viewportLeft = `${visualViewport?.offsetLeft ?? 0}px`
-            safeAreaInsetBottom = isKeyboardOpen ? "0px" : "env(safe-area-inset-bottom)"
+            safeAreaInsetTop = "env(safe-area-inset-top, 0px)"
+            safeAreaInsetRight = "env(safe-area-inset-right, 0px)"
+            safeAreaInsetBottom = isKeyboardOpen ? "0px" : "env(safe-area-inset-bottom, 0px)"
+            safeAreaInsetLeft = "env(safe-area-inset-left, 0px)"
             updateAnchorPosition()
         }
         visualViewport?.addEventListener("resize", updateViewport)
@@ -94,6 +125,13 @@
             window.removeEventListener("scroll", updateViewport, true)
         }
     })
+
+    function captureSurface(node: HTMLElement) {
+        surfaceRef = node
+        return () => {
+            if (surfaceRef === node) surfaceRef = null
+        }
+    }
 
     function portal(node: HTMLElement) {
         let host = document.getElementById("modal-overlay-host")
@@ -136,7 +174,11 @@
     style:z-index={zIndex}
     style:--float-viewport-height={viewportHeight}
     style:--float-viewport-width={viewportWidth}
+    style:--float-safe-area-inset-top={safeAreaInsetTop}
+    style:--float-safe-area-inset-right={safeAreaInsetRight}
     style:--float-safe-area-inset-bottom={safeAreaInsetBottom}
+    style:--float-safe-area-inset-left={safeAreaInsetLeft}
+    data-presentation={presentation}
 >
     {#if backdrop !== "none"}
         <div
@@ -147,7 +189,7 @@
         ></div>
     {/if}
     <div
-        bind:this={surfaceRef}
+        {@attach captureSurface}
         class={["float-surface", className]}
         style={surfaceStyle}
         {role}
@@ -158,9 +200,10 @@
         tabindex="-1"
         onpointerdown={onSurfacePointerDown}
         onfocusin={onSurfaceFocusIn}
-        transition:scale|global={{
-            duration: motionPreferences.enabled ? 180 : 0,
-            start: 0.96,
+        data-presentation={presentation}
+        transition:presentationTransition|global={{
+            presentation,
+            enabled: motionPreferences.enabled,
         }}
     >
         {@render children()}

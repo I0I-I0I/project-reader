@@ -4,6 +4,8 @@ export type ModalVariant = "default" | "confirmation"
 export type ModalType = "float" | "layout"
 export type ModalSize = "small" | "medium" | "large" | "fullscreen"
 export type ModalPlacement = "center" | "top" | "bottom" | "anchor"
+export type MobilePresentation = "auto" | "dialog" | "sheet" | "fullscreen"
+export type ModalPresentation = Exclude<MobilePresentation, "auto">
 export type ModalState = "blocking" | "modeless"
 export type ModalCloseReason =
     | "close-button"
@@ -32,6 +34,8 @@ type CommonModalProps = AccessibleName &
         size?: ModalSize
         showHeader?: boolean
         showCloseButton?: boolean
+        mobilePresentation?: MobilePresentation
+        mobileFooter?: "flow" | "fixed"
         header?: Snippet
         children?: Snippet
         sidebar?: Snippet
@@ -77,6 +81,7 @@ export type ConfirmationModalProps = Omit<
     closeOnBackdrop?: never
     closeOnEscape?: never
     showHeader?: true
+    mobilePresentation?: Exclude<MobilePresentation, "fullscreen">
     anchor?: never
     header?: never
     sidebar?: never

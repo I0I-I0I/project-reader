@@ -85,6 +85,13 @@
         }
     }
 
+    function captureContent(node: HTMLElement) {
+        contentElement = node
+        return () => {
+            if (contentElement === node) contentElement = null
+        }
+    }
+
     function formatKeys(keyStr: string): string[] {
         return KeyboardHandler.getFormattedParts(keyStr)
     }
@@ -105,70 +112,69 @@
     title={m.keymap_modal_title()}
     closeLabel={m.close()}
     initialFocus={() => searchInputRef}
+    mobileFooter="fixed"
     draggable
 >
-    {#snippet children()}
-        {#if keymaps.length > 0}
-            <div class="modal-search">
-                <Input
-                    unstyled
-                    bind:ref={searchInputRef}
-                    type="text"
-                    bind:value={searchQuery}
-                    placeholder="{m.keymap_search_shortcuts()} (/)"
-                    class="search-input"
-                    onkeydown={handleSearchKeydown}
-                />
-                {#if searchQuery}
-                    <button
-                        class="clear-search-btn"
-                        onclick={() => {
-                            searchQuery = ""
-                            searchInputRef?.focus()
-                        }}
-                        aria-label={m.clear_search_aria()}
-                    >
-                        &times;
-                    </button>
-                {/if}
-            </div>
-        {/if}
-
-        <div class="modal-content" bind:this={contentElement}>
-            {#if filteredKeymaps.length === 0}
-                <div class="empty-state">
-                    {#if searchQuery}
-                        {m.keymap_no_matching_shortcuts()}
-                    {:else}
-                        {m.keymap_no_shortcuts()}
-                    {/if}
-                </div>
-            {:else}
-                <div class="shortcuts-grid">
-                    {#each filteredKeymaps as keymap (`${keymap.description}:${getShortcutsArray(keymap.keys).join(",")}`)}
-                        <div class="shortcut-row">
-                            <div class="key-combo">
-                                {#each getShortcutsArray(keymap.keys) as shortcut, idx (shortcut)}
-                                    {#if idx > 0}
-                                        <span class="shortcut-separator">/</span>
-                                    {/if}
-                                    {#each formatKeys(shortcut) as key, keyIndex (`${key}:${keyIndex}`)}
-                                        <kbd class="key-badge">{key}</kbd>
-                                    {/each}
-                                {/each}
-                            </div>
-                            <span class="shortcut-desc">
-                                {keymap.description}
-                                {#if keymap.englishDescription && keymap.englishDescription !== keymap.description}
-                                    ({keymap.englishDescription})
-                                {/if}
-                            </span>
-                        </div>
-                    {/each}
-                </div>
+    {#if keymaps.length > 0}
+        <div class="modal-search">
+            <Input
+                unstyled
+                bind:ref={searchInputRef}
+                type="text"
+                bind:value={searchQuery}
+                placeholder="{m.keymap_search_shortcuts()} (/)"
+                class="search-input"
+                onkeydown={handleSearchKeydown}
+            />
+            {#if searchQuery}
+                <button
+                    class="clear-search-btn"
+                    onclick={() => {
+                        searchQuery = ""
+                        searchInputRef?.focus()
+                    }}
+                    aria-label={m.clear_search_aria()}
+                >
+                    &times;
+                </button>
             {/if}
         </div>
-    {/snippet}
+    {/if}
+
+    <div class="modal-content" {@attach captureContent}>
+        {#if filteredKeymaps.length === 0}
+            <div class="empty-state">
+                {#if searchQuery}
+                    {m.keymap_no_matching_shortcuts()}
+                {:else}
+                    {m.keymap_no_shortcuts()}
+                {/if}
+            </div>
+        {:else}
+            <div class="shortcuts-grid">
+                {#each filteredKeymaps as keymap (`${keymap.description}:${getShortcutsArray(keymap.keys).join(",")}`)}
+                    <div class="shortcut-row">
+                        <div class="key-combo">
+                            {#each getShortcutsArray(keymap.keys) as shortcut, idx (shortcut)}
+                                {#if idx > 0}
+                                    <span class="shortcut-separator">/</span>
+                                {/if}
+                                {#each formatKeys(shortcut) as key, keyIndex (`${key}:${keyIndex}`)}
+                                    <kbd class="key-badge">{key}</kbd>
+                                {/each}
+                            {/each}
+                        </div>
+                        <span class="shortcut-desc">
+                            {keymap.description}
+                            {#if keymap.englishDescription && keymap.englishDescription !== keymap.description}
+                                ({keymap.englishDescription})
+                            {/if}
+                        </span>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </div>
 
     {#snippet footer()}
         <span class="footer-hint">{m.keymap_modal_close_hint()}</span>
@@ -179,7 +185,8 @@
     .modal-content {
         min-width: 0;
         min-height: 0;
-        padding: 24px;
+        padding: 24px max(24px, var(--float-safe-area-inset-right, 0px)) 24px
+            max(24px, var(--float-safe-area-inset-left, 0px));
         overflow-x: hidden;
         overflow-y: auto;
         flex: 1;
@@ -260,7 +267,8 @@
 
     .modal-search {
         position: relative;
-        padding: 12px 24px;
+        padding: 12px max(24px, var(--float-safe-area-inset-right, 0px)) 12px
+            max(24px, var(--float-safe-area-inset-left, 0px));
         background: var(--bg-color);
         border-bottom: 2px solid var(--border-color);
         display: flex;
@@ -302,7 +310,7 @@
 
     .clear-search-btn {
         position: absolute;
-        right: 32px;
+        right: calc(max(24px, var(--float-safe-area-inset-right, 0px)) + 8px);
         background: none;
         border: none;
         font-size: var(--font-size-3xl);

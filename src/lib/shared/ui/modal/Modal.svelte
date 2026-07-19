@@ -1,16 +1,20 @@
 <script lang="ts">
     import { onMount, tick } from "svelte"
     import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
+    import { viewport } from "$lib/shared/state/viewport.svelte"
     import Button from "../Button.svelte"
     import Float from "./Float.svelte"
     import { getFocusableElements, restoreFocus, trapTabKey } from "./modalFocus"
     import {
+        canDragModal,
         clampModalPosition,
         exceededDragThreshold,
         getVisualViewportBounds,
+        isDragPointerAllowed,
         type ModalPosition,
     } from "./modalDrag"
     import { modalManager } from "./modalManager.svelte"
+    import { resolveModalPresentation } from "./modalPresentation"
     import type { ModalCloseReason, ModalProps } from "./modal.types"
 
     let props: ModalProps = $props()
@@ -21,10 +25,18 @@
     let descriptionId = $derived(`${modalId}-description`)
 
     let surfaceRef = $state<HTMLElement | null>(null)
+    let scrollRegionRef = $state<HTMLElement | null>(null)
+    let confirmationMessageRef = $state<HTMLParagraphElement | null>(null)
     let closeButtonRef = $state<HTMLButtonElement | null>(null)
     let localBusy = $state(false)
     let position = $state<ModalPosition | null>(null)
-    let dragStart: { pointerX: number; pointerY: number; x: number; y: number } | null = null
+    let dragStart: {
+        pointerX: number
+        pointerY: number
+        x: number
+        y: number
+        pointerType: string
+    } | null = null
 
     let variant = $derived(props.variant ?? "default")
     let modalType = $derived(props.type ?? "float")
@@ -34,18 +46,41 @@
     let showCloseButton = $derived(
         props.showCloseButton ?? (variant === "confirmation" ? Boolean(props.cancelLabel) : true),
     )
-    let isDraggable = $derived(variant === "default" && Boolean(props.draggable) && showHeader)
     let isBusy = $derived(variant === "confirmation" && (Boolean(props.busy) || localBusy))
     let modalState = $derived(modalManager.get(modalId)?.state ?? "blocking")
+    let presentation = $derived(
+        resolveModalPresentation({
+            isCompact: viewport.isCompact,
+            mobilePresentation: props.mobilePresentation ?? "auto",
+            type: modalType,
+            size: modalSize,
+            state: modalState,
+        }),
+    )
+    let isDraggable = $derived(
+        variant === "default" &&
+            canDragModal({
+                requested: Boolean(props.draggable),
+                showHeader,
+                isCompact: viewport.isCompact,
+                presentation,
+            }),
+    )
     let isTopmostBlocking = $derived(modalManager.topmostBlockingModal?.id === modalId)
     let zIndex = $derived(modalManager.zIndex(modalId))
     let surfaceStyle = $derived(
-        position ? `position:fixed;left:${position.x}px;top:${position.y}px;margin:0;` : "",
+        position && isDraggable
+            ? `position:fixed;left:${position.x}px;top:${position.y}px;margin:0;`
+            : "",
     )
     let floatPlacementProps = $derived(
-        modalPlacement === "anchor"
-            ? ({ placement: "anchor", anchor: props.anchor! } as const)
-            : ({ placement: modalPlacement } as const),
+        presentation === "sheet"
+            ? ({ placement: "bottom" } as const)
+            : presentation === "fullscreen"
+              ? ({ placement: "center" } as const)
+              : modalPlacement === "anchor"
+                ? ({ placement: "anchor", anchor: props.anchor! } as const)
+                : ({ placement: modalPlacement } as const),
     )
 
     function requestClose(reason: ModalCloseReason) {
@@ -80,9 +115,29 @@
         if (requested === "close") return closeButtonRef
         if (requested === "first") return surfaceRef ? getFocusableElements(surfaceRef)[0] : null
         if (variant === "confirmation" && surfaceRef) {
+            if (
+                scrollRegionRef &&
+                scrollRegionRef.scrollHeight > scrollRegionRef.clientHeight + 1
+            ) {
+                return confirmationMessageRef
+            }
             return surfaceRef.querySelector<HTMLElement>(".confirmation-actions button:last-child")
         }
         return surfaceRef ? getFocusableElements(surfaceRef)[0] : null
+    }
+
+    function captureScrollRegion(node: HTMLElement) {
+        scrollRegionRef = node
+        return () => {
+            if (scrollRegionRef === node) scrollRegionRef = null
+        }
+    }
+
+    function captureConfirmationMessage(node: HTMLParagraphElement) {
+        confirmationMessageRef = node
+        return () => {
+            if (confirmationMessageRef === node) confirmationMessageRef = null
+        }
     }
 
     function handleWindowKeydown(event: KeyboardEvent) {
@@ -108,18 +163,36 @@
     }
 
     function handleHeaderPointerDown(event: PointerEvent) {
-        if (!isDraggable || event.button !== 0 || !surfaceRef) return
+        if (
+            !isDraggable ||
+            !isDragPointerAllowed(event.pointerType) ||
+            event.button !== 0 ||
+            !surfaceRef
+        )
+            return
         const target = event.target as HTMLElement
         if (target.closest("button, a, input, select, textarea, [contenteditable='true']")) return
         const rect = surfaceRef.getBoundingClientRect()
-        dragStart = { pointerX: event.clientX, pointerY: event.clientY, x: rect.left, y: rect.top }
+        dragStart = {
+            pointerX: event.clientX,
+            pointerY: event.clientY,
+            x: rect.left,
+            y: rect.top,
+            pointerType: event.pointerType,
+        }
         if (event.currentTarget instanceof HTMLElement) {
             event.currentTarget.setPointerCapture(event.pointerId)
         }
     }
 
     function handleHeaderPointerMove(event: PointerEvent) {
-        if (!dragStart || !surfaceRef) return
+        if (
+            !dragStart ||
+            !surfaceRef ||
+            !isDraggable ||
+            !isDragPointerAllowed(dragStart.pointerType)
+        )
+            return
         const dx = event.clientX - dragStart.pointerX
         const dy = event.clientY - dragStart.pointerY
         if (modalState === "blocking" && !exceededDragThreshold(dx, dy)) return
@@ -209,8 +282,15 @@
         "modal-wrapper",
         `modal-wrapper-${modalType}`,
         `modal-wrapper-${modalSize}`,
+        `modal-presentation-${presentation}`,
     ].join(" ")}
-    class={["modal-surface", `modal-${modalType}`, `modal-${modalSize}`, position && "positioned"]
+    class={[
+        "modal-surface",
+        `modal-${modalType}`,
+        `modal-${modalSize}`,
+        `modal-presentation-${presentation}`,
+        position && isDraggable && "positioned",
+    ]
         .filter(Boolean)
         .join(" ")}
     style={surfaceStyle}
@@ -219,6 +299,7 @@
     ariaLabel={props.ariaLabel}
     ariaLabelledby={props.title ? titleId : undefined}
     ariaDescribedby={props.description ? descriptionId : undefined}
+    {presentation}
     {zIndex}
 >
     {#if props.description}
@@ -271,40 +352,52 @@
         <h2 id={titleId} class="visually-hidden">{props.title}</h2>
     {/if}
 
-    {#if variant === "confirmation"}
-        <div class="modal-body confirmation-body">
-            <p class="confirmation-message">{props.message}</p>
-        </div>
-        <div class="modal-footer confirmation-actions">
-            {#if props.cancelLabel}
+    <div
+        class={[
+            "modal-scroll-region",
+            variant === "confirmation" || props.mobileFooter !== "fixed"
+                ? "mobile-footer-flow"
+                : "mobile-footer-fixed",
+        ]}
+        {@attach captureScrollRegion}
+    >
+        {#if variant === "confirmation"}
+            <div class="modal-body confirmation-body">
+                <p class="confirmation-message" tabindex="-1" {@attach captureConfirmationMessage}>
+                    {props.message}
+                </p>
+            </div>
+            <div class="modal-footer modal-actions confirmation-actions">
+                {#if props.cancelLabel}
+                    <Button
+                        class="confirmation-cancel"
+                        variant="close"
+                        disabled={isBusy}
+                        onclick={() => requestClose("cancel")}>{props.cancelLabel}</Button
+                    >
+                {/if}
                 <Button
-                    class="confirmation-cancel"
-                    variant="close"
+                    variant="brutalist"
+                    class={props.confirmTone === "danger" ? "confirmation-danger" : ""}
                     disabled={isBusy}
-                    onclick={() => requestClose("cancel")}>{props.cancelLabel}</Button
+                    aria-busy={isBusy}
+                    onclick={() => void confirm()}>{props.confirmLabel}</Button
                 >
+            </div>
+        {:else}
+            <div class="modal-body">
+                {#if modalType === "layout" && props.sidebar}
+                    <aside class="modal-sidebar">{@render props.sidebar()}</aside>
+                    <div class="modal-content-region">{@render props.children?.()}</div>
+                {:else}
+                    {@render props.children?.()}
+                {/if}
+            </div>
+            {#if props.footer}
+                <div class="modal-footer">{@render props.footer()}</div>
             {/if}
-            <Button
-                variant="brutalist"
-                class={props.confirmTone === "danger" ? "confirmation-danger" : ""}
-                disabled={isBusy}
-                aria-busy={isBusy}
-                onclick={() => void confirm()}>{props.confirmLabel}</Button
-            >
-        </div>
-    {:else}
-        <div class="modal-body">
-            {#if modalType === "layout" && props.sidebar}
-                <aside class="modal-sidebar">{@render props.sidebar()}</aside>
-                <div class="modal-content-region">{@render props.children?.()}</div>
-            {:else}
-                {@render props.children?.()}
-            {/if}
-        </div>
-        {#if props.footer}
-            <div class="modal-footer">{@render props.footer()}</div>
         {/if}
-    {/if}
+    </div>
 </Float>
 
 <style>
@@ -382,14 +475,16 @@
         align-items: center;
         justify-content: space-between;
         min-width: 0;
+        min-height: 52px;
+        box-sizing: border-box;
         padding: 16px 24px;
         border-bottom: 2px solid var(--border-color);
-        touch-action: none;
     }
 
     .modal-header.drag-handle {
         cursor: grab;
         user-select: none;
+        touch-action: none;
     }
     .modal-header.drag-handle:active {
         cursor: grabbing;
@@ -414,11 +509,18 @@
         text-transform: uppercase;
     }
 
+    .modal-scroll-region,
     .modal-body,
     .modal-content-region,
     .modal-sidebar {
         min-width: 0;
         min-height: 0;
+    }
+
+    .modal-scroll-region {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
     }
 
     .modal-body {
@@ -428,6 +530,16 @@
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+        scroll-padding-block: 16px;
+    }
+
+    :global(.modal-body > .modal-form) {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 20px 24px 24px;
     }
 
     :global(.modal-layout) .modal-body {
@@ -447,8 +559,19 @@
     }
 
     .modal-footer {
-        padding: 12px 24px;
+        padding: 12px max(24px, var(--float-safe-area-inset-right, 0px))
+            calc(12px + var(--float-safe-area-inset-bottom, 0px))
+            max(24px, var(--float-safe-area-inset-left, 0px));
         border-top: 2px solid var(--border-color);
+    }
+
+    :global(.modal-footer .modal-actions),
+    .modal-footer.modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
     }
 
     .confirmation-body {
@@ -489,16 +612,32 @@
         :global(.modal-wrapper.placement-top .modal-surface) {
             margin-top: 0;
         }
-        :global(.modal-wrapper-layout.modal-wrapper-large),
-        :global(.modal-wrapper-layout.modal-wrapper-fullscreen) {
-            padding: 0;
-        }
         :global(.modal-surface) {
             width: min(var(--modal-width), calc(var(--float-viewport-width, 100vw) - 24px));
             max-height: calc(var(--float-viewport-height, 100dvh) - 32px);
         }
-        :global(.modal-layout.modal-large),
-        :global(.modal-layout.modal-fullscreen) {
+
+        :global(.modal-wrapper.modal-presentation-sheet) {
+            justify-content: flex-end;
+            padding: var(--float-safe-area-inset-top, 0px) 0 0;
+        }
+        :global(.modal-wrapper.modal-presentation-sheet .modal-surface) {
+            width: var(--float-viewport-width, 100vw);
+            max-height: calc(
+                var(--float-viewport-height, 100dvh) - var(--float-safe-area-inset-top, 0px)
+            );
+            margin: auto 0 0;
+            border-right: 0;
+            border-bottom: 0;
+            border-left: 0;
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            box-shadow: none;
+        }
+
+        :global(.modal-wrapper.modal-presentation-fullscreen) {
+            padding: 0;
+        }
+        :global(.modal-surface.modal-presentation-fullscreen) {
             width: var(--float-viewport-width, 100vw);
             height: var(--float-viewport-height, 100dvh);
             max-height: none;
@@ -515,9 +654,82 @@
             border-right: 0;
             border-bottom: 2px solid var(--border-color);
         }
-        .modal-header,
+        .modal-header {
+            min-height: 44px;
+            padding: 4px max(12px, var(--float-safe-area-inset-right, 0px)) 4px
+                max(12px, var(--float-safe-area-inset-left, 0px));
+        }
+        .modal-title {
+            font-size: var(--font-size-xl);
+            letter-spacing: 0;
+        }
+        :global(.modal-presentation-fullscreen) .modal-header {
+            padding-top: calc(8px + var(--float-safe-area-inset-top, 0px));
+        }
         .modal-footer {
-            padding: 12px 16px;
+            padding: 12px max(16px, var(--float-safe-area-inset-right, 0px))
+                calc(12px + var(--float-safe-area-inset-bottom, 0px))
+                max(16px, var(--float-safe-area-inset-left, 0px));
+        }
+        :global(.modal-body > .modal-form) {
+            padding: 16px max(16px, var(--float-safe-area-inset-right, 0px)) 16px
+                max(16px, var(--float-safe-area-inset-left, 0px));
+        }
+        .confirmation-body {
+            padding-right: max(24px, var(--float-safe-area-inset-right, 0px));
+            padding-left: max(24px, var(--float-safe-area-inset-left, 0px));
+        }
+        :global(.modal-wrapper.modal-presentation-sheet) .modal-scroll-region.mobile-footer-flow {
+            flex: 0 1 auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        :global(.modal-wrapper.modal-presentation-sheet)
+            .modal-scroll-region.mobile-footer-flow
+            .modal-body {
+            flex: 0 0 auto;
+            overflow-y: visible;
+        }
+        :global(.modal-footer .modal-actions),
+        .modal-footer.modal-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        :global(.modal-footer .modal-actions > *),
+        :global(.modal-footer.modal-actions > *) {
+            width: 100%;
+            min-height: 44px;
+            white-space: normal;
+        }
+    }
+
+    @media (max-width: 800px) and (max-height: 500px) {
+        .modal-header {
+            min-height: 40px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+        }
+        .modal-title {
+            font-size: var(--font-size-lg);
+        }
+        .modal-footer {
+            padding-top: 8px;
+            padding-bottom: calc(8px + var(--float-safe-area-inset-bottom, 0px));
+        }
+        :global(.modal-footer .modal-actions),
+        .modal-footer.modal-actions {
+            flex-direction: row;
+        }
+        :global(.modal-footer .modal-actions > *),
+        :global(.modal-footer.modal-actions > *) {
+            width: auto;
+            flex: 1 1 0;
+        }
+        :global(.modal-body > .modal-form) {
+            gap: 12px;
+            padding-top: 12px;
+            padding-bottom: 12px;
         }
     }
 

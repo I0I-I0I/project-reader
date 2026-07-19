@@ -113,7 +113,7 @@
     </div>
 
     {#snippet footer()}
-        <div class="editor-actions">
+        <div class="modal-actions editor-actions">
             <Button
                 variant="close"
                 class="editor-btn cancel"
@@ -144,16 +144,24 @@
         }
     }
 
-    :global(.modal-title) {
-        font-family: Georgia, "Times New Roman", Times, serif !important;
-        font-weight: 900 !important;
-        font-size: var(--font-size-4xl) !important;
+    .editor-header .modal-title {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", Times, serif;
+        font-size: var(--font-size-2xl);
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    @media (--mobile) {
+        .editor-header .modal-title {
+            font-size: var(--font-size-xl);
+        }
     }
 
     .editor-body {
         min-height: 0;
-        overflow-y: auto;
-        padding: 16px 24px;
+        padding: 16px max(24px, var(--float-safe-area-inset-right, 0px)) 16px
+            max(24px, var(--float-safe-area-inset-left, 0px));
         background: var(--bg-color);
         display: flex;
         flex-direction: column;
@@ -162,7 +170,8 @@
 
     @media (--mobile) {
         .editor-body {
-            padding: 12px 16px;
+            padding: 12px max(16px, var(--float-safe-area-inset-right, 0px)) 12px
+                max(16px, var(--float-safe-area-inset-left, 0px));
         }
     }
 
@@ -170,17 +179,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 24px;
-        border-bottom: 2px solid var(--border-color);
+        width: 100%;
+        padding: 0;
         background: var(--bg-color);
         position: relative;
         z-index: var(--z-10);
-    }
-
-    @media (--mobile) {
-        .editor-header {
-            padding: 12px 16px;
-        }
     }
 
     .header-actions {
@@ -335,6 +338,12 @@
             border-color 0.1s ease,
             color 0.1s ease !important;
         min-height: unset !important;
+    }
+
+    @media (--mobile) {
+        :global(.editor-btn) {
+            min-height: 44px !important;
+        }
     }
 
     :global(.editor-btn:hover) {

@@ -10,6 +10,7 @@ export const validModalFixtures = [
         placement: "anchor",
         anchor: document.body,
     },
+    { title: "Forced mobile sheet", onClose, mobilePresentation: "sheet" },
     {
         variant: "confirmation",
         title: "Delete book",
@@ -30,6 +31,17 @@ export const draggableConfirmation: ModalProps = {
     onConfirm: () => {},
     onClose,
     draggable: true,
+}
+
+// @ts-expect-error Confirmation dialogs cannot use fullscreen presentation.
+export const fullscreenPresentationConfirmation: ModalProps = {
+    variant: "confirmation",
+    title: "Delete",
+    message: "Delete?",
+    confirmLabel: "Delete",
+    onConfirm: () => {},
+    onClose,
+    mobilePresentation: "fullscreen",
 }
 
 // @ts-expect-error Confirmation dialogs cannot be fullscreen.

@@ -12,6 +12,7 @@
     import { useModalCommands } from "$lib/modules/commands"
 
     let fileInput = $state<HTMLInputElement | null>(null)
+    let locateButton = $state<HTMLButtonElement | null>(null)
     const nodeId = $derived(relinkRequest.nodeId)
     const node = $derived(nodeId ? (vfsStore.nodes[nodeId] as FileNode) : null)
 
@@ -79,20 +80,25 @@
     placement="center"
     onClose={() => void commandsNode.execute("modal.cancel")}
     title={m.relink_modal_title()}
-    initialFocus="first"
+    initialFocus={() => locateButton}
     draggable
 >
-    <div class="relink-modal-content">
+    <div class="modal-form">
         <p class="description-text">
             {m.relink_modal_description({ name: node ? node.name : "" })}
         </p>
+    </div>
+
+    {#snippet footer()}
         <div class="modal-actions">
-            <Button variant="brutalist" onclick={handleLocateClick}>{m.locate_file()}</Button>
             <Button variant="close" onclick={() => void commandsNode.execute("modal.cancel")}>
                 {m.cancel()}
             </Button>
+            <Button bind:ref={locateButton} variant="brutalist" onclick={handleLocateClick}
+                >{m.locate_file()}</Button
+            >
         </div>
-    </div>
+    {/snippet}
 </Modal>
 
 <Input
@@ -105,30 +111,11 @@
 />
 
 <style>
-    .relink-modal-content {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        width: 100%;
-        margin-top: 10px;
-        box-sizing: border-box;
-        padding: 0 24px 24px 24px;
-    }
-
     .description-text {
         margin: 0;
         font-size: var(--font-size-md);
         line-height: 1.5;
         color: var(--text-color);
         font-weight: 600;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 16px;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        margin-top: 8px;
     }
 </style>

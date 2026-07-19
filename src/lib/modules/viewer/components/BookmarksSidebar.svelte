@@ -425,18 +425,21 @@
                     }
                 }}
             />
+        </div>
+
+        {#snippet footer()}
             <div class="modal-actions">
-                <Button variant="brutalist" onclick={confirmBookmarkEdit}>
-                    {m.save()}
-                </Button>
                 <Button
                     variant="close"
                     onclick={() => void bookmarkEditScope?.execute("modal.cancel")}
                 >
                     {m.cancel()}
                 </Button>
+                <Button variant="brutalist" onclick={confirmBookmarkEdit}>
+                    {m.save()}
+                </Button>
             </div>
-        </div>
+        {/snippet}
     </Modal>
 {/if}
 
@@ -600,25 +603,6 @@
     .action-btn.delete:hover {
         color: var(--danger-color);
         background: color-mix(in srgb, var(--danger-color) 12%, transparent);
-    }
-
-    .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        width: 100%;
-        margin-top: 10px;
-        box-sizing: border-box;
-        padding: 0 24px 24px 24px;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 16px;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        margin-top: 8px;
     }
 
     @media (max-width: 640px) {

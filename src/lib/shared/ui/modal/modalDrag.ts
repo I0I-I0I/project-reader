@@ -11,6 +11,26 @@ export type ViewportBounds = {
 
 export type ModalPosition = { x: number; y: number }
 
+type ModalDragPolicy = {
+    requested: boolean
+    showHeader: boolean
+    isCompact: boolean
+    presentation: "dialog" | "sheet" | "fullscreen"
+}
+
+export function canDragModal({
+    requested,
+    showHeader,
+    isCompact,
+    presentation,
+}: ModalDragPolicy): boolean {
+    return requested && showHeader && !isCompact && presentation === "dialog"
+}
+
+export function isDragPointerAllowed(pointerType: string): boolean {
+    return pointerType !== "touch"
+}
+
 export function getVisualViewportBounds(): ViewportBounds {
     const viewport = window.visualViewport
     return viewport

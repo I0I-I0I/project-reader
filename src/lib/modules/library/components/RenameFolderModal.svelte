@@ -104,38 +104,20 @@
                 }
             }}
         />
+    </div>
+
+    {#snippet footer()}
         <div class="modal-actions">
-            <Button
-                variant="brutalist"
-                disabled={submitting}
-                onclick={() => void commandsNode.execute("modal.confirm")}>{m.save()}</Button
-            >
             <Button
                 variant="ghost"
                 disabled={submitting}
                 onclick={() => void commandsNode.execute("modal.cancel")}>{m.cancel()}</Button
             >
+            <Button
+                variant="brutalist"
+                disabled={submitting}
+                onclick={() => void commandsNode.execute("modal.confirm")}>{m.save()}</Button
+            >
         </div>
-    </div>
+    {/snippet}
 </Modal>
-
-<style>
-    .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        width: 100%;
-        margin-top: 10px;
-        box-sizing: border-box;
-        padding: 0 24px 24px;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 16px;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        margin-top: 8px;
-    }
-</style>
