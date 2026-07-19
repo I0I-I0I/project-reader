@@ -23,7 +23,9 @@
     import { browser } from "$app/environment"
     import { commandsStore } from "$lib/modules/commands"
 
-    let isShortHeight = $derived(viewport.isShortHeight)
+    let isCompactPortrait = $derived(
+        viewport.isCompact && viewport.innerWidth <= viewport.innerHeight,
+    )
 
     let { pdf, pageNumber, scale, offsetY, width, height, registerSelectionPage } = $props<{
         pdf: PDFDocument
@@ -345,7 +347,7 @@
     class="scroll-page"
     style="top: {offsetY}px;"
     data-page={pageNumber}
-    class:mobile-full-width={viewport.isCompact && !isShortHeight}
+    class:mobile-full-width={isCompactPortrait}
 >
     <div class="page-container" style={containerStyle}>
         {#if !viewport.isCompact}

@@ -134,7 +134,16 @@
                     }
                 }}
             />
+        </div>
+
+        {#snippet footer()}
             <div class="modal-actions">
+                <Button
+                    variant="close"
+                    onclick={() => void bookmarkAddScope?.execute("modal.cancel")}
+                >
+                    {m.cancel()}
+                </Button>
                 <Button
                     variant="brutalist"
                     onclick={() =>
@@ -145,14 +154,8 @@
                 >
                     {m.add_bookmark()}
                 </Button>
-                <Button
-                    variant="close"
-                    onclick={() => void bookmarkAddScope?.execute("modal.cancel")}
-                >
-                    {m.cancel()}
-                </Button>
             </div>
-        </div>
+        {/snippet}
     </Modal>
 {/if}
 

@@ -8,6 +8,8 @@
     import BookmarkPlusIcon from "$lib/shared/icons/BookmarkPlusIcon.svelte"
     import BookmarkIcon from "$lib/shared/icons/BookmarkIcon.svelte"
     import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
+    import MinusIcon from "$lib/shared/icons/MinusIcon.svelte"
+    import PlusIcon from "$lib/shared/icons/PlusIcon.svelte"
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
@@ -80,6 +82,28 @@
                 >
                     <BookmarkPlusIcon />
                 </Button>
+            {/if}
+            {#if viewport.isPhoneLandscape}
+                <div class="landscape-zoom-controls">
+                    <Button
+                        variant="action"
+                        square={true}
+                        onclick={() => void commandsStore.execute("settings.zoom.out")}
+                        aria-label={m.zoom_out()}
+                        tooltip={m.zoom_out() + getShortcutHint(commandsNode, "settings.zoom.out")}
+                    >
+                        <MinusIcon />
+                    </Button>
+                    <Button
+                        variant="action"
+                        square={true}
+                        onclick={() => void commandsStore.execute("settings.zoom.in")}
+                        aria-label={m.zoom_in()}
+                        tooltip={m.zoom_in() + getShortcutHint(commandsNode, "settings.zoom.in")}
+                    >
+                        <PlusIcon />
+                    </Button>
+                </div>
             {/if}
             <Button
                 variant="action"
@@ -154,6 +178,12 @@
     .header-actions {
         gap: 12px;
         flex-shrink: 0;
+    }
+
+    .landscape-zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .file-badge {

@@ -29,10 +29,11 @@
     } from "../commands/viewerMutationExecution"
     import { createViewerListCommands } from "../commands/viewerListCommands"
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
-    import { tick } from "svelte"
+    import { tick, untrack } from "svelte"
 
-    let { onClose } = $props<{
+    let { onClose, interactive = true } = $props<{
         onClose: () => void
+        interactive?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -179,6 +180,7 @@
     })
 
     const listCommandsDisabled = () =>
+        !interactive ||
         filteredBookmarks.length === 0 ||
         modalManager.hasBlockingModal ||
         !!editingBookmarkId ||
@@ -202,46 +204,50 @@
         !isEditableTarget(event.target) ||
         (isSearchFocused && KeyboardHandler.matches(event, inputKey))
 
-    useCommands([
-        ...createViewerListCommands({
-            nextLabel: () => m.keymap_next_bookmark(),
-            // Preserve English search terms in localized keyboard help.
-            nextEnglishLabel: () => m.keymap_next_bookmark({}, { locale: "en" }),
-            previousLabel: () => m.keymap_prev_bookmark(),
-            previousEnglishLabel: () => m.keymap_prev_bookmark({}, { locale: "en" }),
-            selectLabel: () => m.keymap_open_bookmark(),
-            selectEnglishLabel: () => m.keymap_open_bookmark({}, { locale: "en" }),
-            searchLabel: () => m.search_bookmarks(),
-            searchEnglishLabel: () => m.search_bookmarks({}, { locale: "en" }),
-            disabled: listCommandsDisabled,
-            shouldHandleNavigationKey: shouldHandleListNavigation,
-            next: () => navigateSelection("next"),
-            previous: () => navigateSelection("prev"),
-            select: () => {
-                const bookmark = filteredBookmarks[selectedIndex]
-                if (bookmark) {
-                    selectBookmark(bookmark)
-                    onClose()
-                }
-            },
-            search: () => {
-                searchInputRef?.focus()
-                searchInputRef?.select()
-            },
-        }),
-        withViewerInputShortcut(
-            sidebarMutationCommands["viewer.bookmark.edit"]!,
-            ["e", "ctrl+e"],
-            listCommandsDisabled,
-            (event) => shouldHandleMutationKey(event, "ctrl+e"),
-        ),
-        withViewerInputShortcut(
-            sidebarMutationCommands["viewer.bookmark.delete"]!,
-            ["d", "ctrl+d"],
-            listCommandsDisabled,
-            (event) => !bookmarkToDeleteId && shouldHandleMutationKey(event, "ctrl+d"),
-        ),
-    ])
+    useCommands(
+        [
+            ...createViewerListCommands({
+                nextLabel: () => m.keymap_next_bookmark(),
+                // Preserve English search terms in localized keyboard help.
+                nextEnglishLabel: () => m.keymap_next_bookmark({}, { locale: "en" }),
+                previousLabel: () => m.keymap_prev_bookmark(),
+                previousEnglishLabel: () => m.keymap_prev_bookmark({}, { locale: "en" }),
+                selectLabel: () => m.keymap_open_bookmark(),
+                selectEnglishLabel: () => m.keymap_open_bookmark({}, { locale: "en" }),
+                searchLabel: () => m.search_bookmarks(),
+                searchEnglishLabel: () => m.search_bookmarks({}, { locale: "en" }),
+                disabled: listCommandsDisabled,
+                shouldHandleNavigationKey: shouldHandleListNavigation,
+                next: () => navigateSelection("next"),
+                previous: () => navigateSelection("prev"),
+                select: () => {
+                    const bookmark = filteredBookmarks[selectedIndex]
+                    if (bookmark) {
+                        selectBookmark(bookmark)
+                        onClose()
+                    }
+                },
+                search: () => {
+                    searchInputRef?.focus()
+                    searchInputRef?.select()
+                },
+            }),
+            withViewerInputShortcut(
+                sidebarMutationCommands["viewer.bookmark.edit"]!,
+                ["e", "ctrl+e"],
+                listCommandsDisabled,
+                (event) => shouldHandleMutationKey(event, "ctrl+e"),
+            ),
+            withViewerInputShortcut(
+                sidebarMutationCommands["viewer.bookmark.delete"]!,
+                ["d", "ctrl+d"],
+                listCommandsDisabled,
+                (event) => !bookmarkToDeleteId && shouldHandleMutationKey(event, "ctrl+d"),
+            ),
+        ],
+        undefined,
+        { autoActivate: untrack(() => interactive) },
+    )
 
     function formatKey(keys: string): string {
         const modifiers = ["ctrl", "meta", "alt", "shift"]
@@ -425,18 +431,21 @@
                     }
                 }}
             />
+        </div>
+
+        {#snippet footer()}
             <div class="modal-actions">
-                <Button variant="brutalist" onclick={confirmBookmarkEdit}>
-                    {m.save()}
-                </Button>
                 <Button
                     variant="close"
                     onclick={() => void bookmarkEditScope?.execute("modal.cancel")}
                 >
                     {m.cancel()}
                 </Button>
+                <Button variant="brutalist" onclick={confirmBookmarkEdit}>
+                    {m.save()}
+                </Button>
             </div>
-        </div>
+        {/snippet}
     </Modal>
 {/if}
 
@@ -600,25 +609,6 @@
     .action-btn.delete:hover {
         color: var(--danger-color);
         background: color-mix(in srgb, var(--danger-color) 12%, transparent);
-    }
-
-    .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        width: 100%;
-        margin-top: 10px;
-        box-sizing: border-box;
-        padding: 0 24px 24px 24px;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 16px;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-        margin-top: 8px;
     }
 
     @media (max-width: 640px) {

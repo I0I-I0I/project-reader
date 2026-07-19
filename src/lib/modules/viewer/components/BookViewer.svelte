@@ -45,7 +45,7 @@
     import MaximizeIcon from "$lib/shared/icons/MaximizeIcon.svelte"
     import SearchIcon from "$lib/shared/icons/SearchIcon.svelte"
     import ChevronIcon from "$lib/shared/icons/ChevronIcon.svelte"
-    import { createSwipeState } from "../stores/swipe.svelte"
+    import { Slider, type SliderDirection } from "$lib/shared/ui/slider"
     import { settingsCommands } from "$lib/modules/settings"
     import { createViewerNavigationCommands } from "../commands/viewerNavigationCommands"
     import { createViewerSearchCommands } from "../commands/viewerSearchCommands"
@@ -1109,65 +1109,36 @@
         localStorage.setItem("viewer-gesture-hint-dismissed", "1")
     }
 
-    const swipe = createSwipeState({
-        enabled: () =>
-            viewport.isCompact &&
-            !modalManager.hasBlockingModal &&
-            !sidebars.left &&
-            !sidebars.settings,
-        disabledByLayout: () => settingsStore.layout === "scroll",
-        canSwipe: (direction: "left" | "right") => {
-            const step = settingsStore.layout === "split" ? 2 : 1
-            if (direction === "right") {
-                // going next (swiping left)
-                return settingsStore.layout === "split"
-                    ? viewerStore.currentPage + step <= totalPages ||
-                          viewerStore.currentPage < totalPages
-                    : viewerStore.currentPage < totalPages
-            } else {
-                // going prev (swiping right)
-                return viewerStore.currentPage > 1
-            }
-        },
-        onSwipeComplete: (direction: "left" | "right") => {
-            const step = settingsStore.layout === "split" ? 2 : 1
-            let targetPage = viewerStore.currentPage
-            if (direction === "right") {
-                if (targetPage + step <= totalPages) {
-                    targetPage += step
-                } else if (targetPage < totalPages) {
-                    targetPage = totalPages
-                }
-            } else {
-                if (targetPage - step >= 1) {
-                    targetPage -= step
-                } else if (targetPage > 1) {
-                    targetPage = 1
-                }
-            }
-            void commandsStore.execute("viewer.page.go-to", {
-                page: targetPage,
-                isJump: false,
-            })
-        },
-        ignoredSelectors: [
-            "button",
-            "input",
-            "select",
-            "textarea",
-            "a",
-            ".viewer-fab-btn",
-            ".sidebar",
-            ".viewer-header",
-            ".viewer-footer",
-            ".sidebar-backdrop",
-        ],
-        getScrollContainer: () => scrollContainer,
-    })
+    function canMovePage(direction: SliderDirection) {
+        const step = settingsStore.layout === "split" ? 2 : 1
+        if (direction === "next") {
+            return settingsStore.layout === "split"
+                ? viewerStore.currentPage + step <= totalPages ||
+                      viewerStore.currentPage < totalPages
+                : viewerStore.currentPage < totalPages
+        }
+        return viewerStore.currentPage > 1
+    }
 
-    const sliderTrackStyle = $derived(
-        `transform: translate3d(calc(-33.333333% + ${swipe.swipeOffsetX}), 0, 0); transition: ${swipe.swipeTransition};`,
-    )
+    function movePage(direction: SliderDirection) {
+        const step = settingsStore.layout === "split" ? 2 : 1
+        let targetPage = viewerStore.currentPage
+        if (direction === "next") {
+            if (targetPage + step <= totalPages) {
+                targetPage += step
+            } else if (targetPage < totalPages) {
+                targetPage = totalPages
+            }
+        } else if (targetPage - step >= 1) {
+            targetPage -= step
+        } else if (targetPage > 1) {
+            targetPage = 1
+        }
+        void commandsStore.execute("viewer.page.go-to", {
+            page: targetPage,
+            isJump: false,
+        })
+    }
 
     function slideHeader(node: HTMLElement, { duration = 250 }) {
         const style = getComputedStyle(node)
@@ -1254,7 +1225,6 @@
                 {/if}
 
                 <main
-                    {@attach swipe.attach}
                     {@attach attachBodyTapNavigation}
                     class="viewer-body"
                     aria-label={m.viewer_reading_region()}
@@ -1301,9 +1271,16 @@
                         {/if}
 
                         {#if viewport.isCompact && settingsStore.layout !== "scroll"}
-                            <div class="slider-track" style={sliderTrackStyle}>
-                                <!-- Previous Slide -->
-                                <div class="slider-slide prev-slide">
+                            <Slider
+                                enabled={!modalManager.hasBlockingModal &&
+                                    !sidebars.left &&
+                                    !sidebars.settings}
+                                canMove={canMovePage}
+                                onMove={movePage}
+                                getHorizontalScrollContainer={() => scrollContainer}
+                                ariaLabel={m.viewer_reading_region()}
+                            >
+                                {#snippet previous()}
                                     {#if prevPageImage}
                                         <CanvasPane
                                             {pdf}
@@ -1320,10 +1297,9 @@
                                             currentPageDim2={prevPageDim2}
                                         />
                                     {/if}
-                                </div>
+                                {/snippet}
 
-                                <!-- Current Slide -->
-                                <div class="slider-slide current-slide">
+                                {#snippet current()}
                                     <CanvasPane
                                         {pdf}
                                         scale={settingsStore.scale}
@@ -1337,10 +1313,9 @@
                                         {currentPageDim1}
                                         {currentPageDim2}
                                     />
-                                </div>
+                                {/snippet}
 
-                                <!-- Next Slide -->
-                                <div class="slider-slide next-slide">
+                                {#snippet next()}
                                     {#if nextPageImage}
                                         <CanvasPane
                                             {pdf}
@@ -1357,8 +1332,8 @@
                                             currentPageDim2={nextPageDim2}
                                         />
                                     {/if}
-                                </div>
-                            </div>
+                                {/snippet}
+                            </Slider>
                         {:else}
                             <div class="canvas-pane-wrapper">
                                 <CanvasPane
@@ -1556,6 +1531,10 @@
 {/if}
 
 <style>
+    :global(body:has(.fullscreen-viewer)) {
+        background-color: var(--viewer-chrome-color);
+    }
+
     .fullscreen-viewer {
         position: fixed;
         inset: 0;
@@ -1599,31 +1578,6 @@
         height: 100%;
         width: 100%;
         overflow: hidden;
-    }
-
-    .slider-track {
-        display: flex;
-        flex-direction: row;
-        width: 300%;
-        height: 100%;
-        will-change: transform;
-        flex-shrink: 0;
-    }
-
-    .slider-slide {
-        width: 33.333333%;
-        height: 100%;
-        flex-shrink: 0;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        box-sizing: border-box;
-    }
-
-    .slider-slide:not(.current-slide) {
-        pointer-events: none;
     }
 
     .loading-state {

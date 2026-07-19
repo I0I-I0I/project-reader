@@ -1,6 +1,7 @@
-/* Width controls composition; height only controls density; pointer controls affordances. */
+/* Compact composition also covers coarse-pointer phones in landscape. */
 @custom-media --phone (max-width: 480px);
-@custom-media --compact (max-width: 800px);
+@custom-media --compact (max-width: 800px),
+    (pointer: coarse) and (orientation: landscape) and (max-height: 480px);
 @custom-media --overlay-sidebar (min-width: 801px) and (max-width: 1199px);
 @custom-media --docked-sidebar (min-width: 1200px);
 @custom-media --short-height (max-height: 500px);
@@ -9,8 +10,12 @@
 
 /* Compatibility aliases retained while component styles migrate. */
 @custom-media --tiny-mobile (max-width: 480px);
-@custom-media --mobile-width (max-width: 800px);
-@custom-media --mobile (max-width: 800px);
-@custom-media --tablet (max-width: 800px);
-@custom-media --desktop (max-width: 800px);
+@custom-media --mobile-width (max-width: 800px),
+    (pointer: coarse) and (orientation: landscape) and (max-height: 480px);
+@custom-media --mobile (max-width: 800px),
+    (pointer: coarse) and (orientation: landscape) and (max-height: 480px);
+@custom-media --tablet (max-width: 800px),
+    (pointer: coarse) and (orientation: landscape) and (max-height: 480px);
+@custom-media --desktop (max-width: 800px),
+    (pointer: coarse) and (orientation: landscape) and (max-height: 480px);
 @custom-media --large-desktop (max-width: 1199px);

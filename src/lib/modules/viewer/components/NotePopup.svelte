@@ -89,7 +89,7 @@
     </div>
 
     {#snippet footer()}
-        <div class="popup-footer">
+        <div class="modal-actions popup-footer">
             <Button
                 variant="none"
                 class="popup-btn edit"
@@ -123,7 +123,8 @@
 <style>
     .note-popup-content {
         box-sizing: border-box;
-        padding: 12px 24px;
+        padding: 12px max(24px, var(--float-safe-area-inset-right, 0px)) 12px
+            max(24px, var(--float-safe-area-inset-left, 0px));
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -185,6 +186,12 @@
             border-color 0.1s ease,
             color 0.1s ease !important;
         min-height: unset !important;
+    }
+
+    @media (--mobile) {
+        :global(.popup-btn) {
+            min-height: 44px !important;
+        }
     }
 
     :global(.popup-btn:hover) {

@@ -460,8 +460,9 @@
             max-height: none;
             flex: 1;
             flex-direction: column-reverse;
-            padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
+            padding: calc(24px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
                 12px calc(8px + env(safe-area-inset-left));
+            scroll-padding-top: calc(24px + env(safe-area-inset-top));
             scrollbar-gutter: auto;
         }
 
