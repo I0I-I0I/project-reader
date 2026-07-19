@@ -245,6 +245,16 @@
         }
     }
 
+    @media (display-mode: standalone) {
+        @supports (-webkit-touch-callout: none) {
+            .viewer-footer {
+                min-height: 56px;
+                max-height: 56px;
+                padding-bottom: 6px;
+            }
+        }
+    }
+
     @media (--mobile) {
         .page-label {
             display: none;

@@ -1556,6 +1556,10 @@
 {/if}
 
 <style>
+    :global(body:has(.fullscreen-viewer)) {
+        background-color: var(--viewer-chrome-color);
+    }
+
     .fullscreen-viewer {
         position: fixed;
         inset: 0;
