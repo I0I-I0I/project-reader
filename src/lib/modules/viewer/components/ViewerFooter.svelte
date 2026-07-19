@@ -203,7 +203,6 @@
         .viewer-footer {
             display: grid;
             grid-template-columns: 44px minmax(0, 1fr) 44px;
-            min-height: calc(56px + env(safe-area-inset-bottom));
             box-sizing: border-box;
             gap: 12px;
             padding: 6px calc(10px + env(safe-area-inset-right))
@@ -242,16 +241,6 @@
             border-radius: 0;
             box-shadow: none;
             font-size: 1rem;
-        }
-    }
-
-    @media (display-mode: standalone) {
-        @supports (-webkit-touch-callout: none) {
-            .viewer-footer {
-                min-height: 56px;
-                max-height: 56px;
-                padding-bottom: 6px;
-            }
         }
     }
 

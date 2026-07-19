@@ -12,8 +12,7 @@
     .viewer-layout {
         display: flex;
         flex-direction: column;
-        max-height: 100dvh;
-        height: 100%;
+        height: 100dvh;
         width: 100%;
     }
 </style>
