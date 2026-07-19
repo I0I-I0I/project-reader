@@ -13,17 +13,20 @@ export const BREAKPOINTS = {
     LARGE_DESKTOP: 1200,
 } as const
 
+const PHONE_LANDSCAPE_QUERY = `(pointer: coarse) and (orientation: landscape) and (max-height: ${BREAKPOINTS.PHONE}px)`
+
 export const MEDIA_QUERIES = {
     PHONE: `(max-width: ${BREAKPOINTS.PHONE}px)`,
-    COMPACT: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    PHONE_LANDSCAPE: PHONE_LANDSCAPE_QUERY,
+    COMPACT: `(max-width: ${BREAKPOINTS.COMPACT}px), ${PHONE_LANDSCAPE_QUERY}`,
     DOCKED: `(min-width: ${BREAKPOINTS.DOCKED}px)`,
     SHORT: `(max-height: ${BREAKPOINTS.SHORT_HEIGHT}px)`,
     COARSE_POINTER: "(pointer: coarse)",
     PROMPT: `(max-width: ${BREAKPOINTS.PROMPT}px), (max-height: 800px)`,
 
-    /* Compatibility queries. Layout remains width-only. */
-    MOBILE: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
-    TABLET: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
-    DESKTOP: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    /* Compatibility queries retained while component styles migrate. */
+    MOBILE: `(max-width: ${BREAKPOINTS.COMPACT}px), ${PHONE_LANDSCAPE_QUERY}`,
+    TABLET: `(max-width: ${BREAKPOINTS.COMPACT}px), ${PHONE_LANDSCAPE_QUERY}`,
+    DESKTOP: `(max-width: ${BREAKPOINTS.COMPACT}px), ${PHONE_LANDSCAPE_QUERY}`,
     LARGE_DESKTOP: `(max-width: ${BREAKPOINTS.DOCKED - 1}px)`,
 } as const

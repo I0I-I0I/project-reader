@@ -78,6 +78,14 @@
         font-weight: 800;
     }
 
+    @media (--compact) {
+        .sidebar-header.left,
+        .sidebar-header.right {
+            padding-right: calc(12px + env(safe-area-inset-right));
+            padding-left: calc(12px + env(safe-area-inset-left));
+        }
+    }
+
     @media (--tiny-mobile) {
         .sidebar-header {
             height: calc(66px + env(safe-area-inset-top));
@@ -88,7 +96,8 @@
 
         .sidebar-header.left,
         .sidebar-header.right {
-            padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+            padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+                10px calc(12px + env(safe-area-inset-left));
         }
     }
 

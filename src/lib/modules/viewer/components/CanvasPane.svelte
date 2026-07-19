@@ -58,13 +58,17 @@
 
     let containerWidth = $state(0)
     let isShortHeight = $derived(viewport.isShortHeight)
+    let isCompactPortrait = $derived(
+        viewport.isCompact && viewport.innerWidth <= viewport.innerHeight,
+    )
+    let effectiveScale = $derived(isCompactPortrait ? DEFAULT_SETTINGS.scale : scale)
     let hasInitiallyFit = false
     let hasRestoredScroll = false
 
     function fitToWidth() {
         if (!pdf || containerWidth <= 0) return
         if (viewport.isCompact) {
-            settingsStore.scale = DEFAULT_SETTINGS.scale
+            if (!isCompactPortrait) settingsStore.scale = DEFAULT_SETTINGS.scale
             return
         }
 
@@ -118,11 +122,14 @@
 
     useCommands([createViewerFitWidthCommand(fitToWidth)])
 
-    function compactZoomMultiplier(targetScale = scale) {
+    function compactZoomMultiplier(targetScale = effectiveScale) {
         return targetScale / DEFAULT_SETTINGS.scale
     }
 
-    function getScrollPageScale(dim: { width: number; height: number }, targetScale = scale) {
+    function getScrollPageScale(
+        dim: { width: number; height: number },
+        targetScale = effectiveScale,
+    ) {
         if (viewport.isCompact && containerWidth > 0) {
             return (containerWidth / dim.width) * compactZoomMultiplier(targetScale)
         }
@@ -138,7 +145,7 @@
             }
             return (containerWidth / pageWidth) * compactZoomMultiplier()
         }
-        return scale
+        return effectiveScale
     })
 
     const pageScale2 = $derived.by(() => {
@@ -150,10 +157,10 @@
             }
             return (containerWidth / pageWidth) * compactZoomMultiplier()
         }
-        return scale
+        return effectiveScale
     })
 
-    function getPageHeight(dim: { width: number; height: number }, targetScale = scale) {
+    function getPageHeight(dim: { width: number; height: number }, targetScale = effectiveScale) {
         return dim.height * getScrollPageScale(dim, targetScale)
     }
 
@@ -512,7 +519,7 @@
     }
 
     $effect(() => {
-        const currentScale = scale
+        const currentScale = effectiveScale
         const offsets = pageOffsets
         const targetPage = currentPage
 
@@ -1247,7 +1254,7 @@
 <div
     class="canvas-pane"
     class:scroll-mode={layoutMode === "scroll"}
-    class:mobile-full-width={viewport.isCompact && !isShortHeight}
+    class:mobile-full-width={isCompactPortrait}
     class:single-layout={layoutMode === "single"}
     class:compact-mode={viewport.isCompact}
     class:animations-enabled={settingsStore.animations}

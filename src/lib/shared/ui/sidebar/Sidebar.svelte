@@ -185,6 +185,13 @@
             position: fixed;
             z-index: 290;
         }
+
+        .sidebar-body {
+            box-sizing: border-box;
+            padding-right: env(safe-area-inset-right);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+        }
     }
 
     @media (forced-colors: active) {

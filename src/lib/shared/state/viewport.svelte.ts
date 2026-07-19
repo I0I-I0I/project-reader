@@ -13,6 +13,14 @@ export function isShortViewport(height: number): boolean {
     return height <= BREAKPOINTS.SHORT_HEIGHT
 }
 
+export function isPhoneLandscapeViewport(
+    width: number,
+    height: number,
+    hasCoarsePointer: boolean,
+): boolean {
+    return hasCoarsePointer && width > height && height <= BREAKPOINTS.PHONE
+}
+
 class Viewport {
     #innerWidth = $state(browser ? window.innerWidth : 1024)
     #innerHeight = $state(browser ? window.innerHeight : 768)
@@ -60,13 +68,17 @@ class Viewport {
         return this.#innerHeight
     }
 
-    /** Width controls composition. Input capability never changes layout. */
+    /** Phone landscape keeps the touch-first composition even when its long edge exceeds 800px. */
     get isCompact(): boolean {
-        return isCompactViewport(this.#innerWidth)
+        return isCompactViewport(this.#innerWidth) || this.isPhoneLandscape
+    }
+
+    get isPhoneLandscape(): boolean {
+        return isPhoneLandscapeViewport(this.#innerWidth, this.#innerHeight, this.#hasCoarsePointer)
     }
 
     get isPhone(): boolean {
-        return this.#innerWidth <= BREAKPOINTS.PHONE
+        return this.#innerWidth <= BREAKPOINTS.PHONE || this.isPhoneLandscape
     }
 
     get isDocked(): boolean {
