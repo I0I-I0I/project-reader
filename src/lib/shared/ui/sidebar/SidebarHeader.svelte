@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { Snippet } from "svelte"
+    import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
     import Button from "../Button.svelte"
 
     let {
@@ -30,14 +31,13 @@
     {#if onClose}
         <Button
             variant="close"
-            size="default"
             square
             onclick={onClose}
             aria-label={closeLabel}
             tooltip={closeTooltip}
             class="sidebar-close-btn"
         >
-            ×
+            <CloseIcon />
         </Button>
     {/if}
 </header>
@@ -54,17 +54,15 @@
         height: 56px;
         gap: 12px;
         overflow: hidden;
-        border-bottom: 3px solid var(--border-color);
-        background: color-mix(in srgb, var(--accent-active-color) 85%, transparent);
+        padding: 10px 12px;
+        border-bottom: var(--border-inline) solid var(--border-color);
+        background: var(--accent-active-color);
+        font-family: var(--ui-font);
     }
 
-    .sidebar-header.left {
-        padding: env(safe-area-inset-top) 12px 0 calc(12px + env(safe-area-inset-left));
-    }
-
+    .sidebar-header.left,
     .sidebar-header.right {
-        padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 10px
-            16px;
+        padding: 10px 12px;
     }
 
     .sidebar-header-content {
@@ -76,16 +74,25 @@
         margin: 0;
         color: var(--text-color);
         font-size: var(--font-size-lg);
-        font-weight: 900;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
+        font-family: var(--ui-font);
+        font-weight: 800;
     }
 
-    :global(.sidebar-close-btn) {
-        flex-shrink: 0;
+    @media (--tiny-mobile) {
+        .sidebar-header {
+            height: calc(66px + env(safe-area-inset-top));
+            min-height: calc(66px + env(safe-area-inset-top));
+            gap: 8px;
+            border-bottom-width: var(--border-inline);
+        }
+
+        .sidebar-header.left,
+        .sidebar-header.right {
+            padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+        }
     }
 
-    @media (max-height: 500px) {
+    @media (max-height: 500px) and (min-width: 481px) {
         .sidebar-header {
             height: 48px;
         }

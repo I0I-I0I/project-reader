@@ -23,6 +23,13 @@
         unstyled = false,
         ...props
     }: Props = $props()
+
+    function captureInput(node: HTMLInputElement) {
+        ref = node
+        return () => {
+            if (ref === node) ref = null
+        }
+    }
 </script>
 
 <div class={`input-group ${!unstyled ? className : ""} ${unstyled ? "unstyled" : ""}`}>
@@ -30,7 +37,7 @@
         <label class="input-label" for={props.id}>{label}</label>
     {/if}
     <input
-        bind:this={ref}
+        {@attach captureInput}
         {@attach attachment}
         class={!unstyled ? `input-field ${classInput ?? ""}` : className}
         class:has-error={!unstyled && errors.length > 0}
@@ -61,28 +68,31 @@
     }
 
     .input-label {
-        font-size: var(--font-size-base);
-        font-weight: 800;
-        text-transform: uppercase;
         color: var(--text-color);
-        letter-spacing: 0.5px;
+        font-family: var(--ui-font);
+        font-size: var(--font-size-base);
+        font-weight: 700;
     }
 
     .input-field {
-        background: var(--bg-color);
-        border: 2px solid var(--border-color);
-        padding: 12px 16px;
-        font-family: inherit;
+        min-height: var(--control-height-regular);
+        box-sizing: border-box;
+        padding: 8px var(--control-padding-inline);
+        border: var(--border-inline) solid var(--border-color);
+        background: var(--surface-color);
+        box-shadow: var(--shadow-inline);
         color: var(--text-color);
+        font-family: var(--ui-font);
         outline: none;
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            border-color 0.12s ease,
+            box-shadow 0.12s ease,
+            background-color 0.12s ease;
     }
 
-    .input-field:focus {
-        transform: translate(-1px, -1px);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        border-color: var(--accent-color, #00cec9);
+    .input-field:focus-visible {
+        border-color: var(--accent-color);
+        box-shadow: var(--focus-ring);
     }
 
     .input-field::placeholder {

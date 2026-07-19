@@ -50,6 +50,7 @@
     let viewportWidth = $state("100vw")
     let viewportTop = $state("0px")
     let viewportLeft = $state("0px")
+    let safeAreaInsetBottom = $state("env(safe-area-inset-bottom)")
     let anchorPosition = $state({ x: 0, y: 0 })
 
     function updateAnchorPosition() {
@@ -70,10 +71,15 @@
     onMount(() => {
         const visualViewport = window.visualViewport
         const updateViewport = () => {
-            viewportHeight = `${visualViewport?.height ?? window.innerHeight}px`
+            const height = visualViewport?.height ?? window.innerHeight
+            const top = visualViewport?.offsetTop ?? 0
+            const isKeyboardOpen = window.innerHeight - height > 80
+
+            viewportHeight = `${height}px`
             viewportWidth = `${visualViewport?.width ?? window.innerWidth}px`
-            viewportTop = `${visualViewport?.offsetTop ?? 0}px`
+            viewportTop = `${top}px`
             viewportLeft = `${visualViewport?.offsetLeft ?? 0}px`
+            safeAreaInsetBottom = isKeyboardOpen ? "0px" : "env(safe-area-inset-bottom)"
             updateAnchorPosition()
         }
         visualViewport?.addEventListener("resize", updateViewport)
@@ -130,6 +136,7 @@
     style:z-index={zIndex}
     style:--float-viewport-height={viewportHeight}
     style:--float-viewport-width={viewportWidth}
+    style:--float-safe-area-inset-bottom={safeAreaInsetBottom}
 >
     {#if backdrop !== "none"}
         <div

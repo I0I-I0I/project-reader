@@ -1,5 +1,6 @@
 <script lang="ts">
     import * as m from "$lib/paraglide/messages"
+    import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
     import Button from "$lib/shared/ui/Button.svelte"
     import Modal from "$lib/shared/ui/modal/Modal.svelte"
     import { commandsStore, getShortcutHint } from "$lib/modules/commands"
@@ -53,13 +54,12 @@
             <span class="editor-page">{m.page()} {editorState.pageNumber}</span>
             <Button
                 variant="close"
-                size="small"
                 square
                 onclick={() => void editorCommandsNode.execute("modal.cancel")}
                 aria-label={m.cancel()}
                 tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
             >
-                &times;
+                <CloseIcon />
             </Button>
         </div>
     </div>
@@ -236,7 +236,10 @@
         outline: none;
         box-sizing: border-box;
         margin-bottom: 8px;
-        transition: all 0.1s ease;
+        transition:
+            background-color 0.1s ease,
+            border-color 0.1s ease,
+            color 0.1s ease;
     }
 
     @media (--mobile) {
@@ -327,7 +330,10 @@
         background: var(--surface-color) !important;
         color: var(--text-color) !important;
         box-shadow: 3px 3px 0 var(--shadow-color) !important;
-        transition: all 0.1s ease !important;
+        transition:
+            background-color 0.1s ease,
+            border-color 0.1s ease,
+            color 0.1s ease !important;
         min-height: unset !important;
     }
 

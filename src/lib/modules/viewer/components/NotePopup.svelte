@@ -180,7 +180,10 @@
         background: var(--surface-color) !important;
         color: var(--text-color) !important;
         box-shadow: 2px 2px 0 var(--shadow-color) !important;
-        transition: all 0.1s ease !important;
+        transition:
+            background-color 0.1s ease,
+            border-color 0.1s ease,
+            color 0.1s ease !important;
         min-height: unset !important;
     }
 

@@ -4,11 +4,60 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: var(--font-size-base);
+    line-height: 1.5;
     transition:
         background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
         color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: var(--ui-font);
+}
+
+:focus-visible {
+    outline: 2px solid var(--focus-color);
+    outline-offset: 2px;
+    forced-color-adjust: auto;
+}
+
+html[data-motion="off"] *,
+html[data-motion="off"] *::before,
+html[data-motion="off"] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+}
+
+@media (forced-colors: active) {
+    :focus-visible {
+        outline: 3px solid Highlight;
+        outline-offset: 2px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        border-color: ButtonText;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
 }
 
 .app {
@@ -46,8 +95,7 @@ body {
     opacity: 0;
     visibility: hidden;
     z-index: var(--z-tooltip, 100000);
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--ui-font);
     transition:
         opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);

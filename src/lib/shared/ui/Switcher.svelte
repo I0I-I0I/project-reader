@@ -28,6 +28,13 @@
         }
     ).attach
 
+    function trackContainer(node: HTMLElement) {
+        containerEl = node
+        return () => {
+            if (containerEl === node) containerEl = null
+        }
+    }
+
     function toggleDropdown() {
         isOpen = !isOpen
         if (isOpen) floating.update()
@@ -35,6 +42,101 @@
 
     function close() {
         isOpen = false
+    }
+
+    function readSafeAreaInsets() {
+        const probe = document.createElement("div")
+        probe.style.cssText = `
+            position: fixed;
+            visibility: hidden;
+            pointer-events: none;
+            padding-top: env(safe-area-inset-top);
+            padding-right: env(safe-area-inset-right);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+        `
+        document.body.appendChild(probe)
+        const styles = getComputedStyle(probe)
+        const insets = {
+            top: Number.parseFloat(styles.paddingTop) || 0,
+            right: Number.parseFloat(styles.paddingRight) || 0,
+            bottom: Number.parseFloat(styles.paddingBottom) || 0,
+            left: Number.parseFloat(styles.paddingLeft) || 0,
+        }
+        probe.remove()
+        return insets
+    }
+
+    function keepInSafeViewport(node: HTMLElement) {
+        const viewport = window.visualViewport
+        const resizeObserver = new ResizeObserver(updatePosition)
+
+        function updatePosition() {
+            const offsetParent = node.offsetParent as HTMLElement | null
+            if (!offsetParent) return
+
+            node.style.removeProperty("--viewport-shift-x")
+            node.style.removeProperty("--viewport-shift-y")
+
+            const safeArea = readSafeAreaInsets()
+            const viewportLeft = (viewport?.offsetLeft ?? 0) + safeArea.left + 8
+            const viewportTop = (viewport?.offsetTop ?? 0) + safeArea.top + 8
+            const viewportRight =
+                (viewport?.offsetLeft ?? 0) +
+                (viewport?.width ?? window.innerWidth) -
+                safeArea.right -
+                8
+            const viewportBottom =
+                (viewport?.offsetTop ?? 0) +
+                (viewport?.height ?? window.innerHeight) -
+                safeArea.bottom -
+                8
+
+            const parentRect = offsetParent.getBoundingClientRect()
+            const opensAbove = node.classList.contains("pos-top")
+            const spaceAbove = Math.max(0, parentRect.top - viewportTop - 8)
+            const spaceBelow = Math.max(0, viewportBottom - parentRect.bottom - 8)
+            const preferredSpace = opensAbove ? spaceAbove : spaceBelow
+            const alternateSpace = opensAbove ? spaceBelow : spaceAbove
+
+            if (preferredSpace < node.scrollHeight && alternateSpace > preferredSpace) {
+                floating.setVertical(opensAbove ? "bottom" : "top")
+                requestAnimationFrame(updatePosition)
+                return
+            }
+
+            node.style.maxHeight = `${preferredSpace}px`
+
+            const naturalLeft = parentRect.left + node.offsetLeft
+            const naturalTop = parentRect.top + node.offsetTop
+            const naturalRight = naturalLeft + node.offsetWidth
+            const naturalBottom = naturalTop + node.offsetHeight
+
+            const shiftX = Math.max(
+                viewportLeft - naturalLeft,
+                Math.min(0, viewportRight - naturalRight),
+            )
+            const shiftY = Math.max(
+                viewportTop - naturalTop,
+                Math.min(0, viewportBottom - naturalBottom),
+            )
+
+            node.style.setProperty("--viewport-shift-x", `${shiftX}px`)
+            node.style.setProperty("--viewport-shift-y", `${shiftY}px`)
+        }
+
+        updatePosition()
+        resizeObserver.observe(node)
+        window.addEventListener("resize", updatePosition)
+        viewport?.addEventListener("resize", updatePosition)
+        viewport?.addEventListener("scroll", updatePosition)
+
+        return () => {
+            resizeObserver.disconnect()
+            window.removeEventListener("resize", updatePosition)
+            viewport?.removeEventListener("resize", updatePosition)
+            viewport?.removeEventListener("scroll", updatePosition)
+        }
     }
 
     function handleClickOutside(event: MouseEvent) {
@@ -99,7 +201,7 @@
 
 <svelte:document onclick={handleClickOutside} />
 
-<div class={`switcher-wrapper ${className}`} bind:this={containerEl} {@attach attachFloating}>
+<div class={`switcher-wrapper ${className}`} {@attach trackContainer} {@attach attachFloating}>
     <button
         class="switcher-trigger"
         class:open={isOpen}
@@ -118,8 +220,9 @@
     </button>
 
     {#if isOpen}
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape is delegated from the focused native buttons inside this list) -->
         <ul
+            {@attach keepInSafeViewport}
             transition:expandFromTrigger
             class="switcher-dropdown"
             class:pos-top={floating.vertical === "top"}
@@ -149,35 +252,40 @@
     .switcher-trigger {
         display: flex;
         align-items: center;
-        gap: 8px;
-        border: 2px solid var(--border-color);
+        min-height: var(--control-height-compact);
+        box-sizing: border-box;
+        gap: var(--control-gap);
+        border: var(--border-inline) solid var(--border-color);
         background: var(--surface-color);
         color: var(--text-color);
-        padding: 6px 12px;
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        font-family: inherit;
+        padding: 6px var(--control-padding-inline);
+        box-shadow: var(--shadow-inline);
+        font-family: var(--ui-font);
         font-size: var(--font-size-base);
-        font-weight: bold;
-        text-transform: uppercase;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            background-color 0.12s ease,
+            border-color 0.12s ease,
+            box-shadow 0.12s ease;
     }
 
     @media (hover: hover) {
-        .switcher-trigger:hover:not(:active):not(.open),
-        .switcher-trigger:focus-visible:not(:active):not(.open) {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
+        .switcher-trigger:hover:not(:active):not(.open) {
             background: var(--surface-hover-color);
-            outline: none;
         }
+    }
+
+    .switcher-trigger:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-ring);
     }
 
     .switcher-trigger:active,
     .switcher-trigger.open {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
-        background: var(--accent-active-color);
+        border-color: var(--accent-active-color);
+        background: var(--selected-surface);
+        box-shadow: inset 3px 0 0 var(--accent-active-color);
     }
 
     :global(.chevron) {
@@ -193,11 +301,17 @@
         z-index: var(--z-modal);
         list-style: none;
         margin: 0;
-        padding: 4px;
-        border: 2px solid var(--border-color);
+        padding: 0;
+        border: var(--border-elevated) solid var(--border-color);
         background: var(--surface-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
+        box-shadow: var(--shadow-elevated);
         min-width: 140px;
+        box-sizing: border-box;
+        max-width: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px);
+        max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        translate: var(--viewport-shift-x, 0) var(--viewport-shift-y, 0);
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -242,14 +356,17 @@
         border: none;
         color: var(--text-color);
         padding: 8px 12px;
+        font-family: var(--ui-font);
         font-size: var(--font-size-base);
-        font-weight: bold;
-        text-transform: uppercase;
+        font-weight: 700;
         text-align: left;
         text-decoration: none;
         box-sizing: border-box;
         cursor: pointer;
-        transition: all 0.1s ease;
+        transition:
+            background-color 0.1s ease,
+            color 0.1s ease,
+            box-shadow 0.1s ease;
     }
 
     @media (hover: hover) {
@@ -260,9 +377,15 @@
         }
     }
 
+    :global(.dropdown-item:focus-visible) {
+        outline: none;
+        box-shadow: inset 0 0 0 2px var(--accent-color);
+    }
+
     :global(.dropdown-item.active) {
-        background: var(--text-color);
-        color: var(--bg-color);
+        background: var(--selected-surface);
+        color: var(--text-color);
+        box-shadow: inset 3px 0 0 var(--accent-active-color);
     }
 
     @media (--tiny-mobile) {
@@ -271,7 +394,12 @@
         }
 
         .switcher-trigger {
+            min-height: var(--control-height-regular);
             padding: 6px 8px;
+        }
+
+        :global(.dropdown-item) {
+            min-height: var(--control-height-regular);
         }
     }
 </style>

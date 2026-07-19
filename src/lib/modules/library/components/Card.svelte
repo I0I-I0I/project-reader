@@ -1,7 +1,7 @@
 <script lang="ts">
     import { useLibraryUI } from "../state/libraryUI.svelte"
     import { type Component } from "svelte"
-    import type { HTMLAttributes } from "svelte/elements"
+    import type { HTMLButtonAttributes } from "svelte/elements"
     import * as m from "$lib/paraglide/messages"
     import BookOpenIcon from "$lib/shared/icons/BookOpenIcon.svelte"
     import CheckCircleIcon from "$lib/shared/icons/CheckCircleIcon.svelte"
@@ -23,7 +23,7 @@
 
     const libraryUI = useLibraryUI()
 
-    interface Props extends HTMLAttributes<HTMLDivElement> {
+    interface Props extends HTMLButtonAttributes {
         node?: VFSNode
         name?: string
         isPlaceholder?: boolean
@@ -264,97 +264,104 @@
 </script>
 
 <div
-    role="button"
-    aria-disabled={isPlaceholder ? "true" : undefined}
-    aria-label={ariaLabel}
-    aria-busy={isLoading ? "true" : undefined}
-    tabindex={isPlaceholder || isRestoring ? -1 : 0}
-    class={`card ${className}`}
+    class="card-shell"
     class:is-selected={isSelected}
-    class:is-placeholder={isPlaceholder}
+    class:menu-open={showMenu}
+    role="group"
+    aria-label={`${book?.name ?? node?.name ?? importJob?.name ?? name}${isSelected ? `, ${m.selected_label()}` : ""}`}
     onmouseleave={handleMouseLeave}
-    onpointerdown={isPlaceholder ? null : onPointerDown}
-    onpointerup={isPlaceholder ? null : onPointerUp}
-    onpointercancel={isPlaceholder ? null : onPointerUp}
-    onclick={handleClick}
     onfocusin={handleFocus}
     onfocusout={handleFocusOut}
-    {...props}
 >
-    <div class="card-cover-container">
-        {#if kind === "book" && extension}
-            <div class="badge" aria-label="{m.file_format()}: {extension}">
-                {extension}
-            </div>
-        {/if}
-
-        {#if isSelected}
-            <div class="selection-badge">
-                <CheckIcon />
-            </div>
-        {/if}
-
-        {#if isLoading}
-            <div class="cover-skeleton skeleton" aria-hidden="true"></div>
-        {:else if isFailed}
-            <div class="card-icon failed-icon" aria-hidden="true">
-                {#if Icon}<Icon />{/if}
-            </div>
-        {:else if book && book.previewDataUrl}
-            <div class="card-preview" aria-hidden="true">
-                <div class="pdf-image-wrapper">
-                    <img
-                        src={book.previewDataUrl}
-                        alt={m.cover_preview_alt()}
-                        onerror={handleImageError}
-                    />
+    <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-busy={isLoading ? "true" : undefined}
+        disabled={isPlaceholder || isRestoring}
+        class={`card ${className}`}
+        class:is-selected={isSelected}
+        class:is-placeholder={isPlaceholder}
+        onpointerdown={isPlaceholder ? null : onPointerDown}
+        onpointerup={isPlaceholder ? null : onPointerUp}
+        onpointercancel={isPlaceholder ? null : onPointerUp}
+        onclick={handleClick}
+        {...props}
+    >
+        <div class="card-cover-container">
+            {#if kind === "book" && extension}
+                <div class="badge" aria-label="{m.file_format()}: {extension}">
+                    {extension}
                 </div>
-            </div>
-        {:else}
-            <div class="card-icon" aria-hidden="true">
-                {#if kind === "folder"}
-                    <FolderIcon />
-                {:else if Icon}
-                    <Icon />
-                {/if}
-            </div>
-        {/if}
-
-        {#if kind === "book" && book && book.totalPages && book.totalPages > 0}
-            <div class="progress-container">
-                <div class="progress-bar-track">
-                    <div
-                        class="progress-bar-fill"
-                        class:has-border={progressPercent > 0 && progressPercent < 100}
-                        style="width: {progressPercent}%"
-                    ></div>
-                </div>
-                <span class="progress-text">{progressPercent}%</span>
-            </div>
-        {/if}
-    </div>
-
-    <div class="card-metadata">
-        <p class="card-title">{book?.name ?? importJob?.name ?? node?.name ?? name}</p>
-        {#if kind === "book"}
-            {#if isLoading && !book?.author}
-                <div class="metadata-skeleton skeleton" aria-hidden="true"></div>
-            {:else}
-                <p class="card-author">
-                    {#if isFailed}
-                        {m.book_import_failed({ name: importJob?.name ?? name })}
-                    {:else if book?.author}
-                        {book.author}
-                    {:else}
-                        {m.unknown_author()}
-                    {/if}
-                    {#if book?.totalPages}
-                        · {m.of_pages({ total: book.totalPages })}
-                    {/if}
-                </p>
             {/if}
-        {/if}
-    </div>
+
+            {#if isSelected}
+                <div class="selection-badge">
+                    <CheckIcon />
+                </div>
+            {/if}
+
+            {#if isLoading}
+                <div class="cover-skeleton skeleton" aria-hidden="true"></div>
+            {:else if isFailed}
+                <div class="card-icon failed-icon" aria-hidden="true">
+                    {#if Icon}<Icon />{/if}
+                </div>
+            {:else if book && book.previewDataUrl}
+                <div class="card-preview" aria-hidden="true">
+                    <div class="pdf-image-wrapper">
+                        <img
+                            src={book.previewDataUrl}
+                            alt={m.cover_preview_alt()}
+                            onerror={handleImageError}
+                        />
+                    </div>
+                </div>
+            {:else}
+                <div class="card-icon" aria-hidden="true">
+                    {#if kind === "folder"}
+                        <FolderIcon />
+                    {:else if Icon}
+                        <Icon />
+                    {/if}
+                </div>
+            {/if}
+
+            {#if kind === "book" && book && book.totalPages && book.totalPages > 0}
+                <div class="progress-container">
+                    <div class="progress-bar-track">
+                        <div
+                            class="progress-bar-fill"
+                            class:has-border={progressPercent > 0 && progressPercent < 100}
+                            style="width: {progressPercent}%"
+                        ></div>
+                    </div>
+                    <span class="progress-text">{progressPercent}%</span>
+                </div>
+            {/if}
+        </div>
+
+        <div class="card-metadata">
+            <p class="card-title">{book?.name ?? importJob?.name ?? node?.name ?? name}</p>
+            {#if kind === "book"}
+                {#if isLoading && !book?.author}
+                    <div class="metadata-skeleton skeleton" aria-hidden="true"></div>
+                {:else}
+                    <p class="card-author">
+                        {#if isFailed}
+                            {m.book_import_failed({ name: importJob?.name ?? name })}
+                        {:else if book?.author}
+                            {book.author}
+                        {:else}
+                            {m.unknown_author()}
+                        {/if}
+                        {#if book?.totalPages}
+                            · {m.of_pages({ total: book.totalPages })}
+                        {/if}
+                    </p>
+                {/if}
+            {/if}
+        </div>
+    </button>
 
     {#if !isPlaceholder && !libraryUI.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
@@ -366,7 +373,6 @@
                         square={true}
                         size="large"
                         class="menu-btn"
-                        tabindex={-1}
                         aria-label={m.more_options()}
                         tooltip={`${m.more_options()}${getShortcutHint(commandsNode, "library.card.menu.toggle")}`}
                         onpointerdown={(e) => e.stopPropagation()}
@@ -432,12 +438,26 @@
 </div>
 
 <style>
+    .card-shell {
+        position: relative;
+        z-index: var(--z-base);
+        width: 100%;
+        height: 100%;
+    }
+
+    .card-shell.menu-open {
+        z-index: var(--z-dropdown);
+    }
+
     .card {
         background: var(--surface-color);
-        position: relative;
         border: 2px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-elevated);
+        transition:
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
@@ -455,13 +475,15 @@
     }
 
     .card.is-selected {
-        border-color: var(--danger-active-color);
-        box-shadow: 4px 4px 0 var(--danger-active-color);
-        background-color: var(--faded-color);
+        border-color: var(--selection-color);
+        box-shadow:
+            var(--shadow-elevated),
+            inset 4px 0 0 var(--selection-color);
+        background-color: var(--selected-surface);
     }
 
     .card.is-selected .card-cover-container {
-        border-bottom-color: var(--danger-active-color);
+        border-bottom-color: var(--selection-color);
     }
 
     @media (hover: hover) {
@@ -472,23 +494,27 @@
         }
 
         .card.is-selected:hover:not(.is-placeholder) {
-            box-shadow: 8px 8px 0 var(--danger-active-color);
+            box-shadow: 8px 8px 0 var(--selection-color);
         }
     }
 
     .card:focus-visible:not(.is-placeholder) {
-        transform: translate(-8px, -8px);
-        box-shadow: 12px 12px 0 var(--shadow-color);
+        transform: none;
+        box-shadow:
+            4px 4px 0 var(--shadow-color),
+            var(--focus-ring);
         background-color: var(--surface-hover-color);
         outline: none;
 
         .card-metadata {
-            background-color: var(--accent-color);
+            background-color: var(--selected-surface);
         }
     }
 
     .card.is-selected:focus-visible:not(.is-placeholder) {
-        box-shadow: 8px 8px 0 var(--danger-active-color);
+        box-shadow:
+            4px 4px 0 var(--selection-color),
+            var(--focus-ring);
         outline: none;
     }
 
@@ -498,7 +524,7 @@
     }
 
     .card.is-selected:active:not(.is-placeholder) {
-        box-shadow: 2px 2px 0 var(--danger-active-color);
+        box-shadow: 2px 2px 0 var(--selection-color);
     }
 
     .card-cover-container {
@@ -518,8 +544,8 @@
         position: absolute;
         top: 15px;
         right: 15px;
-        background: var(--danger-active-color);
-        color: var(--danger-text-color);
+        background: var(--selection-color);
+        color: var(--selection-text-color);
         width: 32px;
         height: 32px;
         border: 2px solid var(--border-color);
@@ -583,10 +609,6 @@
         display: block;
     }
 
-    :global(html.dark) .card-preview img {
-        filter: invert(1) hue-rotate(180deg);
-    }
-
     .card-metadata {
         width: 100%;
         max-height: 80px !important;
@@ -598,13 +620,14 @@
         padding: 12px;
         box-sizing: border-box;
         text-align: left;
-        transition: all 0.15s ease;
+        transition:
+            background-color 0.15s ease,
+            color 0.15s ease;
     }
 
     .card-title {
         font-size: var(--font-size-md);
         font-weight: 800;
-        text-transform: uppercase;
         margin: 0;
         text-align: left;
         width: 100%;
@@ -621,7 +644,6 @@
     .card-author {
         font-size: var(--font-size-2xs);
         font-weight: 600;
-        text-transform: uppercase;
         margin: 0;
         text-align: left;
         width: 100%;
@@ -640,8 +662,8 @@
         position: absolute;
         top: 15px;
         left: 15px;
-        background: var(--danger-active-color);
-        color: var(--danger-text-color);
+        background: var(--active-color);
+        color: var(--active-text-color);
         font-size: var(--font-size-sm);
         font-weight: bold;
         padding: 4px 10px;
@@ -662,6 +684,7 @@
     :global(.menu-btn) {
         opacity: 0;
         pointer-events: none;
+        background: var(--surface-color) !important;
         transition: opacity 0.15s ease !important;
         box-shadow: 2px 2px 0 var(--shadow-color) !important;
     }
@@ -672,8 +695,8 @@
     }
 
     :global(.menu-btn.open),
-    .card:hover :global(.menu-btn),
-    .card:focus-visible :global(.menu-btn) {
+    .card-shell:hover :global(.menu-btn),
+    .card-shell:focus-within :global(.menu-btn) {
         opacity: 1;
         pointer-events: auto;
     }
@@ -714,7 +737,7 @@
 
     .progress-bar-fill {
         height: 100%;
-        background: var(--danger-active-color);
+        background: var(--progress-color);
         transition: width 0.3s ease-in-out;
         box-sizing: border-box;
     }
@@ -778,6 +801,66 @@
 
         .progress-text {
             font-size: var(--font-size-2xs);
+        }
+    }
+
+    @media (--phone) {
+        .card-shell {
+            min-height: 112px;
+        }
+
+        .card {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            grid-template-rows: minmax(108px, auto);
+        }
+
+        .card-cover-container {
+            width: 72px;
+            height: 108px;
+            aspect-ratio: auto;
+            border-right: var(--border-inline) solid var(--border-color);
+            border-bottom: 0;
+        }
+
+        .card-metadata {
+            align-self: stretch;
+            height: 108px;
+            max-height: none !important;
+            padding: 12px 48px 28px 12px;
+            justify-content: center;
+        }
+
+        .card-title {
+            font-size: var(--font-size-base);
+        }
+
+        .card-author {
+            font-size: var(--font-size-sm);
+        }
+
+        .card-menu {
+            top: 8px;
+            right: 8px;
+        }
+
+        .progress-container {
+            left: 72px;
+            width: calc(100% - 72px);
+            height: 22px;
+            border-top: var(--border-inline) solid var(--border-color);
+        }
+
+        .progress-text {
+            font-size: var(--font-size-2xs);
+        }
+
+        .selection-badge {
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            box-shadow: none;
         }
     }
 

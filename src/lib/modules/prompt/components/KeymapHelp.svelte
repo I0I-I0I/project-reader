@@ -279,7 +279,11 @@
         border: 2px solid var(--border-color);
         box-shadow: 2px 2px 0 var(--shadow-color);
         outline: none;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
         border-radius: var(--radius-md);
     }

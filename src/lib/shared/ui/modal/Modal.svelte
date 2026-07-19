@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte"
+    import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
     import Button from "../Button.svelte"
     import Float from "./Float.svelte"
     import { getFocusableElements, restoreFocus, trapTabKey } from "./modalFocus"
@@ -249,7 +250,7 @@
                         square
                         onclick={() => requestClose("close-button")}
                         aria-label={props.closeLabel ?? "Close"}
-                        disabled={isBusy}>×</Button
+                        disabled={isBusy}><CloseIcon /></Button
                     >
                 {/if}
             {:else}
@@ -261,7 +262,7 @@
                         square
                         onclick={() => requestClose("close-button")}
                         aria-label={props.closeLabel ?? "Close"}
-                        disabled={isBusy}>×</Button
+                        disabled={isBusy}><CloseIcon /></Button
                     >
                 {/if}
             {/if}

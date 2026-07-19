@@ -1312,13 +1312,6 @@
         padding: 40px;
     }
 
-    @media (min-width: 801px) and (min-height: 501px) {
-        .canvas-frame {
-            background-image: radial-gradient(var(--border-color) 1px, transparent 0);
-            background-size: 24px 24px;
-        }
-    }
-
     /* Scroll Mode overrides */
     .canvas-pane.scroll-mode .canvas-frame {
         display: block;
@@ -1367,7 +1360,7 @@
         position: absolute;
         inset: 0;
         background: var(--overlay-color);
-        backdrop-filter: blur(2px);
+        backdrop-filter: none;
         z-index: var(--z-10);
     }
 
@@ -1426,6 +1419,7 @@
 
     .canvas-pane.mobile-full-width.single-layout .canvas-frame {
         align-items: safe center;
+        justify-content: center;
     }
 
     .canvas-pane.mobile-full-width.scroll-mode .canvas-frame {
@@ -1434,6 +1428,7 @@
     }
 
     .canvas-pane.mobile-full-width .pdf-image-wrapper {
+        max-width: 100%;
         border-width: 0;
         box-shadow: none;
         border-bottom: none !important;

@@ -30,7 +30,7 @@
     }
 </script>
 
-<div class="viewer-footer" role="toolbar" aria-label={m.viewer_footer()}>
+<footer class="viewer-footer" aria-label={m.viewer_footer()}>
     {#if viewport.isCompact}
         <div class="mobile-scrub-bar">
             <Input
@@ -105,6 +105,7 @@
                     }
                 }}
                 class="footer-scrubber"
+                style={`--progress: ${(currentPage / totalPages) * 100}%`}
                 disabled={isPageLoading}
                 aria-label={m.scrub_slider_aria()}
             />
@@ -123,7 +124,7 @@
         <span class="btn-text">{m.next_page()}</span>
         <span class="btn-arrow">→</span>
     </Button>
-</div>
+</footer>
 
 <style>
     .viewer-footer {
@@ -133,81 +134,43 @@
         justify-content: space-between;
         align-items: center;
         gap: 16px;
-        background: var(--danger-color);
-        background-image: repeating-linear-gradient(
-            -45deg,
-            transparent,
-            transparent 10px,
-            rgba(0, 0, 0, 0.03) 10px,
-            rgba(0, 0, 0, 0.03) 20px
-        );
-        border-top: 3px solid var(--border-color);
-        padding: 18px 24px;
-        padding-bottom: calc(18px + env(safe-area-inset-bottom));
-        padding-left: calc(24px + env(safe-area-inset-left));
-        padding-right: calc(24px + env(safe-area-inset-right));
+        background: var(--viewer-chrome-color);
+        border-top: var(--border-inline) solid var(--border-color);
+        font-family: var(--ui-font);
+        min-height: calc(56px + env(safe-area-inset-bottom));
+        max-height: calc(56px + env(safe-area-inset-bottom));
+        box-sizing: border-box;
+        padding: 6px calc(16px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom))
+            calc(16px + env(safe-area-inset-left));
     }
 
     .viewer-footer :global(.action-btn) {
-        background: var(--surface-color);
         min-width: 0;
         flex: 0 1 auto;
-        border: 2.5px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        padding: 10px 20px;
-        font-weight: 800;
-        transition:
-            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        user-select: none;
-        color: var(--text-color);
-    }
-
-    @media (hover: hover) {
-        .viewer-footer :global(.action-btn:hover:not(:disabled)) {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0 var(--shadow-color);
-            background: var(--surface-hover-color, #faf8f5);
-        }
-    }
-
-    .viewer-footer :global(.action-btn:active:not(:disabled)) {
-        transform: translate(2px, 2px);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-    }
-
-    .viewer-footer :global(.action-btn:disabled) {
-        opacity: 0.5;
-        cursor: not-allowed;
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        transform: translate(2px, 2px);
+        padding-inline: 16px;
+        font-weight: 700;
     }
 
     .pagination-indicator {
         display: flex;
         align-items: center;
         gap: 12px;
-        font-weight: 900;
+        font-weight: 700;
         font-size: var(--font-size-xl);
-        color: var(--danger-text-color, #ffffff);
-        text-shadow: 2px 2px 0 var(--shadow-color);
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        color: var(--text-color);
+        font-family: var(--ui-font);
+        font-variant-numeric: tabular-nums;
         flex-shrink: 0;
     }
 
     .pagination-indicator :global(.page-input) {
         width: 65px;
         height: 38px;
-        border: 2.5px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
+        border: var(--border-inline) solid var(--border-color);
+        box-shadow: var(--shadow-inline);
         text-align: center;
-        font-family: inherit;
-        font-weight: 900;
+        font-family: var(--ui-mono-font);
+        font-weight: 700;
         background: var(--surface-color);
         color: var(--text-color);
         outline: none;
@@ -238,23 +201,20 @@
 
     @media (--mobile) {
         .viewer-footer {
-            padding: 6px 12px;
-            padding-bottom: calc(6px + env(safe-area-inset-bottom));
-            padding-left: calc(12px + env(safe-area-inset-left));
-            padding-right: calc(12px + env(safe-area-inset-right));
-            border-top-width: 2px;
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr) 44px;
+            min-height: calc(56px + env(safe-area-inset-bottom));
+            box-sizing: border-box;
+            gap: 12px;
+            padding: 6px calc(10px + env(safe-area-inset-right))
+                calc(6px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+            border-top-width: var(--border-inline);
         }
 
         .viewer-footer :global(.action-btn) {
-            min-width: 40px !important;
-            max-width: 40px !important;
-            width: 40px !important;
-            min-height: 40px !important;
-            max-height: 40px !important;
-            height: 40px !important;
-            padding: 0 !important;
-            box-shadow: 2px 2px 0 var(--shadow-color);
-            flex: 0 0 40px;
+            width: var(--control-height-regular);
+            flex: 0 0 var(--control-height-regular);
+            padding: 0;
         }
 
         .btn-text {
@@ -268,15 +228,20 @@
         }
 
         .pagination-indicator {
-            font-size: var(--font-size-base);
-            gap: 4px;
+            min-width: 0;
+            justify-content: center;
+            font-size: max(0.875rem, var(--font-size-base));
+            gap: 6px;
+            font-variant-numeric: tabular-nums;
         }
 
         .pagination-indicator :global(.page-input) {
-            width: 44px;
-            height: 28px;
-            border-width: 1.5px;
-            box-shadow: 1.5px 1.5px 0 var(--shadow-color);
+            width: 3rem;
+            height: 32px;
+            border-width: 1px;
+            border-radius: 0;
+            box-shadow: none;
+            font-size: 1rem;
         }
     }
 
@@ -300,9 +265,13 @@
         height: 10px;
         appearance: none;
         -webkit-appearance: none;
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        background: linear-gradient(
+            to right,
+            var(--color-marker) 0 var(--progress),
+            var(--surface-color) var(--progress) 100%
+        );
+        border: var(--border-inline) solid var(--border-color);
+        box-shadow: var(--shadow-inline);
         outline: none;
         box-sizing: border-box;
     }

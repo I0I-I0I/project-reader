@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { HTMLInputAttributes } from "svelte/elements"
     import Input from "../Input.svelte"
+    import SearchIcon from "$lib/shared/icons/SearchIcon.svelte"
 
     interface Props extends Omit<HTMLInputAttributes, "value" | "type"> {
         value?: string
@@ -26,6 +27,7 @@
 </script>
 
 <div class={["sidebar-search", className]} role="search">
+    <SearchIcon class="sidebar-search-icon" aria-hidden="true" />
     <Input
         unstyled
         bind:ref
@@ -49,20 +51,30 @@
         flex-shrink: 0;
         align-items: center;
         box-sizing: border-box;
-        border-bottom: 3px solid var(--border-color);
+        border-bottom: var(--border-inline) solid var(--border-color);
         background: var(--surface-color);
+        font-family: var(--ui-font);
+    }
+
+    .sidebar-search :global(.sidebar-search-icon) {
+        position: absolute;
+        left: 14px;
+        width: 18px;
+        height: 18px;
+        color: var(--faded-text-color);
+        pointer-events: none;
     }
 
     .sidebar-search :global(.sidebar-search-input) {
         width: 100%;
         box-sizing: border-box;
-        padding: 12px 36px 12px 16px;
+        padding: 12px 36px 12px 42px;
         border: 0;
         outline: 0;
         background: var(--surface-color);
         color: var(--text-color);
-        font-family: inherit;
-        font-weight: 700;
+        font-family: var(--ui-font);
+        font-weight: 600;
         transition:
             background 0.15s ease,
             box-shadow 0.15s ease;
@@ -75,7 +87,7 @@
 
     .sidebar-search :global(.sidebar-search-input:focus) {
         background: color-mix(in srgb, var(--accent-color) 6%, var(--surface-color));
-        box-shadow: inset 4px 0 0 var(--accent-color);
+        box-shadow: inset 3px 0 0 var(--accent-color);
     }
 
     .sidebar-search-clear {
@@ -119,12 +131,24 @@
     }
 
     @media (max-width: 640px) {
+        .sidebar-search {
+            border-bottom-width: 1px;
+        }
+
         .sidebar-search :global(.sidebar-search-input) {
-            padding: 10px 32px 10px 14px;
+            min-height: 48px;
+            padding: 11px 42px;
+            font-size: max(1rem, var(--font-size-input));
+        }
+
+        .sidebar-search :global(.sidebar-search-icon) {
+            left: 14px;
         }
 
         .sidebar-search-clear {
-            right: 10px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
         }
     }
 </style>

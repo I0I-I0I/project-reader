@@ -3,12 +3,14 @@
     import Button from "$lib/shared/ui/Button.svelte"
     import SearchIcon from "$lib/shared/icons/SearchIcon.svelte"
     import SearchNoResultsIcon from "$lib/shared/icons/SearchNoResultsIcon.svelte"
+    import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
     import { useCommands } from "$lib/modules/commands"
     import { createPromptCommands } from "../promptCommands"
     import type { PromptSnapshot } from "../prompt.types"
     import { promptStore } from "../stores/promptStore.svelte"
     import * as m from "$lib/paraglide/messages"
-    import { tick } from "svelte"
+    import { onMount, tick } from "svelte"
+    import { MEDIA_QUERIES } from "$lib/shared/state/breakpoints"
     import { fade, fly } from "svelte/transition"
     import { cubicOut } from "svelte/easing"
     import { motionPreferences } from "$lib/shared/state/motion.svelte"
@@ -60,6 +62,69 @@
         event.stopPropagation()
         promptCommandScope.handleKeydown(event)
     }
+
+    onMount(() => {
+        const phoneQuery = window.matchMedia(MEDIA_QUERIES.PHONE)
+        let isLocked = false
+        let scrollX = 0
+        let scrollY = 0
+        let previousBodyStyles: Partial<CSSStyleDeclaration> = {}
+        let previousRootStyles: Partial<CSSStyleDeclaration> = {}
+
+        function unlockPageScroll() {
+            if (!isLocked) return
+
+            Object.assign(document.body.style, previousBodyStyles)
+            Object.assign(document.documentElement.style, previousRootStyles)
+            window.scrollTo(scrollX, scrollY)
+            isLocked = false
+        }
+
+        function updatePageScrollLock() {
+            if (!phoneQuery.matches) {
+                unlockPageScroll()
+                return
+            }
+            if (isLocked) return
+
+            scrollX = window.scrollX
+            scrollY = window.scrollY
+            previousBodyStyles = {
+                position: document.body.style.position,
+                top: document.body.style.top,
+                left: document.body.style.left,
+                right: document.body.style.right,
+                width: document.body.style.width,
+                overflow: document.body.style.overflow,
+            }
+            previousRootStyles = {
+                overflow: document.documentElement.style.overflow,
+                overscrollBehavior: document.documentElement.style.overscrollBehavior,
+            }
+
+            Object.assign(document.body.style, {
+                position: "fixed",
+                top: `${-scrollY}px`,
+                left: `${-scrollX}px`,
+                right: "0",
+                width: "100%",
+                overflow: "hidden",
+            })
+            Object.assign(document.documentElement.style, {
+                overflow: "hidden",
+                overscrollBehavior: "none",
+            })
+            isLocked = true
+        }
+
+        updatePageScrollLock()
+        phoneQuery.addEventListener("change", updatePageScrollLock)
+
+        return () => {
+            phoneQuery.removeEventListener("change", updatePageScrollLock)
+            unlockPageScroll()
+        }
+    })
 </script>
 
 {#if snapshot}
@@ -102,10 +167,10 @@
                     <Button
                         type="button"
                         variant="close"
-                        size="small"
                         square
+                        class="prompt-close-btn"
                         onclick={() => promptStore.close()}
-                        aria-label={m.prompt_close_aria()}>✕</Button
+                        aria-label={m.prompt_close_aria()}><CloseIcon /></Button
                     >
                 </form>
 
@@ -206,6 +271,8 @@
         max-height: 100%;
         margin-top: 80px;
         margin-bottom: auto;
+        border: var(--border-elevated) solid var(--border-color);
+        box-shadow: var(--shadow-elevated);
     }
 
     .prompt-container {
@@ -214,6 +281,8 @@
         flex-direction: column;
         overflow: hidden;
         background: var(--surface-color);
+        color: var(--text-color);
+        font-family: var(--ui-font);
     }
 
     .input-wrapper {
@@ -221,7 +290,7 @@
         display: flex;
         align-items: center;
         padding: 1rem;
-        border-bottom: 2px solid var(--border-color);
+        border-bottom: var(--border-inline) solid var(--border-color);
     }
 
     .input-wrapper::after {
@@ -271,7 +340,6 @@
         flex-direction: column;
         gap: 0.25rem;
         overflow-y: auto;
-        padding: 0.5rem;
         scrollbar-gutter: stable;
     }
 
@@ -309,7 +377,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 0.65rem 1rem;
-        border-top: 2px solid var(--border-color);
+        border-top: var(--border-inline) solid var(--border-color);
         background: var(--surface-hover-color);
         color: var(--text-color);
         font-size: var(--font-size-sm);
@@ -344,36 +412,74 @@
         :global(.prompt-float) {
             width: 100%;
             height: 100%;
+            max-height: var(--float-viewport-height);
             margin: 0;
+            border: 0;
+            box-shadow: none;
         }
 
         .prompt-container {
             height: 100%;
-            flex-direction: column-reverse;
+            min-height: 0;
         }
 
         .input-wrapper {
-            border-top: 2px solid var(--border-color);
-            border-bottom: 0;
+            order: 1;
+            flex: 0 0 auto;
+            min-height: calc(
+                56px + var(--float-safe-area-inset-bottom, env(safe-area-inset-bottom))
+            );
+            box-sizing: border-box;
+            gap: 10px;
+            padding: 6px calc(8px + env(safe-area-inset-right))
+                calc(6px + var(--float-safe-area-inset-bottom, env(safe-area-inset-bottom)))
+                calc(14px + env(safe-area-inset-left));
+            border-bottom: 1px solid var(--border-color);
+            background: var(--surface-color);
         }
 
         .input-wrapper::after {
-            top: -2px;
-            bottom: auto;
+            top: auto;
+            bottom: -1px;
+            height: 1px;
+        }
+
+        :global(.search-icon) {
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            flex: 0 0 auto;
+        }
+
+        .prompt-input {
+            font-size: max(1rem, var(--font-size-2xl));
         }
 
         .results-list {
+            min-height: 0;
             max-height: none;
             flex: 1;
             flex-direction: column-reverse;
+            padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
+                12px calc(8px + env(safe-area-inset-left));
+            scrollbar-gutter: auto;
+        }
+
+        .empty-state {
+            min-height: 100%;
+            padding: 24px;
+            box-sizing: border-box;
+            font-family: var(--ui-font);
+            font-size: 1rem;
+            text-align: center;
+            opacity: 0.72;
+        }
+
+        .empty-state :global(svg) {
+            display: none;
         }
 
         footer {
-            border-top: 0;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        footer span:last-child {
             display: none;
         }
     }

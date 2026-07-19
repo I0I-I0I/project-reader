@@ -44,7 +44,7 @@
 <style>
     .floating-notification {
         position: fixed;
-        top: 24px;
+        top: calc(24px + env(safe-area-inset-top));
         right: 0;
         z-index: 9999;
         display: inline-block;
@@ -56,7 +56,7 @@
     }
 
     .floating-notification.viewer-mode {
-        top: 100px;
+        top: calc(68px + env(safe-area-inset-top));
     }
 
     .notification-svg {
@@ -102,11 +102,12 @@
 
     @media (max-width: 800px) {
         .floating-notification {
-            top: 16px;
+            top: calc(68px + env(safe-area-inset-top));
             right: 0;
         }
+
         .floating-notification.viewer-mode {
-            top: 76px;
+            top: calc(64px + env(safe-area-inset-top));
         }
     }
 </style>

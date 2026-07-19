@@ -226,7 +226,7 @@
         bind:value={searchQuery}
         oninput={resetSelection}
         onClear={resetSelection}
-        placeholder={`${m.search_headings_placeholder()} [${searchShortcut}]`}
+        placeholder={m.search_headings_placeholder()}
         onkeydown={handleSearchKeydown}
         clearLabel={m.clear_search_aria()}
     />
@@ -278,15 +278,17 @@
                 {#if i > 0},
                 {/if}<kbd>{pair.display}</kbd>
             {/each}
-            Navigate
+            {m.navigate()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{selectShortcut}</kbd> Go
+            <kbd>{selectShortcut}</kbd>
+            {m.go()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{searchShortcut}</kbd> Search
+            <kbd>{searchShortcut}</kbd>
+            {m.search()}
         </span>
         <span class="hint-divider">•</span>
     </SidebarFooter>
@@ -334,29 +336,37 @@
         border: none !important;
         border-bottom: 1px dashed var(--outline-item-border) !important;
         padding: 10px 12px !important;
-        padding-left: calc(12px + var(--depth) * 12px) !important;
-        font-family: inherit !important;
+        padding-left: calc(12px + min(var(--depth), 8) * 12px) !important;
+        font-family: var(--ui-font) !important;
         font-size: var(--font-size-lg) !important;
         font-weight: 700 !important;
         color: var(--text-color) !important;
         cursor: pointer !important;
         text-align: left !important;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition:
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-sizing: border-box !important;
     }
 
     @media (hover: hover) {
         .outline-nav :global(.outline-item:hover:not(:disabled)) {
-            background: var(--accent-color) !important;
+            background: var(--surface-hover-color) !important;
             color: var(--text-color) !important;
             font-weight: 800 !important;
         }
     }
 
     .outline-nav :global(.outline-item.active:not(:disabled)) {
-        background: var(--accent-active-color) !important;
+        background: color-mix(
+            in srgb,
+            var(--accent-active-color) 24%,
+            var(--surface-color)
+        ) !important;
         color: var(--text-color) !important;
-        font-weight: 900 !important;
+        box-shadow: inset 3px 0 0 var(--accent-active-color) !important;
+        font-weight: 800 !important;
         border-bottom-style: solid !important;
     }
 
@@ -366,6 +376,8 @@
     }
 
     .heading-title {
+        min-width: 0;
+        flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -377,21 +389,76 @@
         color: var(--muted-text-color);
         font-size: var(--font-size-2xs);
         font-weight: 900;
-        padding: 2px 6px;
-        border-radius: var(--radius-sm);
+        min-width: 2rem;
+        padding: 3px 6px;
+        border: 0;
+        border-radius: 0;
         flex-shrink: 0;
-        border: 1px solid var(--border-color);
+        background: var(--faded-color);
+        color: var(--text-color);
+        font-family: var(--ui-mono-font);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
     }
 
     .outline-nav :global(.outline-item.selected:not(:disabled)) {
-        background: var(--accent-color) !important;
-        box-shadow: inset 4px 0 0 var(--border-color) !important;
+        background: color-mix(in srgb, var(--accent-color) 18%, var(--surface-color)) !important;
+        box-shadow: inset 3px 0 0 var(--accent-color) !important;
         font-weight: 800 !important;
     }
 
     .outline-nav :global(.outline-item.active.selected:not(:disabled)) {
-        background: var(--accent-active-color) !important;
-        box-shadow: inset 4px 0 0 var(--border-color) !important;
-        font-weight: 900 !important;
+        background: color-mix(
+            in srgb,
+            var(--accent-active-color) 24%,
+            var(--surface-color)
+        ) !important;
+        box-shadow: inset 3px 0 0 var(--accent-active-color) !important;
+        font-weight: 800 !important;
+    }
+
+    @media (--tiny-mobile) {
+        .outline-nav {
+            padding: 4px 0 calc(16px + env(safe-area-inset-bottom));
+        }
+
+        .outline-nav :global(.outline-item) {
+            min-height: 48px !important;
+            padding: 10px 14px !important;
+            padding-left: calc(14px + min(var(--depth), 4) * 10px) !important;
+            border-bottom-style: solid !important;
+            border-bottom-color: var(--outline-item-border) !important;
+            font-size: max(1rem, var(--font-size-lg)) !important;
+            line-height: 1.25 !important;
+        }
+
+        .heading-title {
+            overflow: visible;
+            text-overflow: clip;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .heading-page {
+            min-width: 2rem;
+            padding: 3px 6px;
+            border: 0;
+            background: var(--faded-color);
+            color: var(--text-color);
+            font-family: ui-monospace, monospace;
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+        }
+
+        .outline-nav :global(.outline-item.active:not(:disabled)),
+        .outline-nav :global(.outline-item.active.selected:not(:disabled)) {
+            background: color-mix(
+                in srgb,
+                var(--accent-active-color) 24%,
+                var(--surface-color)
+            ) !important;
+            box-shadow: inset 3px 0 0 var(--accent-active-color) !important;
+        }
     }
 </style>

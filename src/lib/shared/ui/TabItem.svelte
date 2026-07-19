@@ -10,6 +10,10 @@
         tooltip?: string
         tooltipAlign?: "left" | "right" | "center"
         title?: string
+        id?: string
+        controls?: string
+        ariaLabel?: string
+        disabled?: boolean
         class?: string
     }
 
@@ -21,6 +25,10 @@
         tooltip,
         tooltipAlign,
         title,
+        id,
+        controls,
+        ariaLabel,
+        disabled = false,
         class: className = "",
     }: Props = $props()
 
@@ -28,7 +36,7 @@
         return (element: HTMLElement) => {
             if (!isActive) return
             element.scrollIntoView({
-                behavior: "smooth",
+                behavior: "auto",
                 block: "nearest",
                 inline: "nearest",
             })
@@ -44,7 +52,13 @@
     class:active
     {onclick}
     use:tooltipAction={displayTooltip ? { text: displayTooltip, align: tooltipAlign } : undefined}
+    type="button"
+    {id}
+    {disabled}
+    aria-controls={controls}
+    aria-label={ariaLabel ?? label ?? displayTooltip}
     aria-selected={active}
+    tabindex={active ? 0 : -1}
     role="tab"
 >
     {#if Icon}
@@ -61,17 +75,18 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 0 16px;
+        height: 100%;
         background: transparent;
         border: none;
         color: var(--text-color);
-        font-family: inherit;
+        font-family: var(--ui-font);
         font-size: var(--font-size-sm);
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
         flex-shrink: 0;
         flex: 1;
@@ -84,6 +99,20 @@
     @media (hover: hover) {
         .tab-item:hover:not(.active) {
             background: var(--surface-hover-color);
+        }
+    }
+
+    .tab-item:focus-visible {
+        outline: 2px solid var(--focus-color);
+        outline-offset: -3px;
+        box-shadow: inset 4px 0 0 var(--accent-active-color);
+    }
+
+    @media (forced-colors: active) {
+        .tab-item.active,
+        .tab-item:focus-visible {
+            border: 2px solid Highlight;
+            forced-color-adjust: auto;
         }
     }
 
@@ -122,8 +151,19 @@
         }
 
         .tab-item {
-            padding: 0 10px;
-            min-width: 0;
+            min-width: 44px;
+            min-height: 44px;
+            flex: 1 0 44px;
+            padding: 0;
+        }
+
+        .tab-item:not(:last-child)::after {
+            width: 1px;
+        }
+
+        :global(.tab-item svg) {
+            width: 20px;
+            height: 20px;
         }
     }
 </style>

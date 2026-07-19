@@ -47,7 +47,7 @@
 
 <header>
     <div class="title-wrapper">
-        <h1 class="title" data-text={m.library()}>{m.library()} ()</h1>
+        <h1 class="title" data-text={m.library()}>{m.library()}</h1>
     </div>
     <div class="actions-wrapper" role="toolbar" aria-label={m.action_controls()}>
         <div class="header-btn-wrapper">
@@ -152,6 +152,7 @@
 
 <style>
     header {
+        --header-control-height: var(--control-height-compact);
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
@@ -198,12 +199,24 @@
         margin-left: auto;
     }
 
+    .header-btn-wrapper :global(.action-btn),
+    .header-btn-wrapper :global(.switcher-trigger) {
+        height: var(--header-control-height);
+        min-height: var(--header-control-height);
+        max-height: var(--header-control-height);
+        box-sizing: border-box;
+    }
+
     .header-btn-wrapper :global(.action-btn) {
         background: var(--surface-color);
         border: 2px solid var(--border-color);
         padding: 8px 16px;
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-inline);
+        transition:
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     @media (hover: hover) {
@@ -221,10 +234,13 @@
 
     .search-btn {
         position: relative;
-        height: 100%;
+        height: var(--header-control-height);
+        min-width: 0;
 
         :global(.search-input-wrapper) {
-            height: 32px;
+            height: var(--header-control-height);
+            min-height: var(--header-control-height);
+            max-height: var(--header-control-height);
 
             :global(.search-input) {
                 background: var(--surface-color) !important;
@@ -232,8 +248,11 @@
                 height: 100%;
                 padding-left: 32px !important;
                 padding-right: 12px !important;
-                box-shadow: 2px 2px 0 var(--shadow-color) !important;
-                transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: var(--shadow-inline) !important;
+                transition:
+                    background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                    border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                    color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 overflow: hidden;
@@ -268,7 +287,9 @@
             flex-shrink: 0;
             z-index: var(--z-2);
             pointer-events: none;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            transition:
+                color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         &:hover :global(.search-icon) {
@@ -333,17 +354,66 @@
     :global(.continue-btn) {
         padding: 6px 12px !important;
         font-size: var(--font-size-base) !important;
-        height: 32px;
-        box-sizing: border-box;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: unset !important;
     }
 
-    @media (--mobile-width) {
+    @media (--phone) {
+        header {
+            --header-control-height: var(--control-height-regular);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            align-items: start;
+            gap: 12px;
+            padding-bottom: 14px;
+        }
+
+        .title-wrapper {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .title {
+            max-width: 100%;
+            font-size: clamp(2rem, 11vw, 2.75rem);
+            letter-spacing: -1px;
+            overflow-wrap: anywhere;
+        }
+
+        .actions-wrapper,
+        .header-btn-wrapper {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .header-btn-wrapper {
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+
+        .header-btn-wrapper :global(.app-update-button) {
+            min-width: 0;
+            max-width: 100%;
+            flex: 1 1 auto;
+            overflow: hidden;
+        }
+
+        .header-btn-wrapper :global(.app-update-button > span:last-child) {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .switchers-group {
+            flex: 0 0 auto;
+            gap: 6px;
+        }
+
         :global(.continue-btn) {
-            width: 32px !important;
+            width: var(--header-control-height) !important;
+            min-width: var(--header-control-height) !important;
             padding: 0 !important;
         }
     }

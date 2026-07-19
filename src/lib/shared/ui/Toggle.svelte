@@ -45,16 +45,16 @@
     }
 
     .toggle-label-wrapper {
+        position: relative;
         display: flex;
+        min-height: var(--control-height-compact);
         align-items: center;
         gap: 12px;
-        cursor: pointer;
-        font-family: inherit;
-        font-size: var(--font-size-base);
-        font-weight: 800;
-        text-transform: uppercase;
         color: var(--text-color);
-        position: relative;
+        font-family: var(--ui-font);
+        font-size: var(--font-size-base);
+        font-weight: 700;
+        cursor: pointer;
     }
 
     .toggle-input {
@@ -70,65 +70,82 @@
     }
 
     .toggle-track {
+        --toggle-inset: 3px;
+        --toggle-thumb-size: 16px;
         position: relative;
         display: inline-block;
-        width: 48px;
+        width: 44px;
         height: 24px;
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        flex: 0 0 auto;
         box-sizing: border-box;
+        border: var(--border-inline) solid var(--border-color);
+        background: var(--surface-color);
+        box-shadow: var(--shadow-inline);
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
     }
 
     .toggle-thumb {
         position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 16px;
-        height: 16px;
-        background: var(--text-color);
-        border: 2px solid var(--border-color);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        top: var(--toggle-inset);
+        left: var(--toggle-inset);
+        width: var(--toggle-thumb-size);
+        height: var(--toggle-thumb-size);
         box-sizing: border-box;
+        border: 1px solid var(--border-color);
+        background: var(--text-color);
+        transition:
+            transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+            background-color 0.15s ease;
     }
 
     .toggle-input:checked + .toggle-track {
-        background: var(--accent-color);
+        border-color: var(--accent-active-color);
+        background: var(--selected-surface);
     }
 
     .toggle-input:checked + .toggle-track .toggle-thumb {
-        left: 26px;
+        transform: translateX(
+            calc(
+                44px - (2 * var(--border-inline)) - (2 * var(--toggle-inset)) -
+                    var(--toggle-thumb-size)
+            )
+        );
         background: var(--accent-active-color);
     }
 
     .toggle-input:focus-visible + .toggle-track {
-        border-color: var(--accent-active-color);
         outline: none;
+        box-shadow: var(--focus-ring);
     }
 
     @media (hover: hover) {
         .toggle-label-wrapper:hover .toggle-track {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 var(--shadow-color);
             background: var(--surface-hover-color);
         }
-        .toggle-input:checked + .toggle-track:hover {
-            background: var(--accent-color);
+
+        .toggle-label-wrapper:hover .toggle-input:checked + .toggle-track {
+            background: color-mix(in srgb, var(--accent-active-color) 28%, var(--surface-color));
         }
     }
 
     .toggle-label-wrapper:active .toggle-track {
-        transform: translate(1px, 1px);
-        box-shadow: 1px 1px 0 var(--shadow-color);
+        background: var(--faded-color);
     }
 
-    /* Disabled state */
     .disabled {
-        opacity: 0.5;
+        opacity: 0.45;
     }
 
     .disabled .toggle-label-wrapper {
         cursor: not-allowed;
+    }
+
+    @media (--mobile-width) {
+        .toggle-label-wrapper {
+            min-height: var(--control-height-regular);
+        }
     }
 </style>

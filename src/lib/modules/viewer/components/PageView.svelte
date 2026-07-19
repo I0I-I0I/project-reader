@@ -17,6 +17,7 @@
     import { ViewerLinkService } from "./ViewerLinkService"
     import { untrack, onMount } from "svelte"
     import { commandsStore } from "$lib/modules/commands"
+    import * as m from "$lib/paraglide/messages"
 
     let {
         pdf,
@@ -308,15 +309,14 @@
     })
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events (PDF text-layer hit testing is an optional pointer shortcut; notes remain available as semantic sidebar buttons) -->
 <div
     class="pdf-image-wrapper {className}"
     style="width: {width}px; height: {height}px; --aspect-ratio: {width} / {height}; --display-scale: {scale};"
     onclick={handleTextLayerClick}
 >
     {#if image}
-        <img src={image} alt="Page {pageNumber}" class="pdf-image" />
+        <img src={image} alt={m.page_render_alt({ page: pageNumber })} class="pdf-image" />
         {#if renderLayers}
             <div bind:this={textLayerEl} class="textLayer" data-page={pageNumber}></div>
             <div bind:this={annotationLayerEl} class="annotationLayer"></div>

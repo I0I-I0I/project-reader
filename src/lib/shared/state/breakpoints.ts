@@ -1,22 +1,29 @@
-/**
- * Shared responsive design breakpoints (in pixels).
- * Centralizes the breakpoints used across the app to reduce maintenance burden.
- */
+/** Shared width breakpoints used by both TypeScript and custom-media.css. */
 export const BREAKPOINTS = {
-    MOBILE: 800,
-    TABLET: 850,
-    DESKTOP: 900,
-    LARGE_DESKTOP: 1024,
+    PHONE: 480,
+    COMPACT: 800,
+    DOCKED: 1200,
     PROMPT: 640,
+    SHORT_HEIGHT: 500,
+
+    /* Compatibility names for modules that have not yet migrated. */
+    MOBILE: 800,
+    TABLET: 800,
+    DESKTOP: 800,
+    LARGE_DESKTOP: 1200,
 } as const
 
-/**
- * Media query helper strings for consistent JS/CSS-in-JS usage.
- */
 export const MEDIA_QUERIES = {
-    MOBILE: `(max-width: ${BREAKPOINTS.MOBILE}px), (max-height: 500px)`,
-    TABLET: `(max-width: ${BREAKPOINTS.TABLET}px)`,
-    DESKTOP: `(max-width: ${BREAKPOINTS.DESKTOP}px)`,
-    LARGE_DESKTOP: `(max-width: ${BREAKPOINTS.LARGE_DESKTOP}px)`,
-    PROMPT: `(max-width: ${BREAKPOINTS.PROMPT}px)`,
+    PHONE: `(max-width: ${BREAKPOINTS.PHONE}px)`,
+    COMPACT: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    DOCKED: `(min-width: ${BREAKPOINTS.DOCKED}px)`,
+    SHORT: `(max-height: ${BREAKPOINTS.SHORT_HEIGHT}px)`,
+    COARSE_POINTER: "(pointer: coarse)",
+    PROMPT: `(max-width: ${BREAKPOINTS.PROMPT}px), (max-height: 800px)`,
+
+    /* Compatibility queries. Layout remains width-only. */
+    MOBILE: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    TABLET: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    DESKTOP: `(max-width: ${BREAKPOINTS.COMPACT}px)`,
+    LARGE_DESKTOP: `(max-width: ${BREAKPOINTS.DOCKED - 1}px)`,
 } as const

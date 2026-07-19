@@ -113,11 +113,12 @@
         width: 100%;
         gap: 0.75rem;
         padding: 0.65rem 0.75rem;
-        border: 2px solid transparent;
-        border-radius: var(--radius-md);
+        border: var(--border-inline) solid transparent;
+        border-radius: 0;
         background: transparent;
         color: var(--text-color);
-        font: inherit;
+        font-family: var(--ui-font);
+        font-size: inherit;
         text-align: left;
         cursor: pointer;
         transition:
@@ -133,9 +134,9 @@
     }
 
     .result-item.selected {
-        border-color: var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
-        transform: translate(-1px, -1px);
+        border-color: var(--accent-active-color);
+        background: var(--selected-surface);
+        box-shadow: inset 3px 0 0 var(--accent-active-color);
     }
 
     .option-mark {
@@ -145,8 +146,8 @@
         flex: 0 0 auto;
         place-items: center;
         overflow: hidden;
-        border: 1.5px solid var(--border-color);
-        border-radius: var(--radius-md);
+        border: var(--border-inline) solid var(--border-color);
+        border-radius: 0;
         background: var(--bg-color);
         font-weight: 800;
         text-transform: uppercase;
@@ -156,7 +157,7 @@
     }
 
     .result-item.selected .option-mark {
-        transform: rotate(-4deg) scale(1.04);
+        background: color-mix(in srgb, var(--accent-active-color) 18%, var(--surface-color));
     }
 
     .option-mark :global(svg) {
@@ -220,8 +221,8 @@
 
     .category {
         padding: 0.15rem 0.4rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
+        border: var(--border-inline) solid var(--border-color);
+        border-radius: 0;
         font-size: var(--font-size-2xs);
         font-weight: 700;
         text-transform: uppercase;
@@ -230,10 +231,10 @@
     kbd {
         min-width: 1.2rem;
         padding: 0.2rem 0.35rem;
-        border: 1.5px solid var(--border-color);
+        border: var(--border-inline) solid var(--border-color);
         border-radius: var(--radius-sm);
         background: var(--surface-color);
-        box-shadow: 1px 1px 0 var(--shadow-color);
+        box-shadow: none;
         font:
             700 var(--font-size-sm) ui-monospace,
             monospace;

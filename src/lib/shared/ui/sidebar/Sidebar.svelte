@@ -1,10 +1,12 @@
 <script lang="ts">
     import type { Snippet } from "svelte"
     import { cubicOut } from "svelte/easing"
+    import { onMount } from "svelte"
 
     let {
         side = "left",
-        showBackdrop = true,
+        presentation = "overlay",
+        showBackdrop = presentation === "overlay",
         backdropLabel = "Close sidebar",
         onClose,
         onMouseLeave,
@@ -17,6 +19,7 @@
         footer,
     } = $props<{
         side?: "left" | "right"
+        presentation?: "docked" | "overlay"
         showBackdrop?: boolean
         backdropLabel?: string
         onClose?: () => void
@@ -29,6 +32,16 @@
         children: Snippet
         footer?: Snippet
     }>()
+
+    let returnFocus: HTMLElement | null = null
+
+    onMount(() => {
+        returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        return () => {
+            const target = returnFocus
+            if (target?.isConnected) queueMicrotask(() => target.focus())
+        }
+    })
 
     function closeFromBackdrop(event: MouseEvent) {
         event.stopPropagation()
@@ -47,7 +60,7 @@
     }
 </script>
 
-{#if showBackdrop}
+{#if showBackdrop && presentation === "overlay"}
     <button
         class="sidebar-backdrop"
         type="button"
@@ -56,14 +69,11 @@
     ></button>
 {/if}
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <aside
-    class={["sidebar", side]}
+    class={["sidebar", side, presentation]}
     style:--sidebar-width={width}
     transition:slideFromSide={{ duration }}
     onmouseleave={onMouseLeave}
-    onclick={(event) => event.stopPropagation()}
     aria-label={ariaLabel}
 >
     {@render header?.()}
@@ -74,30 +84,53 @@
 
 <style>
     .sidebar {
-        position: absolute;
         top: 0;
         bottom: 0;
         z-index: var(--z-fixed);
         display: flex;
+        flex: 0 0 var(--sidebar-width, clamp(20rem, 38vw, 24rem));
         flex-direction: column;
+        width: var(--sidebar-width, clamp(20rem, 38vw, 24rem));
+        min-width: 0;
         box-sizing: border-box;
         overflow: visible;
-        background: color-mix(in srgb, var(--surface-color) 85%, transparent);
-        backdrop-filter: blur(16px);
+        background: var(--surface-color);
+        color: var(--text-color);
+        font-family: var(--ui-font);
+    }
+
+    .sidebar.overlay {
+        position: absolute;
+    }
+
+    .sidebar.docked {
+        position: relative;
+        z-index: var(--z-10);
+        flex-basis: var(--sidebar-width, clamp(20rem, 22vw, 24rem));
+        width: var(--sidebar-width, clamp(20rem, 22vw, 24rem));
+        box-shadow: none;
+    }
+
+    .sidebar.right.docked {
+        order: 2;
     }
 
     .sidebar.left {
         left: 0;
-        width: var(--sidebar-width, 380px);
-        border-right: 3px solid var(--border-color);
-        box-shadow: 10px 0 0 rgba(0, 0, 0, 0.08);
+        border-right: var(--border-inline) solid var(--border-color);
     }
 
     .sidebar.right {
         right: 0;
-        width: var(--sidebar-width, 280px);
-        border-left: 3px solid var(--border-color);
-        box-shadow: -10px 0 0 rgba(0, 0, 0, 0.08);
+        border-left: var(--border-inline) solid var(--border-color);
+    }
+
+    .sidebar.overlay.left {
+        box-shadow: 6px 0 0 var(--shadow-color);
+    }
+
+    .sidebar.overlay.right {
+        box-shadow: -6px 0 0 var(--shadow-color);
     }
 
     .sidebar-body {
@@ -118,9 +151,9 @@
         padding: 0;
         cursor: pointer;
         border: 0;
-        background: rgba(0, 0, 0, 0.25);
-        backdrop-filter: blur(4px);
-        animation: fade-in 0.2s ease-out;
+        background: var(--overlay-color);
+        backdrop-filter: none;
+        animation: fade-in 0.15s ease-out;
     }
 
     @keyframes fade-in {
@@ -132,25 +165,36 @@
         }
     }
 
-    @media (--tiny-mobile) {
-        .sidebar {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            z-index: var(--z-modal-backdrop);
-            height: 100%;
-            border-right: 0;
-            border-left: 0;
-        }
-
+    @media (--compact) {
+        .sidebar,
         .sidebar.left,
         .sidebar.right {
+            position: fixed;
+            inset: 0;
+            z-index: var(--z-modal-backdrop);
             width: 100%;
+            height: 100dvh;
+            max-height: 100dvh;
+            flex-basis: 100%;
+            overflow: hidden;
+            border: 0;
+            box-shadow: none;
         }
 
         .sidebar-backdrop {
             position: fixed;
             z-index: 290;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .sidebar {
+            border-color: CanvasText;
+        }
+
+        .sidebar-backdrop {
+            background: Canvas;
+            opacity: 0.5;
         }
     }
 
