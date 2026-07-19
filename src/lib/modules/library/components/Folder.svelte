@@ -52,7 +52,11 @@
         position: relative;
         border: 2px solid var(--border-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition:
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         box-sizing: border-box;
         display: flex;
         flex-direction: column;

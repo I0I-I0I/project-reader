@@ -29,6 +29,7 @@
     } from "$lib/modules/library"
     import { appUpdate } from "$lib/shared/state/appUpdate.svelte"
     import "$lib/shared/styles/variables.css"
+    import "$lib/shared/styles/typography.css"
     import "$lib/shared/styles/global.css"
 
     let { children } = $props()

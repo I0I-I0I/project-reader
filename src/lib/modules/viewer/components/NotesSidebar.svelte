@@ -291,55 +291,50 @@
     {:else}
         <div class="notes-list">
             {#each filteredNotes as note, index (note.id)}
-                <div
+                <article
                     class="note-card color-{note.color}"
                     class:selected={index === selectedIndex}
-                    role="button"
-                    tabindex="0"
-                    onclick={() => {
-                        selectNote(note)
-                        manualSelectedIndex = index
-                    }}
-                    onkeydown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault()
+                >
+                    <button
+                        type="button"
+                        class="note-primary"
+                        aria-current={index === selectedIndex ? "location" : undefined}
+                        onclick={() => {
                             selectNote(note)
                             manualSelectedIndex = index
-                        }
-                    }}
-                >
-                    <div class="note-card-header">
-                        <span class="note-page">Page {note.pageNumber}</span>
-                        <span class="note-date">{formatTimestamp(note.createdAt)}</span>
-                    </div>
-
-                    <blockquote class="note-highlight">
-                        "{note.text}"
-                    </blockquote>
-
-                    {#if note.noteContent}
-                        <div class="note-text-content">
-                            {note.noteContent}
-                        </div>
-                    {/if}
+                        }}
+                    >
+                        <span class="note-card-header">
+                            <span class="note-page">{m.page()} {note.pageNumber}</span>
+                            <span class="note-date">{formatTimestamp(note.createdAt)}</span>
+                        </span>
+                        <span class="note-highlight">“{note.text}”</span>
+                        {#if note.noteContent}
+                            <span class="note-text-content">{note.noteContent}</span>
+                        {/if}
+                    </button>
 
                     <div class="note-card-actions">
                         <button
+                            type="button"
                             class="action-btn edit"
                             onclick={(event) => triggerEdit(note, event)}
-                            title="Edit Note"
+                            aria-label={m.edit_note()}
+                            title={m.edit_note()}
                         >
                             <EditIcon width="14" height="14" />
                         </button>
                         <button
+                            type="button"
                             class="action-btn delete"
                             onclick={(event) => triggerDelete(note, event)}
-                            title="Delete Highlight"
+                            aria-label={m.delete_note()}
+                            title={m.delete_note()}
                         >
                             <TrashIcon width="14" height="14" />
                         </button>
                     </div>
-                </div>
+                </article>
             {/each}
         </div>
     {/if}
@@ -352,23 +347,27 @@
                 {#if i > 0},
                 {/if}<kbd>{pair.display}</kbd>
             {/each}
-            Navigate
+            {m.navigate()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{selectShortcut}</kbd> Go
+            <kbd>{selectShortcut}</kbd>
+            {m.go()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{searchShortcut}</kbd> Search
+            <kbd>{searchShortcut}</kbd>
+            {m.search()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{editShortcut}</kbd> Edit
+            <kbd>{editShortcut}</kbd>
+            {m.edit()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{deleteShortcut}</kbd> Delete
+            <kbd>{deleteShortcut}</kbd>
+            {m.delete()}
         </span>
         <span class="hint-divider">•</span>
     </SidebarFooter>
@@ -399,44 +398,69 @@
     }
 
     .note-card {
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        padding: 10px;
-        cursor: pointer;
-        transition: all 0.15s ease-out;
-        border-left-width: 6px;
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: stretch;
         gap: 6px;
+        background: var(--surface-color);
+        border: var(--border-inline) solid var(--border-color);
+        border-left-width: 6px;
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        transition:
+            background-color 0.15s ease-out,
+            box-shadow 0.15s ease-out,
+            transform 0.15s ease-out;
     }
 
-    .note-card:hover {
+    .note-card:hover,
+    .note-card:focus-within {
         transform: translate(-1px, -1px);
+        background: var(--surface-hover-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
     }
 
     .note-card.selected {
-        background: var(--accent-color);
-        border-color: var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
+        background: var(--selected-surface);
+        box-shadow:
+            4px 4px 0 var(--shadow-color),
+            inset 5px 0 0 var(--accent-active-color);
+    }
+
+    .note-primary {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 0;
+        background: transparent;
+        color: var(--text-color);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .note-primary:focus-visible {
+        outline: 2px solid var(--focus-color);
+        outline-offset: -3px;
     }
 
     /* Colors mapped */
     .note-card.color-yellow {
-        border-left-color: rgb(255, 235, 59);
+        border-left-color: #c49b00;
     }
     .note-card.color-green {
-        border-left-color: rgb(76, 175, 80);
+        border-left-color: #1f9669;
     }
     .note-card.color-blue {
-        border-left-color: rgb(33, 150, 243);
+        border-left-color: #1d6fd3;
     }
     .note-card.color-pink {
-        border-left-color: rgb(233, 30, 99);
+        border-left-color: #d63384;
     }
     .note-card.color-purple {
-        border-left-color: rgb(156, 39, 176);
+        border-left-color: var(--color-marker);
     }
 
     .note-card-header {
@@ -466,7 +490,7 @@
         font-style: italic;
         font-size: var(--font-size-sm);
         color: var(--text-color);
-        background: rgba(0, 0, 0, 0.03);
+        background: var(--faded-color);
         padding: 4px 8px;
         border-left: 2px solid var(--border-color);
         max-height: 120px;
@@ -484,19 +508,24 @@
 
     .note-card-actions {
         display: flex;
-        justify-content: flex-end;
-        gap: 6px;
-        opacity: 0.7;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        align-self: stretch;
+        padding-right: 8px;
+        opacity: 0.72;
         transition: opacity 0.15s ease;
     }
 
-    .note-card:hover .note-card-actions {
+    .note-card:hover .note-card-actions,
+    .note-card:focus-within .note-card-actions {
         opacity: 1;
     }
 
     .action-btn {
-        background: none;
-        border: none;
+        width: 28px;
+        height: 28px;
+        background: var(--surface-color);
         cursor: pointer;
         padding: 4px;
         color: var(--text-color);
@@ -504,8 +533,11 @@
         align-items: center;
         justify-content: center;
         border-radius: var(--radius-sm);
-        border: 1px solid transparent;
-        transition: all 0.1s ease;
+        border: 1px solid var(--border-color);
+        transition:
+            background-color 0.1s ease,
+            border-color 0.1s ease,
+            color 0.1s ease;
     }
 
     .action-btn:hover {
@@ -514,21 +546,32 @@
     }
 
     .action-btn.delete:hover {
-        color: #e53935;
-        background: rgba(229, 57, 53, 0.1);
+        color: var(--danger-color);
+        background: color-mix(in srgb, var(--danger-color) 12%, transparent);
     }
 
     @media (max-width: 640px) {
+        .note-card {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
         .note-card-actions {
+            flex-direction: row;
+            justify-content: flex-end;
+            align-self: auto;
+            padding: 0 12px 10px;
             opacity: 1;
         }
 
         .action-btn {
+            width: 34px;
+            height: 34px;
             padding: 8px;
         }
 
-        .note-card {
-            padding: 14px;
+        .note-primary {
+            min-height: 48px;
+            padding: 12px 14px;
         }
     }
 

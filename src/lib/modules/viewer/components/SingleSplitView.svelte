@@ -106,7 +106,7 @@
         position: absolute;
         inset: 0;
         background: var(--overlay-color);
-        backdrop-filter: blur(2px);
+        backdrop-filter: none;
         z-index: var(--z-10);
     }
 

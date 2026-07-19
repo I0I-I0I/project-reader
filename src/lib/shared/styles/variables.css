@@ -1,64 +1,117 @@
 :root {
-    /* Centralized breakpoints */
-    --breakpoint-mobile: 800px;
-    --breakpoint-tablet: 850px;
-    --breakpoint-desktop: 900px;
-    --breakpoint-large-desktop: 1024px;
+    /* Responsive composition */
+    --breakpoint-phone: 480px;
+    --breakpoint-compact: 800px;
+    --breakpoint-docked: 1200px;
     --breakpoint-prompt: 640px;
 
-    /* Base Colors - Light Theme */
-    --bg-color: #f5f0e1;
-    --text-color: #1a1a1a;
-    --border-color: #1a1a1a;
-    --shadow-color: #1a1a1a;
+    /* Brutalist semantic palette — light */
+    --color-canvas: #f5f0e1;
+    --color-surface: #ffffff;
+    --color-surface-raised: #ffffff;
+    --color-text: #1a1a1a;
+    --color-text-muted: #666666;
+    --color-rule: #1a1a1a;
+    --color-control-border: #1a1a1a;
+    --color-action: #00cec9;
+    --color-on-action: #1a1a1a;
+    --color-marker: #ffde4d;
+    --color-on-marker: #1a1a1a;
+    --color-danger: #ff7675;
+    --color-on-danger: #1a1a1a;
+    --color-focus: #6c5ce7;
+    --color-disabled: #eeeeee;
+    --color-on-disabled: #666666;
+    --color-viewer-canvas: #ffffff;
+    --color-viewer-chrome: #f5f0e1;
+    --color-overlay: rgb(26 26 26 / 0.24);
 
-    --surface-color: #ffffff;
+    /* PDF overlays stay semantic; document darkness is handled by the image filter. */
+    --highlight-selection: rgb(0 206 201 / 0.4);
+    --highlight-search: rgb(255 222 77 / 0.55);
+    --highlight-search-active: rgb(255 118 117 / 0.7);
+    --highlight-note-yellow: rgb(255 222 77 / 0.45);
+    --highlight-note-green: rgb(0 184 148 / 0.42);
+    --highlight-note-blue: rgb(9 132 227 / 0.42);
+    --highlight-note-pink: rgb(232 67 147 / 0.42);
+    --highlight-note-purple: rgb(108 92 231 / 0.44);
+    --highlight-note-active: rgb(255 118 117 / 0.62);
+
+    /* Compatibility aliases retained for existing components. */
+    --bg-color: var(--color-canvas);
+    --surface-color: var(--color-surface);
     --surface-hover-color: #faf8f5;
-
-    --accent-color: #00cec9;
-    --accent-active-color: #ffde4d;
-
-    --danger-color: #ff7675;
+    --text-color: var(--color-text);
+    --faded-text-color: var(--color-text-muted);
+    --border-color: var(--color-control-border);
+    --outline-item-border: rgb(26 26 26 / 0.18);
+    --shadow-color: #1a1a1a;
+    --primary-color: var(--color-action);
+    --primary-text-color: var(--color-on-action);
+    --active-color: var(--color-marker);
+    --active-text-color: var(--color-on-marker);
+    --selection-color: #6c5ce7;
+    --selection-text-color: #ffffff;
+    --progress-color: var(--color-action);
+    --focus-color: var(--color-focus);
+    --viewer-chrome-color: var(--color-viewer-chrome);
+    --canvas-bg-color: var(--color-viewer-canvas);
+    --accent-color: var(--color-action);
+    --accent-active-color: var(--color-marker);
+    --danger-color: var(--color-danger);
     --danger-active-color: #ff4d4d;
-    --danger-text-color: #ffffff;
-
+    --danger-text-color: var(--color-on-danger);
     --muted-bg-color: #1a1a1a;
     --muted-text-color: #f5f0e1;
+    --disabled-bg-color: var(--color-disabled);
+    --overlay-color: var(--color-overlay);
+    --faded-color: rgb(0 0 0 / 0.05);
 
-    --canvas-bg-color: #ffffff;
-    --disabled-bg-color: #eee;
+    /* 4/8px spacing rhythm */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-8: 48px;
 
-    --overlay-color: rgba(250, 248, 245, 0.85);
-    --faded-color: rgba(0, 0, 0, 0.05);
-    --faded-text-color: #777777;
-    --outline-item-border: rgba(0, 0, 0, 0.15);
+    /* Compact brutal typography scale. */
+    --font-size-3xs: 0.5rem;
+    --font-size-2xs: 0.625rem;
+    --font-size-xs: 0.625rem;
+    --font-size-sm: 0.75rem;
+    --font-size-base: 0.875rem;
+    --font-size-md: 0.875rem;
+    --font-size-lg: 0.875rem;
+    --font-size-xl: 1rem;
+    --font-size-2xl: 1.125rem;
+    --font-size-3xl: 1.25rem;
+    --font-size-4xl: 1.5rem;
+    --font-size-5xl: 1.75rem;
+    --font-size-6xl: 2.25rem;
+    --font-size-7xl: 3rem;
+    --font-size-input: 1rem;
 
-    /* Typography Scale */
-    --font-size-3xs: 0.5rem; /* 8px */
-    --font-size-2xs: 0.625rem; /* 10px */
-    --font-size-xs: 0.625rem; /* 10px */
-    --font-size-sm: 0.75rem; /* 12px */
-    --font-size-base: 0.875rem; /* 14px */
-    --font-size-md: 0.875rem; /* 14px */
-    --font-size-lg: 0.875rem; /* 14px */
-    --font-size-xl: 1rem; /* 16px */
-    --font-size-2xl: 1.125rem; /* 18px */
-    --font-size-3xl: 1.25rem; /* 20px */
-    --font-size-4xl: 1.5rem; /* 24px */
-    --font-size-5xl: 1.75rem; /* 28px */
-    --font-size-6xl: 2.25rem; /* 36px */
-    --font-size-7xl: 4rem; /* 64px */
+    --chrome-height-compact: 36px;
+    --chrome-height-regular: 44px;
+    --control-height-compact: var(--chrome-height-compact);
+    --control-height-regular: var(--chrome-height-regular);
+    --control-gap: var(--space-2);
+    --control-padding-inline: var(--space-3);
+    --border-inline: 2px;
+    --border-elevated: 2px;
+    --shadow-inline: 2px 2px 0 var(--shadow-color);
+    --shadow-elevated: 4px 4px 0 var(--shadow-color);
+    --focus-ring: 0 0 0 3px color-mix(in srgb, var(--focus-color) 65%, transparent);
+    --selected-surface: color-mix(in srgb, var(--selection-color) 20%, var(--surface-color));
 
-    --font-size-input: 1.125rem; /* 18px */
-
-    /* Border Radius Scale */
-    --radius-sm: 2px;
-    --radius-md: 4px;
-    --radius-lg: 8px;
-    --radius-xl: 20px;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
     --radius-full: 50%;
 
-    /* Z-Index Scale */
     --z-below: -1;
     --z-base: 0;
     --z-above: 1;
@@ -80,30 +133,74 @@
 }
 
 html.dark {
-    /* Base Colors - Dark Theme */
-    --bg-color: #000000;
-    --text-color: #e4e4e7;
-    --border-color: #27272a;
-    --shadow-color: #000000;
+    --color-canvas: #000000;
+    --color-surface: #09090b;
+    --color-surface-raised: #111113;
+    --color-text: #e4e4e7;
+    --color-text-muted: #a1a1aa;
+    --color-rule: #71717a;
+    --color-control-border: #71717a;
+    --color-action: #a78bfa;
+    --color-on-action: #09090b;
+    --color-marker: #8b5cf6;
+    --color-on-marker: #09090b;
+    --color-danger: #f87171;
+    --color-on-danger: #09090b;
+    --color-focus: #67e8f9;
+    --color-disabled: #18181b;
+    --color-on-disabled: #a1a1aa;
+    --color-viewer-canvas: #000000;
+    --color-viewer-chrome: #09090b;
+    --color-overlay: rgb(0 0 0 / 0.24);
 
-    --surface-color: #09090b;
+    --bg-color: var(--color-canvas);
+    --surface-color: var(--color-surface);
     --surface-hover-color: #1c1c1e;
-
-    --accent-color: #a78bfa;
-    --accent-active-color: #8b5cf6;
-
-    --danger-color: #f87171;
+    --text-color: var(--color-text);
+    --faded-text-color: var(--color-text-muted);
+    --border-color: var(--color-control-border);
+    --outline-item-border: rgb(228 228 231 / 0.2);
+    --shadow-color: #000000;
+    --primary-color: var(--color-action);
+    --primary-text-color: var(--color-on-action);
+    --active-color: var(--color-marker);
+    --active-text-color: var(--color-on-marker);
+    --selection-color: var(--color-action);
+    --selection-text-color: var(--color-on-action);
+    --progress-color: var(--color-action);
+    --focus-color: var(--color-focus);
+    --viewer-chrome-color: var(--color-viewer-chrome);
+    --canvas-bg-color: var(--color-viewer-canvas);
+    --accent-color: var(--color-action);
+    --accent-active-color: var(--color-marker);
+    --danger-color: var(--color-danger);
     --danger-active-color: #ef4444;
-    --danger-text-color: #ffffff;
-
+    --danger-text-color: var(--color-on-danger);
     --muted-bg-color: #e4e4e7;
     --muted-text-color: #000000;
+    --disabled-bg-color: var(--color-disabled);
+    --overlay-color: var(--color-overlay);
+    --faded-color: rgb(228 228 231 / 0.08);
+    --selected-surface: color-mix(in srgb, var(--selection-color) 22%, var(--surface-color));
+}
 
-    --canvas-bg-color: #000000;
-    --disabled-bg-color: #18181b;
-
-    --overlay-color: rgba(0, 0, 0, 0.85);
-    --faded-color: rgba(228, 228, 231, 0.08);
-    --faded-text-color: #a1a1aa;
-    --outline-item-border: rgba(228, 228, 231, 0.15);
+@media (forced-colors: active) {
+    :root {
+        --color-canvas: Canvas;
+        --color-surface: Canvas;
+        --color-surface-raised: Canvas;
+        --color-text: CanvasText;
+        --color-text-muted: CanvasText;
+        --color-rule: CanvasText;
+        --color-control-border: ButtonText;
+        --color-action: Highlight;
+        --color-on-action: HighlightText;
+        --color-marker: Highlight;
+        --color-on-marker: HighlightText;
+        --color-danger: LinkText;
+        --color-on-danger: Canvas;
+        --color-focus: Highlight;
+        --color-disabled: Canvas;
+        --color-on-disabled: GrayText;
+    }
 }

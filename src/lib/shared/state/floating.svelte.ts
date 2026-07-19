@@ -83,6 +83,9 @@ export function createFloatingState(
         get horizontal() {
             return horizontal
         },
+        setVertical(value: "top" | "bottom") {
+            vertical = value
+        },
         update: updatePosition,
         attach,
     }

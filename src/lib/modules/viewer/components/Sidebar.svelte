@@ -23,7 +23,8 @@
         activeTab = $bindable("outline"),
         onClose,
         onMouseLeave,
-        showBackdrop = true,
+        presentation = "overlay",
+        showBackdrop = presentation === "overlay",
         isOutlineLoading = false,
         outlineList = null,
         currentPage = $bindable(1),
@@ -34,6 +35,7 @@
         activeTab: "outline" | "notes" | "bookmarks" | "settings"
         onClose: () => void
         onMouseLeave?: (event: MouseEvent) => void
+        presentation?: "docked" | "overlay"
         showBackdrop?: boolean
         isOutlineLoading?: boolean
         outlineList?: FlatHeading[] | null
@@ -42,8 +44,18 @@
         activeHeadings?: Set<FlatHeading>
     }>()
 
+    const uid = $props.id()
     const initialSide = untrack(() => side)
     const isSettingsSidebar = initialSide === "right"
+    const panelLabel = $derived(
+        activeTab === "notes"
+            ? m.notes_highlights()
+            : activeTab === "bookmarks"
+              ? m.bookmarks()
+              : activeTab === "settings"
+                ? m.settings()
+                : m.outline(),
+    )
     const shortcutScope = commandsStore.activeScope ?? commandsStore.root
 
     function isEditableTarget(target: EventTarget | null) {
@@ -90,8 +102,15 @@
         closeTooltip={m.close() + getShortcutHint(sidebarCommandsNode, "viewer.sidebar.close")}
     >
         {#if side === "left"}
-            <Tabs class="sidebar-tabs-list" activeValue={activeTab}>
+            <Tabs
+                class="sidebar-tabs-list"
+                activeValue={activeTab}
+                ariaLabel={m.viewer_sidebar_tabs()}
+            >
                 <TabItem
+                    id={`${uid}-outline-tab`}
+                    controls={`${uid}-outline-panel`}
+                    ariaLabel={m.outline()}
                     active={activeTab === "outline"}
                     onclick={() => void shortcutScope.execute("viewer.sidebar.outline.toggle")}
                     Icon={MenuIcon}
@@ -99,6 +118,9 @@
                         getShortcutHint(shortcutScope, "viewer.sidebar.outline.toggle")}
                 />
                 <TabItem
+                    id={`${uid}-notes-tab`}
+                    controls={`${uid}-notes-panel`}
+                    ariaLabel={m.notes_highlights()}
                     active={activeTab === "notes"}
                     onclick={() => void shortcutScope.execute("viewer.sidebar.notes.toggle")}
                     Icon={NoteIcon}
@@ -106,6 +128,9 @@
                         getShortcutHint(shortcutScope, "viewer.sidebar.notes.toggle")}
                 />
                 <TabItem
+                    id={`${uid}-bookmarks-tab`}
+                    controls={`${uid}-bookmarks-panel`}
+                    ariaLabel={m.bookmarks()}
                     active={activeTab === "bookmarks"}
                     onclick={() => void shortcutScope.execute("viewer.sidebar.bookmarks.toggle")}
                     Icon={BookmarkIcon}
@@ -121,27 +146,49 @@
 
 <GlobalSidebar
     {side}
+    {presentation}
     {showBackdrop}
     onClose={closeSidebar}
     {onMouseLeave}
     duration={settingsStore.animations ? 150 : 0}
     backdropLabel={m.close()}
-    ariaLabel={side === "right" ? m.settings() : m.outline()}
+    ariaLabel={panelLabel}
     {header}
 >
     {#if activeTab === "outline"}
-        <OutlineSidebar
-            {isOutlineLoading}
-            {outlineList}
-            bind:currentPage
-            bind:scrollPosition
-            {activeHeadings}
-            {onClose}
-        />
+        <div
+            class="sidebar-panel"
+            id={`${uid}-outline-panel`}
+            role="tabpanel"
+            aria-labelledby={`${uid}-outline-tab`}
+        >
+            <OutlineSidebar
+                {isOutlineLoading}
+                {outlineList}
+                bind:currentPage
+                bind:scrollPosition
+                {activeHeadings}
+                {onClose}
+            />
+        </div>
     {:else if activeTab === "notes"}
-        <NotesSidebar {onClose} />
+        <div
+            class="sidebar-panel"
+            id={`${uid}-notes-panel`}
+            role="tabpanel"
+            aria-labelledby={`${uid}-notes-tab`}
+        >
+            <NotesSidebar {onClose} />
+        </div>
     {:else if activeTab === "bookmarks"}
-        <BookmarksSidebar {onClose} />
+        <div
+            class="sidebar-panel"
+            id={`${uid}-bookmarks-panel`}
+            role="tabpanel"
+            aria-labelledby={`${uid}-bookmarks-tab`}
+        >
+            <BookmarksSidebar {onClose} />
+        </div>
     {:else if activeTab === "settings"}
         <SettingsSidebar />
     {/if}
@@ -151,6 +198,13 @@
     :global(.sidebar-tabs-list) {
         flex: 1;
         min-width: 0;
+    }
+
+    .sidebar-panel {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
     }
 
     h3 {

@@ -318,45 +318,44 @@
     {:else}
         <div class="bookmarks-list">
             {#each filteredBookmarks as bookmark, index (bookmark.id)}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div
-                    class="bookmark-card"
-                    class:selected={index === selectedIndex}
-                    onclick={() => {
-                        selectBookmark(bookmark)
-                        manualSelectedIndex = index
-                    }}
-                >
-                    <div class="bookmark-card-header">
-                        <span class="bookmark-page">Page {bookmark.pageNumber}</span>
-                    </div>
-                    <div class="bookmark-text-content">
-                        {bookmark.name}
-                    </div>
+                <article class="bookmark-card" class:selected={index === selectedIndex}>
+                    <button
+                        type="button"
+                        class="bookmark-primary"
+                        aria-current={index === selectedIndex ? "location" : undefined}
+                        onclick={() => {
+                            selectBookmark(bookmark)
+                            manualSelectedIndex = index
+                        }}
+                    >
+                        <span class="bookmark-card-header">
+                            <span class="bookmark-page">{m.page()} {bookmark.pageNumber}</span>
+                        </span>
+                        <span class="bookmark-text-content">{bookmark.name}</span>
+                    </button>
                     <div class="bookmark-card-actions">
                         <button
+                            type="button"
                             class="action-btn edit"
-                            onclick={(event) => {
-                                event.stopPropagation()
-                                void executeViewerBookmarkEdit({ bookmarkId: bookmark.id })
-                            }}
+                            onclick={() =>
+                                void executeViewerBookmarkEdit({ bookmarkId: bookmark.id })}
+                            aria-label={m.edit_bookmark()}
                             title={m.edit_bookmark()}
                         >
                             <EditIcon width="14" height="14" />
                         </button>
                         <button
+                            type="button"
                             class="action-btn delete"
-                            onclick={(event) => {
-                                event.stopPropagation()
-                                void executeViewerBookmarkDelete({ bookmarkId: bookmark.id })
-                            }}
+                            onclick={() =>
+                                void executeViewerBookmarkDelete({ bookmarkId: bookmark.id })}
+                            aria-label={m.remove_bookmark()}
                             title={m.remove_bookmark()}
                         >
                             <TrashIcon width="14" height="14" />
                         </button>
                     </div>
-                </div>
+                </article>
             {/each}
         </div>
     {/if}
@@ -369,23 +368,27 @@
                 {#if i > 0},
                 {/if}<kbd>{pair.display}</kbd>
             {/each}
-            Navigate
+            {m.navigate()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{selectShortcut}</kbd> Go
+            <kbd>{selectShortcut}</kbd>
+            {m.go()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{searchShortcut}</kbd> Search
+            <kbd>{searchShortcut}</kbd>
+            {m.search()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{editShortcut}</kbd> Edit
+            <kbd>{editShortcut}</kbd>
+            {m.edit()}
         </span>
         <span class="hint-divider">•</span>
         <span class="hint-item">
-            <kbd>{deleteShortcut}</kbd> Delete
+            <kbd>{deleteShortcut}</kbd>
+            {m.delete()}
         </span>
         <span class="hint-divider">•</span>
     </SidebarFooter>
@@ -479,26 +482,51 @@
     }
 
     .bookmark-card {
-        background: var(--surface-color);
-        border: 2px solid var(--border-color);
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        padding: 10px;
-        cursor: pointer;
-        transition: all 0.15s ease-out;
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: stretch;
         gap: 6px;
+        background: var(--surface-color);
+        border: var(--border-inline) solid var(--border-color);
+        box-shadow: 3px 3px 0 var(--shadow-color);
+        transition:
+            background-color 0.15s ease-out,
+            box-shadow 0.15s ease-out,
+            transform 0.15s ease-out;
     }
 
-    .bookmark-card:hover {
+    .bookmark-card:hover,
+    .bookmark-card:focus-within {
         transform: translate(-1px, -1px);
+        background: var(--surface-hover-color);
         box-shadow: 4px 4px 0 var(--shadow-color);
     }
 
     .bookmark-card.selected {
-        background: var(--accent-color);
-        border-color: var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
+        background: var(--selected-surface);
+        box-shadow:
+            4px 4px 0 var(--shadow-color),
+            inset 5px 0 0 var(--accent-active-color);
+    }
+
+    .bookmark-primary {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 0;
+        background: transparent;
+        color: var(--text-color);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .bookmark-primary:focus-visible {
+        outline: 2px solid var(--focus-color);
+        outline-offset: -3px;
     }
 
     .bookmark-card-header {
@@ -536,11 +564,14 @@
         justify-content: flex-end;
         gap: 6px;
         margin-top: 4px;
-        opacity: 0.7;
+        align-self: center;
+        padding-right: 8px;
+        opacity: 0.72;
         transition: opacity 0.15s ease;
     }
 
-    .bookmark-card:hover .bookmark-card-actions {
+    .bookmark-card:hover .bookmark-card-actions,
+    .bookmark-card:focus-within .bookmark-card-actions {
         opacity: 1;
     }
 
@@ -555,7 +586,10 @@
         justify-content: center;
         border-radius: var(--radius-sm);
         border: 1px solid transparent;
-        transition: all 0.1s ease;
+        transition:
+            background-color 0.1s ease,
+            border-color 0.1s ease,
+            color 0.1s ease;
     }
 
     .action-btn:hover {
@@ -564,8 +598,8 @@
     }
 
     .action-btn.delete:hover {
-        color: #e53935;
-        background: rgba(229, 57, 53, 0.1);
+        color: var(--danger-color);
+        background: color-mix(in srgb, var(--danger-color) 12%, transparent);
     }
 
     .modal-form {
@@ -596,8 +630,9 @@
             padding: 8px;
         }
 
-        .bookmark-card {
-            padding: 14px;
+        .bookmark-primary {
+            min-height: 48px;
+            padding: 12px 14px;
         }
     }
 

@@ -15,7 +15,7 @@
     let { breadcrumbs }: Props = $props()
 </script>
 
-{#if breadcrumbs.length > 0}
+{#if breadcrumbs.length > 1}
     <nav aria-label={m.breadcrumb()} class="breadcrumbs-nav">
         <ol class="breadcrumbs-list">
             {#each breadcrumbs as segment, idx (segment.id || "root")}
@@ -36,6 +36,7 @@
                             )
                         }}
                         disabled={idx === breadcrumbs.length - 1}
+                        aria-current={idx === breadcrumbs.length - 1 ? "page" : undefined}
                     >
                         {segment.name}
                     </button>
@@ -50,14 +51,15 @@
 
 <style>
     .breadcrumbs-nav {
-        --font-size: clamp(var(--font-size-4xl), 6vw, var(--font-size-5xl));
-        --gap: clamp(8px, 6vw, 16px);
+        --font-size: clamp(var(--font-size-lg), 3vw, var(--font-size-2xl));
+        --gap: clamp(6px, 2vw, 12px);
         margin-bottom: 20px;
     }
 
     .breadcrumbs-list {
         display: flex;
         flex-wrap: wrap;
+        overflow-wrap: anywhere;
         list-style: none;
         margin: 0;
         padding: 0;
@@ -80,7 +82,6 @@
     .breadcrumb-text-btn {
         font-size: var(--font-size);
         font-weight: normal;
-        text-transform: uppercase;
         margin: 0;
         color: var(--text-color);
         letter-spacing: 1px;
@@ -88,7 +89,8 @@
         border: none;
         padding: 0;
         cursor: pointer;
-        font-family: inherit;
+        font-family: var(--ui-font);
+        overflow-wrap: anywhere;
         transition: opacity 0.15s ease;
     }
 
@@ -100,5 +102,21 @@
     .breadcrumb-text-btn.active {
         font-weight: bold;
         cursor: default;
+    }
+
+    @media (--phone) {
+        .breadcrumbs-nav {
+            overflow-x: auto;
+            overscroll-behavior-inline: contain;
+            scrollbar-width: thin;
+        }
+
+        .breadcrumbs-list {
+            width: max-content;
+            max-width: none;
+            flex-wrap: nowrap;
+            overflow-wrap: normal;
+            white-space: nowrap;
+        }
     }
 </style>

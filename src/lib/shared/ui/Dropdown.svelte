@@ -160,11 +160,7 @@
     })
 </script>
 
-<svelte:window
-    onpointerdown={handleWindowPointerDown}
-    onfocusin={handleWindowFocusIn}
-    onkeydowncapture={handleDropdownKeydown}
-/>
+<svelte:window onpointerdown={handleWindowPointerDown} onfocusin={handleWindowFocusIn} />
 
 <div
     bind:this={triggerContainer}
@@ -181,8 +177,6 @@
     })}
 
     {#if isOpen}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
         <div
             id={menuId}
             bind:this={menuElement}
@@ -193,6 +187,7 @@
                 .join(" ")}
             tabindex="-1"
             onclick={handleMenuClick}
+            onkeydown={handleDropdownKeydown}
         >
             {@render children()}
         </div>
@@ -252,7 +247,8 @@
         .dropdown-menu :global(.dropdown-item):hover,
         .dropdown-menu :global(.dropdown-item):focus-visible {
             background-color: var(--surface-hover-color);
-            color: var(--danger-active-color);
+            color: var(--text-color);
+            box-shadow: inset 3px 0 0 var(--active-color);
             outline: none;
         }
     }

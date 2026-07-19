@@ -7,6 +7,7 @@
     import SettingsIcon from "$lib/shared/icons/SettingsIcon.svelte"
     import BookmarkPlusIcon from "$lib/shared/icons/BookmarkPlusIcon.svelte"
     import BookmarkIcon from "$lib/shared/icons/BookmarkIcon.svelte"
+    import CloseIcon from "$lib/shared/icons/CloseIcon.svelte"
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
@@ -32,10 +33,11 @@
     const commandsNode = getContext<CommandScope>(COMMANDS_CONTEXT_KEY)
 </script>
 
-<div class="viewer-header">
+<header class="viewer-header">
     <div class="doc-info">
         {#if isLoaded}
             <Button
+                class="left-sidebar-toggle"
                 variant="action"
                 size={viewport.isCompact ? "default" : "small"}
                 square={viewport.isCompact}
@@ -101,10 +103,10 @@
             aria-label={m.close_document()}
             tooltip={m.close_document() + getShortcutHint(commandsNode, "viewer.close")}
         >
-            <span class="close-icon">×</span>
+            <CloseIcon />
         </Button>
     </div>
-</div>
+</header>
 
 <style>
     :global(
@@ -115,25 +117,24 @@
         color: var(--danger-text-color, #ffffff) !important;
     }
 
+    :global(.viewer-header .left-sidebar-toggle.open:not(:active)) {
+        box-shadow: var(--shadow-inline);
+    }
+
     .viewer-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        background: var(--accent-active-color);
-        background-image: repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 10px,
-            rgba(0, 0, 0, 0.03) 10px,
-            rgba(0, 0, 0, 0.03) 20px
-        );
-        border-bottom: 3px solid var(--border-color);
-        padding: 16px 24px;
-        padding-top: calc(16px + env(safe-area-inset-top));
-        padding-left: calc(24px + env(safe-area-inset-left));
-        padding-right: calc(24px + env(safe-area-inset-right));
+        background: var(--viewer-chrome-color);
+        border-bottom: var(--border-inline) solid var(--border-color);
+        min-height: calc(56px + env(safe-area-inset-top));
+        max-height: calc(56px + env(safe-area-inset-top));
+        box-sizing: border-box;
+        padding: calc(8px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 8px
+            calc(16px + env(safe-area-inset-left));
         color: var(--text-color);
+        font-family: var(--ui-font);
         position: relative;
         z-index: var(--z-dropdown);
     }
@@ -159,13 +160,14 @@
         flex-shrink: 0;
         background: var(--muted-bg-color);
         color: var(--muted-text-color);
-        font-size: var(--font-size-sm);
-        font-weight: 900;
-        padding: 4px 10px;
+        font-family: var(--ui-mono-font);
+        font-size: var(--font-size-xs);
+        font-weight: 700;
+        padding: 3px 7px;
         border-radius: var(--radius-sm);
-        letter-spacing: 1px;
-        border: 2px solid var(--border-color);
-        box-shadow: 2px 2px 0 var(--shadow-color);
+        letter-spacing: 0.06em;
+        border: var(--border-inline) solid var(--border-color);
+        box-shadow: var(--shadow-inline);
     }
 
     .file-name {
@@ -176,24 +178,17 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .close-icon {
-        display: inline-block;
-        font-size: var(--font-size-4xl);
-        font-weight: 900;
-        line-height: 1;
+        font-family: var(--ui-font);
     }
 
     @media (--mobile) {
         .viewer-header {
-            padding: 8px 12px;
-            padding-top: calc(8px + env(safe-area-inset-top));
-            padding-left: calc(12px + env(safe-area-inset-left));
-            padding-right: calc(12px + env(safe-area-inset-right));
-            border-bottom-width: 2px;
+            min-height: calc(52px + env(safe-area-inset-top));
+            box-sizing: border-box;
+            gap: 8px;
+            padding: calc(4px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 4px
+                calc(8px + env(safe-area-inset-left));
+            border-bottom-width: var(--border-inline);
         }
 
         .doc-info {
@@ -201,13 +196,17 @@
             overflow: hidden;
         }
 
+        .header-actions {
+            gap: 6px;
+        }
+
         .file-name {
-            font-size: var(--font-size-base);
+            font-size: max(0.875rem, var(--font-size-base));
+            font-weight: 700;
         }
 
         .file-badge {
-            font-size: var(--font-size-2xs);
-            padding: 2px 6px;
+            display: none;
         }
 
         .settings-text,

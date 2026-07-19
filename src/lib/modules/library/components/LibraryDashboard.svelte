@@ -18,7 +18,6 @@
     import { vfsStore } from "$lib/modules/documents"
     import Card from "./Card.svelte"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
-    import Folder from "./Folder.svelte"
     import NewFolderModal from "./NewFolderModal.svelte"
     import DeleteConfirmModal from "./DeleteConfirmModal.svelte"
     import EditBookMetadataModal from "./EditBookMetadataModal.svelte"
@@ -281,6 +280,19 @@
     <Header />
     <Breadcrumbs {breadcrumbs} />
 
+    <div class="library-actions" role="toolbar" aria-label={m.action_controls()}>
+        {#if displayEntries.length !== 0 || vfsStore.currentFolderId !== null}
+            <BookImporter variant="action" />
+        {/if}
+        <Button
+            variant="ghost"
+            size="default"
+            onclick={() => void libraryCommandScope.execute("library.folder.create")}
+        >
+            <span>{m.new_folder()}</span>
+        </Button>
+    </div>
+
     {#if libraryUI.isNewFolderModalOpen}
         <NewFolderModal onCreate={createLibraryFolder} />
     {/if}
@@ -328,9 +340,6 @@
     <main class:selection-mode={libraryUI.isSelectionMode} onfocusin={handleCardFocus}>
         {#if displayEntries.length !== 0 || vfsStore.currentFolderId !== null}
             <ul class="card_list grid">
-                <li class="card_item">
-                    <Folder class="card_inner" type="new-folder" />
-                </li>
                 {#each displayEntries as entry (entry.id)}
                     <li class="card_item">
                         <Card
@@ -355,9 +364,6 @@
                         {/if}
                     </li>
                 {/each}
-                <li class="card_item">
-                    <BookImporter class="card_inner" variant="card" />
-                </li>
             </ul>
         {:else}
             <BookImporter />
@@ -424,6 +430,18 @@
         padding-bottom: 100px;
     }
 
+    .library-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        font-family: var(--ui-font);
+    }
+
+    .library-actions :global(.button) {
+        min-height: var(--control-height-regular);
+    }
+
     .card_list {
         padding: 0;
         margin: 0;
@@ -442,8 +460,8 @@
 
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 20px;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+        gap: 24px;
     }
 
     main.selection-mode .grid {
@@ -451,8 +469,32 @@
     }
 
     @media (--mobile-width) {
+        .library-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 8px;
+        }
+
+        .library-actions :global(.import-action),
+        .library-actions :global(.button) {
+            width: 100%;
+            min-width: 0;
+            padding-inline: 8px;
+        }
+
         .grid {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+    }
+
+    @media (--phone) {
+        .library-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .grid {
+            grid-template-columns: minmax(0, 1fr);
             gap: 12px;
         }
     }

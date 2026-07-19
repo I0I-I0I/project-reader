@@ -11,11 +11,11 @@
 
     interface Props {
         onimport?: (book: { url: string; name: string }) => void
-        variant?: "full" | "card"
+        variant?: "full" | "card" | "action"
         class?: string
     }
 
-    let { onimport, variant = "full", class: className }: Props = $props()
+    let { onimport, variant = "full", class: className = "" }: Props = $props()
 
     let fileInput = $state<HTMLInputElement | null>(null)
     let dragCount = $state(0)
@@ -137,7 +137,25 @@
     })
 </script>
 
-{#if variant === "card"}
+{#if variant === "action"}
+    <button
+        type="button"
+        class={`import-action ${className}`}
+        disabled={isImporting}
+        onclick={(event) => {
+            event.stopPropagation()
+            void commandsNode.execute("library.books.import")
+        }}
+    >
+        {#if isImporting}
+            <Spinner variant="classic" size="sm" />
+            <span>{m.importing_book()}</span>
+        {:else}
+            <PlusIcon />
+            <span>{m.import_file()}</span>
+        {/if}
+    </button>
+{:else if variant === "card"}
     <button
         type="button"
         class={`card card-importer ${className}`}
@@ -193,7 +211,7 @@
                         <Spinner
                             variant="classic"
                             size="lg"
-                            style="--border-color: rgba(255, 255, 255, 0.2); --danger-active-color: var(--danger-text-color, #ffffff);"
+                            style="--border-color: color-mix(in srgb, var(--primary-text-color) 28%, transparent); --danger-active-color: var(--primary-text-color);"
                         />
                     {:else}
                         <PlusIcon width="48" height="48" />
@@ -206,7 +224,11 @@
                         {m.import_file()}
                     {/if}
                 </h3>
-                <p>{m.upload_p_text()}</p>
+                <div class="empty-copy">
+                    <p>{m.open_pdfs()}</p>
+                    <p>{m.files_stay_local()}</p>
+                    <p class="drag-hint">{m.drag_drop_hint()}</p>
+                </div>
                 <button
                     type="button"
                     class="btn upload-btn"
@@ -220,7 +242,7 @@
                         <Spinner
                             variant="classic"
                             size="sm"
-                            style="--border-color: rgba(255, 255, 255, 0.2); --danger-active-color: var(--danger-text-color, #ffffff);"
+                            style="--border-color: color-mix(in srgb, var(--primary-text-color) 28%, transparent); --danger-active-color: var(--primary-text-color);"
                         />
                         <span>{m.importing_book()}</span>
                     {:else}
@@ -243,12 +265,44 @@
 />
 
 <style>
+    .import-action {
+        min-height: var(--control-height-regular);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border: var(--border-elevated) solid var(--border-color);
+        background: var(--primary-color);
+        color: var(--primary-text-color);
+        box-shadow: var(--shadow-elevated);
+        font-family: var(--ui-font);
+        font-size: var(--font-size-base);
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .import-action:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-elevated), var(--focus-ring);
+    }
+
+    .import-action:disabled {
+        cursor: wait;
+        opacity: 0.7;
+    }
+
+    .import-action :global(svg) {
+        width: 18px;
+        height: 18px;
+    }
+
     .reader-card {
         grid-column: 1 / -1;
         background: var(--surface-color, #ffffff);
         border: 3px solid var(--border-color);
-        box-shadow: 8px 8px 0 var(--shadow-color);
-        margin-top: 20px;
+        box-shadow: var(--shadow-elevated);
+        margin-top: 8px;
         transition:
             transform 0.15s ease,
             box-shadow 0.15s ease;
@@ -266,8 +320,13 @@
         color: var(--text-color);
         padding: 8px 16px;
         cursor: pointer;
-        box-shadow: 3px 3px 0 var(--shadow-color);
-        transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-elevated);
+        transition:
+            background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -297,14 +356,14 @@
 
     /* Upload Screen */
     .upload-zone {
-        padding: 48px;
+        padding: clamp(20px, 5vw, 36px);
         text-align: center;
         background: var(--surface-color, #ffffff);
     }
 
     .dashed-border {
-        border: 3px dashed var(--border-color);
-        padding: 40px 20px;
+        border: 2px dashed var(--border-color);
+        padding: clamp(20px, 4vw, 32px) 20px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -312,13 +371,13 @@
     }
 
     .upload-icon-wrapper {
-        background: var(--danger-active-color);
+        background: var(--primary-color);
         border: 2.5px solid var(--border-color);
         padding: 16px;
         border-radius: var(--radius-full);
         display: inline-flex;
         box-shadow: 3px 3px 0 var(--shadow-color);
-        color: var(--danger-text-color, #ffffff);
+        color: var(--primary-text-color);
         margin-bottom: 8px;
     }
 
@@ -328,6 +387,11 @@
         font-weight: 900;
         letter-spacing: -0.5px;
         color: var(--text-color);
+    }
+
+    .empty-copy {
+        display: grid;
+        gap: 4px;
     }
 
     .dashed-border p {
@@ -342,15 +406,21 @@
 
     .upload-btn {
         margin-top: 8px;
-        background: var(--danger-active-color);
-        color: var(--danger-text-color, #ffffff);
+        background: var(--primary-color);
+        color: var(--primary-text-color);
         border-color: var(--border-color);
     }
 
     @media (hover: hover) {
         .upload-btn:hover {
-            background: var(--danger-active-color);
+            background: var(--primary-color);
             opacity: 0.9;
+        }
+    }
+
+    @media (hover: none), (pointer: coarse) {
+        .drag-hint {
+            display: none;
         }
     }
 
@@ -359,8 +429,12 @@
         background: var(--surface-color);
         position: relative;
         border: 2px solid var(--border-color);
-        box-shadow: 4px 4px 0 var(--shadow-color);
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-elevated);
+        transition:
+            background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         font-family: inherit;
         text-align: left;
@@ -521,20 +595,20 @@
     /* Drag and drop active states */
     .card.drag-active {
         background-color: var(--surface-hover-color);
-        border-color: var(--danger-active-color);
+        border-color: var(--primary-color);
         transform: translate(-6px, -6px);
         box-shadow: 8px 8px 0 var(--shadow-color);
     }
 
     .reader-card.drag-active {
-        border-color: var(--danger-active-color);
+        border-color: var(--primary-color);
         background-color: var(--surface-hover-color);
         transform: translate(-4px, -4px);
         box-shadow: 12px 12px 0 var(--shadow-color);
     }
 
     .reader-card.drag-active .dashed-border {
-        border-color: var(--danger-active-color);
+        border-color: var(--primary-color);
         background: rgba(255, 77, 77, 0.04);
     }
 
@@ -557,9 +631,9 @@
     .reader-card.drag-active .upload-icon-wrapper,
     .card.drag-active .card-icon {
         animation: float 1.2s ease-in-out infinite;
-        border-color: var(--danger-active-color);
-        background: var(--danger-active-color);
-        color: var(--danger-text-color);
+        border-color: var(--primary-color);
+        background: var(--primary-color);
+        color: var(--primary-text-color);
     }
 
     .card:disabled {

@@ -101,8 +101,10 @@ class SettingsStore {
             }
 
             motionPreferences.enabled = this.settings.animations
+            document.documentElement.dataset.motion = this.settings.animations ? "on" : "off"
             this.colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)")
             this.colorSchemeQuery.addEventListener("change", this.handleColorSchemeChange)
+            this.updateDOM()
         }
     }
 
@@ -165,6 +167,8 @@ class SettingsStore {
         this.updateSetting("language", value)
         if (browser) {
             document.cookie = `PARAGLIDE_LOCALE=${value}; path=/; max-age=31536000; SameSite=Lax`
+            document.documentElement.lang = value
+            document.documentElement.dir = "ltr"
         }
     }
 
@@ -175,6 +179,7 @@ class SettingsStore {
     set animations(value: Settings["animations"]) {
         this.updateSetting("animations", value)
         motionPreferences.enabled = value
+        if (browser) document.documentElement.dataset.motion = value ? "on" : "off"
     }
 
     get quality(): Settings["quality"] {
@@ -198,6 +203,22 @@ class SettingsStore {
         const isDark =
             this.theme === "dark" ||
             (this.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+
+        document.documentElement.lang = this.language
+        document.documentElement.dir = "ltr"
+
+        const activeThemeColor = isDark ? "#000000" : "#f5f0e1"
+        for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+            const isDarkMeta = meta.id.endsWith("dark")
+            meta.content =
+                this.theme === "system" ? (isDarkMeta ? "#000000" : "#f5f0e1") : activeThemeColor
+            meta.media =
+                this.theme === "system"
+                    ? isDarkMeta
+                        ? "(prefers-color-scheme: dark)"
+                        : "(prefers-color-scheme: light)"
+                    : "all"
+        }
 
         switch (this.theme) {
             case "dark":
