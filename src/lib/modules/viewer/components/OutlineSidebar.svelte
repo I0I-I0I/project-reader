@@ -11,7 +11,7 @@
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
     import { resolveSelectionIndex } from "$lib/shared/state/listSelection"
     import { notesStore } from "../stores/notesStore.svelte"
-    import { tick } from "svelte"
+    import { tick, untrack } from "svelte"
 
     let {
         isOutlineLoading,
@@ -20,6 +20,7 @@
         scrollPosition = $bindable(),
         activeHeadings,
         onClose,
+        interactive = true,
     } = $props<{
         isOutlineLoading: boolean
         outlineList: FlatHeading[] | null
@@ -27,6 +28,7 @@
         scrollPosition: number
         activeHeadings: Set<FlatHeading>
         onClose: () => void
+        interactive?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -128,6 +130,7 @@
             searchLabel: () => m.keymap_search_headings(),
             searchEnglishLabel: () => m.keymap_search_headings({}, { locale: "en" }),
             disabled: () =>
+                !interactive ||
                 modalManager.hasBlockingModal ||
                 !!notesStore.editingNote ||
                 !!notesStore.activePopup,
@@ -150,6 +153,8 @@
                 searchInputRef?.select()
             },
         }),
+        undefined,
+        { autoActivate: untrack(() => interactive) },
     )
 
     function formatKey(keys: string): string {

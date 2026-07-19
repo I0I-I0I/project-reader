@@ -18,12 +18,13 @@
     import { useViewerUIStore } from "../stores/viewerUIStore.svelte"
     import { createViewerListCommands } from "../commands/viewerListCommands"
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
-    import { tick } from "svelte"
+    import { tick, untrack } from "svelte"
 
     const viewerUIStore = useViewerUIStore()
 
-    let { onClose } = $props<{
+    let { onClose, interactive = true } = $props<{
         onClose: () => void
+        interactive?: boolean
     }>()
 
     let searchQuery = $state("")
@@ -139,7 +140,10 @@
     })
 
     const listCommandsDisabled = () =>
-        modalManager.hasBlockingModal || !!notesStore.editingNote || !!notesStore.activePopup
+        !interactive ||
+        modalManager.hasBlockingModal ||
+        !!notesStore.editingNote ||
+        !!notesStore.activePopup
 
     function isEditableTarget(target: EventTarget | null) {
         return (
@@ -159,46 +163,50 @@
         !isEditableTarget(event.target) ||
         (isSearchFocused && KeyboardHandler.matches(event, inputKey))
 
-    useCommands([
-        ...createViewerListCommands({
-            nextLabel: () => m.keymap_next_note(),
-            // Preserve English search terms in localized keyboard help.
-            nextEnglishLabel: () => m.keymap_next_note({}, { locale: "en" }),
-            previousLabel: () => m.keymap_prev_note(),
-            previousEnglishLabel: () => m.keymap_prev_note({}, { locale: "en" }),
-            selectLabel: () => m.keymap_open_note(),
-            selectEnglishLabel: () => m.keymap_open_note({}, { locale: "en" }),
-            searchLabel: () => m.keymap_search_notes(),
-            searchEnglishLabel: () => m.keymap_search_notes({}, { locale: "en" }),
-            disabled: listCommandsDisabled,
-            shouldHandleNavigationKey: shouldHandleListNavigation,
-            next: () => navigateSelection("next"),
-            previous: () => navigateSelection("prev"),
-            select: () => {
-                const note = filteredNotes[selectedIndex]
-                if (note) {
-                    selectNote(note)
-                    onClose()
-                }
-            },
-            search: () => {
-                searchInputRef?.focus()
-                searchInputRef?.select()
-            },
-        }),
-        withViewerInputShortcut(
-            sidebarMutationCommands["viewer.note.edit"]!,
-            ["e", "ctrl+e"],
-            listCommandsDisabled,
-            (event) => shouldHandleMutationKey(event, "ctrl+e"),
-        ),
-        withViewerInputShortcut(
-            sidebarMutationCommands["viewer.note.delete"]!,
-            ["d", "ctrl+d"],
-            listCommandsDisabled,
-            (event) => shouldHandleMutationKey(event, "ctrl+d"),
-        ),
-    ])
+    useCommands(
+        [
+            ...createViewerListCommands({
+                nextLabel: () => m.keymap_next_note(),
+                // Preserve English search terms in localized keyboard help.
+                nextEnglishLabel: () => m.keymap_next_note({}, { locale: "en" }),
+                previousLabel: () => m.keymap_prev_note(),
+                previousEnglishLabel: () => m.keymap_prev_note({}, { locale: "en" }),
+                selectLabel: () => m.keymap_open_note(),
+                selectEnglishLabel: () => m.keymap_open_note({}, { locale: "en" }),
+                searchLabel: () => m.keymap_search_notes(),
+                searchEnglishLabel: () => m.keymap_search_notes({}, { locale: "en" }),
+                disabled: listCommandsDisabled,
+                shouldHandleNavigationKey: shouldHandleListNavigation,
+                next: () => navigateSelection("next"),
+                previous: () => navigateSelection("prev"),
+                select: () => {
+                    const note = filteredNotes[selectedIndex]
+                    if (note) {
+                        selectNote(note)
+                        onClose()
+                    }
+                },
+                search: () => {
+                    searchInputRef?.focus()
+                    searchInputRef?.select()
+                },
+            }),
+            withViewerInputShortcut(
+                sidebarMutationCommands["viewer.note.edit"]!,
+                ["e", "ctrl+e"],
+                listCommandsDisabled,
+                (event) => shouldHandleMutationKey(event, "ctrl+e"),
+            ),
+            withViewerInputShortcut(
+                sidebarMutationCommands["viewer.note.delete"]!,
+                ["d", "ctrl+d"],
+                listCommandsDisabled,
+                (event) => shouldHandleMutationKey(event, "ctrl+d"),
+            ),
+        ],
+        undefined,
+        { autoActivate: untrack(() => interactive) },
+    )
 
     function formatKey(keys: string): string {
         const modifiers = ["ctrl", "meta", "alt", "shift"]

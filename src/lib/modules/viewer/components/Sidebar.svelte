@@ -17,6 +17,8 @@
     import SettingsSidebar from "./SettingsSidebar.svelte"
     import { notesStore } from "../stores/notesStore.svelte"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
+    import { Slider, type SliderDirection } from "$lib/shared/ui/slider"
+    import { LEFT_SIDEBAR_TABS, getAdjacentSidebarTab, type LeftSidebarTabId } from "./sidebarTabs"
 
     let {
         side = "left",
@@ -57,6 +59,9 @@
                 : m.outline(),
     )
     const shortcutScope = commandsStore.activeScope ?? commandsStore.root
+    const outlineTab = LEFT_SIDEBAR_TABS[0]
+    const notesTab = LEFT_SIDEBAR_TABS[1]
+    const bookmarksTab = LEFT_SIDEBAR_TABS[2]
 
     function isEditableTarget(target: EventTarget | null) {
         return (
@@ -92,6 +97,20 @@
     function closeSidebar() {
         void sidebarCommandsNode.execute("viewer.sidebar.close")
     }
+
+    function getSwipeDestination(direction: SliderDirection) {
+        if (side !== "left" || activeTab === "settings") return undefined
+        return getAdjacentSidebarTab(activeTab, direction)
+    }
+
+    function canSwipeTabs(direction: SliderDirection) {
+        return getSwipeDestination(direction) !== undefined
+    }
+
+    function moveSidebarTab(direction: SliderDirection) {
+        const destination = getSwipeDestination(direction)
+        if (destination) void shortcutScope.execute(destination.commandId)
+    }
 </script>
 
 {#snippet header()}
@@ -111,8 +130,8 @@
                     id={`${uid}-outline-tab`}
                     controls={`${uid}-outline-panel`}
                     ariaLabel={m.outline()}
-                    active={activeTab === "outline"}
-                    onclick={() => void shortcutScope.execute("viewer.sidebar.outline.toggle")}
+                    active={activeTab === outlineTab.id}
+                    onclick={() => void shortcutScope.execute(outlineTab.commandId)}
                     Icon={MenuIcon}
                     tooltip={m.outline() +
                         getShortcutHint(shortcutScope, "viewer.sidebar.outline.toggle")}
@@ -121,8 +140,8 @@
                     id={`${uid}-notes-tab`}
                     controls={`${uid}-notes-panel`}
                     ariaLabel={m.notes_highlights()}
-                    active={activeTab === "notes"}
-                    onclick={() => void shortcutScope.execute("viewer.sidebar.notes.toggle")}
+                    active={activeTab === notesTab.id}
+                    onclick={() => void shortcutScope.execute(notesTab.commandId)}
                     Icon={NoteIcon}
                     tooltip={m.notes_highlights() +
                         getShortcutHint(shortcutScope, "viewer.sidebar.notes.toggle")}
@@ -131,8 +150,8 @@
                     id={`${uid}-bookmarks-tab`}
                     controls={`${uid}-bookmarks-panel`}
                     ariaLabel={m.bookmarks()}
-                    active={activeTab === "bookmarks"}
-                    onclick={() => void shortcutScope.execute("viewer.sidebar.bookmarks.toggle")}
+                    active={activeTab === bookmarksTab.id}
+                    onclick={() => void shortcutScope.execute(bookmarksTab.commandId)}
                     Icon={BookmarkIcon}
                     tooltip={m.bookmarks() +
                         getShortcutHint(shortcutScope, "viewer.sidebar.bookmarks.toggle")}
@@ -142,6 +161,31 @@
             <h3>{m.settings()}</h3>
         {/if}
     </SidebarHeader>
+{/snippet}
+
+{#snippet sidebarPanel(tab: LeftSidebarTabId, interactive: boolean)}
+    <div
+        class="sidebar-panel"
+        id={`${uid}-${tab}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${uid}-${tab}-tab`}
+    >
+        {#if tab === "outline"}
+            <OutlineSidebar
+                {isOutlineLoading}
+                {outlineList}
+                bind:currentPage
+                bind:scrollPosition
+                {activeHeadings}
+                {onClose}
+                {interactive}
+            />
+        {:else if tab === "notes"}
+            <NotesSidebar {onClose} {interactive} />
+        {:else}
+            <BookmarksSidebar {onClose} {interactive} />
+        {/if}
+    </div>
 {/snippet}
 
 <GlobalSidebar
@@ -155,41 +199,34 @@
     ariaLabel={panelLabel}
     {header}
 >
-    {#if activeTab === "outline"}
-        <div
-            class="sidebar-panel"
-            id={`${uid}-outline-panel`}
-            role="tabpanel"
-            aria-labelledby={`${uid}-outline-tab`}
+    {#if side === "left" && activeTab !== "settings"}
+        <Slider
+            enabled={!modalManager.hasBlockingModal &&
+                !notesStore.editingNote &&
+                !notesStore.activePopup}
+            canMove={canSwipeTabs}
+            onMove={moveSidebarTab}
+            ariaLabel={panelLabel}
         >
-            <OutlineSidebar
-                {isOutlineLoading}
-                {outlineList}
-                bind:currentPage
-                bind:scrollPosition
-                {activeHeadings}
-                {onClose}
-            />
-        </div>
-    {:else if activeTab === "notes"}
-        <div
-            class="sidebar-panel"
-            id={`${uid}-notes-panel`}
-            role="tabpanel"
-            aria-labelledby={`${uid}-notes-tab`}
-        >
-            <NotesSidebar {onClose} />
-        </div>
-    {:else if activeTab === "bookmarks"}
-        <div
-            class="sidebar-panel"
-            id={`${uid}-bookmarks-panel`}
-            role="tabpanel"
-            aria-labelledby={`${uid}-bookmarks-tab`}
-        >
-            <BookmarksSidebar {onClose} />
-        </div>
-    {:else if activeTab === "settings"}
+            {#snippet previous()}
+                {@const destination = getSwipeDestination("previous")}
+                {#if destination}
+                    {@render sidebarPanel(destination.id, false)}
+                {/if}
+            {/snippet}
+
+            {#snippet current()}
+                {@render sidebarPanel(activeTab, true)}
+            {/snippet}
+
+            {#snippet next()}
+                {@const destination = getSwipeDestination("next")}
+                {#if destination}
+                    {@render sidebarPanel(destination.id, false)}
+                {/if}
+            {/snippet}
+        </Slider>
+    {:else}
         <SettingsSidebar />
     {/if}
 </GlobalSidebar>
@@ -203,6 +240,7 @@
     .sidebar-panel {
         display: flex;
         flex: 1;
+        width: 100%;
         min-height: 0;
         flex-direction: column;
     }
