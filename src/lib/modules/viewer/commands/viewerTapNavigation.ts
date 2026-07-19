@@ -5,7 +5,7 @@ export type ViewerTapAction =
     | "next-page"
     | "sidebar-right"
 
-const SIDEBAR_EDGE_WIDTH = 12
+const SIDEBAR_EDGE_WIDTH = 24
 const PREVIOUS_PAGE_END_RATIO = 0.35
 const NEXT_PAGE_START_RATIO = 0.65
 

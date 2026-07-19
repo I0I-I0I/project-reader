@@ -90,7 +90,7 @@
     rootNode = useCommands([
         {
             id: "prompt.open",
-            keymap: ["ctrl+k", "shift+:"],
+            keymap: ["ctrl+k", "shift+:", "alt+x"],
             label: () => m.keymap_prompt(),
             englishLabel: () => m.keymap_prompt({}, { locale: "en" }),
             allowInInputs: true,
