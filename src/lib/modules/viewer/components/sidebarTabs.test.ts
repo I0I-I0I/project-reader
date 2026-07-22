@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getAdjacentSidebarTab } from "./sidebarTabs"
+import { getAdjacentSidebarTab, resolveSidebarTabMove } from "./sidebarTabs"
 
 describe("left sidebar tab order", () => {
     it("moves forward and backward without wrapping", () => {
@@ -15,5 +15,37 @@ describe("left sidebar tab order", () => {
         expect(getAdjacentSidebarTab("outline", "next")?.commandId).toBe(
             "viewer.sidebar.notes.toggle",
         )
+    })
+
+    it("captures the destination and does not toggle it off if it became active", () => {
+        let activeTab: "outline" | "notes" | "bookmarks" = "outline"
+        const executed: string[] = []
+        const operation = resolveSidebarTabMove(
+            activeTab,
+            "next",
+            () => activeTab,
+            (commandId) => executed.push(commandId),
+        )
+
+        activeTab = "notes"
+        operation?.()
+
+        expect(executed).toEqual([])
+    })
+
+    it("executes the captured command when the destination is still inactive", () => {
+        let activeTab: "outline" | "notes" | "bookmarks" = "outline"
+        const executed: string[] = []
+        const operation = resolveSidebarTabMove(
+            activeTab,
+            "next",
+            () => activeTab,
+            (commandId) => executed.push(commandId),
+        )
+
+        activeTab = "bookmarks"
+        operation?.()
+
+        expect(executed).toEqual(["viewer.sidebar.notes.toggle"])
     })
 })

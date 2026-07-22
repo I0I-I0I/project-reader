@@ -7,28 +7,42 @@
     import { defineCommands } from "$lib/modules/commands"
     import { useModalCommands } from "$lib/modules/commands"
 
+    type NoteColor = "yellow" | "green" | "blue" | "pink" | "purple"
+
     let {
-        editorState = $bindable(),
+        editorState,
+        onChange,
         onCancel,
     }: {
-        editorState: any
+        editorState: {
+            id?: string
+            pageNumber: number
+            text: string
+            noteContent: string
+            color: NoteColor
+        }
+        onChange: (change: { noteContent: string; color: NoteColor }) => void
         onCancel: () => void
     } = $props()
+
+    let isExistingNote = $derived(editorState.id !== undefined)
+    let closeLabel = $derived(isExistingNote ? m.close() : m.cancel())
 
     const activeNodeBeforeOpen = commandsStore.activeScope ?? commandsStore.root
 
     const modalCommands = defineCommands({
         "modal.cancel": {
             id: "modal.cancel",
-            label: () => m.cancel(),
+            label: () => closeLabel,
             category: "commands",
             keymap: "escape",
             allowInInputs: true,
+            dismissFocusedElement: true,
             run: () => onCancel(),
         },
         "viewer.note.save": {
             id: "viewer.note.save",
-            label: () => m.save(),
+            label: () => (isExistingNote ? m.close() : m.save()),
             category: "commands",
             keymap: "ctrl+enter",
             allowInInputs: true,
@@ -41,10 +55,6 @@
         [modalCommands["modal.cancel"], modalCommands["viewer.note.save"]],
         activeNodeBeforeOpen,
     )
-    function focusEditor(textarea: HTMLTextAreaElement) {
-        const frame = requestAnimationFrame(() => textarea.focus())
-        return () => cancelAnimationFrame(frame)
-    }
 </script>
 
 {#snippet header()}
@@ -53,11 +63,12 @@
         <div class="header-actions">
             <span class="editor-page">{m.page()} {editorState.pageNumber}</span>
             <Button
+                id="note-editor-close"
                 variant="close"
                 square
                 onclick={() => void editorCommandsNode.execute("modal.cancel")}
-                aria-label={m.cancel()}
-                tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
+                aria-label={closeLabel}
+                tooltip={`${closeLabel}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
             >
                 <CloseIcon />
             </Button>
@@ -74,7 +85,7 @@
     onClose={() => void editorCommandsNode.execute("modal.cancel")}
     {header}
     showCloseButton={false}
-    initialFocus="first"
+    initialFocus={() => document.getElementById("note-editor-close")}
     draggable
 >
     <div class="editor-body">
@@ -83,10 +94,14 @@
         </blockquote>
 
         <textarea
-            {@attach focusEditor}
             class="editor-textarea"
             placeholder="Write your note here..."
-            bind:value={editorState.noteContent}
+            value={editorState.noteContent}
+            oninput={(event) =>
+                onChange({
+                    noteContent: event.currentTarget.value,
+                    color: editorState.color,
+                })}
         ></textarea>
 
         <div class="color-picker">
@@ -104,7 +119,11 @@
                 <Button
                     variant="none"
                     class={`color-swatch swatch-${color} ${editorState.color === color ? "selected" : ""}`}
-                    onclick={() => (editorState.color = color as any)}
+                    onclick={() =>
+                        onChange({
+                            noteContent: editorState.noteContent,
+                            color: color as NoteColor,
+                        })}
                     aria-label={swatchTooltip}
                     tooltip={swatchTooltip}
                 />
@@ -114,23 +133,25 @@
 
     {#snippet footer()}
         <div class="modal-actions editor-actions">
-            <Button
-                variant="close"
-                class="editor-btn cancel"
-                onclick={() => void editorCommandsNode.execute("modal.cancel")}
-                aria-label={m.cancel()}
-                tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
-            >
-                {m.cancel()}
-            </Button>
+            {#if !isExistingNote}
+                <Button
+                    variant="close"
+                    class="editor-btn cancel"
+                    onclick={() => void editorCommandsNode.execute("modal.cancel")}
+                    aria-label={m.cancel()}
+                    tooltip={`${m.cancel()}${getShortcutHint(editorCommandsNode, "modal.cancel")}`}
+                >
+                    {m.cancel()}
+                </Button>
+            {/if}
             <Button
                 variant="none"
                 class="editor-btn save"
                 onclick={() => void editorCommandsNode.execute("viewer.note.save")}
-                aria-label={m.save()}
-                tooltip={`${m.save()}${getShortcutHint(editorCommandsNode, "viewer.note.save")}`}
+                aria-label={isExistingNote ? m.close() : m.save()}
+                tooltip={`${isExistingNote ? m.close() : m.save()}${getShortcutHint(editorCommandsNode, "viewer.note.save")}`}
             >
-                {m.save()}
+                {isExistingNote ? m.close() : m.save()}
             </Button>
         </div>
     {/snippet}

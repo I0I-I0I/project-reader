@@ -2,10 +2,12 @@
     import type { HTMLInputAttributes } from "svelte/elements"
     import Input from "../Input.svelte"
     import SearchIcon from "$lib/shared/icons/SearchIcon.svelte"
+    import { focusLeavesSearchControl } from "./sidebarSearchFocus"
 
     interface Props extends Omit<HTMLInputAttributes, "value" | "type"> {
         value?: string
         ref?: HTMLInputElement | null
+        focused?: boolean
         clearLabel?: string
         onClear?: () => void
     }
@@ -13,6 +15,7 @@
     let {
         value = $bindable(""),
         ref = $bindable(null),
+        focused = $bindable(false),
         clearLabel = "Clear search",
         onClear,
         class: className = "",
@@ -26,7 +29,14 @@
     }
 </script>
 
-<div class={["sidebar-search", className]} role="search">
+<div
+    class={["sidebar-search", className]}
+    role="search"
+    onfocusin={() => (focused = true)}
+    onfocusout={(event) => {
+        if (focusLeavesSearchControl(event.currentTarget, event.relatedTarget)) focused = false
+    }}
+>
     <SearchIcon class="sidebar-search-icon" aria-hidden="true" />
     <Input
         unstyled

@@ -3,6 +3,7 @@
     import { cubicOut } from "svelte/easing"
     import { onMount, type Snippet } from "svelte"
     import { fade } from "svelte/transition"
+    import { shouldEnableModalPresentationMotion } from "./modalMotion"
 
     export type FloatPlacement = "center" | "top" | "bottom" | "anchor"
     export type FloatPresentation = "dialog" | "sheet" | "fullscreen"
@@ -44,6 +45,7 @@
         ariaLabelledby?: string
         ariaDescribedby?: string
         presentation?: FloatPresentation
+        movementCritical?: boolean
         zIndex?: number
     } & (
         | { placement: "anchor"; anchor: HTMLElement }
@@ -68,6 +70,7 @@
         ariaLabelledby,
         ariaDescribedby,
         presentation = "dialog",
+        movementCritical = false,
         zIndex = 1000,
     }: Props = $props()
 
@@ -201,9 +204,14 @@
         onpointerdown={onSurfacePointerDown}
         onfocusin={onSurfaceFocusIn}
         data-presentation={presentation}
+        data-modal-movement={movementCritical ? "true" : undefined}
         transition:presentationTransition|global={{
             presentation,
-            enabled: motionPreferences.enabled,
+            enabled: shouldEnableModalPresentationMotion({
+                appMotionEnabled: motionPreferences.enabled,
+                prefersReducedMotion: motionPreferences.prefersReducedMotion,
+                movementCritical,
+            }),
         }}
     >
         {@render children()}

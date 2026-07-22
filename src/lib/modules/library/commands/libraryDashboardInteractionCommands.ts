@@ -7,6 +7,10 @@ interface LibraryDashboardInteractionCommandOptions {
     startFocusPicker: () => void
     startSelectionPicker: () => void
     goUpFolder: () => void
+    decreaseCardSize: () => void
+    increaseCardSize: () => void
+    cardSizeDecreaseDisabled: () => boolean
+    cardSizeIncreaseDisabled: () => boolean
     labels: {
         down: () => string
         up: () => string
@@ -16,6 +20,8 @@ interface LibraryDashboardInteractionCommandOptions {
         focusPicker: () => string
         selectionPicker: () => string
         upFolder: () => string
+        cardSizeDecrease: () => string
+        cardSizeIncrease: () => string
     }
     englishLabels: {
         down: () => string
@@ -26,6 +32,8 @@ interface LibraryDashboardInteractionCommandOptions {
         focusPicker: () => string
         selectionPicker: () => string
         upFolder: () => string
+        cardSizeDecrease: () => string
+        cardSizeIncrease: () => string
     }
 }
 
@@ -107,11 +115,31 @@ export function createLibraryDashboardInteractionCommands(
                 },
                 "library.folder.up": {
                     id: "library.folder.up",
-                    keymap: "-",
+                    keymap: "backspace",
                     label: options.labels.upFolder,
                     englishLabel: options.englishLabels.upFolder,
                     category: "navigation",
                     run: options.goUpFolder,
+                },
+                "library.card-size.decrease": {
+                    id: "library.card-size.decrease",
+                    keymap: "-",
+                    label: options.labels.cardSizeDecrease,
+                    englishLabel: options.englishLabels.cardSizeDecrease,
+                    category: "navigation",
+                    disabled: options.cardSizeDecreaseDisabled,
+                    preventDefault: true,
+                    run: options.decreaseCardSize,
+                },
+                "library.card-size.increase": {
+                    id: "library.card-size.increase",
+                    keymap: ["+", "="],
+                    label: options.labels.cardSizeIncrease,
+                    englishLabel: options.englishLabels.cardSizeIncrease,
+                    category: "navigation",
+                    disabled: options.cardSizeIncreaseDisabled,
+                    preventDefault: true,
+                    run: options.increaseCardSize,
                 },
             }),
         ).filter(Boolean),

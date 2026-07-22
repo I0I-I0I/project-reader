@@ -1,14 +1,11 @@
 <script lang="ts">
     import { viewport } from "$lib/shared/state/viewport.svelte"
-    import Switcher from "$lib/shared/ui/Switcher.svelte"
     import SunIcon from "$lib/shared/icons/SunIcon.svelte"
     import MoonIcon from "$lib/shared/icons/MoonIcon.svelte"
     import SystemIcon from "$lib/shared/icons/SystemIcon.svelte"
     import GlobeIcon from "$lib/shared/icons/GlobeIcon.svelte"
-    import { locales, getLocale } from "$lib/paraglide/runtime"
+    import { getLocale } from "$lib/paraglide/runtime"
     import { settingsStore } from "$lib/modules/settings"
-    import { resolve } from "$app/paths"
-    import { page } from "$app/state"
     import * as m from "$lib/paraglide/messages"
 
     import { getLanguageName } from "$lib/modules/settings"
@@ -18,7 +15,6 @@
     import { vfsStore } from "$lib/modules/documents"
     import Button from "$lib/shared/ui/Button.svelte"
     import BookOpenIcon from "$lib/shared/icons/BookOpenIcon.svelte"
-    import { getLocalizedCurrentHref, type AppLocale } from "$lib/modules/settings"
     import { getContext } from "svelte"
     import {
         COMMANDS_CONTEXT_KEY,
@@ -85,66 +81,27 @@
             {/if}
 
             <div class="switchers-group">
-                <Switcher label={m.select_theme()}>
-                    {#snippet trigger()}
-                        <currentThemeInfo.Icon class="switcher-icon" />
-                        <span class="current-label">{currentThemeInfo.label()}</span>
-                    {/snippet}
-                    {#snippet children({ close })}
-                        {#each THEMES as { value, label, Icon } (value)}
-                            <li>
-                                <button
-                                    class="dropdown-item"
-                                    class:active={settingsStore.theme === value}
-                                    onclick={() => {
-                                        void commandsStore.execute("settings.theme", { value })
-                                        close()
-                                    }}
-                                    aria-current={settingsStore.theme === value
-                                        ? "true"
-                                        : undefined}
-                                >
-                                    <Icon class="switcher-icon-small" />
-                                    <span>{label()}</span>
-                                </button>
-                            </li>
-                        {/each}
-                    {/snippet}
-                </Switcher>
+                <Button
+                    variant="action"
+                    class="settings-trigger"
+                    onclick={() => void commandsStore.execute("settings.theme")}
+                    aria-label={m.select_theme()}
+                    tooltip={m.select_theme()}
+                >
+                    <currentThemeInfo.Icon class="switcher-icon" />
+                    <span class="current-label">{currentThemeInfo.label()}</span>
+                </Button>
 
-                <Switcher label={m.language_switcher()}>
-                    {#snippet trigger()}
-                        <GlobeIcon class="switcher-icon" />
-                        <span class="current-label">{getLanguageName(getLocale())}</span>
-                    {/snippet}
-                    {#snippet children({ close })}
-                        {#each locales as locale (locale)}
-                            <li>
-                                <a
-                                    data-sveltekit-reload
-                                    href={resolve(
-                                        getLocalizedCurrentHref(
-                                            page.url,
-                                            locale as AppLocale,
-                                        ) as any,
-                                    )}
-                                    class="dropdown-item"
-                                    class:active={getLocale() === locale}
-                                    aria-current={getLocale() === locale ? "true" : undefined}
-                                    onclick={(event) => {
-                                        event.preventDefault()
-                                        void commandsStore.execute("settings.language", {
-                                            value: locale as AppLocale,
-                                        })
-                                        close()
-                                    }}
-                                >
-                                    <span>{getLanguageName(locale)}</span>
-                                </a>
-                            </li>
-                        {/each}
-                    {/snippet}
-                </Switcher>
+                <Button
+                    variant="action"
+                    class="settings-trigger"
+                    onclick={() => void commandsStore.execute("settings.language")}
+                    aria-label={m.language_switcher()}
+                    tooltip={m.language_switcher()}
+                >
+                    <GlobeIcon class="switcher-icon" />
+                    <span class="current-label">{getLanguageName(getLocale())}</span>
+                </Button>
             </div>
         </div>
     </div>
@@ -199,8 +156,7 @@
         margin-left: auto;
     }
 
-    .header-btn-wrapper :global(.action-btn),
-    .header-btn-wrapper :global(.switcher-trigger) {
+    .header-btn-wrapper :global(.action-btn) {
         height: var(--header-control-height);
         min-height: var(--header-control-height);
         max-height: var(--header-control-height);
@@ -305,12 +261,6 @@
     :global(.switcher-icon) {
         width: 16px;
         height: 16px;
-        stroke-width: 2.5;
-    }
-
-    :global(.switcher-icon-small) {
-        width: 14px;
-        height: 14px;
         stroke-width: 2.5;
     }
 

@@ -20,6 +20,10 @@ class MotionPreferences {
         return this.requested && !this.reduced
     }
 
+    get prefersReducedMotion() {
+        return this.reduced
+    }
+
     set enabled(value: boolean) {
         this.requested = value
     }

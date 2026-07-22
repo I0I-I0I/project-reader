@@ -20,6 +20,7 @@ export function createViewerSidebarCloseCommand(
             englishLabel: options.englishLabel,
             category: "navigation",
             allowInInputs: true,
+            dismissFocusedElement: true,
             disabled: options.disabled,
             shouldHandleKey: options.shouldHandleKey,
             run: options.close,

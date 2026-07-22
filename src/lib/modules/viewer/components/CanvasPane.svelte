@@ -25,6 +25,12 @@
     import { createViewerFitWidthCommand } from "../commands/viewerFitWidthCommand"
     import { ViewerLinkService } from "./ViewerLinkService"
     import { promptStore } from "$lib/modules/prompt"
+    import {
+        captureScrollAnchor,
+        restoreScrollAnchor,
+        type ScrollAnchor,
+    } from "../utils/scrollAnchor"
+    import { getBitmapPageScale, getBitmapWrapperStyle } from "./pageBitmapGeometry"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -137,27 +143,44 @@
     }
 
     const pageScale1 = $derived.by(() => {
-        if (viewport.isCompact && containerWidth > 0 && pdf) {
-            const pageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
-            if (layoutMode === "split") {
-                const secondPageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
-                return (containerWidth / (pageWidth + secondPageWidth)) * compactZoomMultiplier()
-            }
-            return (containerWidth / pageWidth) * compactZoomMultiplier()
+        const dimension = currentPageDim1 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
         }
-        return effectiveScale
+        const otherDimension =
+            currentPageDim2 ||
+            (layoutMode === "split"
+                ? { width: pdf?.defaultWidth || 612, height: pdf?.defaultHeight || 792 }
+                : null)
+        return getBitmapPageScale({
+            containerWidth,
+            dimension,
+            otherDimension,
+            layout: layoutMode === "split" ? "split" : "single",
+            effectiveScale,
+            defaultScale: DEFAULT_SETTINGS.scale,
+            compact: viewport.isCompact && !!pdf,
+        })
     })
 
     const pageScale2 = $derived.by(() => {
-        if (viewport.isCompact && containerWidth > 0 && pdf) {
-            const pageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
-            if (layoutMode === "split") {
-                const firstPageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
-                return (containerWidth / (firstPageWidth + pageWidth)) * compactZoomMultiplier()
-            }
-            return (containerWidth / pageWidth) * compactZoomMultiplier()
+        const dimension = currentPageDim2 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
         }
-        return effectiveScale
+        const otherDimension = currentPageDim1 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
+        }
+        return getBitmapPageScale({
+            containerWidth,
+            dimension,
+            otherDimension,
+            layout: layoutMode === "split" ? "split" : "single",
+            effectiveScale,
+            defaultScale: DEFAULT_SETTINGS.scale,
+            compact: viewport.isCompact && !!pdf,
+        })
     })
 
     function getPageHeight(dim: { width: number; height: number }, targetScale = effectiveScale) {
@@ -170,7 +193,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale1}px; height: ${dim.height * pageScale1}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale1};`
+        return getBitmapWrapperStyle(dim, pageScale1)
     })
 
     const wrapperStyle2 = $derived.by(() => {
@@ -179,7 +202,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale2};`
+        return getBitmapWrapperStyle(dim, pageScale2)
     })
 
     let isAutoScrolling = false
@@ -310,11 +333,60 @@
     let lastUpdatedScrollTop = 0
     let scrollEndTimeout: ReturnType<typeof setTimeout> | undefined
     let rafId: number | null = null
+    let pendingResizeAnchor: ScrollAnchor | null = null
+    let resizeRestoreRaf: number | null = null
+    let isResizeRestoring = false
+
+    function updateContainerWidth(nextWidth: number) {
+        if (nextWidth === containerWidth) return
+        if (
+            viewport.isCompact &&
+            layoutMode === "scroll" &&
+            container &&
+            hasRestoredScroll &&
+            pageOffsets.length > 0
+        ) {
+            pendingResizeAnchor ??= captureScrollAnchor(
+                currentPage,
+                container.scrollTop,
+                container.clientHeight,
+                pageOffsets,
+                pageDimensions.map((dimension) => getPageHeight(dimension)),
+            )
+            isResizeRestoring = pendingResizeAnchor !== null
+            if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+        }
+
+        containerWidth = nextWidth
+        if (!pendingResizeAnchor) return
+        if (resizeRestoreRaf !== null) cancelAnimationFrame(resizeRestoreRaf)
+        resizeRestoreRaf = requestAnimationFrame(() => {
+            if (!container || !pendingResizeAnchor) return
+            const heights = pageDimensions.map((dimension) => getPageHeight(dimension))
+            const targetTop = restoreScrollAnchor(
+                pendingResizeAnchor,
+                container.clientHeight,
+                pageOffsets,
+                heights,
+                container.scrollHeight - container.clientHeight,
+            )
+            container.scrollTo({ top: targetTop, behavior: "auto" })
+            scrollTop = targetTop
+            lastUpdatedScrollTop = targetTop
+            lastObservedPage = pendingResizeAnchor.page
+            resizeRestoreRaf = requestAnimationFrame(() => {
+                pendingResizeAnchor = null
+                isResizeRestoring = false
+                resizeRestoreRaf = null
+            })
+        })
+    }
 
     onDestroy(() => {
         if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
         if (rafId !== null) cancelAnimationFrame(rafId)
         if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
+        if (resizeRestoreRaf !== null) cancelAnimationFrame(resizeRestoreRaf)
     })
 
     function findPageAtOffset(offset: number): number {
@@ -377,14 +449,14 @@
 
     function syncScrollStateFallback() {
         if (typeof window !== "undefined" && !("onscrollend" in window)) {
-            if (container && hasRestoredScroll) {
+            if (container && hasRestoredScroll && !isResizeRestoring) {
                 syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
             }
         }
     }
 
     function handleScroll(e: Event) {
-        if (!hasRestoredScroll) return
+        if (!hasRestoredScroll || isResizeRestoring) return
 
         const target = e.target as HTMLElement
 
@@ -427,7 +499,7 @@
         if (typeof window !== "undefined" && !("onscrollend" in window)) {
             if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
             scrollEndTimeout = setTimeout(() => {
-                if (container && hasRestoredScroll) {
+                if (container && hasRestoredScroll && !isResizeRestoring) {
                     syncScrollState(
                         container.scrollTop,
                         container.clientHeight,
@@ -1263,7 +1335,7 @@
         class="canvas-frame"
         bind:this={container}
         bind:clientHeight={containerHeight}
-        bind:clientWidth={containerWidth}
+        bind:clientWidth={() => containerWidth, updateContainerWidth}
         onscroll={handleScroll}
         onscrollend={() => {
             if (isAutoScrolling) {
@@ -1271,7 +1343,7 @@
                 if (autoScrollTimeout) clearTimeout(autoScrollTimeout)
             }
             // Sync final exact scroll state when scroll ends
-            if (container && hasRestoredScroll) {
+            if (container && hasRestoredScroll && !isResizeRestoring) {
                 syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
             }
         }}

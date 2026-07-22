@@ -39,16 +39,10 @@ describe("slider gesture policy", () => {
         expect(shouldCompleteGesture({ ...base, deltaX: 49, elapsed: 100 })).toBe(false)
     })
 
-    it("rejects an excessive diagonal fast swipe", () => {
-        expect(
-            shouldCompleteGesture({
-                deltaX: 80,
-                deltaY: 101,
-                elapsed: 100,
-                viewportWidth: 400,
-                viewportHeight: 800,
-            }),
-        ).toBe(false)
+    it("rejects excessive final vertical drift for fast swipes and long drags", () => {
+        const base = { deltaY: 101, viewportWidth: 400, viewportHeight: 800 }
+        expect(shouldCompleteGesture({ ...base, deltaX: 80, elapsed: 100 })).toBe(false)
+        expect(shouldCompleteGesture({ ...base, deltaX: 140, elapsed: 600 })).toBe(false)
     })
 
     it("pans scrollable content until the relevant edge", () => {
@@ -68,15 +62,18 @@ describe("slider gesture policy", () => {
     it("cancels settlement for touch cancellation, disablement, or cleanup", () => {
         const commits: string[] = []
         let scheduled: (() => void) | undefined
-        const settlement = createSettlementController((direction) => commits.push(direction), {
-            schedule: (callback) => {
-                scheduled = callback
-                return callback
+        const settlement = createSettlementController<string>(
+            (direction) => commits.push(direction),
+            {
+                schedule: (callback) => {
+                    scheduled = callback
+                    return callback
+                },
+                cancel: () => {
+                    scheduled = undefined
+                },
             },
-            cancel: () => {
-                scheduled = undefined
-            },
-        })
+        )
 
         settlement.begin("next", 150)
         settlement.cancel()
@@ -85,29 +82,34 @@ describe("slider gesture policy", () => {
         expect(commits).toEqual([])
     })
 
-    it("owns interrupted settlement and commits at most once", () => {
-        const commits: string[] = []
+    it("owns an opaque interrupted settlement payload and commits it at most once", () => {
+        const commits: Array<{ page: number }> = []
         const callbacks: Array<() => void> = []
         const cancelled = new Set<unknown>()
-        const settlement = createSettlementController((direction) => commits.push(direction), {
-            schedule: (callback) => {
-                callbacks.push(callback)
-                return callback
+        const settlement = createSettlementController<{ page: number }>(
+            (payload) => commits.push(payload),
+            {
+                schedule: (callback) => {
+                    callbacks.push(callback)
+                    return callback
+                },
+                cancel: (handle) => cancelled.add(handle),
             },
-            cancel: (handle) => cancelled.add(handle),
-        })
+        )
 
-        settlement.begin("next", 150)
-        settlement.begin("previous", 150)
+        settlement.begin({ page: 2 }, 150)
+        settlement.begin({ page: 3 }, 150)
         expect(cancelled.has(callbacks[0])).toBe(true)
         callbacks[1]()
         settlement.finish()
-        expect(commits).toEqual(["previous"])
+        expect(commits).toEqual([{ page: 3 }])
     })
 
     it("commits immediately when motion is disabled", () => {
         const commits: string[] = []
-        const settlement = createSettlementController((direction) => commits.push(direction))
+        const settlement = createSettlementController<string>((direction) =>
+            commits.push(direction),
+        )
         settlement.begin("next", 0)
         expect(commits).toEqual(["next"])
         expect(settlement.pending).toBeNull()

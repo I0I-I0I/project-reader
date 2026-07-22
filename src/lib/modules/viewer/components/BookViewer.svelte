@@ -20,17 +20,17 @@
     import ViewerHeader from "./ViewerHeader.svelte"
     import Sidebar from "./Sidebar.svelte"
     import CanvasPane from "./CanvasPane.svelte"
+    import PageBitmapPreview from "./PageBitmapPreview.svelte"
     import ViewerFooter from "./ViewerFooter.svelte"
     import { notesStore } from "../stores/notesStore.svelte"
     import NoteIcon from "$lib/shared/icons/NoteIcon.svelte"
-    import type { UserNote } from "$lib/modules/documents"
     import { bookmarksStore } from "../stores/bookmarksStore.svelte"
     import ViewerModals from "./ViewerModals.svelte"
     import { mountViewerUIStore } from "../stores/viewerUIStore.svelte"
 
     const viewerUIStore = mountViewerUIStore()
     import { localizedPath } from "$lib/modules/settings"
-    import { settingsStore } from "$lib/modules/settings"
+    import { DEFAULT_SETTINGS, settingsStore } from "$lib/modules/settings"
     import { motionPreferences } from "$lib/shared/state/motion.svelte"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
     import { cubicInOut } from "svelte/easing"
@@ -55,6 +55,8 @@
     import { viewerSettingsCommands } from "../commands/viewerSettingsCommands"
     import { createViewerBookmarkCommands } from "../commands/viewerBookmarkCommandFactory"
     import { getViewerTapAction } from "../commands/viewerTapNavigation"
+    import { createPageRenderPlan, getPageTarget, type PageLayout } from "./pageSliderPolicy"
+    import { renderBookViewerBitmaps } from "./bookViewerPreload"
 
     let commandsNode = $state.raw<CommandScope>(undefined as any)
     let scrollContainer = $state<HTMLElement | null>(null)
@@ -83,8 +85,7 @@
             previousPage: () => prevPage(),
             close: () => {
                 if (notesStore.editingNote || notesStore.activePopup) {
-                    notesStore.editingNote = null
-                    notesStore.editorCoords = null
+                    void notesStore.closeEditor()
                     notesStore.activePopup = null
                     return
                 }
@@ -92,12 +93,12 @@
                 if (book) vfsStore.pushForwardHistory(book.id)
                 handleClose()
             },
-            scroll: (payload) => {
+            scroll: (payload, scrollAmount) => {
                 if (!payload) return
                 const pane = getScrollContainer()
                 if (!pane) return
                 const amount =
-                    payload.amount === "page" ? window.innerHeight / 2 : window.innerHeight * 0.2
+                    scrollAmount === "half-page" ? pane.clientHeight / 2 : window.innerHeight * 0.2
                 pane.scrollBy({
                     top: payload.direction === "up" ? -amount : amount,
                     behavior: !payload.repeated && settingsStore.animations ? "smooth" : "auto",
@@ -304,7 +305,8 @@
         viewerSettingsCommands.zoomOut,
         viewerSettingsCommands.qualityIn,
         viewerSettingsCommands.qualityOut,
-        viewerNavigationCommands["viewer.scroll"],
+        viewerNavigationCommands["viewer.scroll.step"],
+        viewerNavigationCommands["viewer.scroll.half-page"],
         viewerNavigationCommands["viewer.page.next"],
         viewerNavigationCommands["viewer.page.previous"],
         viewerDisplayCommands["viewer.sidebar.outline.toggle"],
@@ -320,6 +322,7 @@
             ...viewerSearchCommands["viewer.search.close"],
             keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,
+            dismissFocusedElement: true,
             disabled: () => !searchStore.isActive,
         },
         viewerSearchCommands["viewer.search.next"],
@@ -435,12 +438,12 @@
         }
     }
 
-    function saveCurrentNote() {
+    async function saveCurrentNote() {
         const editorState = notesStore.editingNote
         if (!editorState) return
 
         if ("isNew" in editorState) {
-            notesStore.addNote(
+            await notesStore.addNote(
                 editorState.bookId,
                 editorState.pageNumber,
                 editorState.start,
@@ -450,11 +453,7 @@
                 editorState.color,
             )
         } else {
-            notesStore.updateNote(
-                (editorState as UserNote).id,
-                editorState.noteContent || "",
-                editorState.color,
-            )
+            await notesStore.closeEditor()
         }
     }
 
@@ -480,8 +479,7 @@
                     notesStore.activeSelection = null
                 }
                 notesStore.activePopup = null
-                notesStore.editingNote = null
-                notesStore.editorCoords = null
+                void notesStore.closeEditor()
             }
         }
 
@@ -708,6 +706,8 @@
         const pageNo = viewerStore.currentPage
         const mode = settingsStore.layout
         const quality = settingsStore.quality
+        const pageCount = totalPages
+        const includeAdjacent = viewport.isCompact
 
         if (!currentPdf || !loaded || mode === "scroll") {
             untrack(() => {
@@ -733,9 +733,18 @@
         }
 
         const controller = new AbortController()
-
+        const layout: PageLayout = mode
+        const renderPlan = createPageRenderPlan({
+            currentPage: pageNo,
+            totalPages: pageCount,
+            layout,
+            includeAdjacent,
+        })
         untrack(() => {
-            const step = mode === "split" ? 2 : 1
+            const canPromoteNeighbor =
+                lastBitmapPdf === currentPdf &&
+                lastBitmapLayout === mode &&
+                lastBitmapQuality === quality
             const keepCurrentBitmap =
                 lastBitmapPdf === currentPdf &&
                 lastPageNo === pageNo &&
@@ -746,14 +755,22 @@
 
             // Reuse preloaded images and dimensions if possible to prevent flicker
             let matched = false
-            if (pageNo === lastPageNo + step && nextPageImage) {
+            if (
+                canPromoteNeighbor &&
+                pageNo === getPageTarget(lastPageNo, pageCount, layout, "next") &&
+                nextPageImage
+            ) {
                 currentPageImage = nextPageImage
                 currentPageImage2 = nextPageImage2
                 currentPageDim1 = nextPageDim1
                 currentPageDim2 = nextPageDim2
                 isPageLoading = false
                 matched = true
-            } else if (pageNo === lastPageNo - step && prevPageImage) {
+            } else if (
+                canPromoteNeighbor &&
+                pageNo === getPageTarget(lastPageNo, pageCount, layout, "previous") &&
+                prevPageImage
+            ) {
                 currentPageImage = prevPageImage
                 currentPageImage2 = prevPageImage2
                 currentPageDim1 = prevPageDim1
@@ -786,123 +803,36 @@
 
             const renderPages = async () => {
                 try {
-                    if (!matched) {
-                        // Current page/spread
-                        const page1 = await currentPdf.getPage(pageNo)
-                        const img1 = await currentPdf.getCanvasPage(
-                            page1,
-                            quality,
-                            controller.signal,
-                        )
-                        const dim1 = await currentPdf.getPageDimension(pageNo)
-                        let img2: string | null = null
-                        let dim2: { width: number; height: number } | null = null
+                    await renderBookViewerBitmaps({
+                        pdf: currentPdf,
+                        quality,
+                        plan: renderPlan,
+                        signal: controller.signal,
+                        skipCurrent: matched,
+                        publish: (role, results) => {
+                            const first = results[0]
+                            if (!first) return
+                            const second = results[1]
 
-                        if (mode === "split" && pageNo + 1 <= totalPages) {
-                            const page2 = await currentPdf.getPage(pageNo + 1)
-                            img2 = await currentPdf.getCanvasPage(page2, quality, controller.signal)
-                            dim2 = await currentPdf.getPageDimension(pageNo + 1)
-                        }
-
-                        if (!controller.signal.aborted) {
-                            currentPageImage = img1
-                            currentPageImage2 = img2
-                            currentPageDim1 = dim1
-                            currentPageDim2 = dim2
-                            isPageLoading = false
-                        }
-                    }
-
-                    // Render prev and next pages in the background
-                    const renderBackgroundPages = async () => {
-                        let pImg1: string | null = null
-                        let pImg2: string | null = null
-                        let pDim1: { width: number; height: number } | null = null
-                        let pDim2: { width: number; height: number } | null = null
-
-                        if (viewport.isCompact && pageNo > step) {
-                            try {
-                                const prevPageNo = pageNo - step
-                                const prevPage1 = await currentPdf.getPage(prevPageNo)
-                                pImg1 = await currentPdf.getCanvasPage(
-                                    prevPage1,
-                                    quality,
-                                    controller.signal,
-                                )
-                                pDim1 = await currentPdf.getPageDimension(prevPageNo)
-                                if (mode === "split" && prevPageNo + 1 <= totalPages) {
-                                    const prevPage2 = await currentPdf.getPage(prevPageNo + 1)
-                                    pImg2 = await currentPdf.getCanvasPage(
-                                        prevPage2,
-                                        quality,
-                                        controller.signal,
-                                    )
-                                    pDim2 = await currentPdf.getPageDimension(prevPageNo + 1)
-                                }
-                            } catch (err) {
-                                // Ignore background preloading errors
+                            if (role === "current") {
+                                currentPageImage = first.image
+                                currentPageImage2 = second?.image ?? null
+                                currentPageDim1 = first.dimension
+                                currentPageDim2 = second?.dimension ?? null
+                                isPageLoading = false
+                            } else if (role === "previous") {
+                                prevPageImage = first.image
+                                prevPageImage2 = second?.image ?? null
+                                prevPageDim1 = first.dimension
+                                prevPageDim2 = second?.dimension ?? null
+                            } else {
+                                nextPageImage = first.image
+                                nextPageImage2 = second?.image ?? null
+                                nextPageDim1 = first.dimension
+                                nextPageDim2 = second?.dimension ?? null
                             }
-                        }
-
-                        let nImg1: string | null = null
-                        let nImg2: string | null = null
-                        let nDim1: { width: number; height: number } | null = null
-                        let nDim2: { width: number; height: number } | null = null
-
-                        if (viewport.isCompact && pageNo < totalPages) {
-                            try {
-                                const nextPageNo = pageNo + step
-                                if (nextPageNo <= totalPages) {
-                                    const nextPage1 = await currentPdf.getPage(nextPageNo)
-                                    nImg1 = await currentPdf.getCanvasPage(
-                                        nextPage1,
-                                        quality,
-                                        controller.signal,
-                                    )
-                                    nDim1 = await currentPdf.getPageDimension(nextPageNo)
-                                    if (mode === "split" && nextPageNo + 1 <= totalPages) {
-                                        const nextPage2 = await currentPdf.getPage(nextPageNo + 1)
-                                        nImg2 = await currentPdf.getCanvasPage(
-                                            nextPage2,
-                                            quality,
-                                            controller.signal,
-                                        )
-                                        nDim2 = await currentPdf.getPageDimension(nextPageNo + 1)
-                                    }
-                                }
-                            } catch (err) {
-                                // Ignore background preloading errors
-                            }
-                        }
-
-                        if (!controller.signal.aborted) {
-                            prevPageImage = pImg1
-                            prevPageImage2 = pImg2
-                            prevPageDim1 = pDim1
-                            prevPageDim2 = pDim2
-                            nextPageImage = nImg1
-                            nextPageImage2 = nImg2
-                            nextPageDim1 = nDim1
-                            nextPageDim2 = nDim2
-                        }
-                    }
-
-                    renderBackgroundPages()
-
-                    // Silently prerender the next 2 pages
-                    const nextPages =
-                        mode === "split" ? [pageNo + 2, pageNo + 3] : [pageNo + 1, pageNo + 2]
-
-                    for (const nextPageNo of nextPages) {
-                        if (nextPageNo <= totalPages && !controller.signal.aborted) {
-                            try {
-                                const page = new Page(nextPageNo)
-                                await currentPdf.getCanvasPage(page, quality, controller.signal)
-                            } catch (err) {
-                                // Silently ignore abortion/cancellation errors
-                            }
-                        }
-                    }
+                        },
+                    })
                 } catch (err: any) {
                     if (err.message?.startsWith("Rendering cancelled")) {
                         console.error("Failed to render page(s):", err)
@@ -913,7 +843,7 @@
                 }
             }
 
-            renderPages()
+            void renderPages()
         })
 
         return () => {
@@ -1042,26 +972,21 @@
         }
     }
 
+    function getPageSliderTarget(direction: SliderDirection) {
+        if (settingsStore.layout === "scroll") return undefined
+        return getPageTarget(viewerStore.currentPage, totalPages, settingsStore.layout, direction)
+    }
+
     function nextPage() {
-        if (!isPageLoading) {
-            const step = settingsStore.layout === "split" ? 2 : 1
-            if (viewerStore.currentPage + step <= totalPages) {
-                viewerStore.goToPage(viewerStore.currentPage + step)
-            } else if (viewerStore.currentPage < totalPages) {
-                viewerStore.goToPage(viewerStore.currentPage + 1)
-            }
-        }
+        if (isPageLoading) return
+        const target = getPageSliderTarget("next")
+        if (target !== undefined) viewerStore.goToPage(target)
     }
 
     function prevPage() {
-        if (!isPageLoading) {
-            const step = settingsStore.layout === "split" ? 2 : 1
-            if (viewerStore.currentPage - step >= 1) {
-                viewerStore.goToPage(viewerStore.currentPage - step)
-            } else if (viewerStore.currentPage > 1) {
-                viewerStore.goToPage(1)
-            }
-        }
+        if (isPageLoading) return
+        const target = getPageSliderTarget("previous")
+        if (target !== undefined) viewerStore.goToPage(target)
     }
 
     function handleBodyClick(event: MouseEvent) {
@@ -1109,35 +1034,22 @@
         localStorage.setItem("viewer-gesture-hint-dismissed", "1")
     }
 
-    function canMovePage(direction: SliderDirection) {
-        const step = settingsStore.layout === "split" ? 2 : 1
-        if (direction === "next") {
-            return settingsStore.layout === "split"
-                ? viewerStore.currentPage + step <= totalPages ||
-                      viewerStore.currentPage < totalPages
-                : viewerStore.currentPage < totalPages
-        }
-        return viewerStore.currentPage > 1
-    }
+    function resolvePageMove(direction: SliderDirection) {
+        if (isPageLoading || settingsStore.layout === "scroll") return undefined
+        const targetPage = getPageSliderTarget(direction)
+        if (targetPage === undefined) return undefined
 
-    function movePage(direction: SliderDirection) {
-        const step = settingsStore.layout === "split" ? 2 : 1
-        let targetPage = viewerStore.currentPage
-        if (direction === "next") {
-            if (targetPage + step <= totalPages) {
-                targetPage += step
-            } else if (targetPage < totalPages) {
-                targetPage = totalPages
-            }
-        } else if (targetPage - step >= 1) {
-            targetPage -= step
-        } else if (targetPage > 1) {
-            targetPage = 1
+        const image = direction === "previous" ? prevPageImage : nextPageImage
+        const secondImage = direction === "previous" ? prevPageImage2 : nextPageImage2
+        const needsSecondImage = settingsStore.layout === "split" && targetPage + 1 <= totalPages
+        if (!image || (needsSecondImage && !secondImage)) return undefined
+
+        return () => {
+            void commandsStore.execute("viewer.page.go-to", {
+                page: targetPage,
+                isJump: false,
+            })
         }
-        void commandsStore.execute("viewer.page.go-to", {
-            page: targetPage,
-            isJump: false,
-        })
     }
 
     function slideHeader(node: HTMLElement, { duration = 250 }) {
@@ -1272,29 +1184,37 @@
 
                         {#if viewport.isCompact && settingsStore.layout !== "scroll"}
                             <Slider
-                                enabled={!modalManager.hasBlockingModal &&
+                                enabled={!isPageLoading &&
+                                    !modalManager.hasBlockingModal &&
                                     !sidebars.left &&
                                     !sidebars.settings}
-                                canMove={canMovePage}
-                                onMove={movePage}
+                                resolveMove={resolvePageMove}
                                 getHorizontalScrollContainer={() => scrollContainer}
                                 ariaLabel={m.viewer_reading_region()}
                             >
                                 {#snippet previous()}
-                                    {#if prevPageImage}
-                                        <CanvasPane
-                                            {pdf}
-                                            scale={settingsStore.scale}
-                                            currentPage={viewerStore.currentPage -
-                                                (settingsStore.layout === "split" ? 2 : 1)}
-                                            scrollPosition={0}
-                                            renderLayers={false}
-                                            isPageLoading={false}
+                                    {@const target = getPageSliderTarget("previous")}
+                                    {#if target !== undefined && prevPageImage && prevPageDim1}
+                                        <PageBitmapPreview
+                                            currentPage={target}
                                             currentPageImage={prevPageImage}
                                             currentPageImage2={prevPageImage2}
-                                            layoutMode={settingsStore.layout}
                                             currentPageDim1={prevPageDim1}
                                             currentPageDim2={prevPageDim2}
+                                            layoutMode={settingsStore.layout === "split"
+                                                ? "split"
+                                                : "single"}
+                                            effectiveScale={viewport.innerWidth <=
+                                            viewport.innerHeight
+                                                ? DEFAULT_SETTINGS.scale
+                                                : settingsStore.scale}
+                                            defaultScale={DEFAULT_SETTINGS.scale}
+                                            defaultPageDimension={{
+                                                width: pdf?.defaultWidth || 612,
+                                                height: pdf?.defaultHeight || 792,
+                                            }}
+                                            isCompactPortrait={viewport.innerWidth <=
+                                                viewport.innerHeight}
                                         />
                                     {/if}
                                 {/snippet}
@@ -1316,20 +1236,28 @@
                                 {/snippet}
 
                                 {#snippet next()}
-                                    {#if nextPageImage}
-                                        <CanvasPane
-                                            {pdf}
-                                            scale={settingsStore.scale}
-                                            currentPage={viewerStore.currentPage +
-                                                (settingsStore.layout === "split" ? 2 : 1)}
-                                            scrollPosition={0}
-                                            renderLayers={false}
-                                            isPageLoading={false}
+                                    {@const target = getPageSliderTarget("next")}
+                                    {#if target !== undefined && nextPageImage && nextPageDim1}
+                                        <PageBitmapPreview
+                                            currentPage={target}
                                             currentPageImage={nextPageImage}
                                             currentPageImage2={nextPageImage2}
-                                            layoutMode={settingsStore.layout}
                                             currentPageDim1={nextPageDim1}
                                             currentPageDim2={nextPageDim2}
+                                            layoutMode={settingsStore.layout === "split"
+                                                ? "split"
+                                                : "single"}
+                                            effectiveScale={viewport.innerWidth <=
+                                            viewport.innerHeight
+                                                ? DEFAULT_SETTINGS.scale
+                                                : settingsStore.scale}
+                                            defaultScale={DEFAULT_SETTINGS.scale}
+                                            defaultPageDimension={{
+                                                width: pdf?.defaultWidth || 612,
+                                                height: pdf?.defaultHeight || 792,
+                                            }}
+                                            isCompactPortrait={viewport.innerWidth <=
+                                                viewport.innerHeight}
                                         />
                                     {/if}
                                 {/snippet}
@@ -1591,7 +1519,7 @@
         position: absolute;
         right: calc(16px + env(safe-area-inset-right));
         bottom: calc(16px + env(safe-area-inset-bottom));
-        z-index: var(--z-sticky);
+        z-index: var(--z-viewer-utilities);
         display: flex;
         flex-direction: column;
         align-items: flex-end;

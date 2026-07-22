@@ -18,7 +18,12 @@
     import { notesStore } from "../stores/notesStore.svelte"
     import { modalManager } from "$lib/shared/ui/modal/modalManager.svelte"
     import { Slider, type SliderDirection } from "$lib/shared/ui/slider"
-    import { LEFT_SIDEBAR_TABS, getAdjacentSidebarTab, type LeftSidebarTabId } from "./sidebarTabs"
+    import {
+        LEFT_SIDEBAR_TABS,
+        getAdjacentSidebarTab,
+        resolveSidebarTabMove,
+        type LeftSidebarTabId,
+    } from "./sidebarTabs"
 
     let {
         side = "left",
@@ -85,7 +90,7 @@
             if (!isEditableTarget(event.target)) return true
 
             const key = event.key.toLowerCase()
-            return key !== "q" && (isSettingsSidebar || key !== "escape")
+            return key !== "q"
         },
         close: () => onClose(),
     })
@@ -103,13 +108,14 @@
         return getAdjacentSidebarTab(activeTab, direction)
     }
 
-    function canSwipeTabs(direction: SliderDirection) {
-        return getSwipeDestination(direction) !== undefined
-    }
-
-    function moveSidebarTab(direction: SliderDirection) {
-        const destination = getSwipeDestination(direction)
-        if (destination) void shortcutScope.execute(destination.commandId)
+    function resolveSwipeTab(direction: SliderDirection) {
+        if (side !== "left" || activeTab === "settings") return undefined
+        return resolveSidebarTabMove(
+            activeTab,
+            direction,
+            () => activeTab,
+            (commandId) => void shortcutScope.execute(commandId),
+        )
     }
 </script>
 
@@ -204,8 +210,7 @@
             enabled={!modalManager.hasBlockingModal &&
                 !notesStore.editingNote &&
                 !notesStore.activePopup}
-            canMove={canSwipeTabs}
-            onMove={moveSidebarTab}
+            resolveMove={resolveSwipeTab}
             ariaLabel={panelLabel}
         >
             {#snippet previous()}

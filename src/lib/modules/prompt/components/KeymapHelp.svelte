@@ -27,16 +27,13 @@
     let filteredKeymaps = $derived(filterKeymapHelpItems(keymaps, searchQuery))
 
     function handleSearchKeydown(event: KeyboardEvent) {
-        if (event.key === "Escape") {
-            event.preventDefault()
-            searchInputRef?.blur()
-        } else if (event.key === "ArrowDown" || (event.ctrlKey && event.key === "n")) {
+        if (KeyboardHandler.matches(event, ["arrowdown", "ctrl+n"])) {
             event.preventDefault()
             contentElement?.scrollBy({
                 top: 80,
                 behavior: !event.repeat && animations ? "smooth" : "auto",
             })
-        } else if (event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")) {
+        } else if (KeyboardHandler.matches(event, ["arrowup", "ctrl+p"])) {
             event.preventDefault()
             contentElement?.scrollBy({
                 top: -80,

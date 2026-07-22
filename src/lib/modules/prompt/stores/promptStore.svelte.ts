@@ -125,11 +125,12 @@ class PromptStore implements PromptService {
         if (!isExpectedChild) this.cancelFlow()
 
         this.currentHistoryIndex = null
-        this.query = request.initialQuery
-            ? request.initialQuery
-            : request.rememberQuery
-              ? this.getLastQuery()
-              : ""
+        this.query =
+            request.initialQuery !== undefined
+                ? request.initialQuery
+                : request.restoreQuery
+                  ? this.getLastQuery()
+                  : ""
 
         return new Promise<unknown>((resolve) => {
             this.session = {

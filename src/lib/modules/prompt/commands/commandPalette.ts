@@ -5,7 +5,7 @@ import * as m from "$lib/paraglide/messages"
 
 export async function openCommandPalette(
     scope: CommandScope = commandsStore.activeScope ?? commandsStore.root,
-    initialQuery = "",
+    initialQuery?: string,
 ): Promise<void> {
     const commands = scope.listPaletteCommands()
     type PaletteChoice = {
@@ -60,6 +60,7 @@ export async function openCommandPalette(
         id: "command-palette",
         initialQuery,
         rememberQuery: true,
+        restoreQuery: true,
         items: (query: string) => {
             const pageChoice = parsePageChoice(query)
             return pageChoice

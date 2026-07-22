@@ -24,3 +24,18 @@ export function getAdjacentSidebarTab(
     const targetIndex = currentIndex + (direction === "next" ? 1 : -1)
     return LEFT_SIDEBAR_TABS[targetIndex]
 }
+
+export function resolveSidebarTabMove(
+    activeTab: LeftSidebarTabId,
+    direction: SliderDirection,
+    getActiveTab: () => LeftSidebarTabId | "settings",
+    execute: (commandId: LeftSidebarTab["commandId"]) => void,
+): (() => void) | undefined {
+    const destination = getAdjacentSidebarTab(activeTab, direction)
+    if (!destination) return undefined
+
+    return () => {
+        if (getActiveTab() === destination.id) return
+        execute(destination.commandId)
+    }
+}

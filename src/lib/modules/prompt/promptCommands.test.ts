@@ -49,6 +49,9 @@ describe("prompt commands", () => {
         ["Ctrl+P", createKeyboardEvent("p", "KeyP", { ctrlKey: true }), "previous"],
         ["Ctrl+K", createKeyboardEvent("k", "KeyK", { ctrlKey: true }), "previous"],
         ["Escape", createKeyboardEvent("Escape", "Escape"), "close"],
+        ["Ctrl+[", createKeyboardEvent("[", "BracketLeft", { ctrlKey: true }), "close"],
+        ["Ctrl+C", createKeyboardEvent("c", "KeyC", { ctrlKey: true }), "close"],
+        ["Ctrl+G", createKeyboardEvent("g", "KeyG", { ctrlKey: true }), "close"],
         ["Enter", createKeyboardEvent("Enter", "Enter"), "select"],
         ["Backspace", createKeyboardEvent("Backspace", "Backspace"), "navigateBack"],
         ["Alt+P", createKeyboardEvent("p", "KeyP", { altKey: true }), "historyBack"],
@@ -104,13 +107,16 @@ describe("prompt commands", () => {
         expect(scope.listPaletteCommands()).toEqual([])
     })
 
-    it("accepts and handles events from inputs", async () => {
+    it("closes on the first Escape press while the query input is focused", async () => {
         const { actions, scope, store } = setup()
         const event = createKeyboardEvent("Escape", "Escape")
 
         await store.handleKeydown(event, scope)
 
         expect(actions.close).toHaveBeenCalledOnce()
+        expect(createPromptCommands(actions)["prompt.close"]).not.toHaveProperty(
+            "dismissFocusedElement",
+        )
     })
 
     it("blocks parent shortcuts at the prompt keyboard boundary", async () => {

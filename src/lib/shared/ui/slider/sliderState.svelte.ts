@@ -18,10 +18,12 @@ const NATIVE_GESTURE_SELECTOR =
     "input, select, textarea, label, [contenteditable]:not([contenteditable='false']), [data-slider-ignore]"
 const SCROLL_TOLERANCE = 5
 
+export type SliderMove = () => void
+export type ResolveSliderMove = (direction: SliderDirection) => SliderMove | undefined
+
 interface SliderStateOptions {
     enabled: () => boolean
-    canMove: (direction: SliderDirection) => boolean
-    onMove: (direction: SliderDirection) => void
+    resolveMove: ResolveSliderMove
     getHorizontalScrollContainer?: () => HTMLElement | null
     motionEnabled: () => boolean
 }
@@ -79,57 +81,67 @@ export function createSliderState(options: SliderStateOptions) {
     let startY = 0
     let startTime = 0
     let gestureMode: GestureMode = "undecided"
+    let activeSession = false
 
-    const settlement = createSettlementController((direction) => {
+    const settlement = createSettlementController((operation: SliderMove) => {
         settling = false
         transition = "none"
         offsetX = "0px"
-        options.onMove(direction)
+        operation()
     })
+
+    function terminateSession() {
+        activeSession = false
+        gestureMode = "undecided"
+    }
 
     function cancel() {
         settlement.cancel()
         settling = false
         offsetX = "0px"
         transition = "none"
-        gestureMode = "undecided"
+        terminateSession()
     }
 
     function snapBack() {
         offsetX = "0px"
         transition = options.motionEnabled() ? `transform ${SNAP_BACK_DURATION}ms ease-out` : "none"
-        gestureMode = "undecided"
+        terminateSession()
     }
 
-    function settle(direction: SliderDirection) {
+    function settle(direction: SliderDirection, operation: SliderMove) {
         const animate = options.motionEnabled()
         settling = animate
         offsetX = direction === "next" ? "-33.333333%" : "33.333333%"
         transition = animate ? `transform ${SETTLE_DURATION}ms ease-out` : "none"
-        gestureMode = "undecided"
-        settlement.begin(direction, animate ? SETTLE_DURATION : 0)
+        terminateSession()
+        settlement.begin(operation, animate ? SETTLE_DURATION : 0)
     }
 
     function handleTouchStart(event: TouchEvent) {
+        terminateSession()
         if (event.touches.length !== 1) {
             cancel()
             return
         }
         if (!options.enabled() || settling) return
+
+        activeSession = true
+        startX = event.touches[0].clientX
+        startY = event.touches[0].clientY
+        startTime = Date.now()
         if (event.target instanceof Element && event.target.closest(NATIVE_GESTURE_SELECTOR)) {
             gestureMode = "native"
             return
         }
 
-        startX = event.touches[0].clientX
-        startY = event.touches[0].clientY
-        startTime = Date.now()
         gestureMode = isBrowserEdgeStart(startX, window.innerWidth) ? "native" : "undecided"
         offsetX = "0px"
         transition = "none"
     }
 
     function handleTouchMove(event: TouchEvent) {
+        if (!activeSession) return
         if (!options.enabled()) {
             cancel()
             return
@@ -153,11 +165,12 @@ export function createSliderState(options: SliderStateOptions) {
 
         if (event.cancelable) event.preventDefault()
         const direction = directionFromDelta(deltaX)
-        offsetX = `${applyBoundResistance(deltaX, options.canMove(direction))}px`
+        offsetX = `${applyBoundResistance(deltaX, options.resolveMove(direction) !== undefined)}px`
         transition = "none"
     }
 
     function handleTouchEnd(event: TouchEvent) {
+        if (!activeSession) return
         if (!options.enabled()) {
             cancel()
             return
@@ -184,9 +197,10 @@ export function createSliderState(options: SliderStateOptions) {
             viewportHeight: viewport?.height ?? window.innerHeight,
         })
 
-        if (shouldCommit && options.canMove(direction)) {
+        const operation = shouldCommit ? options.resolveMove(direction) : undefined
+        if (operation) {
             if (event.cancelable) event.preventDefault()
-            settle(direction)
+            settle(direction, operation)
         } else {
             snapBack()
         }

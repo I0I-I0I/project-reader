@@ -31,6 +31,7 @@
             category: "commands",
             keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,
+            dismissFocusedElement: true,
             run: () => onCancel(),
         },
     })["modal.cancel"]

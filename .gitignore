@@ -2,6 +2,7 @@ node_modules/
 tmp/
 .agents/
 PLAN.md
+.pi-subagents/
 
 # Output
 .output

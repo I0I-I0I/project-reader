@@ -45,10 +45,12 @@
     .floating-notification {
         position: fixed;
         top: calc(24px + env(safe-area-inset-top));
-        right: 0;
+        right: max(4px, env(safe-area-inset-right));
         z-index: 9999;
         display: inline-block;
+        width: max-content;
         min-width: 180px;
+        max-width: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - 10px);
         height: 70px;
         pointer-events: none;
         filter: drop-shadow(-6px 6px 0 var(--shadow-color));
@@ -71,7 +73,9 @@
     .notification-text {
         position: relative;
         z-index: var(--z-2);
-        width: max-content;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         height: 70px;
         display: flex;
         flex-direction: column;
@@ -81,6 +85,15 @@
         padding-right: 20px;
         box-sizing: border-box;
         font-family: inherit;
+        overflow: hidden;
+    }
+
+    .line1,
+    .line2 {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .line1 {
@@ -103,11 +116,30 @@
     @media (max-width: 800px) {
         .floating-notification {
             top: calc(68px + env(safe-area-inset-top));
-            right: 0;
         }
 
         .floating-notification.viewer-mode {
             top: calc(64px + env(safe-area-inset-top));
+        }
+    }
+
+    @media (--phone) {
+        .floating-notification {
+            min-width: 160px;
+        }
+
+        .notification-text {
+            padding-right: 12px;
+            padding-left: 50px;
+        }
+
+        .line1 {
+            font-size: var(--font-size-xl);
+        }
+
+        .line2 {
+            font-size: var(--font-size-xs);
+            letter-spacing: 0.06em;
         }
     }
 </style>

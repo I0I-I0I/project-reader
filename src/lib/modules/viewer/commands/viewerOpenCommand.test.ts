@@ -78,10 +78,26 @@ describe("viewer.open integration", () => {
 
         await expect(
             createViewerOpenCommand({ onFileAccessFailure }).run({ bookId: "book" }),
-        ).rejects.toBe(error)
+        ).resolves.toBeUndefined()
 
         expect(onFileAccessFailure).toHaveBeenCalledWith({ bookId: "book", error })
         expect(setCurrentBook).not.toHaveBeenCalled()
+        expect(vfsStore.clearForwardHistory).not.toHaveBeenCalled()
+        expect(goto).not.toHaveBeenCalled()
+    })
+
+    it("propagates unexpected viewer failures without offering relink recovery", async () => {
+        const error = new Error("viewer invariant failed")
+        nodes.book = { id: "book", type: "file", name: "Book", url: "blob:book", isLocked: false }
+        setCurrentBook.mockRejectedValueOnce(error)
+        const onFileAccessFailure = vi.fn()
+
+        await expect(
+            createViewerOpenCommand({ onFileAccessFailure }).run({ bookId: "book" }),
+        ).rejects.toBe(error)
+
+        expect(onFileAccessFailure).not.toHaveBeenCalled()
+        expect(setCurrentBook).toHaveBeenLastCalledWith(null)
         expect(vfsStore.clearForwardHistory).not.toHaveBeenCalled()
         expect(goto).not.toHaveBeenCalled()
     })

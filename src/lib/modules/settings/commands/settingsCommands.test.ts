@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("$app/state", () => ({
+    page: { url: new URL("https://example.test/") },
+}))
 import { CONSTANTS, settingsStore } from "../state/settingsStore.svelte"
 import { commandsStore } from "$lib/modules/commands"
 import { promptStore } from "$lib/modules/prompt"
@@ -45,17 +49,31 @@ describe("settings commands", () => {
         settingsStore.quality = originalQuality
     })
 
-    it("adds English aliases to native language choices", async () => {
+    it("uses one command path for language chooser and direct changes", async () => {
+        const original = settingsStore.language
         unregister = commandsStore.register(commandsStore.root, settingsCommands)
         commandsStore.activeScope = commandsStore.root
 
         const execution = commandsStore.execute("settings.language")
         await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(promptStore.snapshot?.request.id).toBe("settings.language")
         expect(promptStore.snapshot?.items.find(({ value }) => value === "ru")?.englishLabel).toBe(
             "Russian",
         )
-        promptStore.close()
+        expect(
+            promptStore.snapshot?.items.filter(({ description }) => description === "✓"),
+        ).toHaveLength(1)
+
+        const target = original === "en" ? "ru" : "en"
+        const targetIndex =
+            promptStore.snapshot?.items.findIndex(({ value }) => value === target) ?? -1
+        if (targetIndex > 0) promptStore.moveSelection(targetIndex)
+        await promptStore.selectCurrent()
         await execution
+        expect(settingsStore.language).toBe(target)
+
+        await commandsStore.execute("settings.language", { value: original })
+        expect(settingsStore.language).toBe(original)
     })
 
     it("uses one command path for chooser and direct theme changes", async () => {
@@ -66,6 +84,9 @@ describe("settings commands", () => {
         const execution = commandsStore.execute("settings.theme")
         await new Promise((resolve) => setTimeout(resolve, 0))
         expect(promptStore.snapshot?.request.id).toBe("settings.theme")
+        expect(
+            promptStore.snapshot?.items.filter(({ description }) => description === "✓"),
+        ).toHaveLength(1)
 
         const darkIndex =
             promptStore.snapshot?.items.findIndex(({ value }) => value === "dark") ?? -1

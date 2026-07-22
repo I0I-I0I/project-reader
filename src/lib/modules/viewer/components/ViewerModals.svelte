@@ -74,11 +74,17 @@
 
 {#if notesStore.editingNote}
     <NoteEditor
-        bind:editorState={notesStore.editingNote}
-        onCancel={() => {
-            notesStore.editingNote = null
-            notesStore.editorCoords = null
+        editorState={notesStore.editingNote}
+        onChange={({ noteContent, color }) => {
+            const editingNote = notesStore.editingNote
+            if (!editingNote) return
+            if ("isNew" in editingNote) {
+                notesStore.editingNote = { ...editingNote, noteContent, color }
+            } else {
+                notesStore.updateNoteDraft(editingNote.id, noteContent, color)
+            }
         }}
+        onCancel={() => void notesStore.closeEditor()}
     />
 {/if}
 

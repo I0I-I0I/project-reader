@@ -47,6 +47,7 @@
             label: () => m.cancel(),
             category: "commands",
             allowInInputs: true,
+            dismissFocusedElement: true,
             run: handleClose,
         },
     })

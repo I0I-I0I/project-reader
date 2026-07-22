@@ -44,6 +44,7 @@ class NotesStore {
 
     private pageRanges = new SvelteMap<number, { noteId: string; range: Range; color: string }[]>()
     private highlightUpdatePending = false
+    private pendingNoteWrites = new Map<string, ReturnType<typeof setTimeout>>()
 
     async loadNotesForBook(bookId: string) {
         if (!browser) return
@@ -99,33 +100,80 @@ class NotesStore {
         }
     }
 
+    updateNoteDraft(
+        id: string,
+        noteContent: string,
+        color: "yellow" | "green" | "blue" | "pink" | "purple",
+    ): void {
+        const idx = this.notes.findIndex((note) => note.id === id)
+        if (idx === -1) return
+
+        const updated = { ...this.notes[idx], noteContent, color }
+        this.notes[idx] = updated
+        this.notes = [...this.notes]
+        if (this.editingNote && "id" in this.editingNote && this.editingNote.id === id) {
+            this.editingNote = updated
+        }
+        if (this.activePopup?.note.id === id) {
+            this.activePopup = { ...this.activePopup, note: updated }
+        }
+        for (const [pageNumber, ranges] of this.pageRanges) {
+            if (!ranges.some((range) => range.noteId === id)) continue
+            this.pageRanges.set(
+                pageNumber,
+                ranges.map((range) => (range.noteId === id ? { ...range, color } : range)),
+            )
+        }
+        this.queueHighlightUpdate()
+
+        const pending = this.pendingNoteWrites.get(id)
+        if (pending) clearTimeout(pending)
+        this.pendingNoteWrites.set(
+            id,
+            setTimeout(() => {
+                this.pendingNoteWrites.delete(id)
+                void this.persistNote(id)
+            }, 300),
+        )
+    }
+
+    private async persistNote(id: string): Promise<void> {
+        const note = this.notes.find((candidate) => candidate.id === id)
+        if (!note) return
+        try {
+            await vfsStore.db.userNotes.put($state.snapshot(note))
+        } catch (e) {
+            console.error("[NotesStore] Failed to update note:", e)
+        }
+    }
+
+    async flushNoteUpdate(id: string): Promise<void> {
+        const pending = this.pendingNoteWrites.get(id)
+        if (pending) clearTimeout(pending)
+        this.pendingNoteWrites.delete(id)
+        await this.persistNote(id)
+    }
+
     async updateNote(
         id: string,
         noteContent: string,
         color: "yellow" | "green" | "blue" | "pink" | "purple",
-    ) {
-        const idx = this.notes.findIndex((n) => n.id === id)
-        if (idx !== -1) {
-            const updated = {
-                ...this.notes[idx],
-                noteContent,
-                color,
-            }
-            try {
-                await vfsStore.db.userNotes.put(updated)
-                this.notes[idx] = updated
-                this.notes = [...this.notes] // force reactivity update
-                this.activePopup = null
-                this.editingNote = null
-                this.editorCoords = null
-                this.queueHighlightUpdate()
-            } catch (e) {
-                console.error("[NotesStore] Failed to update note:", e)
-            }
-        }
+    ): Promise<void> {
+        this.updateNoteDraft(id, noteContent, color)
+        await this.flushNoteUpdate(id)
+    }
+
+    async closeEditor(): Promise<void> {
+        const editingNote = this.editingNote
+        this.editingNote = null
+        this.editorCoords = null
+        if (editingNote && "id" in editingNote) await this.flushNoteUpdate(editingNote.id)
     }
 
     async deleteNote(id: string) {
+        const pending = this.pendingNoteWrites.get(id)
+        if (pending) clearTimeout(pending)
+        this.pendingNoteWrites.delete(id)
         try {
             await vfsStore.db.userNotes.delete(id)
             const noteToDelete = this.notes.find((n) => n.id === id)
@@ -149,6 +197,8 @@ class NotesStore {
     }
 
     clear() {
+        for (const pending of this.pendingNoteWrites.values()) clearTimeout(pending)
+        this.pendingNoteWrites.clear()
         this.notes = []
         this.activePopup = null
         this.activeSelection = null
