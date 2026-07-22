@@ -4,6 +4,7 @@ import { defineConfig } from "vite"
 import basicSsl from "@vitejs/plugin-basic-ssl"
 
 export default defineConfig({
+    resolve: process.env.VITEST ? { conditions: ["browser"] } : undefined,
     server: {
         allowedHosts: true,
     },

@@ -71,7 +71,8 @@ export function shouldCompleteGesture({
         elapsed < FAST_SWIPE_DURATION &&
         Math.abs(deltaX) > FAST_SWIPE_DISTANCE &&
         Math.abs(deltaY) < maxDiagonal
-    const isLongDrag = Math.abs(deltaX) > viewportWidth * VIEWPORT_DISTANCE_RATIO
+    const isLongDrag =
+        Math.abs(deltaX) > viewportWidth * VIEWPORT_DISTANCE_RATIO && Math.abs(deltaY) < maxDiagonal
     return isFastSwipe || isLongDrag
 }
 
@@ -89,11 +90,11 @@ const timeoutScheduler: SettlementScheduler = {
     cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 }
 
-export function createSettlementController(
-    onCommit: (direction: SliderDirection) => void,
+export function createSettlementController<T>(
+    onCommit: (payload: T) => void,
     scheduler: SettlementScheduler = timeoutScheduler,
 ) {
-    let pending: SliderDirection | null = null
+    let pending: T | null = null
     let handle: unknown = null
 
     function cancel() {
@@ -103,16 +104,16 @@ export function createSettlementController(
     }
 
     function finish() {
-        const direction = pending
-        if (!direction) return
+        const payload = pending
+        if (payload === null) return
         handle = null
         pending = null
-        onCommit(direction)
+        onCommit(payload)
     }
 
-    function begin(direction: SliderDirection, delay: number) {
+    function begin(payload: T, delay: number) {
         cancel()
-        pending = direction
+        pending = payload
         if (delay <= 0) finish()
         else handle = scheduler.schedule(finish, delay)
     }

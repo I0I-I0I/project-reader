@@ -30,6 +30,7 @@
         restoreScrollAnchor,
         type ScrollAnchor,
     } from "../utils/scrollAnchor"
+    import { getBitmapPageScale, getBitmapWrapperStyle } from "./pageBitmapGeometry"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -142,27 +143,44 @@
     }
 
     const pageScale1 = $derived.by(() => {
-        if (viewport.isCompact && containerWidth > 0 && pdf) {
-            const pageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
-            if (layoutMode === "split") {
-                const secondPageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
-                return (containerWidth / (pageWidth + secondPageWidth)) * compactZoomMultiplier()
-            }
-            return (containerWidth / pageWidth) * compactZoomMultiplier()
+        const dimension = currentPageDim1 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
         }
-        return effectiveScale
+        const otherDimension =
+            currentPageDim2 ||
+            (layoutMode === "split"
+                ? { width: pdf?.defaultWidth || 612, height: pdf?.defaultHeight || 792 }
+                : null)
+        return getBitmapPageScale({
+            containerWidth,
+            dimension,
+            otherDimension,
+            layout: layoutMode === "split" ? "split" : "single",
+            effectiveScale,
+            defaultScale: DEFAULT_SETTINGS.scale,
+            compact: viewport.isCompact && !!pdf,
+        })
     })
 
     const pageScale2 = $derived.by(() => {
-        if (viewport.isCompact && containerWidth > 0 && pdf) {
-            const pageWidth = currentPageDim2?.width || pdf.defaultWidth || 612
-            if (layoutMode === "split") {
-                const firstPageWidth = currentPageDim1?.width || pdf.defaultWidth || 612
-                return (containerWidth / (firstPageWidth + pageWidth)) * compactZoomMultiplier()
-            }
-            return (containerWidth / pageWidth) * compactZoomMultiplier()
+        const dimension = currentPageDim2 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
         }
-        return effectiveScale
+        const otherDimension = currentPageDim1 || {
+            width: pdf?.defaultWidth || 612,
+            height: pdf?.defaultHeight || 792,
+        }
+        return getBitmapPageScale({
+            containerWidth,
+            dimension,
+            otherDimension,
+            layout: layoutMode === "split" ? "split" : "single",
+            effectiveScale,
+            defaultScale: DEFAULT_SETTINGS.scale,
+            compact: viewport.isCompact && !!pdf,
+        })
     })
 
     function getPageHeight(dim: { width: number; height: number }, targetScale = effectiveScale) {
@@ -175,7 +193,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale1}px; height: ${dim.height * pageScale1}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale1};`
+        return getBitmapWrapperStyle(dim, pageScale1)
     })
 
     const wrapperStyle2 = $derived.by(() => {
@@ -184,7 +202,7 @@
             (pdf
                 ? { width: pdf.defaultWidth || 612, height: pdf.defaultHeight || 792 }
                 : { width: 612, height: 792 })
-        return `width: ${dim.width * pageScale2}px; height: ${dim.height * pageScale2}px; --aspect-ratio: ${dim.width} / ${dim.height}; --display-scale: ${pageScale2};`
+        return getBitmapWrapperStyle(dim, pageScale2)
     })
 
     let isAutoScrolling = false

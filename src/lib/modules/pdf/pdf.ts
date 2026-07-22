@@ -400,6 +400,19 @@ export default class PDFDocument implements DocumentInterface {
             pdfPage.cleanup()
 
             const blobUrl = URL.createObjectURL(blob)
+            if (renderGeneration !== this.renderGeneration || this.renderedQuality !== quality) {
+                URL.revokeObjectURL(blobUrl)
+                throw new DOMException("Rendering superseded by a quality change", "AbortError")
+            }
+
+            const winner = this.pageCache.get(cacheKey)
+            if (winner) {
+                URL.revokeObjectURL(blobUrl)
+                this.pageCache.delete(cacheKey)
+                this.pageCache.set(cacheKey, winner)
+                return winner
+            }
+
             this.pageCache.set(cacheKey, blobUrl)
             this.enforcePageCacheLimit()
             return blobUrl

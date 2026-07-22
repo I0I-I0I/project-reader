@@ -139,6 +139,29 @@ describe("PDFDocument bitmap cache", () => {
         expect(revokedUrls).toContain(firstUrl)
     })
 
+    it("revokes the losing blob URL when concurrent same-page renders publish", async () => {
+        const pending: DeferredRender[] = []
+        const { pdf, createdUrls, revokedUrls } = createRenderHarness(() => {
+            const render = deferredRender()
+            pending.push(render)
+            return render
+        })
+
+        const firstRender = pdf.getCanvasPage(new Page(1), 2)
+        const secondRender = pdf.getCanvasPage(new Page(1), 2)
+        await vi.waitFor(() => expect(pending).toHaveLength(2))
+
+        pending[0].resolve()
+        const winner = await firstRender
+        pending[1].resolve()
+        const loserResult = await secondRender
+
+        expect(loserResult).toBe(winner)
+        expect(createdUrls).toHaveLength(2)
+        expect(revokedUrls).toContain(createdUrls[1])
+        expect(revokedUrls).not.toContain(winner)
+    })
+
     it("prevents an obsolete quality render from repopulating the active cache", async () => {
         const pending = new Map<number, DeferredRender>()
         const { pdf, renders } = createRenderHarness((quality) => {

@@ -1,16 +1,14 @@
 <script lang="ts">
     import type { Snippet } from "svelte"
     import { motionPreferences } from "$lib/shared/state/motion.svelte"
-    import { createSliderState } from "./sliderState.svelte"
-    import type { SliderDirection } from "./sliderGesture"
+    import { createSliderState, type ResolveSliderMove } from "./sliderState.svelte"
 
     interface Props {
         current: Snippet
         previous?: Snippet
         next?: Snippet
         enabled?: boolean
-        canMove: (direction: SliderDirection) => boolean
-        onMove: (direction: SliderDirection) => void
+        resolveMove: ResolveSliderMove
         getHorizontalScrollContainer?: () => HTMLElement | null
         ariaLabel?: string
         class?: string
@@ -21,8 +19,7 @@
         previous,
         next,
         enabled = true,
-        canMove,
-        onMove,
+        resolveMove,
         getHorizontalScrollContainer,
         ariaLabel,
         class: className = "",
@@ -30,8 +27,7 @@
 
     const slider = createSliderState({
         enabled: () => enabled,
-        canMove: (direction) => canMove(direction),
-        onMove: (direction) => onMove(direction),
+        resolveMove: (direction) => resolveMove(direction),
         getHorizontalScrollContainer: () => getHorizontalScrollContainer?.() ?? null,
         motionEnabled: () => motionPreferences.enabled,
     })
