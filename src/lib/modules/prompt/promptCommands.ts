@@ -15,7 +15,7 @@ export function createPromptCommands(actions: PromptCommandActions) {
     return defineCommands({
         "prompt.close": {
             id: "prompt.close",
-            keymap: "escape",
+            keymap: ["escape", "ctrl+[", "ctrl+c", "ctrl+g"],
             label: () => "Close prompt",
             category: "navigation",
             palette: false,

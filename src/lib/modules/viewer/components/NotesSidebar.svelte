@@ -19,6 +19,7 @@
     import { createViewerListCommands } from "../commands/viewerListCommands"
     import { withViewerInputShortcut } from "../commands/viewerInputShortcutCommand"
     import { tick, untrack } from "svelte"
+    import { buildSidebarNavigationHints, findSidebarShortcut } from "./sidebarShortcutHints"
 
     const viewerUIStore = useViewerUIStore()
 
@@ -84,9 +85,6 @@
                 selectNote(note)
                 onClose()
             }
-        } else if (event.key === "Escape") {
-            event.preventDefault()
-            searchInputRef?.blur()
         }
     }
 
@@ -163,7 +161,7 @@
         !isEditableTarget(event.target) ||
         (isSearchFocused && KeyboardHandler.matches(event, inputKey))
 
-    useCommands(
+    const listCommandScope = useCommands(
         [
             ...createViewerListCommands({
                 nextLabel: () => m.keymap_next_note(),
@@ -208,48 +206,34 @@
         { autoActivate: untrack(() => interactive) },
     )
 
-    function formatKey(keys: string): string {
-        const modifiers = ["ctrl", "meta", "alt", "shift"]
-        const parts = keys.split("+")
-        parts.sort((a, b) => {
-            const aLower = a.toLowerCase().trim()
-            const bLower = b.toLowerCase().trim()
-            const aIdx = modifiers.indexOf(aLower)
-            const bIdx = modifiers.indexOf(bLower)
-
-            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
-            if (aIdx !== -1) return -1
-            if (bIdx !== -1) return 1
-            return aLower.localeCompare(bLower)
-        })
-        return parts
-            .map((part) => {
-                const lower = part.toLowerCase().trim()
-                if (lower === "arrowup") return "↑"
-                if (lower === "arrowdown") return "↓"
-                if (lower === "ctrl") return "C"
-                if (lower === "meta") return "M"
-                if (lower === "alt") return "A"
-                if (lower === "shift") return "S"
-                if (lower === "escape") return "Esc"
-                if (lower === "enter") return "Enter"
-                if (lower.length === 1) return lower
-                return part
-            })
-            .join("-")
-    }
-
-    const navigateShortcuts = [
-        { display: `${formatKey("j")}/${formatKey("k")}` },
-        { display: `${formatKey("arrowdown")}/${formatKey("arrowup")}` },
-        KeyboardHandler.isChromiumNonMac()
-            ? { display: `${formatKey("ctrl+j")}/${formatKey("ctrl+k")}` }
-            : { display: `${formatKey("ctrl+n")}/${formatKey("ctrl+p")}` },
-    ]
-    const selectShortcut = formatKey("enter")
-    const searchShortcut = formatKey("/")
-    let editShortcut = $derived(formatKey(isSearchFocused ? "ctrl+e" : "e"))
-    let deleteShortcut = $derived(formatKey(isSearchFocused ? "ctrl+d" : "d"))
+    let navigateShortcuts = $derived(
+        buildSidebarNavigationHints(
+            listCommandScope.getShortcut("viewer.list.next"),
+            listCommandScope.getShortcut("viewer.list.previous"),
+            isSearchFocused,
+        ),
+    )
+    let selectShortcut = $derived(
+        findSidebarShortcut(listCommandScope.getShortcut("viewer.list.select"), "enter"),
+    )
+    let searchShortcut = $derived(
+        findSidebarShortcut(listCommandScope.getShortcut("viewer.list.search"), "/"),
+    )
+    let closeShortcut = $derived(
+        findSidebarShortcut(listCommandScope.getShortcut("viewer.sidebar.close"), "escape"),
+    )
+    let editShortcut = $derived(
+        findSidebarShortcut(
+            listCommandScope.getShortcut("viewer.note.edit"),
+            isSearchFocused ? "ctrl+e" : "e",
+        ),
+    )
+    let deleteShortcut = $derived(
+        findSidebarShortcut(
+            listCommandScope.getShortcut("viewer.note.delete"),
+            isSearchFocused ? "ctrl+d" : "d",
+        ),
+    )
 
     function formatTimestamp(timestamp: number): string {
         return new Date(timestamp).toLocaleString(undefined, {
@@ -280,12 +264,7 @@
     onClear={resetSelection}
     placeholder={`${m.search_notes_placeholder()} [${searchShortcut}]`}
     onkeydown={handleSearchKeydown}
-    onfocus={() => {
-        isSearchFocused = true
-    }}
-    onblur={() => {
-        isSearchFocused = false
-    }}
+    bind:focused={isSearchFocused}
     clearLabel={m.clear_search_aria()}
 />
 
@@ -358,26 +337,17 @@
             {m.navigate()}
         </span>
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{selectShortcut}</kbd>
-            {m.go()}
-        </span>
+        <span class="hint-item"><kbd>{selectShortcut}</kbd> {m.go()}</span>
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{searchShortcut}</kbd>
-            {m.search()}
-        </span>
+        {#if isSearchFocused}
+            <span class="hint-item"><kbd>{closeShortcut}</kbd> {m.close_search()}</span>
+        {:else}
+            <span class="hint-item"><kbd>{searchShortcut}</kbd> {m.search()}</span>
+        {/if}
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{editShortcut}</kbd>
-            {m.edit()}
-        </span>
+        <span class="hint-item"><kbd>{editShortcut}</kbd> {m.edit()}</span>
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{deleteShortcut}</kbd>
-            {m.delete()}
-        </span>
-        <span class="hint-divider">•</span>
+        <span class="hint-item"><kbd>{deleteShortcut}</kbd> {m.delete()}</span>
     </SidebarFooter>
 {/if}
 

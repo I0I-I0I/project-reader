@@ -20,6 +20,7 @@
     import { requestLibraryNodeDelete } from "../commands/libraryNodeExecution"
     import { settingsStore } from "$lib/modules/settings"
     import { resolveBookTitle } from "../utils/bookTitle"
+    import { formatBookProgress } from "../utils/bookProgress"
 
     const libraryUI = useLibraryUI()
 
@@ -141,7 +142,7 @@
                 id: fileNode.id,
                 name: resolveBookTitle(fileNode, settingsStore.preferPdfTitle),
                 updatedAt: fileNode.updatedAt,
-                pageNumber: fileNode.metadata.pageNumber || 1,
+                pageNumber: fileNode.metadata.pageNumber,
                 totalPages: fileNode.metadata.totalPages,
                 author: fileNode.metadata.author,
                 previewDataUrl: previewUrl,
@@ -150,6 +151,12 @@
         }
         return null
     })
+
+    let pageProgress = $derived(
+        book
+            ? formatBookProgress(book.pageNumber, book.totalPages, (total) => m.of_pages({ total }))
+            : undefined,
+    )
 
     let progressPercent = $derived.by(() => {
         if (
@@ -354,8 +361,8 @@
                         {:else}
                             {m.unknown_author()}
                         {/if}
-                        {#if book?.totalPages}
-                            · {m.of_pages({ total: book.totalPages })}
+                        {#if pageProgress}
+                            · {pageProgress}
                         {/if}
                     </p>
                 {/if}

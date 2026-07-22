@@ -13,6 +13,7 @@
     import NavigationIcon from "$lib/shared/icons/NavigationIcon.svelte"
     import CheckIcon from "$lib/shared/icons/CheckIcon.svelte"
     import MinusIcon from "$lib/shared/icons/MinusIcon.svelte"
+    import NewFolderIcon from "$lib/shared/icons/NewFolderIcon.svelte"
     import Button from "$lib/shared/ui/Button.svelte"
 
     import { vfsStore } from "$lib/modules/documents"
@@ -179,6 +180,16 @@
             startFocusPicker: () => startPicker("focusCard"),
             startSelectionPicker: () => startPicker("startSelection"),
             goUpFolder,
+            decreaseCardSize: () => libraryUI.decreaseCardSize(),
+            increaseCardSize: () => libraryUI.increaseCardSize(),
+            cardSizeDecreaseDisabled: () =>
+                libraryUI.isPickingMode ||
+                modalManager.hasBlockingModal ||
+                !libraryUI.canDecreaseCardSize,
+            cardSizeIncreaseDisabled: () =>
+                libraryUI.isPickingMode ||
+                modalManager.hasBlockingModal ||
+                !libraryUI.canIncreaseCardSize,
             labels: {
                 down: () => m.keymap_grid_select_down(),
                 up: () => m.keymap_grid_select_up(),
@@ -188,6 +199,8 @@
                 focusPicker: () => m.pick_file_to_focus(),
                 selectionPicker: () => m.pick_file_to_open(),
                 upFolder: () => m.keymap_up_folder(),
+                cardSizeDecrease: () => m.keymap_decrease_card_size(),
+                cardSizeIncrease: () => m.keymap_increase_card_size(),
             },
             englishLabels: {
                 down: () => "Select item below",
@@ -198,6 +211,8 @@
                 focusPicker: () => m.pick_file_to_focus({}, { locale: "en" }),
                 selectionPicker: () => m.pick_file_to_open({}, { locale: "en" }),
                 upFolder: () => m.keymap_up_folder({}, { locale: "en" }),
+                cardSizeDecrease: () => m.keymap_decrease_card_size({}, { locale: "en" }),
+                cardSizeIncrease: () => m.keymap_increase_card_size({}, { locale: "en" }),
             },
         }),
         libraryCommands["library.book.open-recursive"],
@@ -287,6 +302,7 @@
         <Button
             variant="ghost"
             size="default"
+            Icon={NewFolderIcon}
             onclick={() => void libraryCommandScope.execute("library.folder.create")}
         >
             <span>{m.new_folder()}</span>
@@ -339,7 +355,7 @@
 
     <main class:selection-mode={libraryUI.isSelectionMode} onfocusin={handleCardFocus}>
         {#if displayEntries.length !== 0 || vfsStore.currentFolderId !== null}
-            <ul class="card_list grid">
+            <ul class="card_list grid" style:--library-card-min={`${libraryUI.cardSizeRem}rem`}>
                 {#each displayEntries as entry (entry.id)}
                     <li class="card_item">
                         <Card
@@ -460,7 +476,10 @@
 
     .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+        grid-template-columns: repeat(
+            auto-fill,
+            minmax(min(100%, var(--library-card-min, 11rem)), 1fr)
+        );
         gap: 24px;
     }
 

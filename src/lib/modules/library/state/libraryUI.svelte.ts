@@ -1,6 +1,19 @@
 import { createContext } from "svelte"
 
+export const LIBRARY_CARD_SIZE_LEVELS = [9, 11, 13, 15] as const
+export const DEFAULT_LIBRARY_CARD_SIZE_LEVEL = 1
+const LIBRARY_CARD_SIZE_STORAGE_KEY = "project-reader.library-card-size-level"
+
+export function parseLibraryCardSizeLevel(value: string | null): number {
+    if (value === null || value.trim() === "") return DEFAULT_LIBRARY_CARD_SIZE_LEVEL
+    const level = Number(value)
+    return Number.isInteger(level) && level >= 0 && level < LIBRARY_CARD_SIZE_LEVELS.length
+        ? level
+        : DEFAULT_LIBRARY_CARD_SIZE_LEVEL
+}
+
 export class LibraryUIController {
+    #cardSizeLevel = $state(DEFAULT_LIBRARY_CARD_SIZE_LEVEL)
     #isSelectionMode = $state(false)
     isPickingMode = $state(false)
     isNewFolderModalOpen = $state(false)
@@ -11,6 +24,49 @@ export class LibraryUIController {
     nodeToEditMetadataId = $state<string | null>(null)
     isRenameFolderModalOpen = $state(false)
     folderToRenameId = $state<string | null>(null)
+
+    constructor() {
+        if (typeof localStorage !== "undefined") {
+            this.#cardSizeLevel = parseLibraryCardSizeLevel(
+                localStorage.getItem(LIBRARY_CARD_SIZE_STORAGE_KEY),
+            )
+        }
+    }
+
+    get cardSizeLevel(): number {
+        return this.#cardSizeLevel
+    }
+
+    get cardSizeRem(): number {
+        return LIBRARY_CARD_SIZE_LEVELS[this.#cardSizeLevel]
+    }
+
+    get canDecreaseCardSize(): boolean {
+        return this.#cardSizeLevel > 0
+    }
+
+    get canIncreaseCardSize(): boolean {
+        return this.#cardSizeLevel < LIBRARY_CARD_SIZE_LEVELS.length - 1
+    }
+
+    decreaseCardSize(): void {
+        this.setCardSizeLevel(this.#cardSizeLevel - 1)
+    }
+
+    increaseCardSize(): void {
+        this.setCardSizeLevel(this.#cardSizeLevel + 1)
+    }
+
+    private setCardSizeLevel(level: number): void {
+        const nextLevel = Math.max(0, Math.min(LIBRARY_CARD_SIZE_LEVELS.length - 1, level))
+        if (nextLevel === this.#cardSizeLevel) return
+        this.#cardSizeLevel = nextLevel
+        try {
+            localStorage.setItem(LIBRARY_CARD_SIZE_STORAGE_KEY, String(nextLevel))
+        } catch {
+            // Card sizing remains usable when storage is unavailable.
+        }
+    }
 
     get isSelectionMode(): boolean {
         return this.#isSelectionMode

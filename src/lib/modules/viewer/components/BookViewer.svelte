@@ -23,7 +23,6 @@
     import ViewerFooter from "./ViewerFooter.svelte"
     import { notesStore } from "../stores/notesStore.svelte"
     import NoteIcon from "$lib/shared/icons/NoteIcon.svelte"
-    import type { UserNote } from "$lib/modules/documents"
     import { bookmarksStore } from "../stores/bookmarksStore.svelte"
     import ViewerModals from "./ViewerModals.svelte"
     import { mountViewerUIStore } from "../stores/viewerUIStore.svelte"
@@ -83,8 +82,7 @@
             previousPage: () => prevPage(),
             close: () => {
                 if (notesStore.editingNote || notesStore.activePopup) {
-                    notesStore.editingNote = null
-                    notesStore.editorCoords = null
+                    void notesStore.closeEditor()
                     notesStore.activePopup = null
                     return
                 }
@@ -92,12 +90,12 @@
                 if (book) vfsStore.pushForwardHistory(book.id)
                 handleClose()
             },
-            scroll: (payload) => {
+            scroll: (payload, scrollAmount) => {
                 if (!payload) return
                 const pane = getScrollContainer()
                 if (!pane) return
                 const amount =
-                    payload.amount === "page" ? window.innerHeight / 2 : window.innerHeight * 0.2
+                    scrollAmount === "half-page" ? pane.clientHeight / 2 : window.innerHeight * 0.2
                 pane.scrollBy({
                     top: payload.direction === "up" ? -amount : amount,
                     behavior: !payload.repeated && settingsStore.animations ? "smooth" : "auto",
@@ -304,7 +302,8 @@
         viewerSettingsCommands.zoomOut,
         viewerSettingsCommands.qualityIn,
         viewerSettingsCommands.qualityOut,
-        viewerNavigationCommands["viewer.scroll"],
+        viewerNavigationCommands["viewer.scroll.step"],
+        viewerNavigationCommands["viewer.scroll.half-page"],
         viewerNavigationCommands["viewer.page.next"],
         viewerNavigationCommands["viewer.page.previous"],
         viewerDisplayCommands["viewer.sidebar.outline.toggle"],
@@ -320,6 +319,7 @@
             ...viewerSearchCommands["viewer.search.close"],
             keymap: ["escape", "ctrl+c", "ctrl+["],
             allowInInputs: true,
+            dismissFocusedElement: true,
             disabled: () => !searchStore.isActive,
         },
         viewerSearchCommands["viewer.search.next"],
@@ -435,12 +435,12 @@
         }
     }
 
-    function saveCurrentNote() {
+    async function saveCurrentNote() {
         const editorState = notesStore.editingNote
         if (!editorState) return
 
         if ("isNew" in editorState) {
-            notesStore.addNote(
+            await notesStore.addNote(
                 editorState.bookId,
                 editorState.pageNumber,
                 editorState.start,
@@ -450,11 +450,7 @@
                 editorState.color,
             )
         } else {
-            notesStore.updateNote(
-                (editorState as UserNote).id,
-                editorState.noteContent || "",
-                editorState.color,
-            )
+            await notesStore.closeEditor()
         }
     }
 
@@ -480,8 +476,7 @@
                     notesStore.activeSelection = null
                 }
                 notesStore.activePopup = null
-                notesStore.editingNote = null
-                notesStore.editorCoords = null
+                void notesStore.closeEditor()
             }
         }
 
@@ -1591,7 +1586,7 @@
         position: absolute;
         right: calc(16px + env(safe-area-inset-right));
         bottom: calc(16px + env(safe-area-inset-bottom));
-        z-index: var(--z-sticky);
+        z-index: var(--z-viewer-utilities);
         display: flex;
         flex-direction: column;
         align-items: flex-end;

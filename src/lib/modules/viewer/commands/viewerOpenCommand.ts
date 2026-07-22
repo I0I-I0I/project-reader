@@ -30,15 +30,26 @@ export function createViewerOpenCommand(options: {
                 let fileNode = vfsStore.nodes[payload.bookId] as FileNode | undefined
                 if (!fileNode || fileNode.type !== "file") return
 
-                try {
-                    if (fileNode.isLocked) {
+                if (fileNode.isLocked) {
+                    try {
                         await vfsStore.restoreFileAccess(fileNode.id)
                         fileNode = vfsStore.nodes[fileNode.id] as FileNode
+                    } catch (error) {
+                        console.error("[Viewer] Failed to restore file access:", error)
+                        await options.onFileAccessFailure({ bookId: payload.bookId, error })
+                        return
                     }
+                }
+
+                try {
                     await viewerStore.setCurrentBook(fileNodeToBook(fileNode))
                 } catch (error) {
-                    console.error("[Viewer] Failed to open book:", error)
-                    await options.onFileAccessFailure({ bookId: payload.bookId, error })
+                    console.error("[Viewer] Unexpected book open failure:", error)
+                    try {
+                        await viewerStore.setCurrentBook(null)
+                    } catch (cleanupError) {
+                        console.error("[Viewer] Failed to clear the rejected book:", cleanupError)
+                    }
                     throw error
                 }
 

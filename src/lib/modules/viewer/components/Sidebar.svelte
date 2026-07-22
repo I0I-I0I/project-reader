@@ -85,7 +85,7 @@
             if (!isEditableTarget(event.target)) return true
 
             const key = event.key.toLowerCase()
-            return key !== "q" && (isSettingsSidebar || key !== "escape")
+            return key !== "q"
         },
         close: () => onClose(),
     })

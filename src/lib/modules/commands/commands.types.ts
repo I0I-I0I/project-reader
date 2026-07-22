@@ -22,6 +22,7 @@ export type CommandDefinition<K extends CommandId = CommandId> = {
     subtitle?: () => string
     disabled?: () => boolean
     allowInInputs?: boolean
+    dismissFocusedElement?: boolean
     preventDefault?: boolean
     palette?: boolean | (() => boolean)
     shouldHandleKey?: (event: KeyboardEvent) => boolean

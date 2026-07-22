@@ -67,6 +67,7 @@
             category: "commands",
             keymap: ["escape", "ctrl+c", "ctrl+[", "q"],
             allowInInputs: true,
+            dismissFocusedElement: true,
             run: handleClose,
         },
     })

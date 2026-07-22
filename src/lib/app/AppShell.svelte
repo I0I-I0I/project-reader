@@ -3,13 +3,19 @@
     import { onMount } from "svelte"
     import { searchStore, viewerStore } from "$lib/modules/viewer"
     import { vfsStore } from "$lib/modules/documents"
-    import { type CommandScope, useCommands, commandsStore } from "$lib/modules/commands"
+    import {
+        type CommandScope,
+        useCommands,
+        commandsStore,
+        KeyboardHandler,
+    } from "$lib/modules/commands"
     import * as m from "$lib/paraglide/messages"
     import { KeymapHelp } from "$lib/modules/prompt"
     import { Prompt } from "$lib/modules/prompt"
     import {
         FloatingNotification,
         notificationStore,
+        publishNotification,
         resolveContextualNotification,
     } from "$lib/modules/notifications"
     import { promptStore } from "$lib/modules/prompt"
@@ -59,10 +65,16 @@
     )
 
     const viewerOpenCommand = createViewerOpenCommand({
-        onFileAccessFailure: ({ bookId }) =>
+        onFileAccessFailure: ({ bookId }) => {
+            const name = vfsStore.nodes[bookId]?.name ?? m.unknown_book()
+            publishNotification({
+                line1: m.file_open_failed(),
+                line2: m.file_access_failure({ name }),
+            })
             requestLibraryRelink(bookId, () =>
                 commandsStore.execute("viewer.open", { bookId }).then(() => undefined),
-            ),
+            )
+        },
     })
 
     const rootBookmarkCommands = createViewerBookmarkCommands({
@@ -77,7 +89,10 @@
                 const result = await commandsStore.execute("viewer.open", {
                     bookId: bookmark.bookId,
                 })
-                if (result.status === "executed") {
+                if (
+                    result.status === "executed" &&
+                    viewerStore.getCurrentBook()?.id === bookmark.bookId
+                ) {
                     viewerStore.goToPage?.(bookmark.pageNumber, { isJump: true })
                 }
             },
@@ -112,36 +127,47 @@
         settingsCommands["settings.animations.toggle"],
         settingsCommands["settings.pdf-title.toggle"],
         {
-            id: "viewer.scroll",
-            keymap: ["arrowdown", "j", "arrowup", "k", "pagedown", "d", "pageup", "u"],
-            label: () => m.keymap_scroll_down(),
-            englishLabel: () => m.keymap_scroll_down({}, { locale: "en" }),
+            id: "viewer.scroll.step",
+            keymap: ["arrowdown", "j", "arrowup", "k"],
+            label: () => m.keymap_scroll_step(),
+            englishLabel: () => m.keymap_scroll_step({}, { locale: "en" }),
             category: "navigation",
-            keyboardPayload: (event) => {
-                const key = event.key.toLowerCase()
-                return {
-                    direction:
-                        key === "arrowup" || key === "k" || key === "pageup" || key === "u"
-                            ? "up"
-                            : "down",
-                    amount:
-                        key === "pagedown" || key === "d" || key === "pageup" || key === "u"
-                            ? "page"
-                            : "step",
-                    repeated: event.repeat,
-                }
-            },
+            keyboardPayload: (event) => ({
+                direction:
+                    KeyboardHandler.resolveDirection(event, ["arrowup", "k"], ["arrowdown", "j"]) ??
+                    "down",
+                repeated: event.repeat,
+            }),
             run: (payload) => {
-                const { direction, amount, repeated } = payload ?? {
+                const { direction, repeated } = payload ?? {
                     direction: "down",
-                    amount: "step",
                     repeated: false,
                 }
                 window.scrollBy({
-                    top:
-                        (direction === "up" ? -1 : 1) *
-                        window.innerHeight *
-                        (amount === "page" ? 0.6 : 0.2),
+                    top: (direction === "up" ? -1 : 1) * window.innerHeight * 0.2,
+                    behavior: !repeated && settingsStore.animations ? "smooth" : "auto",
+                })
+            },
+        },
+        {
+            id: "viewer.scroll.half-page",
+            keymap: ["pagedown", "d", "pageup", "u"],
+            label: () => m.keymap_scroll_half_page(),
+            englishLabel: () => m.keymap_scroll_half_page({}, { locale: "en" }),
+            category: "navigation",
+            keyboardPayload: (event) => ({
+                direction:
+                    KeyboardHandler.resolveDirection(event, ["pageup", "u"], ["pagedown", "d"]) ??
+                    "down",
+                repeated: event.repeat,
+            }),
+            run: (payload) => {
+                const { direction, repeated } = payload ?? {
+                    direction: "down",
+                    repeated: false,
+                }
+                window.scrollBy({
+                    top: (direction === "up" ? -1 : 1) * window.innerHeight * 0.5,
                     behavior: !repeated && settingsStore.animations ? "smooth" : "auto",
                 })
             },

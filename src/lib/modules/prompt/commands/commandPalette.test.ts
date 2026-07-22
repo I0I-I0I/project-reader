@@ -69,6 +69,36 @@ describe("command palette adapter", () => {
         expect(run).toHaveBeenCalledWith({ page: 12, isJump: true })
     })
 
+    it("restores the previous prompt query and honors an explicit empty query", async () => {
+        const scope = new CommandScope()
+        scope.register(
+            defineCommands({
+                "viewer.close": {
+                    id: "viewer.close",
+                    label: () => "Close viewer",
+                    category: "commands",
+                    run: () => {},
+                },
+            })["viewer.close"],
+        )
+
+        void promptStore.open({
+            id: "viewer-search",
+            initialQuery: "search phrase",
+            items: () => [],
+        })
+        promptStore.close()
+
+        void openCommandPalette(scope)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(promptStore.getQuery()).toBe("search phrase")
+        promptStore.close()
+
+        void openCommandPalette(scope, "")
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expect(promptStore.getQuery()).toBe("")
+    })
+
     it("closes when its captured scope is destroyed", async () => {
         const scope = new CommandScope()
         scope.register(

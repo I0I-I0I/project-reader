@@ -7,6 +7,7 @@ import type {
     CommandExecutionResult,
     CommandDefinitions,
 } from "./commands.types"
+import { dismissFocusedInteractiveElement } from "$lib/shared/ui/modal/modalFocus"
 import { KeyboardHandler } from "./keyboard"
 export { KeyboardHandler } from "./keyboard"
 
@@ -19,6 +20,7 @@ type StoredCommand = {
     subtitle?: () => string
     disabled: () => boolean
     allowInInputs: boolean
+    dismissFocusedElement: boolean
     preventDefault: boolean
     palette: () => boolean
     definition: AnyCommandDefinition
@@ -49,6 +51,7 @@ function normalizeDefinition(command: AnyCommandDefinition): StoredCommand {
         subtitle: command.subtitle,
         disabled: command.disabled ?? (() => false),
         allowInInputs: command.allowInInputs ?? false,
+        dismissFocusedElement: command.dismissFocusedElement ?? false,
         preventDefault: command.preventDefault ?? true,
         palette: typeof palette === "function" ? palette : () => palette ?? true,
         definition: command,
@@ -367,6 +370,15 @@ export class CommandsStore {
                 target.isContentEditable)
         if (isInput && !command.allowInInputs) return
         if (command.definition.shouldHandleKey && !command.definition.shouldHandleKey(event)) return
+        if (
+            command.dismissFocusedElement &&
+            KeyboardHandler.matches(event, "escape") &&
+            dismissFocusedInteractiveElement()
+        ) {
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            return
+        }
         if (command.preventDefault) event.preventDefault()
         const payload = command.definition.keyboardPayload?.(event)
         await scope.executeKeyboard(resolved, payload)

@@ -29,6 +29,7 @@
             category: "commands",
             keymap: ["escape", "q"],
             allowInInputs: true,
+            dismissFocusedElement: true,
             run: () => onClose(),
         },
     })

@@ -231,14 +231,14 @@ describe("typed commands", () => {
         const childRun = vi.fn()
         store.root.register(
             defineCommands({
-                "viewer.scroll": {
-                    id: "viewer.scroll",
+                "viewer.scroll.step": {
+                    id: "viewer.scroll.step",
                     label: () => "Scroll",
                     category: "navigation",
                     keymap: "j",
                     run: parentRun,
                 },
-            })["viewer.scroll"],
+            })["viewer.scroll.step"],
         )
         const child = store.createScope(store.root)
         child.register(

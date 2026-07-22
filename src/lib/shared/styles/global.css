@@ -26,7 +26,7 @@ textarea {
     forced-color-adjust: auto;
 }
 
-html[data-motion="off"] *,
+html[data-motion="off"] *:not([data-modal-movement="true"]),
 html[data-motion="off"] *::before,
 html[data-motion="off"] *::after {
     scroll-behavior: auto !important;

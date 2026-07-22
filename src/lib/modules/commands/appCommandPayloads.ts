@@ -30,6 +30,8 @@ export interface AppCommandPayloads {
     "library.book.open-recursive": { bookId?: string } | undefined
     "library.folder.open": { folderId?: string | null } | undefined
     "library.folder.up": undefined
+    "library.card-size.decrease": undefined
+    "library.card-size.increase": undefined
     "library.grid.down": { repeated?: boolean } | undefined
     "library.grid.up": { repeated?: boolean } | undefined
     "library.grid.left": { repeated?: boolean } | undefined
@@ -102,9 +104,8 @@ export interface AppCommandPayloads {
     "viewer.toolbar.toggle": undefined
     "viewer.fullscreen.toggle": undefined
     "viewer.zoom.fit-width": undefined
-    "viewer.scroll":
-        | { direction: ScrollDirection; amount: "step" | "page"; repeated?: boolean }
-        | undefined
+    "viewer.scroll.step": { direction: ScrollDirection; repeated?: boolean } | undefined
+    "viewer.scroll.half-page": { direction: ScrollDirection; repeated?: boolean } | undefined
     "modal.confirm": undefined
     "modal.cancel": undefined
 }

@@ -37,6 +37,7 @@ export interface PromptRequest<T> {
     filter?: "fuzzy" | "none"
     closeOnSelect?: boolean
     rememberQuery?: boolean
+    restoreQuery?: boolean
     initialSelection?: (items: PromptItem<T>[]) => number
     onQueryChange?: (query: string) => void
     parseQuery?: (query: string) => T | undefined

@@ -4,7 +4,12 @@
     import { viewport } from "$lib/shared/state/viewport.svelte"
     import Button from "../Button.svelte"
     import Float from "./Float.svelte"
-    import { getFocusableElements, restoreFocus, trapTabKey } from "./modalFocus"
+    import {
+        dismissFocusedInteractiveElement,
+        getFocusableElements,
+        restoreFocus,
+        trapTabKey,
+    } from "./modalFocus"
     import {
         canDragModal,
         clampModalPosition,
@@ -15,6 +20,7 @@
     } from "./modalDrag"
     import { modalManager } from "./modalManager.svelte"
     import { resolveModalPresentation } from "./modalPresentation"
+    import { shouldCloseOnBackdrop } from "./modalPolicy"
     import type { ModalCloseReason, ModalProps } from "./modal.types"
 
     let props: ModalProps = $props()
@@ -155,6 +161,7 @@
         if (!canEscape) return
         event.preventDefault()
         event.stopImmediatePropagation()
+        if (dismissFocusedInteractiveElement(surfaceRef)) return
         requestClose("escape")
     }
 
@@ -273,7 +280,7 @@
     {...floatPlacementProps}
     backdrop={modalState === "blocking" ? "blur" : "none"}
     onBackdropPointerDown={() => {
-        if (variant === "default" && (props.closeOnBackdrop ?? false)) requestClose("backdrop")
+        if (shouldCloseOnBackdrop(variant, props.closeOnBackdrop)) requestClose("backdrop")
     }}
     onSurfacePointerDown={handleSurfacePointerDown}
     onSurfaceFocusIn={handleSurfacePointerDown}
@@ -300,6 +307,7 @@
     ariaLabelledby={props.title ? titleId : undefined}
     ariaDescribedby={props.description ? descriptionId : undefined}
     {presentation}
+    movementCritical={isDraggable}
     {zIndex}
 >
     {#if props.description}
@@ -371,13 +379,13 @@
                 {#if props.cancelLabel}
                     <Button
                         class="confirmation-cancel"
-                        variant="close"
+                        variant="action"
                         disabled={isBusy}
                         onclick={() => requestClose("cancel")}>{props.cancelLabel}</Button
                     >
                 {/if}
                 <Button
-                    variant="brutalist"
+                    variant="action"
                     class={props.confirmTone === "danger" ? "confirmation-danger" : ""}
                     disabled={isBusy}
                     aria-busy={isBusy}
@@ -559,6 +567,7 @@
     }
 
     .modal-footer {
+        box-sizing: border-box;
         padding: 12px max(24px, var(--float-safe-area-inset-right, 0px))
             calc(12px + var(--float-safe-area-inset-bottom, 0px))
             max(24px, var(--float-safe-area-inset-left, 0px));
@@ -589,8 +598,10 @@
         gap: 12px;
     }
     :global(.confirmation-danger) {
-        background: var(--danger-active-color) !important;
-        color: var(--danger-text-color) !important;
+        --surface-color: var(--danger-color);
+        --surface-hover-color: var(--danger-active-color);
+        --accent-active-color: var(--danger-active-color);
+        --btn-text: var(--danger-text-color);
     }
 
     .visually-hidden {

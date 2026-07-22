@@ -1,5 +1,5 @@
 import type { AppCommandPayloads } from "$lib/modules/commands"
-import { defineCommands } from "$lib/modules/commands"
+import { defineCommands, KeyboardHandler } from "$lib/modules/commands"
 import type { CommandScope } from "$lib/modules/commands"
 import type { PromptService } from "$lib/modules/prompt"
 import { buildGotoPageItems, parsePage } from "./viewerPromptItems"
@@ -12,7 +12,12 @@ export interface ViewerNavigationPort {
     nextPage(): void
     previousPage(): void
     close(): void
-    scroll(payload: AppCommandPayloads["viewer.scroll"]): void
+    scroll(
+        payload:
+            | AppCommandPayloads["viewer.scroll.step"]
+            | AppCommandPayloads["viewer.scroll.half-page"],
+        amount: "step" | "half-page",
+    ): void
 }
 
 type PromptChooser = Pick<PromptService, "choose" | "close" | "snapshot">
@@ -84,28 +89,35 @@ export function createViewerNavigationCommands(dependencies: {
             category: "commands",
             run: () => viewer.close(),
         },
-        "viewer.scroll": {
-            id: "viewer.scroll",
-            keymap: ["j", "arrowdown", "k", "arrowup", "d", "pagedown", "u", "pageup"],
-            label: () => m.keymap_scroll_down(),
-            englishLabel: () => m.keymap_scroll_down({}, { locale: "en" }),
+        "viewer.scroll.step": {
+            id: "viewer.scroll.step",
+            keymap: ["j", "arrowdown", "k", "arrowup"],
+            label: () => m.keymap_scroll_step(),
+            englishLabel: () => m.keymap_scroll_step({}, { locale: "en" }),
             category: "navigation",
-            keyboardPayload: (event) => {
-                const key = event.key.toLowerCase()
-                return {
-                    direction:
-                        key === "k" || key === "arrowup" || key === "u" || key === "pageup"
-                            ? "up"
-                            : "down",
-                    amount:
-                        key === "d" || key === "pagedown" || key === "u" || key === "pageup"
-                            ? "page"
-                            : "step",
-                    repeated: event.repeat,
-                }
-            },
+            keyboardPayload: (event) => ({
+                direction:
+                    KeyboardHandler.resolveDirection(event, ["arrowup", "k"], ["arrowdown", "j"]) ??
+                    "down",
+                repeated: event.repeat,
+            }),
             run: (payload) =>
-                viewer.scroll(payload ?? { direction: "down", amount: "step", repeated: false }),
+                viewer.scroll(payload ?? { direction: "down", repeated: false }, "step"),
+        },
+        "viewer.scroll.half-page": {
+            id: "viewer.scroll.half-page",
+            keymap: ["d", "pagedown", "u", "pageup"],
+            label: () => m.keymap_scroll_half_page(),
+            englishLabel: () => m.keymap_scroll_half_page({}, { locale: "en" }),
+            category: "navigation",
+            keyboardPayload: (event) => ({
+                direction:
+                    KeyboardHandler.resolveDirection(event, ["pageup", "u"], ["pagedown", "d"]) ??
+                    "down",
+                repeated: event.repeat,
+            }),
+            run: (payload) =>
+                viewer.scroll(payload ?? { direction: "down", repeated: false }, "half-page"),
         },
     })
 }

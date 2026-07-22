@@ -12,6 +12,7 @@
     import { resolveSelectionIndex } from "$lib/shared/state/listSelection"
     import { notesStore } from "../stores/notesStore.svelte"
     import { tick, untrack } from "svelte"
+    import { buildSidebarNavigationHints, findSidebarShortcut } from "./sidebarShortcutHints"
 
     let {
         isOutlineLoading,
@@ -35,6 +36,7 @@
     let manualSelectedIndex = $state<number | null>(null)
     const phoneQuery = new MediaQuery("(max-width: 480px)")
     let searchInputRef = $state<HTMLInputElement | null>(null)
+    let isSearchFocused = $state(false)
 
     let normalizedSearchQuery = $derived(searchQuery.toLowerCase())
     let filteredOutlineList = $derived(
@@ -93,9 +95,6 @@
                 selectHeading(heading)
                 onClose()
             }
-        } else if (event.key === "Escape") {
-            event.preventDefault()
-            searchInputRef?.blur()
         }
     }
 
@@ -118,7 +117,7 @@
         )
     }
 
-    useCommands(
+    const outlineCommandScope = useCommands(
         createViewerOutlineCommands({
             nextLabel: () => m.keymap_next_heading(),
             // English callbacks feed keyboard-help search without replacing localized labels.
@@ -157,46 +156,22 @@
         { autoActivate: untrack(() => interactive) },
     )
 
-    function formatKey(keys: string): string {
-        const modifiers = ["ctrl", "meta", "alt", "shift"]
-        const parts = keys.split("+")
-        parts.sort((a, b) => {
-            const aLower = a.toLowerCase().trim()
-            const bLower = b.toLowerCase().trim()
-            const aIdx = modifiers.indexOf(aLower)
-            const bIdx = modifiers.indexOf(bLower)
-
-            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
-            if (aIdx !== -1) return -1
-            if (bIdx !== -1) return 1
-            return aLower.localeCompare(bLower)
-        })
-        return parts
-            .map((part) => {
-                const lower = part.toLowerCase().trim()
-                if (lower === "arrowup") return "↑"
-                if (lower === "arrowdown") return "↓"
-                if (lower === "ctrl") return "C"
-                if (lower === "meta") return "M"
-                if (lower === "alt") return "A"
-                if (lower === "shift") return "S"
-                if (lower === "escape") return "Esc"
-                if (lower === "enter") return "Enter"
-                if (lower.length === 1) return lower
-                return part
-            })
-            .join("-")
-    }
-
-    const navigateShortcuts = [
-        { display: `${formatKey("j")}/${formatKey("k")}` },
-        { display: `${formatKey("arrowdown")}/${formatKey("arrowup")}` },
-        KeyboardHandler.isChromiumNonMac()
-            ? { display: `${formatKey("ctrl+j")}/${formatKey("ctrl+k")}` }
-            : { display: `${formatKey("ctrl+n")}/${formatKey("ctrl+p")}` },
-    ]
-    const selectShortcut = formatKey("enter")
-    const searchShortcut = formatKey("/")
+    let navigateShortcuts = $derived(
+        buildSidebarNavigationHints(
+            outlineCommandScope.getShortcut("viewer.outline.next"),
+            outlineCommandScope.getShortcut("viewer.outline.previous"),
+            isSearchFocused,
+        ),
+    )
+    let selectShortcut = $derived(
+        findSidebarShortcut(outlineCommandScope.getShortcut("viewer.outline.select"), "enter"),
+    )
+    let searchShortcut = $derived(
+        findSidebarShortcut(outlineCommandScope.getShortcut("viewer.outline.search"), "/"),
+    )
+    let closeShortcut = $derived(
+        findSidebarShortcut(outlineCommandScope.getShortcut("viewer.sidebar.close"), "escape"),
+    )
 
     let contentRef: HTMLElement | undefined = $state()
     let hasScrolledInitially = false
@@ -233,6 +208,7 @@
         onClear={resetSelection}
         placeholder={m.search_headings_placeholder()}
         onkeydown={handleSearchKeydown}
+        bind:focused={isSearchFocused}
         clearLabel={m.clear_search_aria()}
     />
 {/if}
@@ -286,16 +262,13 @@
             {m.navigate()}
         </span>
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{selectShortcut}</kbd>
-            {m.go()}
-        </span>
+        <span class="hint-item"><kbd>{selectShortcut}</kbd> {m.go()}</span>
         <span class="hint-divider">•</span>
-        <span class="hint-item">
-            <kbd>{searchShortcut}</kbd>
-            {m.search()}
-        </span>
-        <span class="hint-divider">•</span>
+        {#if isSearchFocused}
+            <span class="hint-item"><kbd>{closeShortcut}</kbd> {m.close_search()}</span>
+        {:else}
+            <span class="hint-item"><kbd>{searchShortcut}</kbd> {m.search()}</span>
+        {/if}
     </SidebarFooter>
 {/if}
 

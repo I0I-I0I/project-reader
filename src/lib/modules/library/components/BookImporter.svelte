@@ -280,6 +280,25 @@
         font-size: var(--font-size-base);
         font-weight: 800;
         cursor: pointer;
+        transition:
+            transform 140ms cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 140ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .import-action:hover:not(:disabled):not(:active) {
+            transform: translate(-1px, -1px);
+            box-shadow: 6px 6px 0 var(--shadow-color);
+        }
+
+        .import-action:hover:not(:disabled):not(:active) :global(svg) {
+            transform: translateY(-1px) rotate(8deg);
+        }
+    }
+
+    .import-action:active:not(:disabled) {
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0 var(--shadow-color);
     }
 
     .import-action:focus-visible {
@@ -295,6 +314,7 @@
     .import-action :global(svg) {
         width: 18px;
         height: 18px;
+        transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .reader-card {

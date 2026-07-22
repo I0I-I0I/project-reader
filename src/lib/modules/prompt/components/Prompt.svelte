@@ -24,7 +24,7 @@
     function focusInput(node: HTMLInputElement) {
         queueMicrotask(() => {
             node.focus()
-            if (node.value) node.select()
+            node.select()
         })
     }
 

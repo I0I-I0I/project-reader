@@ -159,6 +159,16 @@ export class KeyboardHandler {
         return KeyboardHandler.matchesCandidates(KeyboardHandler.candidates(event), normalized)
     }
 
+    static resolveDirection(
+        event: KeyboardEvent,
+        upKeys: string | string[],
+        downKeys: string | string[],
+    ): "up" | "down" | undefined {
+        if (KeyboardHandler.matches(event, upKeys)) return "up"
+        if (KeyboardHandler.matches(event, downKeys)) return "down"
+        return undefined
+    }
+
     static getFormattedParts(keys: string): string[] {
         const isMacPlatform = KeyboardHandler.isMac()
         const MODIFIERS = ["ctrl", "meta", "mod", "alt", "shift"]

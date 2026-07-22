@@ -89,16 +89,46 @@ describe("viewer command modules", () => {
         expect(viewer.goToPage).toHaveBeenCalledWith(20, { isJump: true })
     })
 
-    it("maps repeat-aware scroll keys to typed payloads", () => {
+    it("maps step and half-page scroll keys to distinct repeat-aware commands", () => {
         const { commands, viewer } = navigation()
-        const command = commands["viewer.scroll"]
-        const payload = command.keyboardPayload?.({ key: "PageUp", repeat: true } as KeyboardEvent)
-        command.run(payload)
-        expect(viewer.scroll).toHaveBeenCalledWith({
-            direction: "up",
-            amount: "page",
-            repeated: true,
-        })
+        const step = commands["viewer.scroll.step"]
+        const halfPage = commands["viewer.scroll.half-page"]
+
+        step.run(
+            step.keyboardPayload?.({
+                code: "KeyK",
+                key: "л",
+                repeat: false,
+                ctrlKey: false,
+                metaKey: false,
+                altKey: false,
+                shiftKey: false,
+            } as KeyboardEvent),
+        )
+        halfPage.run(
+            halfPage.keyboardPayload?.({
+                code: "KeyU",
+                key: "г",
+                repeat: true,
+                ctrlKey: false,
+                metaKey: false,
+                altKey: false,
+                shiftKey: false,
+            } as KeyboardEvent),
+        )
+
+        expect(step.keymap).toEqual(["j", "arrowdown", "k", "arrowup"])
+        expect(halfPage.keymap).toEqual(["d", "pagedown", "u", "pageup"])
+        expect(viewer.scroll).toHaveBeenNthCalledWith(
+            1,
+            { direction: "up", repeated: false },
+            "step",
+        )
+        expect(viewer.scroll).toHaveBeenNthCalledWith(
+            2,
+            { direction: "up", repeated: true },
+            "half-page",
+        )
     })
 
     it("selects a search match, navigates, and closes Prompt", async () => {

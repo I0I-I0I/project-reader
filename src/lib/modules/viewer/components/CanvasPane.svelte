@@ -25,6 +25,11 @@
     import { createViewerFitWidthCommand } from "../commands/viewerFitWidthCommand"
     import { ViewerLinkService } from "./ViewerLinkService"
     import { promptStore } from "$lib/modules/prompt"
+    import {
+        captureScrollAnchor,
+        restoreScrollAnchor,
+        type ScrollAnchor,
+    } from "../utils/scrollAnchor"
 
     const AUTO_SCROLL_TIMEOUT_MS = 800
 
@@ -310,11 +315,60 @@
     let lastUpdatedScrollTop = 0
     let scrollEndTimeout: ReturnType<typeof setTimeout> | undefined
     let rafId: number | null = null
+    let pendingResizeAnchor: ScrollAnchor | null = null
+    let resizeRestoreRaf: number | null = null
+    let isResizeRestoring = false
+
+    function updateContainerWidth(nextWidth: number) {
+        if (nextWidth === containerWidth) return
+        if (
+            viewport.isCompact &&
+            layoutMode === "scroll" &&
+            container &&
+            hasRestoredScroll &&
+            pageOffsets.length > 0
+        ) {
+            pendingResizeAnchor ??= captureScrollAnchor(
+                currentPage,
+                container.scrollTop,
+                container.clientHeight,
+                pageOffsets,
+                pageDimensions.map((dimension) => getPageHeight(dimension)),
+            )
+            isResizeRestoring = pendingResizeAnchor !== null
+            if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
+        }
+
+        containerWidth = nextWidth
+        if (!pendingResizeAnchor) return
+        if (resizeRestoreRaf !== null) cancelAnimationFrame(resizeRestoreRaf)
+        resizeRestoreRaf = requestAnimationFrame(() => {
+            if (!container || !pendingResizeAnchor) return
+            const heights = pageDimensions.map((dimension) => getPageHeight(dimension))
+            const targetTop = restoreScrollAnchor(
+                pendingResizeAnchor,
+                container.clientHeight,
+                pageOffsets,
+                heights,
+                container.scrollHeight - container.clientHeight,
+            )
+            container.scrollTo({ top: targetTop, behavior: "auto" })
+            scrollTop = targetTop
+            lastUpdatedScrollTop = targetTop
+            lastObservedPage = pendingResizeAnchor.page
+            resizeRestoreRaf = requestAnimationFrame(() => {
+                pendingResizeAnchor = null
+                isResizeRestoring = false
+                resizeRestoreRaf = null
+            })
+        })
+    }
 
     onDestroy(() => {
         if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
         if (rafId !== null) cancelAnimationFrame(rafId)
         if (zoomRestoreRaf !== null) cancelAnimationFrame(zoomRestoreRaf)
+        if (resizeRestoreRaf !== null) cancelAnimationFrame(resizeRestoreRaf)
     })
 
     function findPageAtOffset(offset: number): number {
@@ -377,14 +431,14 @@
 
     function syncScrollStateFallback() {
         if (typeof window !== "undefined" && !("onscrollend" in window)) {
-            if (container && hasRestoredScroll) {
+            if (container && hasRestoredScroll && !isResizeRestoring) {
                 syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
             }
         }
     }
 
     function handleScroll(e: Event) {
-        if (!hasRestoredScroll) return
+        if (!hasRestoredScroll || isResizeRestoring) return
 
         const target = e.target as HTMLElement
 
@@ -427,7 +481,7 @@
         if (typeof window !== "undefined" && !("onscrollend" in window)) {
             if (scrollEndTimeout) clearTimeout(scrollEndTimeout)
             scrollEndTimeout = setTimeout(() => {
-                if (container && hasRestoredScroll) {
+                if (container && hasRestoredScroll && !isResizeRestoring) {
                     syncScrollState(
                         container.scrollTop,
                         container.clientHeight,
@@ -1263,7 +1317,7 @@
         class="canvas-frame"
         bind:this={container}
         bind:clientHeight={containerHeight}
-        bind:clientWidth={containerWidth}
+        bind:clientWidth={() => containerWidth, updateContainerWidth}
         onscroll={handleScroll}
         onscrollend={() => {
             if (isAutoScrolling) {
@@ -1271,7 +1325,7 @@
                 if (autoScrollTimeout) clearTimeout(autoScrollTimeout)
             }
             // Sync final exact scroll state when scroll ends
-            if (container && hasRestoredScroll) {
+            if (container && hasRestoredScroll && !isResizeRestoring) {
                 syncScrollState(container.scrollTop, container.clientHeight, container.scrollHeight)
             }
         }}

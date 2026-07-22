@@ -10,6 +10,29 @@ const FOCUSABLE_SELECTOR = [
     "[tabindex]:not([tabindex='-1'])",
 ].join(",")
 
+export function dismissFocusedInteractiveElement(
+    container?: HTMLElement | null,
+    activeElement?: Element | null,
+): boolean {
+    const active =
+        activeElement === undefined
+            ? typeof document !== "undefined"
+                ? document.activeElement
+                : null
+            : activeElement
+    if (typeof HTMLElement === "undefined" || !(active instanceof HTMLElement)) return false
+    if (container && !container.contains(active)) return false
+    if (
+        active.hasAttribute("hidden") ||
+        active.getAttribute("aria-hidden") === "true" ||
+        !active.matches(FOCUSABLE_SELECTOR)
+    )
+        return false
+
+    active.blur()
+    return true
+}
+
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {
     return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
         (element) =>

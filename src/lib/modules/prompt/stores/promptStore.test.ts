@@ -62,16 +62,21 @@ describe("promptStore", () => {
             onQueryChange,
         })
 
-        expect(promptStore.getQuery()).toBe("second")
+        expect(promptStore.getQuery()).toBe("")
         promptStore.historyBack()
-        expect(promptStore.getQuery()).toBe("first")
+        expect(promptStore.getQuery()).toBe("second")
         promptStore.historyBack()
         expect(promptStore.getQuery()).toBe("first")
         promptStore.historyForward()
         expect(promptStore.getQuery()).toBe("second")
         promptStore.historyForward()
-        expect(promptStore.getQuery()).toBe("second")
-        expect(onQueryChange.mock.calls.map(([query]) => query)).toEqual(["first", "second"])
+        expect(promptStore.getQuery()).toBe("")
+        expect(onQueryChange.mock.calls.map(([query]) => query)).toEqual([
+            "second",
+            "first",
+            "second",
+            "",
+        ])
     })
 
     it("restores the current draft after navigating forward through history", async () => {
@@ -104,7 +109,7 @@ describe("promptStore", () => {
         expect(promptStore.getQuery()).toBe("current draft")
     })
 
-    it("restores the last query when an empty initial query is provided", async () => {
+    it("honors an explicit empty initial query instead of restoring history", async () => {
         const first = promptStore.open({
             id: "empty-initial-query",
             initialQuery: "remember me",
@@ -124,7 +129,59 @@ describe("promptStore", () => {
             items: () => [{ id: "item", label: "Item", value: "item" }],
         })
 
+        expect(promptStore.getQuery()).toBe("")
+    })
+
+    it("restores the last query only when explicitly requested", async () => {
+        const first = promptStore.open({
+            id: "explicit-restore",
+            initialQuery: "remember me",
+            rememberQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+        await flush()
+        await promptStore.selectCurrent()
+        await first
+
+        void promptStore.open({
+            id: "explicit-restore",
+            restoreQuery: true,
+            filter: "none",
+            items: () => [{ id: "item", label: "Item", value: "item" }],
+        })
+
         expect(promptStore.getQuery()).toBe("remember me")
+    })
+
+    it("restores the value captured from a child prompt", async () => {
+        let child!: Promise<string | undefined>
+        void promptStore.open({
+            id: "restore-parent",
+            items: () => [{ id: "open", label: "Open", value: "open" }],
+            onSelect: async () => {
+                child = promptStore.choose({
+                    id: "restore-child",
+                    initialQuery: "child value",
+                    items: () => [],
+                })
+                await child
+            },
+        })
+        await flush()
+        void promptStore.selectCurrent()
+        await flush()
+        expect(promptStore.snapshot?.request.id).toBe("restore-child")
+
+        promptStore.close()
+        await expect(child).resolves.toBeUndefined()
+        void promptStore.open({
+            id: "restored-after-child",
+            restoreQuery: true,
+            items: () => [],
+        })
+
+        expect(promptStore.getQuery()).toBe("child value")
     })
 
     it("keeps selected history when reopening with a different draft", async () => {
