@@ -266,7 +266,7 @@
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 16px 16px calc(16px + var(--sidebar-safe-area-end, 0px));
         display: flex;
         flex-direction: column;
         gap: 24px;
@@ -461,8 +461,7 @@
     @media (--tiny-mobile) {
         .sidebar-content {
             gap: 20px;
-            padding: 18px calc(16px + env(safe-area-inset-right))
-                calc(28px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+            padding: 18px 16px calc(28px + var(--sidebar-safe-area-end, 0px));
             -webkit-overflow-scrolling: touch;
         }
 

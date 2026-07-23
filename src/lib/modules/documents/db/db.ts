@@ -43,6 +43,7 @@ export async function migrateVersion2(tx: Transaction) {
 interface IDBBooks {
     get(id: string): Promise<FileNode | undefined>
     put(book: FileNode): Promise<string>
+    update(id: string, changes: Partial<FileNode>): Promise<number>
     bulkPut(books: FileNode[]): Promise<string>
     delete(id: string): Promise<void>
     bulkDelete(ids: string[]): Promise<void>
@@ -79,6 +80,7 @@ interface IDBIndexedTexts {
 interface IDBFolders {
     get(id: string): Promise<FolderNode | undefined>
     put(folder: FolderNode): Promise<string>
+    update(id: string, changes: Partial<FolderNode>): Promise<number>
     bulkPut(folders: FolderNode[]): Promise<string>
     delete(id: string): Promise<void>
     bulkDelete(ids: string[]): Promise<void>
@@ -175,6 +177,9 @@ class DBBooks implements IDBBooks {
     }
     put(book: FileNode): Promise<string> {
         return db.books.put(book)
+    }
+    update(id: string, changes: Partial<FileNode>): Promise<number> {
+        return db.books.update(id, changes)
     }
     bulkPut(books: FileNode[]): Promise<string> {
         return db.books.bulkPut(books)
@@ -283,6 +288,9 @@ class DBFolders implements IDBFolders {
     }
     put(folder: FolderNode): Promise<string> {
         return db.folders.put(folder)
+    }
+    update(id: string, changes: Partial<FolderNode>): Promise<number> {
+        return db.folders.update(id, changes)
     }
     bulkPut(folders: FolderNode[]): Promise<string> {
         return db.folders.bulkPut(folders)

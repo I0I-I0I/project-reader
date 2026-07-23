@@ -229,6 +229,7 @@
         libraryCommands["library.folder.create"],
         libraryCommands["library.node.rename"],
         libraryCommands["library.node.move"],
+        libraryCommands["library.node.pin.toggle"],
         libraryCommands["library.node.delete"],
         libraryCommands["library.node.edit-metadata"],
         libraryCommands["library.node.relink"],

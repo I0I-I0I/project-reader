@@ -20,6 +20,7 @@ const nodes: VFSNodes = {
         childrenIds: ["book"],
         createdAt: 1,
         updatedAt: 1,
+        isPinned: false,
     },
     book: {
         id: "book",
@@ -30,6 +31,7 @@ const nodes: VFSNodes = {
         metadata: { pageNumber: 1 },
         createdAt: 1,
         updatedAt: 2,
+        isPinned: false,
     },
 }
 
@@ -101,6 +103,23 @@ describe("library commands", () => {
         expect(libraryUI.folderToRenameId).toBeNull()
         expect(libraryUI.isRenameFolderModalOpen).toBe(false)
         renameFolder.mockRestore()
+    })
+
+    it("pins files and folders while safely ignoring stale IDs", async () => {
+        const setNodePinned = vi.spyOn(vfsStore, "setNodePinned").mockResolvedValue()
+        const command = libraryCommands["library.node.pin.toggle"]
+
+        await command.run({ nodeId: "book" })
+        expect(setNodePinned).toHaveBeenLastCalledWith("book", true)
+
+        await command.run({ nodeId: "folder", isPinned: false })
+        expect(setNodePinned).toHaveBeenLastCalledWith("folder", false)
+
+        setNodePinned.mockClear()
+        await command.run({ nodeId: "missing", isPinned: true })
+        await command.run(undefined)
+        expect(setNodePinned).not.toHaveBeenCalled()
+        setNodePinned.mockRestore()
     })
 
     it("owns selection mutations", async () => {

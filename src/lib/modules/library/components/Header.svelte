@@ -43,7 +43,9 @@
 
 <header>
     <div class="title-wrapper">
-        <h1 class="title" data-text={m.library()}>{m.library()}</h1>
+        <h1 class="title" data-text={m.library()}>
+            {m.library()}
+        </h1>
     </div>
     <div class="actions-wrapper" role="toolbar" aria-label={m.action_controls()}>
         <div class="header-btn-wrapper">
@@ -339,21 +341,14 @@
 
         .header-btn-wrapper {
             gap: 6px;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
         }
 
         .header-btn-wrapper :global(.app-update-button) {
-            min-width: 0;
+            flex: 0 0 100%;
+            width: 100%;
             max-width: 100%;
-            flex: 1 1 auto;
-            overflow: hidden;
-        }
-
-        .header-btn-wrapper :global(.app-update-button > span:last-child) {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            justify-content: center;
         }
 
         .switchers-group {

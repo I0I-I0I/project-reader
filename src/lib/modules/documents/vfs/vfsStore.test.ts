@@ -16,7 +16,7 @@ vi.mock("$lib/modules/pdf", () => ({
 }))
 
 import { VFSStore } from "./vfsStore.svelte"
-import type { ImportInput } from "./vfsStore.types"
+import type { ImportInput, VFSNodes } from "./vfsStore.types"
 
 function handle(name: string): FileSystemFileHandle {
     return {
@@ -50,6 +50,7 @@ describe("VFS initialization", () => {
                         size: 1,
                         createdAt: 1,
                         updatedAt: 1,
+                        isPinned: false,
                         metadata: { pageNumber: 1, author: undefined },
                     },
                 ]),
@@ -60,6 +61,191 @@ describe("VFS initialization", () => {
 
         expect(store.nodes.legacy).toBeDefined()
         expect(pdfConstructed).not.toHaveBeenCalled()
+    })
+})
+
+describe("VFS pinning", () => {
+    const nodes: VFSNodes = {
+        "unpinned-file-new": {
+            id: "unpinned-file-new",
+            name: "Unpinned new.pdf",
+            type: "file",
+            parentId: null,
+            size: 1,
+            createdAt: 1,
+            updatedAt: 8,
+            isPinned: false,
+            metadata: { pageNumber: 1 },
+        },
+        "pinned-folder-old": {
+            id: "pinned-folder-old",
+            name: "Pinned old folder",
+            type: "folder",
+            parentId: null,
+            childrenIds: [],
+            createdAt: 1,
+            updatedAt: 2,
+            isPinned: true,
+        },
+        "unpinned-folder-old": {
+            id: "unpinned-folder-old",
+            name: "Unpinned old folder",
+            type: "folder",
+            parentId: null,
+            childrenIds: [],
+            createdAt: 1,
+            updatedAt: 3,
+            isPinned: false,
+        },
+        "pinned-file-new": {
+            id: "pinned-file-new",
+            name: "Pinned new.pdf",
+            type: "file",
+            parentId: null,
+            size: 1,
+            createdAt: 1,
+            updatedAt: 7,
+            metadata: { pageNumber: 1 },
+            isPinned: true,
+        },
+        "pinned-folder-new": {
+            id: "pinned-folder-new",
+            name: "Pinned new folder",
+            type: "folder",
+            parentId: null,
+            childrenIds: [],
+            createdAt: 1,
+            updatedAt: 6,
+            isPinned: true,
+        },
+        "unpinned-folder-new": {
+            id: "unpinned-folder-new",
+            name: "Unpinned new folder",
+            type: "folder",
+            parentId: null,
+            childrenIds: [],
+            createdAt: 1,
+            updatedAt: 5,
+            isPinned: false,
+        },
+        "pinned-file-old": {
+            id: "pinned-file-old",
+            name: "Pinned old.pdf",
+            type: "file",
+            parentId: null,
+            size: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            metadata: { pageNumber: 1 },
+            isPinned: true,
+        },
+        "unpinned-file-old": {
+            id: "unpinned-file-old",
+            name: "Unpinned old.pdf",
+            type: "file",
+            parentId: null,
+            size: 1,
+            createdAt: 1,
+            updatedAt: 4,
+            metadata: { pageNumber: 1 },
+            isPinned: false,
+        },
+    }
+
+    it("sorts by pin and node type before descending recency", () => {
+        const store = new VFSStore(structuredClone(nodes))
+        expect(store.sortedCurrentNodes.map(({ id }) => id)).toEqual([
+            "pinned-folder-new",
+            "pinned-folder-old",
+            "pinned-file-new",
+            "pinned-file-old",
+            "unpinned-folder-new",
+            "unpinned-folder-old",
+            "unpinned-file-new",
+            "unpinned-file-old",
+        ])
+    })
+
+    it.each([
+        ["pinned-file-new", "files"],
+        ["pinned-folder-new", "folders"],
+    ] as const)("persists %s in the correct table before publishing", async (id, table) => {
+        const store = new VFSStore(structuredClone(nodes))
+        let resolveWrite!: () => void
+        const update = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveWrite = resolve
+                }),
+        )
+        const otherUpdate = vi.fn()
+        store.db = {
+            files: { update: table === "files" ? update : otherUpdate },
+            folders: { update: table === "folders" ? update : otherUpdate },
+        } as never
+        const before = store.nodes[id]
+        const pending = store.setNodePinned(id, false)
+
+        expect(store.nodes[id]).toBe(before)
+        expect(store.nodes[id].isPinned).toBe(true)
+        expect(update).toHaveBeenCalledWith(id, { isPinned: false })
+        expect(otherUpdate).not.toHaveBeenCalled()
+
+        resolveWrite()
+        await pending
+        expect(store.nodes[id]).toBe(before)
+        expect(store.nodes[id]).toMatchObject({ isPinned: false, updatedAt: before.updatedAt })
+    })
+
+    it("serializes a delayed pin write with a concurrent metadata update", async () => {
+        const store = new VFSStore(structuredClone(nodes))
+        let resolveFirstWrite!: () => void
+        const update = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveFirstWrite = resolve
+                }),
+        )
+        const put = vi.fn().mockResolvedValue(undefined)
+        store.db = { files: { update, put }, folders: { update: vi.fn(), put: vi.fn() } } as never
+
+        const pin = store.setNodePinned("unpinned-file-new", true)
+        const updateMetadata = store.updateFile("unpinned-file-new", {
+            metadata: { author: "Concurrent author" },
+        })
+
+        expect(update).toHaveBeenCalledTimes(1)
+        expect(put).not.toHaveBeenCalled()
+        resolveFirstWrite()
+        await Promise.all([pin, updateMetadata])
+
+        expect(store.nodes["unpinned-file-new"]).toMatchObject({
+            isPinned: true,
+            metadata: { pageNumber: 1, author: "Concurrent author" },
+        })
+        expect(put).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                isPinned: true,
+                metadata: { pageNumber: 1, author: "Concurrent author" },
+            }),
+        )
+    })
+
+    it("skips unchanged state and leaves memory and ordering unchanged on failure", async () => {
+        const store = new VFSStore(structuredClone(nodes))
+        const update = vi.fn(async () => {
+            throw new Error("disk full")
+        })
+        store.db = { files: { update }, folders: { update } } as never
+        const originalOrder = store.sortedCurrentNodes.map(({ id }) => id)
+        const originalNode = store.nodes["pinned-file-new"]
+
+        await store.setNodePinned("pinned-file-new", true)
+        expect(update).not.toHaveBeenCalled()
+
+        await expect(store.setNodePinned("pinned-file-new", false)).rejects.toThrow("disk full")
+        expect(store.nodes["pinned-file-new"]).toBe(originalNode)
+        expect(store.sortedCurrentNodes.map(({ id }) => id)).toEqual(originalOrder)
     })
 })
 
@@ -89,6 +275,7 @@ describe("VFS metadata enrichment ownership", () => {
                 size: 1,
                 createdAt: 1,
                 updatedAt: 1,
+                isPinned: false,
                 metadata: { pageNumber: 1, totalPages: 10, author: undefined },
             },
         })
@@ -189,6 +376,7 @@ describe("folder names", () => {
             childrenIds: ["folder", "sibling"],
             createdAt: 1,
             updatedAt: 1,
+            isPinned: false,
         },
         folder: {
             id: "folder",
@@ -198,6 +386,7 @@ describe("folder names", () => {
             childrenIds: ["book"],
             createdAt: 2,
             updatedAt: 2,
+            isPinned: false,
         },
         sibling: {
             id: "sibling",
@@ -207,8 +396,23 @@ describe("folder names", () => {
             childrenIds: [],
             createdAt: 3,
             updatedAt: 3,
+            isPinned: false,
         },
     }
+
+    it("creates folders as explicitly unpinned", async () => {
+        const store = new VFSStore()
+        const put = vi.fn(async () => "folder")
+        store.db = {
+            folders: { put },
+            transaction: vi.fn(async (_mode, _tables, callback) => callback()),
+        } as never
+
+        const id = await store.createFolder("New folder", null)
+
+        expect(put).toHaveBeenCalledWith(expect.objectContaining({ id, isPinned: false }))
+        expect(store.nodes[id].isPinned).toBe(false)
+    })
 
     it("persists before atomically publishing a normalized rename", async () => {
         const store = new VFSStore(structuredClone(folders))
@@ -254,6 +458,33 @@ describe("folder names", () => {
         } as never
         await expect(store.renameFolder("folder", "New name")).rejects.toThrow("disk full")
         expect(store.nodes.folder.name).toBe("Old name")
+    })
+
+    it("serializes a delayed parent pin with a concurrent child move", async () => {
+        const store = new VFSStore(structuredClone(folders))
+        let resolvePin!: () => void
+        const update = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolvePin = resolve
+                }),
+        )
+        const put = vi.fn(async () => "folder")
+        const transaction = vi.fn(async (_mode, _tables, callback) => callback())
+        store.db = { folders: { update, put }, transaction } as never
+
+        const pin = store.setNodePinned("parent", true)
+        const move = store.moveNode("folder", null)
+
+        expect(update).toHaveBeenCalledWith("parent", { isPinned: true })
+        expect(transaction).not.toHaveBeenCalled()
+        resolvePin()
+        await Promise.all([pin, move])
+
+        expect(store.nodes.parent).toMatchObject({ isPinned: true, childrenIds: ["sibling"] })
+        expect(put).toHaveBeenCalledWith(
+            expect.objectContaining({ id: "parent", isPinned: true, childrenIds: ["sibling"] }),
+        )
     })
 })
 
@@ -341,6 +572,7 @@ describe("VFS import registration", () => {
             id: result.id,
             name: "corrupt.pdf",
             metadata: { pageNumber: 1 },
+            isPinned: false,
         })
         expect(store.importJobs).toHaveLength(0)
         expect(phases).toEqual(["metadata"])

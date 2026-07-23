@@ -7,6 +7,7 @@ export interface BaseNode {
     parentId: string | null
     createdAt: number
     updatedAt: number
+    isPinned: boolean
 }
 
 export interface BookPreview {

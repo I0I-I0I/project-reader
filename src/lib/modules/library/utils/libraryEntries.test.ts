@@ -10,6 +10,7 @@ const node = (id: string, parentId: string | null): FileNode => ({
     size: 1,
     createdAt: 1,
     updatedAt: 1,
+    isPinned: false,
     metadata: { pageNumber: 1 },
 })
 
@@ -29,6 +30,23 @@ describe("mergeLibraryEntries", () => {
         )
         expect(entries.map(({ id }) => id)).toEqual(["a", "b", "c"])
         expect(entries.every(({ interactive }) => !interactive)).toBe(true)
+    })
+
+    it("keeps persisted node order and appends current-folder jobs in batch order", () => {
+        const entries = mergeLibraryEntries(
+            [node("pinned-folder", null), node("pinned-file", null), node("other", null)],
+            [job("first", null), job("second", null), job("nested", "folder-1")],
+            null,
+        )
+        expect(entries.map(({ id }) => id)).toEqual([
+            "pinned-folder",
+            "pinned-file",
+            "other",
+            "first",
+            "second",
+        ])
+        expect(entries.slice(0, 3).every(({ interactive }) => interactive)).toBe(true)
+        expect(entries.slice(3).every(({ interactive }) => !interactive)).toBe(true)
     })
 
     it("does not duplicate a job after its minimal node appears", () => {

@@ -97,6 +97,7 @@
         background: var(--surface-color);
         color: var(--text-color);
         font-family: var(--ui-font);
+        --sidebar-safe-area-end: 0px;
     }
 
     .sidebar.overlay {
@@ -179,18 +180,12 @@
             overflow: hidden;
             border: 0;
             box-shadow: none;
+            --sidebar-safe-area-end: env(safe-area-inset-bottom);
         }
 
         .sidebar-backdrop {
             position: fixed;
             z-index: 290;
-        }
-
-        .sidebar-body {
-            box-sizing: border-box;
-            padding-right: env(safe-area-inset-right);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
         }
     }
 

@@ -441,7 +441,7 @@
     .sidebar-content {
         flex: 1;
         overflow-y: auto;
-        padding: 12px;
+        padding: 12px 12px calc(12px + var(--sidebar-safe-area-end, 0px));
         overscroll-behavior: contain;
     }
 

@@ -68,6 +68,7 @@ export class VFSStore {
     private previewUrlRefs: Record<string, number> = {}
     private previewUrlRequests = new Map<string, Promise<string>>()
     private persistenceQueue = pLimit(1)
+    private nodeMutationTail: Promise<void> | undefined
     metadataQueue = pLimit(1)
     private initializationPromise: Promise<void> | null = null
     private metadataEnrichmentOwners = 0
@@ -85,6 +86,20 @@ export class VFSStore {
         this.rootIds = Object.values(initialNodes)
             .filter((node) => node.parentId === null)
             .map((node) => node.id)
+    }
+
+    private serializeNodeMutation<T>(mutation: () => Promise<T>): Promise<T> {
+        const predecessor = this.nodeMutationTail
+        const result = predecessor ? predecessor.then(mutation) : mutation()
+        const tail = result.then(
+            () => undefined,
+            () => undefined,
+        )
+        this.nodeMutationTail = tail
+        void tail.then(() => {
+            if (this.nodeMutationTail === tail) this.nodeMutationTail = undefined
+        })
+        return result
     }
 
     pushForwardHistory(id: string | null) {
@@ -110,10 +125,10 @@ export class VFSStore {
     })
 
     sortedCurrentNodes = $derived.by(() => {
+        const rank = (node: VFSNode) => (node.isPinned ? 0 : 2) + (node.type === "file" ? 1 : 0)
         return [...this.currentNodes].sort((a, b) => {
-            if (a.type === "folder" && b.type !== "folder") return -1
-            if (a.type !== "folder" && b.type === "folder") return 1
-            return b.updatedAt - a.updatedAt
+            const rankDifference = rank(a) - rank(b)
+            return rankDifference || b.updatedAt - a.updatedAt
         })
     })
 
@@ -496,7 +511,9 @@ export class VFSStore {
         this.importJobs = [...this.importJobs, ...accepted]
 
         const saveTasks = accepted.map((job) =>
-            this.persistenceQueue(() => this.persistImport(job, callbacks)),
+            this.persistenceQueue(() =>
+                this.serializeNodeMutation(() => this.persistImport(job, callbacks)),
+            ),
         )
         const completionTasks = accepted.map((job, index) =>
             this.metadataQueue(async () => {
@@ -565,6 +582,7 @@ export class VFSStore {
                 size: file.size,
                 createdAt: now,
                 updatedAt: displayTimestamp,
+                isPinned: false,
                 metadata: { pageNumber: 1 },
                 isLocked: !isFile,
             }
@@ -695,6 +713,10 @@ export class VFSStore {
     }
 
     async renameFolder(id: string, requestedName: string): Promise<void> {
+        return this.serializeNodeMutation(() => this.renameFolderUnlocked(id, requestedName))
+    }
+
+    private async renameFolderUnlocked(id: string, requestedName: string): Promise<void> {
         const node = this.nodes[id]
         if (!node || node.type !== "folder") return
         const name = this.normalizeFolderName(requestedName, node.parentId, id)
@@ -705,7 +727,26 @@ export class VFSStore {
         this.nodes[id] = updated
     }
 
+    async setNodePinned(id: string, isPinned: boolean): Promise<void> {
+        return this.serializeNodeMutation(() => this.setNodePinnedUnlocked(id, isPinned))
+    }
+
+    private async setNodePinnedUnlocked(id: string, isPinned: boolean): Promise<void> {
+        const node = this.nodes[id]
+        if (!node || node.isPinned === isPinned) return
+
+        if (node.type === "folder") await this.db.folders.update(id, { isPinned })
+        else await this.db.files.update(id, { isPinned })
+
+        const current = this.nodes[id]
+        if (current) current.isPinned = isPinned
+    }
+
     async createFolder(name: string, parentId: string | null): Promise<string> {
+        return this.serializeNodeMutation(() => this.createFolderUnlocked(name, parentId))
+    }
+
+    private async createFolderUnlocked(name: string, parentId: string | null): Promise<string> {
         const normalizedName = this.normalizeFolderName(name, parentId)
         const id = crypto.randomUUID()
         const now = Date.now()
@@ -717,6 +758,7 @@ export class VFSStore {
             childrenIds: [],
             createdAt: now,
             updatedAt: now,
+            isPinned: false,
         }
 
         await this.db.transaction("rw", ["folders"], async () => {
@@ -749,6 +791,10 @@ export class VFSStore {
     }
 
     async deleteNode(id: string) {
+        return this.serializeNodeMutation(() => this.deleteNodeUnlocked(id))
+    }
+
+    private async deleteNodeUnlocked(id: string) {
         const rootNode = this.nodes[id]
         if (!rootNode) return
 
@@ -841,6 +887,16 @@ export class VFSStore {
         updates: Omit<Partial<FileNode>, "metadata"> & { metadata?: Partial<BookMetadata> },
         preserveUpdatedAt = false,
     ) {
+        return this.serializeNodeMutation(() =>
+            this.updateFileUnlocked(id, updates, preserveUpdatedAt),
+        )
+    }
+
+    private async updateFileUnlocked(
+        id: string,
+        updates: Omit<Partial<FileNode>, "metadata"> & { metadata?: Partial<BookMetadata> },
+        preserveUpdatedAt: boolean,
+    ) {
         const node = this.nodes[id]
         if (node && node.type === "file") {
             if (updates.name !== undefined) node.name = updates.name
@@ -857,18 +913,20 @@ export class VFSStore {
     async updateNode(id: string, updates: Partial<VFSNode>) {
         const node = this.nodes[id]
         if (!node) return
+        if (node.type === "file") return this.updateFile(id, updates as Partial<FileNode>)
 
-        if (node.type === "file") {
-            await this.updateFile(id, updates as Partial<FileNode>)
-        } else {
+        return this.serializeNodeMutation(async () => {
+            const current = this.nodes[id]
+            if (!current || current.type !== "folder") return
+
             const folderUpdates = updates as Partial<FolderNode>
-            if (folderUpdates.name !== undefined) node.name = folderUpdates.name
+            if (folderUpdates.name !== undefined) current.name = folderUpdates.name
             if (folderUpdates.childrenIds !== undefined)
-                node.childrenIds = folderUpdates.childrenIds
+                current.childrenIds = folderUpdates.childrenIds
 
-            node.updatedAt = Date.now()
-            await this.db.folders.put($state.snapshot(node) as FolderNode)
-        }
+            current.updatedAt = Date.now()
+            await this.db.folders.put($state.snapshot(current) as FolderNode)
+        })
     }
 
     async savePreview(
@@ -891,14 +949,16 @@ export class VFSStore {
 
         await this.db.previews.put({ id, data: blob })
 
-        const node = this.nodes[id]
-        if (node && node.type === "file") {
-            const existingUrl = this.previewUrls[id]
-            if (existingUrl) URL.revokeObjectURL(existingUrl)
-            delete this.previewUrls[id]
-            if (!preserveUpdatedAt) node.updatedAt = Date.now()
-            await this.saveFileToDb(node)
-        }
+        await this.serializeNodeMutation(async () => {
+            const node = this.nodes[id]
+            if (node && node.type === "file") {
+                const existingUrl = this.previewUrls[id]
+                if (existingUrl) URL.revokeObjectURL(existingUrl)
+                delete this.previewUrls[id]
+                if (!preserveUpdatedAt) node.updatedAt = Date.now()
+                await this.saveFileToDb(node)
+            }
+        })
     }
 
     async restoreFileAccess(id: string): Promise<string> {
@@ -906,11 +966,13 @@ export class VFSStore {
         const url = await this.getFileUrl(id, true)
         if (!url) throw new Error("Failed to restore file access")
 
-        const node = this.nodes[id]
-        if (node && node.type === "file") {
-            node.updatedAt = Date.now()
-            await this.saveFileToDb(node)
-        }
+        await this.serializeNodeMutation(async () => {
+            const node = this.nodes[id]
+            if (node && node.type === "file") {
+                node.updatedAt = Date.now()
+                await this.saveFileToDb(node)
+            }
+        })
 
         return url
     }
@@ -944,13 +1006,15 @@ export class VFSStore {
             this.nativeFiles.delete(id)
         }
 
-        const node = this.nodes[id]
-        if (node && node.type === "file") {
-            node.isLocked = false
-            this.isLockedMap[id] = false
-            node.updatedAt = Date.now()
-            await this.saveFileToDb(node)
-        }
+        await this.serializeNodeMutation(async () => {
+            const node = this.nodes[id]
+            if (node && node.type === "file") {
+                node.isLocked = false
+                this.isLockedMap[id] = false
+                node.updatedAt = Date.now()
+                await this.saveFileToDb(node)
+            }
+        })
     }
 
     private async saveFileToDb(node: FileNode): Promise<void> {
@@ -963,6 +1027,10 @@ export class VFSStore {
     }
 
     async moveNode(id: string, newParentId: string | null) {
+        return this.serializeNodeMutation(() => this.moveNodeUnlocked(id, newParentId))
+    }
+
+    private async moveNodeUnlocked(id: string, newParentId: string | null) {
         const node = this.nodes[id]
         if (!node) return
 
