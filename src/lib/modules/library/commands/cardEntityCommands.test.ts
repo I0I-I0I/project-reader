@@ -146,6 +146,41 @@ describe("bound library card commands", () => {
         expect(toggleReadState).toHaveBeenLastCalledWith({ nodeId: "book", markAsRead: false })
     })
 
+    it("describes and forwards deterministic pin targets", async () => {
+        let pinned = false
+        const setMenuOpen = vi.fn()
+        const togglePinned = vi.fn().mockResolvedValue(undefined)
+        const commands = createLibraryCardCommands({
+            getNodeId: () => "book",
+            isExecutable: () => true,
+            isSelected: () => false,
+            isRead: () => false,
+            isPinned: () => pinned,
+            setMenuOpen,
+            openNode: vi.fn(),
+            toggleSelection: vi.fn(),
+            moveNode: vi.fn(),
+            togglePinned,
+            deleteNode: vi.fn(),
+            editMetadata: vi.fn(),
+            toggleReadState: vi.fn(),
+            relink: vi.fn(),
+        })
+        const command = commands["library.node.pin.toggle"]
+
+        expect(command.label()).toBe(m.pin())
+        expect(command.englishLabel?.()).toBe(m.pin({}, { locale: "en" }))
+        await command.run(undefined)
+        expect(setMenuOpen).toHaveBeenLastCalledWith(false)
+        expect(togglePinned).toHaveBeenLastCalledWith({ nodeId: "book", isPinned: true })
+
+        pinned = true
+        expect(command.label()).toBe(m.unpin())
+        expect(command.englishLabel?.()).toBe(m.unpin({}, { locale: "en" }))
+        await command.run({ isPinned: true })
+        expect(togglePinned).toHaveBeenLastCalledWith({ nodeId: "book", isPinned: true })
+    })
+
     it("binds r to the type-appropriate rename action", async () => {
         const folderCommands = createLibraryCardCommands({
             getNodeId: () => "folder",

@@ -10,6 +10,7 @@ export interface LibraryCardCommandContext {
     isExecutable: () => boolean
     isSelected: () => boolean
     isRead: () => boolean
+    isPinned?: () => boolean
     canToggleReadState?: () => boolean
     canEditMetadata?: () => boolean
     canRenameFolder?: () => boolean
@@ -22,6 +23,9 @@ export interface LibraryCardCommandContext {
     ) => Promise<void>
     moveNode: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.node.move"]>>,
+    ) => Promise<void>
+    togglePinned?: (
+        payload: WithNodeId<NonNullable<AppCommandPayloads["library.node.pin.toggle"]>>,
     ) => Promise<void>
     deleteNode: (
         payload: WithNodeId<NonNullable<AppCommandPayloads["library.node.delete"]>>,
@@ -102,6 +106,24 @@ export function createLibraryCardCommands(context: LibraryCardCommandContext) {
                 if (!merged) return
                 closeMenu()
                 await context.moveNode(merged)
+            },
+        },
+        "library.node.pin.toggle": {
+            id: "library.node.pin.toggle",
+            label: () => (context.isPinned?.() ? m.unpin() : m.pin()),
+            englishLabel: () =>
+                context.isPinned?.() ? m.unpin({}, { locale: "en" }) : m.pin({}, { locale: "en" }),
+            category: "commands",
+            disabled: () => !context.isExecutable(),
+            palette: true,
+            run: async (payload) => {
+                const merged = withNodeId({
+                    ...payload,
+                    isPinned: payload?.isPinned ?? !context.isPinned?.(),
+                })
+                if (!merged) return
+                closeMenu()
+                await context.togglePinned?.(merged)
             },
         },
         "library.node.delete": {

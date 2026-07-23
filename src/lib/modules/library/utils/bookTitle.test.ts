@@ -10,6 +10,7 @@ const book: FileNode = {
     size: 1,
     createdAt: 1,
     updatedAt: 1,
+    isPinned: false,
     metadata: { pageNumber: 1, pdfTitle: "  Embedded title  " },
 }
 

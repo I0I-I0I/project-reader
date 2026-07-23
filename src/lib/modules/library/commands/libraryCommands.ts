@@ -436,6 +436,18 @@ export function createLibraryCommands(libraryUI: LibraryUIController) {
                 await moveNodes(libraryUI, [nodeId], targetFolderId ?? null)
             },
         },
+        "library.node.pin.toggle": {
+            id: "library.node.pin.toggle",
+            label: () => m.pin(),
+            category: "commands",
+            palette: false,
+            run: async (payload) => {
+                if (!payload?.nodeId) return
+                const node = vfsStore.nodes[payload.nodeId]
+                if (!node) return
+                await vfsStore.setNodePinned(node.id, payload.isPinned ?? !node.isPinned)
+            },
+        },
         "library.node.delete": {
             id: "library.node.delete",
             label: () => m.delete_selected(),

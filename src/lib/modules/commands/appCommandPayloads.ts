@@ -50,6 +50,7 @@ export interface AppCommandPayloads {
     "library.selection.move": { nodeIds?: string[]; targetFolderId?: string | null } | undefined
     "library.selection.delete": { nodeIds?: string[]; confirmed?: boolean } | undefined
     "library.node.move": { nodeId?: string; targetFolderId?: string | null } | undefined
+    "library.node.pin.toggle": { nodeId?: string; isPinned?: boolean } | undefined
     "library.node.delete": { nodeId?: string; confirmed?: boolean } | undefined
     "library.node.edit-metadata":
         | {

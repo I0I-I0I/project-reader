@@ -10,6 +10,7 @@
     import TrashIcon from "$lib/shared/icons/TrashIcon.svelte"
     import NavigationIcon from "$lib/shared/icons/NavigationIcon.svelte"
     import MoreVerticalIcon from "$lib/shared/icons/MoreVerticalIcon.svelte"
+    import PinIcon from "$lib/shared/icons/PinIcon.svelte"
     import FolderIcon from "$lib/shared/icons/FolderIcon.svelte"
     import CheckIcon from "$lib/shared/icons/CheckIcon.svelte"
     import EditIcon from "$lib/shared/icons/EditIcon.svelte"
@@ -57,6 +58,7 @@
         getNodeId: () => node?.id,
         isExecutable: () => !isPlaceholder && !isRestoring,
         isSelected: () => (node ? vfsStore.selectedIds.has(node.id) : false),
+        isPinned: () => !!node?.isPinned,
         isRead: () =>
             !!(
                 node &&
@@ -87,6 +89,9 @@
         },
         moveNode: async (payload) => {
             await commandsNode.parent?.execute("library.node.move", payload)
+        },
+        togglePinned: async (payload) => {
+            await commandsNode.parent?.execute("library.node.pin.toggle", payload)
         },
         deleteNode: async (payload) => {
             await commandsNode.parent?.execute("library.node.delete", payload)
@@ -123,6 +128,7 @@
     }
 
     const isSelected = $derived(node ? vfsStore.selectedIds.has(node.id) : false)
+    const isPinned = $derived(!!node?.isPinned)
     const kind = $derived.by(() => {
         if (isPlaceholder || node?.type === "file") return "book"
         return "folder"
@@ -218,6 +224,15 @@
         if (node) void commandsNode.execute("library.node.move", { nodeId: node.id })
     }
 
+    const onPin = (event: MouseEvent) => {
+        event.stopPropagation()
+        if (!node) return
+        void commandsNode.execute("library.node.pin.toggle", {
+            nodeId: node.id,
+            isPinned: !isPinned,
+        })
+    }
+
     const onSelect = (event: MouseEvent) => {
         event.stopPropagation()
         if (!node) return
@@ -275,7 +290,7 @@
     class:is-selected={isSelected}
     class:menu-open={showMenu}
     role="group"
-    aria-label={`${book?.name ?? node?.name ?? importJob?.name ?? name}${isSelected ? `, ${m.selected_label()}` : ""}`}
+    aria-label={`${book?.name ?? node?.name ?? importJob?.name ?? name}${isPinned ? `, ${m.pinned()}` : ""}${isSelected ? `, ${m.selected_label()}` : ""}`}
     onmouseleave={handleMouseLeave}
     onfocusin={handleFocus}
     onfocusout={handleFocusOut}
@@ -370,6 +385,12 @@
         </div>
     </button>
 
+    {#if isPinned}
+        <div class="pin-marker" aria-hidden="true">
+            <PinIcon />
+        </div>
+    {/if}
+
     {#if !isPlaceholder && !libraryUI.isSelectionMode && (kind === "book" || kind === "folder")}
         <div class="card-menu">
             <Dropdown align="right" bind:isOpen={showMenu}>
@@ -395,6 +416,10 @@
                 <Button variant="none" class="dropdown-item" role="menuitem" onclick={onMove}>
                     <NavigationIcon class="dropdown-icon" />
                     <span>{m.move()}</span>
+                </Button>
+                <Button variant="none" class="dropdown-item" role="menuitem" onclick={onPin}>
+                    <PinIcon class="dropdown-icon" />
+                    <span>{isPinned ? m.unpin() : m.pin()}</span>
                 </Button>
                 {#if kind === "folder"}
                     <Button variant="none" class="dropdown-item" role="menuitem" onclick={onRename}>
@@ -454,6 +479,27 @@
 
     .card-shell.menu-open {
         z-index: var(--z-dropdown);
+    }
+
+    .pin-marker {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        z-index: var(--z-10);
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        color: var(--active-text-color);
+        background: var(--active-color);
+        border: 1.5px solid var(--border-color);
+        box-shadow: 2px 2px 0 var(--shadow-color);
+        pointer-events: none;
+    }
+
+    .pin-marker :global(svg) {
+        width: 14px;
+        height: 14px;
     }
 
     .card {
@@ -797,6 +843,13 @@
             right: 8px;
         }
 
+        .pin-marker {
+            right: 8px;
+            bottom: 8px;
+            width: 20px;
+            height: 20px;
+        }
+
         :global(.menu-btn) {
             opacity: 1;
             pointer-events: auto;
@@ -849,6 +902,12 @@
         .card-menu {
             top: 8px;
             right: 8px;
+        }
+
+        .pin-marker {
+            top: 10px;
+            right: 52px;
+            bottom: auto;
         }
 
         .progress-container {
