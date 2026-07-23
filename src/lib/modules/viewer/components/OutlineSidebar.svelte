@@ -275,7 +275,9 @@
 <style>
     .sidebar-content {
         flex: 1;
+        box-sizing: border-box;
         overflow-y: auto;
+        padding-bottom: var(--sidebar-safe-area-end, 0px);
         background: transparent;
         overscroll-behavior: contain;
     }
@@ -397,7 +399,7 @@
 
     @media (--tiny-mobile) {
         .outline-nav {
-            padding: 4px 0 calc(16px + env(safe-area-inset-bottom));
+            padding: 4px 0 16px;
         }
 
         .outline-nav :global(.outline-item) {
