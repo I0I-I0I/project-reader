@@ -1,22 +1,10 @@
 {
-	# The immutable runtime is configured entirely by this file.
+	# TLS and public routing are handled by the host Caddy instance.
 	admin off
+	auto_https off
 }
 
-http://{$PRODUCTION_HOST:localhost} {
-	handle /health/version {
-		root * /srv
-		header Cache-Control "no-store"
-		header Content-Type "text/plain; charset=utf-8"
-		file_server
-	}
-
-	handle {
-		redir https://{$PRODUCTION_HOST:localhost}{uri} 308
-	}
-}
-
-{$PRODUCTION_HOST:localhost} {
+:80 {
 	encode zstd gzip
 
 	header {

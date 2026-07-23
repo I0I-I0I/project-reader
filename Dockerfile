@@ -23,6 +23,6 @@ COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/dist /srv
 RUN mkdir -p /srv/health \
     && printf '%s\n' "$RELEASE" > /srv/health/version \
-    && PRODUCTION_HOST=localhost caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+    && caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
-EXPOSE 80 443 443/udp
+EXPOSE 80
