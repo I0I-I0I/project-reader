@@ -13,12 +13,7 @@ services:
         environment:
             PRODUCTION_HOST: ${PRODUCTION_HOST:-localhost}
         ports:
-            - "80:80"
-            - "443:443"
-            - "443:443/udp"
-        volumes:
-            - caddy_data:/data
-            - caddy_config:/config
+            - "127.0.0.1:8000:80"
         tmpfs:
             - /tmp:size=16m,mode=1777
         healthcheck:
@@ -40,7 +35,3 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
-
-volumes:
-    caddy_data:
-    caddy_config:
